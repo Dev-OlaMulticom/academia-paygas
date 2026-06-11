@@ -1,7 +1,10 @@
+import { encrypt, decrypt } from './crypto'
+
 const API_BASE = '/api'
 
 class ApiClient {
   private token: string | null = null
+  private encryptionEnabled = true
 
   constructor() {
     this.token = localStorage.getItem('token')
@@ -17,8 +20,10 @@ class ApiClient {
   }
 
   private async request<T>(path: string, options: RequestInit = {}): Promise<T> {
+    const method = options.method || 'GET'
+    const isWrite = method === 'POST' || method === 'PUT' || method === 'PATCH'
+
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...((options.headers as Record<string, string>) || {}),
     }
 
@@ -26,14 +31,47 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.token}`
     }
 
-    const res = await fetch(`${API_BASE}${path}`, { ...options, headers })
+    let body = options.body as string | undefined
+
+    // Encrypt write requests with payload
+    if (isWrite && body && this.encryptionEnabled) {
+      try {
+        const parsed = JSON.parse(body)
+        const encryptedPayload = await encrypt(JSON.stringify(parsed))
+        body = JSON.stringify({ encrypted: encryptedPayload })
+        headers['Content-Type'] = 'application/json'
+        headers['X-Encrypted'] = 'true'
+      } catch {
+        // If body isn't JSON, pass through
+      }
+    } else if (body && !headers['Content-Type']) {
+      headers['Content-Type'] = 'application/json'
+    }
+
+    const res = await fetch(`${API_BASE}${path}`, {
+      ...options,
+      body,
+      headers,
+    })
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ error: 'Erro desconhecido' }))
       throw new Error(error.error || `HTTP ${res.status}`)
     }
 
-    return res.json()
+    const data = await res.json()
+
+    // Decrypt encrypted response
+    if (data?.encrypted && this.encryptionEnabled) {
+      try {
+        const decrypted = await decrypt(data.encrypted)
+        return JSON.parse(decrypted)
+      } catch {
+        return data
+      }
+    }
+
+    return data
   }
 
   // Auth
