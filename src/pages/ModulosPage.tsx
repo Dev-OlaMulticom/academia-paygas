@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { VideoPlayer } from '../components/VideoPlayer'
 
+
 export function ModulosPage() {
   const navigate = useNavigate()
   const { moduloId } = useParams<{ moduloId: string }>()
@@ -80,7 +81,7 @@ export function ModulosPage() {
     <div className="page active">
       <div className="page-header">
         <div>
-          <button className="btn-secondary" onClick={() => navigate(-1)} style={{ marginBottom: '8px' }}>← Voltar</button>
+          <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }} onClick={() => navigate(-1)}><i className="icon-arrow-left icon-sm" /> Voltar</button>
           <div className="page-title">Módulo</div>
           <div className="page-subtitle">{modulo?.titulo || modulo?.title || ''} · {lessons.length} aulas</div>
         </div>
@@ -93,12 +94,12 @@ export function ModulosPage() {
           </div>
           {lessons.map((lesson, i) => (
             <div key={lesson.id || i} className={`lesson-item ${i === currentLesson ? 'active' : ''} ${lesson.concluido ? 'done' : ''}`} onClick={() => { setCurrentLesson(i); setShowQuiz(false); setSelectedAnswers({}) }}>
-              <div className="lesson-num">{lesson.concluido ? '✓' : i + 1}</div>
+              <div className="lesson-num">{lesson.concluido ? <i className="icon-check icon-sm" /> : i + 1}</div>
               <div className="lesson-item-info">
                 <b>{lesson.titulo}</b>
                 <span>{lesson.tipo || 'video'} · {lesson.duracaoMin || 10} min</span>
               </div>
-              {lesson.concluido && <span className="lesson-check">✓</span>}
+              {lesson.concluido && <span className="lesson-check"><i className="icon-check icon-sm" /></span>}
             </div>
           ))}
         </div>
@@ -116,7 +117,7 @@ export function ModulosPage() {
               ) : current?.tipo === 'pdf' && current?.pdfUrl ? (
                 <div className="lesson-video">
                   <div className="lesson-video-placeholder">
-                    <div className="play-btn">📄</div>
+                    <div className="play-btn"><i className="icon-file-text icon-xl" /></div>
                     <p>Conteúdo PDF</p>
                     <a href={current.pdfUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#0A2E6E', textDecoration: 'underline' }}>Abrir PDF</a>
                   </div>
@@ -124,7 +125,7 @@ export function ModulosPage() {
               ) : (
                 <div className="lesson-video">
                   <div className="lesson-video-placeholder">
-                    <div className="play-btn">📄</div>
+                    <div className="play-btn"><i className="icon-file-text icon-xl" /></div>
                     <p>Conteúdo de Leitura</p>
                     <small style={{ opacity: .5 }}>Material disponível para download</small>
                   </div>
@@ -142,7 +143,7 @@ export function ModulosPage() {
                 <div className="lesson-objectives">
                   {current?.objetivos && current?.objetivos.length > 0 ? (
                     <>
-                      <h4>🎯 Objetivos de Aprendizado</h4>
+                      <h4 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><i className="icon-target icon-md" /> Objetivos de Aprendizado</h4>
                       <ul>
                         {current.objetivos.map((obj: string, i: number) => (
                           <li key={i}>{obj}</li>
@@ -152,10 +153,10 @@ export function ModulosPage() {
                   ) : null}
                 </div>
                 <div className="lesson-actions">
-                  <button className="btn-primary" onClick={handleComplete}>
-                    {current?.tipo === 'quiz' ? 'Iniciar Quiz' : 'Concluir e Avançar ➜'}
+                  <button className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }} onClick={handleComplete}>
+                    {current?.tipo === 'quiz' ? 'Iniciar Quiz' : <><span>Concluir e Avançar</span><i className="icon-chevron-right icon-sm" /></>}
                   </button>
-                  {currentLesson > 0 && <button className="btn-secondary" onClick={() => { setCurrentLesson(currentLesson - 1); setShowQuiz(false) }}>← Anterior</button>}
+                  {currentLesson > 0 && <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => { setCurrentLesson(currentLesson - 1); setShowQuiz(false) }}><i className="icon-arrow-left icon-sm" /> Anterior</button>}
                 </div>
               </div>
             </>

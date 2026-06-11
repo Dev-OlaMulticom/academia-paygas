@@ -3,6 +3,7 @@ import type { User } from '../hooks/useAuth'
 import { PERSONAS } from '../data/constants'
 import { api } from '../lib/api'
 
+
 interface UsuariosPageProps {
   user: User
 }
@@ -65,6 +66,15 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
     }
   }
 
+  const getPersonaIcon = (role: string) => {
+    switch (role) {
+      case 'ADMIN': return <i className="icon-globe icon-sm" />
+      case 'GESTOR': return <i className="icon-fuel icon-sm" />
+      case 'ATENDENTE': return <i className="icon-user icon-sm" />
+      default: return <i className="icon-user icon-sm" />
+    }
+  }
+
   return (
     <div className="page active">
       <div className="page-header">
@@ -72,8 +82,8 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
         <button className="btn-primary" onClick={() => setShowCreateModal(true)}>+ Novo Usuário</button>
       </div>
       <div className="cards-grid">
-        <div className="stat-card"><div className="stat-card-icon" style={{ background: '#E6EEF9' }}>👥</div><div className="stat-card-val">{usuarios.length}</div><div className="stat-card-label">Total de Usuários</div></div>
-        <div className="stat-card"><div className="stat-card-icon" style={{ background: '#DCFCE7' }}>✅</div><div className="stat-card-val">{usuarios.length}</div><div className="stat-card-label">Usuários Ativos</div></div>
+        <div className="stat-card"><div className="stat-card-icon" style={{ background: '#E6EEF9' }}><i className="icon-users icon-lg" /></div><div className="stat-card-val">{usuarios.length}</div><div className="stat-card-label">Total de Usuários</div></div>
+        <div className="stat-card"><div className="stat-card-icon" style={{ background: '#DCFCE7' }}><i className="icon-check icon-lg" /></div><div className="stat-card-val">{usuarios.length}</div><div className="stat-card-label">Usuários Ativos</div></div>
       </div>
       <div className="table-wrap">
         <table>
@@ -83,26 +93,34 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
             </tr>
           </thead>
           <tbody>
-            {usuarios.map((u) => (
-              <tr key={u.id}>
-                <td>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <div className="user-avatar" style={{ width: '30px', height: '30px', fontSize: '10px', flexShrink: 0, background: PERSONAS[u.role as keyof typeof PERSONAS]?.color || '#999' }}>
-                      {u.nome?.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+            {usuarios.length > 0 ? (
+              usuarios.map((u) => (
+                <tr key={u.id}>
+                  <td>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                      <div className="user-avatar" style={{ width: '30px', height: '30px', fontSize: '10px', flexShrink: 0, background: PERSONAS[u.role as keyof typeof PERSONAS]?.color || '#999' }}>
+                        {u.nome?.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                      </div>
+                      <b>{u.nome}</b>
                     </div>
-                    <b>{u.nome}</b>
-                  </div>
-                </td>
-                <td style={{ color: 'var(--gray-500)' }}>{u.email}</td>
-                <td><span className="track-badge badge-new" style={{ fontSize: '11px' }}>{PERSONAS[u.role as keyof typeof PERSONAS]?.icon} {PERSONAS[u.role as keyof typeof PERSONAS]?.label}</span></td>
-                <td><b style={{ color: 'var(--pg-orange)' }}>{(u.xp || 0).toLocaleString('pt-BR')}</b></td>
-                <td style={{ color: 'var(--gray-500)', fontSize: '12px' }}>{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('pt-BR') : 'Nunca'}</td>
-                <td style={{ display: 'flex', gap: '6px' }}>
-                  <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px' }} onClick={() => setEditingUser({ ...u })}>✏️ Editar</button>
-                  {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)' }} onClick={() => handleDelete(u.id)}>🗑️</button>}
+                  </td>
+                  <td style={{ color: 'var(--gray-500)' }}>{u.email}</td>
+                  <td><span className="track-badge badge-new" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{getPersonaIcon(u.role)} {PERSONAS[u.role as keyof typeof PERSONAS]?.label}</span></td>
+                  <td><b style={{ color: 'var(--pg-orange)' }}>0</b></td>
+                  <td style={{ color: 'var(--gray-500)', fontSize: '12px' }}>{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('pt-BR') : 'Nunca'}</td>
+                  <td style={{ display: 'flex', gap: '6px' }}>
+                    <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingUser({ ...u })}><i className="icon-pencil icon-xs" /> Editar</button>
+                    {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDelete(u.id)}><i className="icon-trash-2 icon-xs" /></button>}
+                  </td>
+                </tr>
+              ))
+            ) : (
+              <tr>
+                <td colSpan={6} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '40px' }}>
+                  Dados não carregados
                 </td>
               </tr>
-            ))}
+            )}
           </tbody>
         </table>
       </div>

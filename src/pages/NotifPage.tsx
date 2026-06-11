@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
 
+
 interface NotifPageProps {
   user: User
 }
@@ -61,14 +62,14 @@ export function NotifPage({ user }: NotifPageProps) {
       <div className="page-header">
         <div className="page-title">Notificações {unreadCount > 0 && `(${unreadCount} não lidas)`}</div>
         <div style={{ display: 'flex', gap: '8px' }}>
-          <button className="btn-secondary" onClick={handleMarkAllRead}>✓ Marcar todas como lidas</button>
+          <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={handleMarkAllRead}><i className="icon-check icon-sm" /> Marcar todas como lidas</button>
           {(isAdmin || isGestor) && <button className="btn-primary" onClick={() => setShowSendModal(true)}>+ Enviar Mensagem</button>}
         </div>
       </div>
       <div className="notif-list">
         {notifs.map((notif) => (
           <div key={notif.id} className={`notif-item ${!notif.lida ? 'unread' : ''}`}>
-            <div className="notif-icon" style={{ background: !notif.lida ? 'var(--pg-orange-lt)' : 'var(--gray-100)' }}>🔔</div>
+            <div className="notif-icon" style={{ background: !notif.lida ? 'var(--pg-orange-lt)' : 'var(--gray-100)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}><i className="icon-bell icon-md" /></div>
             <div className="notif-body">
               <b>{notif.titulo}</b>
               <p>{notif.mensagem}</p>

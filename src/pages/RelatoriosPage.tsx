@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
 
+
 interface RelatoriosPageProps {
   user: User
 }
@@ -33,7 +34,7 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
         completionRate,
         averageQuizScore: 0,
         activeUsers: totalUsers,
-        totalXP: users.reduce((sum: number, u: any) => sum + (u.xp || 0), 0)
+        totalXP: 0
       })
       
       setActivityLogs([])
@@ -64,23 +65,23 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
       </div>
       <div className="cards-grid">
         <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#DCFCE7' }}>📊</div>
+          <div className="stat-card-icon" style={{ background: '#DCFCE7' }}><i className="icon-bar-chart-3 icon-lg" /></div>
           <div className="stat-card-val">{stats?.completionRate || 0}%</div>
           <div className="stat-card-label">Taxa de Conclusão</div>
         </div>
         <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#FEF3C7' }}>⭐</div>
+          <div className="stat-card-icon" style={{ background: '#FEF3C7' }}><i className="icon-star icon-lg" /></div>
           <div className="stat-card-val">{stats?.averageQuizScore || 0}</div>
           <div className="stat-card-label">Nota Média nos Quizzes</div>
         </div>
         <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#E6EEF9' }}>👥</div>
+          <div className="stat-card-icon" style={{ background: '#E6EEF9' }}><i className="icon-users icon-lg" /></div>
           <div className="stat-card-val">{stats?.activeUsers || 0}</div>
           <div className="stat-card-label">Usuários Ativos</div>
         </div>
         <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#FEF0E6' }}>⚡</div>
-          <div className="stat-card-val">{(stats?.totalXP || 0).toLocaleString('pt-BR')}</div>
+          <div className="stat-card-icon" style={{ background: '#FEF0E6' }}><i className="icon-zap icon-lg" /></div>
+          <div className="stat-card-val">0</div>
           <div className="stat-card-label">XP Total da Equipe</div>
         </div>
       </div>
