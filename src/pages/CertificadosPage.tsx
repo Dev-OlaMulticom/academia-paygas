@@ -1,3 +1,5 @@
+
+
 interface CertificadosPageProps {
   tracks: any[]
 }
@@ -74,9 +76,9 @@ export function CertificadosPage({ tracks }: CertificadosPageProps) {
               </div>
             </div>
             <div style={{ padding: '12px 16px', display: 'flex', gap: '8px' }}>
-              <button className="btn-success" style={{ fontSize: '12px', padding: '7px 14px' }} onClick={() => handleDownloadPDF(track)}>📥 Baixar PDF</button>
-              <button className="btn-secondary" style={{ fontSize: '12px', padding: '7px 14px' }} onClick={() => handleDownloadHTML(track)}>📄 Baixar HTML</button>
-              <button className="btn-secondary" style={{ fontSize: '12px', padding: '7px 14px' }}>🔗 Compartilhar</button>
+              <button className="btn-success" style={{ fontSize: '12px', padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => handleDownloadPDF(track)}><i className="icon-download icon-sm" /> Baixar PDF</button>
+              <button className="btn-secondary" style={{ fontSize: '12px', padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => handleDownloadHTML(track)}><i className="icon-file-text icon-sm" /> Baixar HTML</button>
+              <button className="btn-secondary" style={{ fontSize: '12px', padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}><i className="icon-share-2 icon-sm" /> Compartilhar</button>
             </div>
           </div>
         ))}

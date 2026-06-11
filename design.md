@@ -161,7 +161,99 @@ Labels:
 
 ### 3.2 Botoes
 
-#### Primary
+O sistema utiliza o componente **Button** do shadcn/ui, configurado com as cores e estilos da PayGas. Todos os botoes devem seguir o padrao btn-primary para acoes principais.
+
+#### Componente Button (shadcn/ui)
+
+```tsx
+import { Button } from '@/components/ui/button'
+```
+
+#### Variantes Disponiveis
+
+**Primary (Padrao - Acoes principais)**
+```css
+background: #F47C20 (var(--pg-orange))
+color: #fff
+border: none
+border-radius: 6px (var(--radius-sm))
+padding: 10px 20px
+font-size: 13px
+font-weight: 600
+hover: background: #C45E0A (var(--pg-orange-dk))
+```
+
+**Destructive (Acoes destrutivas)**
+```css
+background: #DC2626 (var(--pg-red))
+color: #fff
+border: none
+hover: background: #B91C1C
+```
+
+**Outline (Secundario)**
+```css
+background: #fff
+color: #4B5563 (var(--gray-600))
+border: 1px solid #E5E7EB (var(--gray-200))
+hover: background: #F3F4F6 (var(--gray-100))
+```
+
+**Secondary**
+```css
+background: #F3F4F6 (var(--gray-100))
+color: #374151 (var(--gray-700))
+border: 1px solid #E5E7EB (var(--gray-200))
+hover: background: #E5E7EB (var(--gray-200))
+```
+
+**Ghost (Sem borda)**
+```css
+background: transparent
+color: #4B5563 (var(--gray-600))
+hover: background: #F3F4F6 (var(--gray-100))
+```
+
+**Link**
+```css
+background: transparent
+color: #F47C20 (var(--pg-orange))
+text-decoration: underline
+```
+
+#### Tamanhos Disponiveis
+
+- **default**: height: 40px, padding: 10px 20px, font-size: 13px
+- **sm**: height: 32px, padding: 8px 12px, font-size: 12px
+- **lg**: height: 44px, padding: 12px 28px, font-size: 14px
+- **icon**: size: 40px (quadrado)
+- **icon-sm**: size: 32px
+- **icon-lg**: size: 44px
+
+#### Uso
+
+```tsx
+// Botao primario (padrao)
+<Button>Salvar</Button>
+
+// Botao destrutivo
+<Button variant="destructive">Excluir</Button>
+
+// Botao outline
+<Button variant="outline">Cancelar</Button>
+
+// Botao com icone
+<Button variant="ghost" size="icon">
+  <Menu className="h-5 w-5" />
+</Button>
+
+// Botao primario customizado
+<Button className="btn-primary">Acao Principal</Button>
+```
+
+#### Classes CSS Especificas
+
+**btn-primary** - Deve ser usado para todas as acoes principais do sistema:
 ```css
 .btn-primary {
   background: var(--pg-orange);
@@ -172,27 +264,24 @@ Labels:
   font-size: 13px;
   font-weight: 600;
 }
-```
-
-#### Secondary
-```css
-.btn-secondary {
-  background: #fff;
-  color: var(--gray-700);
-  border: 1px solid var(--gray-200);
-  border-radius: var(--radius-sm);
-  padding: 10px 20px;
+.btn-primary:hover {
+  background: var(--pg-orange-dk);
 }
 ```
 
-#### Success
-```css
-.btn-success {
-  background: var(--pg-green);
-  color: #fff;
-  border: none;
-}
-```
+**Botoes do Sistema (Header e Sidebar):**
+- `#btn-menu` - Botao de menu do header (usa btn-primary)
+- `#btn-notif` - Botao de notificacoes do header (usa btn-primary)
+- `#btn-logout` - Botao de logout do sidebar footer (usa btn-primary)
+
+#### Regras de Uso
+
+1. **Acoes principais**: Sempre usar variante `default` (primary) com cor laranja PayGas
+2. **Acoes secundarias**: Usar variante `outline` ou `secondary`
+3. **Acoes destrutivas**: Usar variante `destructive` com cor vermelha
+4. **Icones**: Usar variante `ghost` com `size="icon"` para botoes com apenas icone
+5. **Links**: Usar variante `link` para acoes que se comportam como links
+6. **Consistencia**: Todos os botoes de acao principal devem seguir o padrao btn-primary
 
 ### 3.3 Badges
 

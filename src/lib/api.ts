@@ -183,11 +183,11 @@ class ApiClient {
   }
 
   async createAula(moduloId: string, data: any) {
-    return db.create('lessons', { ...data, moduloId })
+    return db.create('lessons', { ...data, moduloId, tipo: data.tipo || 'video', microLessons: data.microLessons || [] })
   }
 
   async updateAula(id: string, data: any) {
-    return db.update('lessons', id, data)
+    return db.update('lessons', id, { ...data, tipo: data.tipo || 'video', microLessons: data.microLessons || [] })
   }
 
   async deleteAula(id: string) {
