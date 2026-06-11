@@ -53,9 +53,6 @@ export function AppLayout({ user, xp, tracksCount, onLogout, children }: AppLayo
               <span className="nav-icon">📚</span> Trilhas de Aprendizado
               <span className="nav-badge">{tracksCount}</span>
             </button>
-            <button className={`nav-item ${currentPath === '/modulos' ? 'active' : ''}`} onClick={() => navigate('/modulos')}>
-              <span className="nav-icon">📖</span> Módulos
-            </button>
             <button className={`nav-item ${currentPath === '/certificados' ? 'active' : ''}`} onClick={() => navigate('/certificados')}>
               <span className="nav-icon">🏆</span> Certificados
             </button>
@@ -86,21 +83,10 @@ export function AppLayout({ user, xp, tracksCount, onLogout, children }: AppLayo
             <div className="sidebar-section-label">Suporte</div>
             <button className={`nav-item ${currentPath === '/notif' ? 'active' : ''}`} onClick={() => navigate('/notif')}>
               <span className="nav-icon">🔔</span> Notificações
-              <span className="nav-badge">3</span>
             </button>
             <button className={`nav-item ${currentPath === '/perfil' ? 'active' : ''}`} onClick={() => navigate('/perfil')}>
               <span className="nav-icon">👤</span> Meu Perfil
             </button>
-          </div>
-          <div className="sidebar-xp">
-            <div className="xp-label">
-              <span>⚡ XP Acumulado</span>
-              <span>{xp.toLocaleString('pt-BR')} pts</span>
-            </div>
-            <div className="xp-bar">
-              <div className="xp-fill" style={{ width: `${(xp % 2000) / 2000 * 100}%` }}></div>
-            </div>
-            <div className="xp-pts">Próximo nível: {2000 - (xp % 2000)} pts restantes</div>
           </div>
         </nav>
         <div className="main">

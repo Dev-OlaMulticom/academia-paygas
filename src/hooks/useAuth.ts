@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { PERSONAS, TRACKS } from '../data/constants'
+import { PERSONAS } from '../data/constants'
 import { api } from '../lib/api'
 
 export interface User {
@@ -44,9 +44,7 @@ export function useAuth() {
   }
 
   const getMyTracks = () => {
-    if (!user) return []
-    if (user.role === 'ADMIN') return TRACKS
-    return TRACKS.filter(t => t.personas.includes(user.role))
+    return []
   }
 
   const persona = user ? PERSONAS[user.role as keyof typeof PERSONAS] : null
