@@ -27,12 +27,8 @@ export function NotifPage({ user }: NotifPageProps) {
       setNotifs(notifsData)
       setEquipe(equipeData)
     } catch {
-      setNotifs([
-        { id: '1', titulo: 'Novo módulo disponível!', mensagem: '"Cashback" foi publicado.', lida: false, createdAt: new Date().toISOString(), from: { nome: 'Admin' } },
-        { id: '2', titulo: 'Você subiu de nível!', mensagem: 'Parabéns! Nível 2.', lida: false, createdAt: new Date(Date.now() - 86400000).toISOString(), from: { nome: 'Sistema' } },
-        { id: '3', titulo: 'Certificado emitido', mensagem: 'Seu certificado está disponível.', lida: true, createdAt: new Date(Date.now() - 345600000).toISOString(), from: { nome: 'Sistema' } },
-      ])
-      setEquipe([{ id: '1', nome: 'Ana Paula Costa' }, { id: '2', nome: 'João Silva' }])
+      setNotifs([])
+      setEquipe([])
     } finally { setLoading(false) }
   }
 

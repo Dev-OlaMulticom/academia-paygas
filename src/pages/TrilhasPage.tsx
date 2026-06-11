@@ -20,32 +20,13 @@ export function TrilhasPage({ tracks }: TrilhasPageProps) {
       const data = await api.getTrilhas()
       setDbTracks(data)
     } catch {
-      // Use props tracks as fallback
-      setDbTracks(tracks.map((t, i) => ({
-        ...t,
-        titulo: t.label,
-        descricao: t.desc,
-        lessons: t.lessons,
-        obrigatorio: t.required,
-        color: t.color,
-        icon: t.icon,
-        progressPercent: [100, 72, 45, 0, 100, 30, 60, 0][i] || 0,
-      })))
+      setDbTracks([])
     } finally {
       setLoading(false)
     }
   }
 
-  const displayTracks = dbTracks.length > 0 ? dbTracks : tracks.map((t, i) => ({
-    ...t,
-    titulo: t.label,
-    descricao: t.desc,
-    lessons: t.lessons,
-    obrigatorio: t.required,
-    color: t.color,
-    icon: t.icon,
-    progressPercent: [100, 72, 45, 0, 100, 30, 60, 0][i] || 0,
-  }))
+  const displayTracks = dbTracks
 
   return (
     <div className="page active">
@@ -54,18 +35,12 @@ export function TrilhasPage({ tracks }: TrilhasPageProps) {
           <div className="page-title">Trilhas de Aprendizado</div>
           <div className="page-subtitle">{displayTracks.length} trilhas disponíveis</div>
         </div>
-        <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          <button className="track-badge badge-progress" style={{ cursor: 'pointer', padding: '6px 14px', fontSize: '12px' }}>Todas</button>
-          <button className="track-badge badge-new" style={{ cursor: 'pointer', padding: '6px 14px', fontSize: '12px' }}>Obrigatórias</button>
-          <button className="track-badge badge-new" style={{ cursor: 'pointer', padding: '6px 14px', fontSize: '12px' }}>Em Andamento</button>
-          <button className="track-badge badge-new" style={{ cursor: 'pointer', padding: '6px 14px', fontSize: '12px' }}>Concluídas</button>
-        </div>
       </div>
       <div className="track-grid">
         {displayTracks.map((track: any, i: number) => {
           const progress = track.progressPercent ?? [100, 72, 45, 0, 100, 30, 60, 0, 85, 55, 20, 40][i] ?? 0
           return (
-            <div key={track.id || i} className="track-card" onClick={() => navigate('/modulos')}>
+            <div key={track.id || i} className="track-card" onClick={() => navigate(`/trilhas/${track.id || i}`)}>
               <div className="track-card-top">
                 <div className="track-icon" style={{ background: track.color }}>{track.icon}</div>
                 <div className="track-card-info">

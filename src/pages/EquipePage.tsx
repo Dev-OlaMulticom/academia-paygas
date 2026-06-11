@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react'
 import type { User } from '../hooks/useAuth'
 import { PERSONAS } from '../data/constants'
+import { api } from '../lib/api'
 
 interface EquipePageProps {
   user: User
@@ -8,12 +10,33 @@ interface EquipePageProps {
 export function EquipePage({ user }: EquipePageProps) {
   const isAdmin = user?.role === 'ADMIN'
   const isGestor = user?.role === 'GESTOR'
+  const [teamData, setTeamData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const teamData = [
-    { nome: 'Ana Paula Costa', role: 'ATENDENTE', estado: 'SP', xp: 2400, progress: 82, cert: true, ativo: true },
-    { nome: 'João Silva', role: 'ATENDENTE', estado: 'SP', xp: 1200, progress: 45, cert: false, ativo: true },
-    { nome: 'Maria Santos', role: 'ATENDENTE', estado: 'SP', xp: 800, progress: 30, cert: false, ativo: true },
-  ]
+  useEffect(() => {
+    loadEquipe()
+  }, [])
+
+  const loadEquipe = async () => {
+    try {
+      const data = await api.getEquipe()
+      setTeamData(data)
+    } catch {
+      setTeamData([])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="page active">
+        <div className="page-header">
+          <div className="page-title">Carregando...</div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="page active">
