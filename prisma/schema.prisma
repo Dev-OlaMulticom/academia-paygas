@@ -1,0 +1,244 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+enum Role {
+  ADMIN
+  GESTOR
+  ATENDENTE
+}
+
+enum CertificateStatus {
+  PENDING
+  APPROVED
+  ISSUED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  nome      String
+  senha     String
+  role      Role
+  gestorId  String?
+  gestor    User?    @relation("GestorAtendentes", fields: [gestorId], references: [id])
+  atendentes User[]   @relation("GestorAtendentes")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  lastLogin DateTime?
+
+  // Relations
+  assignedTrilhas   TrilhaAtendente[]
+  progressos        Progresso[]
+  quizResponses     QuizResponse[]
+  certificates      Certificate[]
+  sentNotifications Notification[] @relation("SentNotifications")
+  receivedNotifications Notification[] @relation("ReceivedNotifications")
+  activityLogs      ActivityLog[]
+
+  @@index([gestorId])
+}
+
+model Trilha {
+  id          String   @id @default(cuid())
+  titulo      String
+  descricao   String
+  icon        String
+  color       String
+  obrigatorio Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  modulos        Modulo[]
+  trilhasAtendentes TrilhaAtendente[]
+  certificates   Certificate[]
+}
+
+model Modulo {
+  id          String   @id @default(cuid())
+  trilhaId    String
+  titulo      String
+  descricao   String
+  ordem       Int
+  videoUrl    String?
+  videoInicio Int?     // Timestamp in seconds for single video
+  videoFim    Int?     // Timestamp in seconds for single video
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  trilha      Trilha    @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  aulas       Aula[]
+  progressos  Progresso[]
+
+  @@index([trilhaId])
+}
+
+model Aula {
+  id          String   @id @default(cuid())
+  moduloId    String
+  titulo      String
+  descricao   String
+  ordem       Int
+  videoUrl    String?
+  videoInicio Int?     // Timestamp in seconds for single video
+  videoFim    Int?     // Timestamp in seconds for single video
+  duracaoMin  Int?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  modulo      Modulo        @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  quiz        Quiz?
+  progressos  Progresso[]
+
+  @@index([moduloId])
+}
+
+model Quiz {
+  id          String   @id @default(cuid())
+  aulaId      String   @unique
+  titulo      String
+  autoGerarCertificado Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relations
+  aula        Aula          @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+  perguntas   QuizPergunta[]
+  responses   QuizResponse[]
+
+  @@index([aulaId])
+}
+
+model QuizPergunta {
+  id      String   @id @default(cuid())
+  quizId  String
+  pergunta String
+  opcaoA  String
+  opcaoB  String
+  opcaoC  String?
+  opcaoD  String?
+  correta String   // 'A', 'B', 'C', or 'D'
+  ordem   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  quiz    Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId])
+}
+
+model QuizResponse {
+  id        String   @id @default(cuid())
+  quizId    String
+  userId    String
+  nota      Int
+  total     Int
+  concluido Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  quiz      Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, userId])
+  @@index([quizId])
+  @@index([userId])
+}
+
+model TrilhaAtendente {
+  id        String   @id @default(cuid())
+  trilhaId  String
+  userId    String
+  createdAt DateTime @default(now())
+
+  // Relations
+  trilha    Trilha @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([trilhaId, userId])
+  @@index([trilhaId])
+  @@index([userId])
+}
+
+model Progresso {
+  id        String   @id @default(cuid())
+  moduloId  String
+  aulaId    String
+  userId    String
+  concluido Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  modulo    Modulo @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  aula      Aula   @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([moduloId, aulaId, userId])
+  @@index([moduloId])
+  @@index([aulaId])
+  @@index([userId])
+}
+
+model Certificate {
+  id          String            @id @default(cuid())
+  userId      String
+  trilhaId    String
+  status      CertificateStatus @default(PENDING)
+  pdfUrl      String?
+  htmlContent String?
+  aprovadoPor String?
+  aprovadoEm  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  // Relations
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trilha      Trilha @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([trilhaId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  fromId    String
+  toId      String
+  titulo    String
+  mensagem  String
+  lida      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  from      User @relation("SentNotifications", fields: [fromId], references: [id], onDelete: Cascade)
+  to        User @relation("ReceivedNotifications", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@index([fromId])
+  @@index([toId])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  acao      String
+  detalhes  String?
+  createdAt DateTime @default(now())
+
+  // Relations
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
