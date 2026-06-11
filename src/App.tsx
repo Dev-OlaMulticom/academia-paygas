@@ -1,7 +1,4 @@
 import { useState, useEffect } from 'react'
-import { createMemoryHistory } from '@tanstack/react-router'
-import { RouterProvider, createRouter } from '@tanstack/react-router'
-import { QueryClient } from '@tanstack/react-query'
 import './index.css'
 
 // Simple route-based navigation
@@ -116,15 +113,19 @@ function App() {
           onNavigate={setCurrentPage}
           currentPage={currentPage}
           tracksCount={getMyTracks().length}
+          onToggleAI={() => setAiOpen(!aiOpen)}
+          aiOpen={aiOpen}
         />
-        <MainContent 
-          currentPage={currentPage}
-          user={user}
-          persona={persona}
-          xp={xp}
-          tracks={getMyTracks()}
-          onNavigate={setCurrentPage}
-        />
+        <div className="main">
+          <MainContent 
+            currentPage={currentPage}
+            user={user}
+            persona={persona}
+            xp={xp}
+            tracks={getMyTracks()}
+            onNavigate={setCurrentPage}
+          />
+        </div>
         {aiOpen && <AIAssistant user={user} persona={persona} onClose={() => setAiOpen(false)} />}
       </div>
     </div>
@@ -233,7 +234,7 @@ function AppHeader({ user, persona, onLogout, onNavigate, currentPage }: any) {
   )
 }
 
-function Sidebar({ user, persona, xp, onNavigate, currentPage, tracksCount }: any) {
+function Sidebar({ user, persona, xp, onNavigate, currentPage, tracksCount, onToggleAI, aiOpen }: any) {
   const isGestor = user?.role === 'gestor' || user?.role === 'paygas'
   const isAdmin = user?.role === 'paygas'
 
@@ -355,7 +356,7 @@ function Sidebar({ user, persona, xp, onNavigate, currentPage, tracksCount }: an
         >
           <span className="nav-icon">👤</span> Meu Perfil
         </button>
-        <button className="nav-item">
+        <button className={`nav-item ${aiOpen ? 'active' : ''}`} onClick={onToggleAI}>
           <span className="nav-icon">🤖</span> Assistente IA
         </button>
         <button className="nav-item">
@@ -551,12 +552,12 @@ function TrilhasPage({ tracks, onNavigate }: any) {
               </span>
             </div>
             <div className="track-prog-bar">
-              <div className="track-prog-fill" style={{ width: [100, 72, 45, 0, 100, 30, 60, 0, 85][i] + '%' }}></div>
+              <div className="track-prog-fill" style={{ width: [100, 72, 45, 0, 100, 30, 60, 0, 85, 55, 20, 40][i] + '%' }}></div>
             </div>
             <div className="track-meta">
-              <span>{[100, 72, 45, 0, 100, 30, 60, 0, 85][i]}% concluído</span>
-              <span className={`track-badge ${[100, 72, 45, 0, 100, 30, 60, 0, 85][i] === 100 ? 'badge-done' : [100, 72, 45, 0, 100, 30, 60, 0, 85][i] > 0 ? 'badge-progress' : 'badge-new'}`}>
-                {[100, 72, 45, 0, 100, 30, 60, 0, 85][i] === 100 ? '✓ Concluído' : [100, 72, 45, 0, 100, 30, 60, 0, 85][i] > 0 ? 'Em andamento' : 'Iniciar'}
+              <span>{[100, 72, 45, 0, 100, 30, 60, 0, 85, 55, 20, 40][i]}% concluído</span>
+              <span className={`track-badge ${[100, 72, 45, 0, 100, 30, 60, 0, 85, 55, 20, 40][i] === 100 ? 'badge-done' : [100, 72, 45, 0, 100, 30, 60, 0, 85, 55, 20, 40][i] > 0 ? 'badge-progress' : 'badge-new'}`}>
+                {[100, 72, 45, 0, 100, 30, 60, 0, 85, 55, 20, 40][i] === 100 ? '✓ Concluído' : [100, 72, 45, 0, 100, 30, 60, 0, 85, 55, 20, 40][i] > 0 ? 'Em andamento' : 'Iniciar'}
               </span>
             </div>
           </div>

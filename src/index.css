@@ -388,41 +388,6 @@ a {
   transition: width .8s ease;
 }
 
-.region-card {
-  background: #fff;
-  border: 1px solid var(--gray-200);
-  border-radius: var(--radius);
-  padding: 20px;
-  cursor: pointer;
-  transition: .15s;
-  box-shadow: var(--shadow);
-  text-align: center;
-}
-
-.region-card:hover {
-  border-color: var(--pg-orange);
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-
-.region-users {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--pg-orange);
-}
-
-.region-name {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--gray-700);
-  margin: 4px 0 2px;
-}
-
-.region-pct {
-  font-size: 11px;
-  color: var(--gray-400);
-}
-
 .forum-post {
   background: #fff;
   border: 1px solid var(--gray-200);
@@ -2120,16 +2085,19 @@ tr:hover td {
 .region-card {
   background: var(--gray-50);
   border: 1px solid var(--gray-200);
-  border-radius: var(--radius-sm);
-  padding: 12px;
-  text-align: center;
+  border-radius: var(--radius);
+  padding: 20px;
   cursor: pointer;
   transition: .15s;
+  box-shadow: var(--shadow);
+  text-align: center;
 }
 
 .region-card:hover {
   border-color: var(--pg-orange);
   background: var(--pg-orange-lt);
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
 }
 
 .region-card.active {
@@ -2138,20 +2106,20 @@ tr:hover td {
 }
 
 .region-name {
-  font-size: 11px;
+  font-size: 13px;
   font-weight: 700;
   color: var(--gray-700);
-  margin-bottom: 4px;
+  margin: 4px 0 2px;
 }
 
 .region-count {
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 800;
   color: var(--pg-orange);
 }
 
 .region-label {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--gray-400);
 }
 
