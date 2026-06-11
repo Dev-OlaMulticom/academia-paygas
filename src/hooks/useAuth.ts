@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react'
 import { PERSONAS, TRACKS } from '../data/constants'
+import { api } from '../lib/api'
 
 export interface User {
+  id?: string
   role: string
   email: string
+  nome?: string
 }
 
 const XP_MAP: Record<string, number> = {
@@ -18,31 +21,26 @@ export function useAuth() {
 
   useEffect(() => {
     const storedUser = localStorage.getItem('user')
-    if (storedUser) {
+    const token = localStorage.getItem('token')
+    if (storedUser && token) {
       const userData = JSON.parse(storedUser)
       setUser(userData)
       setXp(XP_MAP[userData.role] || 0)
+      api.setToken(token)
     }
   }, [])
 
-  const handleLogin = (email: string, _password: string, role: string) => {
-    if (!role) {
-      alert('⚠️ Selecione um perfil!')
-      return
-    }
-    if (!email) {
-      alert('⚠️ Informe seu e-mail!')
-      return
-    }
-    const userData: User = { role, email }
+  const handleLogin = (userData: User, token: string) => {
     setUser(userData)
     localStorage.setItem('user', JSON.stringify(userData))
-    setXp(XP_MAP[role] || 0)
+    api.setToken(token)
+    setXp(XP_MAP[userData.role] || 0)
   }
 
   const handleLogout = () => {
     setUser(null)
     localStorage.removeItem('user')
+    api.logout()
   }
 
   const getMyTracks = () => {

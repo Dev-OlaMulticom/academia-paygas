@@ -1,13 +1,41 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
+import { api } from '../lib/api'
 
 interface LoginPageProps {
-  onLogin: (email: string, password: string, role: string) => void
+  onLogin: (user: any, token: string) => void
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
+  const navigate = useNavigate()
   const [email, setEmail] = useState('admin@paygas.com.br')
   const [password, setPassword] = useState('123456')
-  const [role, setRole] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [error, setError] = useState('')
+
+  const handleLogin = async () => {
+    if (!email) {
+      setError('Informe seu e-mail!')
+      return
+    }
+    if (!password) {
+      setError('Informe sua senha!')
+      return
+    }
+
+    setLoading(true)
+    setError('')
+
+    try {
+      const data = await api.login(email, password)
+      onLogin(data.user, data.token)
+      navigate('/')
+    } catch (err: any) {
+      setError(err.message || 'Erro ao fazer login')
+    } finally {
+      setLoading(false)
+    }
+  }
 
   return (
     <div id="screen-login">
@@ -21,6 +49,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         </div>
         <h2>Bem-vindo de volta!</h2>
         <p>Acesse sua conta para continuar aprendendo e crescendo no ecossistema PayGas.</p>
+        {error && (
+          <div style={{ background: '#FEE2E2', color: '#991B1B', padding: '10px 14px', borderRadius: '8px', fontSize: '13px', marginBottom: '12px' }}>
+            {error}
+          </div>
+        )}
         <div className="field">
           <label>E-mail</label>
           <input
@@ -39,16 +72,9 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             placeholder="••••••••"
           />
         </div>
-        <div className="field">
-          <label>Perfil de acesso</label>
-          <select value={role} onChange={(e) => setRole(e.target.value)}>
-            <option value="">— Selecione seu perfil —</option>
-            <option value="ADMIN">🌐 Administrador</option>
-            <option value="GESTOR">⛽ Gestor de Posto</option>
-            <option value="ATENDENTE">👤 Atendente/Frentista</option>
-          </select>
-        </div>
-        <button className="btn-login" onClick={() => onLogin(email, password, role)}>Acessar Academia</button>
+        <button className="btn-login" onClick={handleLogin} disabled={loading}>
+          {loading ? 'Entrando...' : 'Acessar Academia'}
+        </button>
         <p className="login-terms">
           Ao acessar, você concorda com os <a href="#">Termos de Uso</a> e a <a href="#">Política de Privacidade</a>.
         </p>
