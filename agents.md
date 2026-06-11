@@ -15,6 +15,7 @@ Responsavel pela autenticacao e gerenciamento de sessoes.
 | **Tipo** | Primario |
 | **Escopo** | Global |
 | **Responsabilidades** | Login, logout, validacao de sessao, persistencia em localStorage |
+| **Arquivo** | `src/hooks/useAuth.ts` |
 
 ```
 Fluxo:
@@ -31,14 +32,23 @@ Gerencia a navegacao entre paginas e controle de acesso baseado em perfis.
 | **Tipo** | Primario |
 | **Escopo** | Global |
 | **Responsabilidades** | Roteamento, controle de permissoes, historico de navegacao |
+| **Arquivo** | `src/App.tsx` (React Router) |
 
-**Paginas por Perfil:**
+**Sistema de Roteamento:**
 
-| Perfil | Paginas Acessiveis |
-|--------|-------------------|
-| Todos | Dashboard, Trilhas, Modulos, Certificados, Ranking, Conquistas, Notificacoes, Perfil, Mapa, Forum |
-| Gestor | + Equipe, Relatorios |
-| Admin | + CMS, Usuarios, Nacional, Analytics |
+| Rota | Componente | Acesso |
+|------|-----------|--------|
+| `/login` | LoginPage | Publico |
+| `/` | DashboardPage | Autenticado |
+| `/trilhas` | TrilhasPage | Autenticado |
+| `/modulos` | ModulosPage | Autenticado |
+| `/certificados` | CertificadosPage | Autenticado |
+| `/equipe` | EquipePage | Gestor, Admin |
+| `/relatorios` | RelatoriosPage | Gestor, Admin |
+| `/cms` | CMSPage | Admin |
+| `/usuarios` | UsuariosPage | Admin |
+| `/notif` | NotifPage | Autenticado |
+| `/perfil` | PerfilPage | Autenticado |
 
 ### 3. Learning Agent
 
@@ -49,8 +59,9 @@ Gerencia trilhas de aprendizagem, progresso e certificacao.
 | **Tipo** | Sub-agente |
 | **Dependencias** | Navigation Agent |
 | **Responsabilidades** | Carregar trilhas, atualizar progresso, emitir certificados |
+| **Arquivo** | `src/data/constants.ts`, `src/pages/TrilhasPage.tsx`, `src/pages/ModulosPage.tsx` |
 
-**Trilhas Disponiveis (12):**
+**Trilhas Disponiveis (8):**
 
 | ID | Trilha | Aulas | Obrigatoria |
 |----|--------|-------|-------------|
@@ -58,14 +69,10 @@ Gerencia trilhas de aprendizagem, progresso e certificacao.
 | cashback | Sistema de Cashback PayGas | 5 | Sim |
 | gestao | Gestao e KPIs do Posto | 7 | Nao |
 | terminal | Operacao do Terminal | 4 | Sim |
-| parceiro | Portal do Parceiro | 5 | Nao |
-| comunidade | Pedagio Digital Comunitario | 4 | Nao |
 | erp | Integracao via API | 6 | Sim |
-| marketing | Marketing Digital | 4 | Nao |
 | lgpd | LGPD e Seguranca de Dados | 3 | Sim |
 | lideranca | Lideranca e Desenvolvimento de Equipe | 5 | Nao |
 | financeiro | Gestao Financeira do Posto | 4 | Nao |
-| inovacao | Inovacao no Setor de Combustiveis | 4 | Nao |
 
 ### 4. Gamification Agent
 
@@ -75,17 +82,15 @@ Gerencia XP, niveis, conquistas e ranking.
 |-------|-------|
 | **Tipo** | Sub-agente |
 | **Responsabilidades** | Calcular XP, gerenciar niveis, atualizar ranking |
+| **Arquivo** | `src/hooks/useAuth.ts` |
 
 **Sistema de XP:**
 
 | Perfil | XP Inicial |
 |--------|-----------|
 | Admin PayGas | 8.500 |
-| Integrador ERP | 5.500 |
 | Gestor de Posto | 4.100 |
-| Lider Comunitario | 3.200 |
 | Atendente | 2.400 |
-| Parceiro Comercial | 1.800 |
 
 **Conquistas:**
 
@@ -98,22 +103,7 @@ Gerencia XP, niveis, conquistas e ranking.
 | Expert | Nota 10 em 3 quizzes | XP bonus |
 | Ranker | Top 10 nacional | XP bonus |
 
-### 5. AI Assistant Agent
-
-Assistente virtual para suporte e duvidas dos usuarios.
-
-| Campo | Valor |
-|-------|-------|
-| **Tipo** | Sub-agente |
-| **Modo** | Panel lateral (slide-in) |
-| **Responsabilidades** | Responder duvidas, sugerir trilhas, explicar funcionalidades |
-
-**Funcionalidades:**
-- Chat em tempo real com respostas simuladas
-- Sugestoes rapidas pre-definidas
-- Contexto do perfil do usuario para respostas personalizadas
-
-### 6. Notification Agent
+### 5. Notification Agent
 
 Gerencia e exibe notificacoes para os usuarios.
 
@@ -121,6 +111,7 @@ Gerencia e exibe notificacoes para os usuarios.
 |-------|-------|
 | **Tipo** | Sub-agente |
 | **Responsabilidades** | Criar, armazenar e exibir notificacoes |
+| **Arquivo** | `src/pages/NotifPage.tsx` |
 
 **Tipos de Notificacao:**
 - Novo modulo disponivel
@@ -131,12 +122,11 @@ Gerencia e exibe notificacoes para os usuarios.
 ## Fluxo de Dados
 
 ```
-Usuario -> Authentication Agent -> Login
-         -> Navigation Agent -> Dashboard
-         -> Learning Agent -> Trilhas -> Modulos
-         -> Gamification Agent -> XP/Conquistas
-         -> AI Assistant Agent -> Suporte
-         -> Notification Agent -> Alertas
+Usuario -> Authentication Agent (useAuth.ts) -> Login
+         -> Navigation Agent (App.tsx + Router) -> Dashboard
+         -> Learning Agent (TrilhasPage/ModulosPage) -> Modulos
+         -> Gamification Agent (useAuth.ts) -> XP/Conquistas
+         -> Notification Agent (NotifPage.tsx) -> Alertas
 ```
 
 ## Persistencia
@@ -152,5 +142,5 @@ Usuario -> Authentication Agent -> Login
 
 - Autenticacao simulada (sem backend real)
 - Sessoes persistidas apenas em localStorage
-- Controle de acesso por perfil no frontend
+- Controle de acesso por perfil no frontend via ProtectedRoute
 - Dados mockados (sem conexao com API)

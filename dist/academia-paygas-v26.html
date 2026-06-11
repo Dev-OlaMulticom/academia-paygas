@@ -1,0 +1,2051 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Academia PayGas — V26 Nacional</title>
+<style>
+:root {
+  --pg-orange: #F47C20;
+  --pg-orange-dk: #C45E0A;
+  --pg-orange-lt: #FEF0E6;
+  --pg-blue: #0A2E6E;
+  --pg-blue-md: #1A4FAD;
+  --pg-blue-lt: #E6EEF9;
+  --pg-green: #16A34A;
+  --pg-green-lt: #DCFCE7;
+  --pg-red: #DC2626;
+  --pg-red-lt: #FEE2E2;
+  --pg-gold: #D97706;
+  --pg-gold-lt: #FEF3C7;
+  --gray-50: #F9FAFB;
+  --gray-100: #F3F4F6;
+  --gray-200: #E5E7EB;
+  --gray-300: #D1D5DB;
+  --gray-400: #9CA3AF;
+  --gray-500: #6B7280;
+  --gray-600: #4B5563;
+  --gray-700: #374151;
+  --gray-800: #1F2937;
+  --gray-900: #111827;
+  --sidebar-w: 260px;
+  --header-h: 60px;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.06);
+  --shadow-md: 0 4px 6px rgba(0,0,0,.07), 0 2px 4px rgba(0,0,0,.06);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--gray-50);color:var(--gray-800);height:100vh;overflow:hidden;font-size:14px}
+button{cursor:pointer;font-family:inherit}
+input,select,textarea{font-family:inherit}
+a{color:inherit;text-decoration:none}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;right:24px;background:var(--gray-900);color:#fff;padding:12px 20px;border-radius:var(--radius);font-size:13px;font-weight:500;opacity:0;transform:translateY(8px);transition:.3s;z-index:9999;pointer-events:none;max-width:300px}
+#toast.show{opacity:1;transform:translateY(0)}
+
+/* ── MODAL OVERLAY ── */
+#modal-overlay{display:none;position:fixed;inset:0;background:rgba(10,20,40,.6);z-index:1000;align-items:center;justify-content:center;backdrop-filter:blur(2px)}
+#modal-overlay.open{display:flex}
+.modal-box{background:#fff;border-radius:var(--radius);width:min(520px,92vw);max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)}
+.modal-header{display:flex;align-items:center;justify-content:space-between;padding:20px 24px;border-bottom:1px solid var(--gray-200)}
+.modal-header h3{font-size:16px;font-weight:600;color:var(--gray-900)}
+.modal-close{background:none;border:none;font-size:22px;color:var(--gray-400);line-height:1;padding:4px}
+.modal-close:hover{color:var(--gray-700)}
+.modal-body{padding:24px}
+.modal-footer{padding:16px 24px;border-top:1px solid var(--gray-200);display:flex;gap:10px;justify-content:flex-end}
+
+/* ── LOGIN ── */
+#screen-login{display:flex;height:100vh;align-items:stretch}
+.login-panel{width:420px;min-width:420px;background:#fff;display:flex;flex-direction:column;justify-content:center;padding:48px 44px;box-shadow:var(--shadow-md)}
+.login-logo{display:flex;align-items:center;gap:12px;margin-bottom:36px}
+.login-logo-icon{width:48px;height:48px;background:linear-gradient(135deg,var(--pg-orange),var(--pg-orange-dk));border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800;color:#fff}
+.login-logo-text{line-height:1}
+.login-logo-text b{display:block;font-size:18px;font-weight:700;color:var(--pg-blue)}
+.login-logo-text span{font-size:11px;color:var(--gray-500);letter-spacing:.5px;text-transform:uppercase}
+.login-panel h2{font-size:24px;font-weight:700;color:var(--gray-900);margin-bottom:6px}
+.login-panel p{color:var(--gray-500);margin-bottom:28px;font-size:13px}
+.field{margin-bottom:16px}
+.field label{display:block;font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:6px;letter-spacing:.3px;text-transform:uppercase}
+.field input,.field select{width:100%;padding:10px 14px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:14px;color:var(--gray-900);transition:border .2s;background:#fff;appearance:none}
+.field input:focus,.field select:focus{outline:none;border-color:var(--pg-orange);box-shadow:0 0 0 3px var(--pg-orange-lt)}
+.btn-login{width:100%;padding:12px;background:var(--pg-orange);color:#fff;border:none;border-radius:var(--radius-sm);font-size:15px;font-weight:600;margin-top:8px;transition:background .2s,transform .1s}
+.btn-login:hover{background:var(--pg-orange-dk)}
+.btn-login:active{transform:scale(.99)}
+.login-terms{margin-top:20px;font-size:11px;color:var(--gray-400);text-align:center;line-height:1.6}
+.login-terms a{color:var(--pg-orange);font-weight:600}
+.login-bg{flex:1;background:linear-gradient(135deg,var(--pg-blue) 0%,var(--pg-blue-md) 60%,#1E3A8A 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;padding:48px;position:relative;overflow:hidden}
+.login-bg::before{content:'';position:absolute;inset:0;background:url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.04'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E")}
+.login-bg-content{position:relative;text-align:center;color:#fff}
+.login-bg-content h1{font-size:32px;font-weight:800;margin-bottom:12px;line-height:1.2}
+.login-bg-content h1 span{color:var(--pg-orange)}
+.login-bg-content p{font-size:15px;opacity:.75;max-width:340px;line-height:1.6;margin-bottom:32px}
+.login-stats{display:grid;grid-template-columns:1fr 1fr;gap:16px;width:100%;max-width:320px}
+.login-stat{background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.12);border-radius:var(--radius);padding:16px;text-align:center}
+.login-stat b{display:block;font-size:22px;font-weight:800;color:var(--pg-orange)}
+.login-stat span{font-size:11px;opacity:.65;text-transform:uppercase;letter-spacing:.5px}
+.ver-badge-login{position:absolute;top:20px;right:20px;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);color:rgba(255,255,255,.7);font-size:11px;padding:4px 10px;border-radius:20px}
+
+
+/* ── V26 ENHANCEMENTS ── */
+.nat-bar{height:18px;background:var(--gray-100);border-radius:10px;overflow:hidden;margin-bottom:6px}
+.nat-bar-fill{height:100%;border-radius:10px;display:flex;align-items:center;padding-left:8px;font-size:10px;font-weight:700;color:#fff;transition:width .8s ease}
+.region-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px;cursor:pointer;transition:.15s;box-shadow:var(--shadow);text-align:center}
+.region-card:hover{border-color:var(--pg-orange);transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.region-users{font-size:24px;font-weight:800;color:var(--pg-orange)}
+.region-name{font-size:13px;font-weight:700;color:var(--gray-700);margin:4px 0 2px}
+.region-pct{font-size:11px;color:var(--gray-400)}
+.forum-post{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:16px;margin-bottom:12px;cursor:pointer;transition:.15s;box-shadow:var(--shadow)}
+.forum-post:hover{border-color:var(--pg-orange);box-shadow:var(--shadow-md)}
+.forum-author{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+.forum-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff;flex-shrink:0}
+.forum-meta{flex:1}
+.forum-meta b{font-size:13px;font-weight:600;color:var(--gray-900);display:block}
+.forum-meta span{font-size:11px;color:var(--gray-400)}
+.forum-title{font-size:14px;font-weight:600;color:var(--gray-800);margin-bottom:6px}
+.forum-preview{font-size:13px;color:var(--gray-500);line-height:1.5;margin-bottom:10px}
+.forum-footer{display:flex;gap:16px;font-size:11px;color:var(--gray-400);flex-wrap:wrap}
+@media(max-width:600px){.login-panel{width:100%;min-width:0;padding:32px 20px}.login-bg{display:none}}
+
+/* ── TERMS MODAL ── */
+.terms-scroll{max-height:340px;overflow-y:auto;border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:16px;margin-bottom:16px;font-size:13px;line-height:1.7;color:var(--gray-700)}
+.terms-scroll h4{font-weight:600;margin:12px 0 6px;color:var(--gray-900)}
+.terms-check{display:flex;align-items:center;gap:10px;margin-top:12px;font-size:13px}
+.terms-check input[type=checkbox]{width:18px;height:18px;accent-color:var(--pg-orange)}
+.btn-accept{background:var(--pg-orange);color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 24px;font-weight:600;font-size:14px;transition:background .2s}
+.btn-accept:disabled{background:var(--gray-300);cursor:not-allowed}
+.btn-accept:not(:disabled):hover{background:var(--pg-orange-dk)}
+
+/* ── APP SHELL ── */
+#screen-app{display:none;height:100vh;flex-direction:column}
+#screen-app.active{display:flex}
+
+/* HEADER */
+.app-header{height:var(--header-h);background:#fff;border-bottom:1px solid var(--gray-200);display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0;z-index:100}
+.header-logo{display:flex;align-items:center;gap:10px;width:var(--sidebar-w);padding-right:16px;border-right:1px solid var(--gray-200)}
+.header-logo-icon{width:32px;height:32px;background:var(--pg-orange);border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:13px;flex-shrink:0}
+.header-logo-name{font-weight:700;font-size:14px;color:var(--pg-blue)}
+.header-logo-ver{font-size:10px;color:var(--gray-400)}
+.header-center{flex:1;display:flex;align-items:center;gap:12px;padding:0 16px}
+.header-search{display:flex;align-items:center;gap:8px;background:var(--gray-100);border:1px solid var(--gray-200);border-radius:20px;padding:7px 14px;flex:1;max-width:360px}
+.header-search input{border:none;background:none;outline:none;font-size:13px;flex:1;color:var(--gray-800)}
+.header-search input::placeholder{color:var(--gray-400)}
+.search-icon{color:var(--gray-400);font-size:14px}
+.header-right{display:flex;align-items:center;gap:12px;margin-left:auto}
+.header-notif{position:relative;background:none;border:none;padding:8px;color:var(--gray-500);font-size:18px;border-radius:8px}
+.header-notif:hover{background:var(--gray-100)}
+.notif-dot{position:absolute;top:6px;right:6px;width:8px;height:8px;background:var(--pg-orange);border-radius:50%;border:2px solid #fff}
+.header-user{display:flex;align-items:center;gap:10px;padding:6px 12px;border-radius:var(--radius);cursor:pointer;border:none;background:none}
+.header-user:hover{background:var(--gray-100)}
+.user-avatar{width:32px;height:32px;border-radius:50%;background:var(--pg-blue);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:700;font-size:12px;flex-shrink:0}
+.user-info{text-align:left}
+.user-info b{display:block;font-size:13px;font-weight:600;color:var(--gray-900)}
+.user-info span{font-size:11px;color:var(--gray-400)}
+.btn-logout{background:none;border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:6px 14px;font-size:12px;font-weight:600;color:var(--gray-600);transition:.15s}
+.btn-logout:hover{background:var(--pg-red-lt);border-color:var(--pg-red);color:var(--pg-red)}
+
+/* LAYOUT */
+.app-body{flex:1;display:flex;overflow:hidden}
+
+/* SIDEBAR */
+.sidebar{width:var(--sidebar-w);background:#fff;border-right:1px solid var(--gray-200);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0}
+.sidebar-section{padding:16px 12px 8px}
+.sidebar-section-label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.8px;color:var(--gray-400);padding:0 8px;margin-bottom:6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:var(--radius-sm);cursor:pointer;border:none;background:none;width:100%;text-align:left;color:var(--gray-600);font-size:13px;font-weight:500;transition:.15s}
+.nav-item:hover{background:var(--gray-100);color:var(--gray-900)}
+.nav-item.active{background:var(--pg-orange-lt);color:var(--pg-orange);font-weight:600}
+.nav-item.active .nav-icon{color:var(--pg-orange)}
+.nav-icon{font-size:16px;width:20px;text-align:center;flex-shrink:0}
+.nav-badge{margin-left:auto;background:var(--pg-orange);color:#fff;font-size:10px;font-weight:700;border-radius:10px;padding:2px 7px;min-width:18px;text-align:center}
+.sidebar-xp{margin:12px;background:var(--pg-blue-lt);border-radius:var(--radius);padding:14px}
+.xp-label{font-size:11px;font-weight:600;color:var(--pg-blue);margin-bottom:6px;display:flex;justify-content:space-between}
+.xp-bar{height:6px;background:var(--gray-200);border-radius:3px;overflow:hidden}
+.xp-fill{height:100%;background:linear-gradient(90deg,var(--pg-orange),var(--pg-gold));border-radius:3px;transition:width .8s ease}
+.xp-pts{font-size:10px;color:var(--gray-500);margin-top:4px}
+
+/* MAIN */
+.main{flex:1;overflow-y:auto;padding:24px}
+.page{display:none}
+.page.active{display:block}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px}
+.page-title{font-size:20px;font-weight:700;color:var(--gray-900)}
+.page-subtitle{font-size:13px;color:var(--gray-500);margin-top:2px}
+
+/* CARDS GRID */
+.cards-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px;box-shadow:var(--shadow)}
+.stat-card-icon{width:40px;height:40px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:20px;margin-bottom:12px}
+.stat-card-val{font-size:26px;font-weight:800;color:var(--gray-900);line-height:1}
+.stat-card-label{font-size:12px;color:var(--gray-500);margin-top:4px}
+.stat-card-trend{font-size:11px;font-weight:600;margin-top:8px;display:flex;align-items:center;gap:4px}
+.trend-up{color:var(--pg-green)}
+.trend-dn{color:var(--pg-red)}
+
+/* PROGRESS CARDS */
+.track-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px;margin-bottom:24px}
+.track-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px;cursor:pointer;transition:.15s;box-shadow:var(--shadow)}
+.track-card:hover{border-color:var(--pg-orange);box-shadow:0 0 0 3px var(--pg-orange-lt),var(--shadow)}
+.track-card-top{display:flex;align-items:flex-start;gap:14px;margin-bottom:14px}
+.track-icon{width:44px;height:44px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.track-card-info{flex:1}
+.track-card h3{font-size:14px;font-weight:600;color:var(--gray-900);margin-bottom:4px}
+.track-card p{font-size:12px;color:var(--gray-500);line-height:1.4}
+.track-prog-bar{height:6px;background:var(--gray-100);border-radius:3px;overflow:hidden;margin-bottom:8px}
+.track-prog-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--pg-orange),var(--pg-gold));transition:width .6s}
+.track-prog-fill.done{background:linear-gradient(90deg,var(--pg-green),#22C55E)}
+.track-meta{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--gray-500)}
+.track-badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.badge-new{background:var(--pg-blue-lt);color:var(--pg-blue)}
+.badge-progress{background:var(--pg-gold-lt);color:var(--pg-gold)}
+.badge-done{background:var(--pg-green-lt);color:var(--pg-green)}
+.badge-locked{background:var(--gray-100);color:var(--gray-400)}
+.badge-required{background:var(--pg-red-lt);color:var(--pg-red)}
+
+/* LESSON VIEWER */
+.lesson-layout{display:grid;grid-template-columns:300px 1fr;gap:0;height:calc(100vh - var(--header-h) - 48px);background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);overflow:hidden}
+.lesson-sidebar{border-right:1px solid var(--gray-200);overflow-y:auto}
+.lesson-sidebar-header{padding:16px;border-bottom:1px solid var(--gray-200);background:var(--gray-50)}
+.lesson-sidebar-header h3{font-size:13px;font-weight:700;color:var(--gray-900)}
+.lesson-sidebar-header p{font-size:11px;color:var(--gray-500);margin-top:2px}
+.lesson-item{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--gray-100);cursor:pointer;transition:.12s}
+.lesson-item:hover{background:var(--gray-50)}
+.lesson-item.active{background:var(--pg-orange-lt);border-left:3px solid var(--pg-orange)}
+.lesson-item.active .lesson-num{background:var(--pg-orange);color:#fff}
+.lesson-item.done .lesson-num{background:var(--pg-green);color:#fff}
+.lesson-num{width:28px;height:28px;border-radius:50%;background:var(--gray-200);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:var(--gray-600);flex-shrink:0}
+.lesson-item-info{flex:1}
+.lesson-item-info b{font-size:12px;font-weight:600;color:var(--gray-800);display:block}
+.lesson-item-info span{font-size:11px;color:var(--gray-400)}
+.lesson-check{color:var(--pg-green);font-size:14px}
+.lesson-content{overflow-y:auto;display:flex;flex-direction:column}
+.lesson-video{width:100%;aspect-ratio:16/9;background:var(--gray-900);position:relative;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.lesson-video-placeholder{text-align:center;color:rgba(255,255,255,.5)}
+.lesson-video-placeholder .play-btn{width:60px;height:60px;border-radius:50%;background:rgba(244,124,32,.9);display:flex;align-items:center;justify-content:center;margin:0 auto 12px;cursor:pointer;transition:.2s}
+.lesson-video-placeholder .play-btn:hover{background:var(--pg-orange);transform:scale(1.05)}
+.lesson-video-placeholder p{font-size:13px}
+.lesson-body{padding:24px;flex:1}
+.lesson-body h2{font-size:18px;font-weight:700;color:var(--gray-900);margin-bottom:6px}
+.lesson-body .lesson-tags{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px}
+.lesson-tag{font-size:11px;padding:3px 8px;border-radius:10px;background:var(--gray-100);color:var(--gray-600);font-weight:600}
+.lesson-text{font-size:14px;line-height:1.7;color:var(--gray-700);margin-bottom:20px}
+.lesson-objectives{background:var(--pg-blue-lt);border-left:3px solid var(--pg-blue);border-radius:0 var(--radius-sm) var(--radius-sm) 0;padding:14px 16px;margin-bottom:20px}
+.lesson-objectives h4{font-size:13px;font-weight:600;color:var(--pg-blue);margin-bottom:8px}
+.lesson-objectives li{font-size:13px;color:var(--gray-700);line-height:1.6;margin-left:16px}
+.lesson-actions{display:flex;gap:10px;padding-top:20px;border-top:1px solid var(--gray-100)}
+.btn-primary{background:var(--pg-orange);color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 20px;font-size:13px;font-weight:600;transition:.15s}
+.btn-primary:hover{background:var(--pg-orange-dk)}
+.btn-secondary{background:#fff;color:var(--gray-700);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:10px 20px;font-size:13px;font-weight:600;transition:.15s}
+.btn-secondary:hover{background:var(--gray-100)}
+.btn-success{background:var(--pg-green);color:#fff;border:none;border-radius:var(--radius-sm);padding:10px 20px;font-size:13px;font-weight:600;transition:.15s}
+.btn-success:hover{background:#15803D}
+
+/* QUIZ */
+.quiz-box{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:24px;max-width:640px}
+.quiz-q{font-size:15px;font-weight:600;color:var(--gray-900);margin-bottom:20px;line-height:1.5}
+.quiz-options{display:flex;flex-direction:column;gap:10px}
+.quiz-opt{display:flex;align-items:center;gap:12px;padding:12px 16px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);cursor:pointer;transition:.15s;font-size:13px}
+.quiz-opt:hover{border-color:var(--pg-orange);background:var(--pg-orange-lt)}
+.quiz-opt.selected{border-color:var(--pg-orange);background:var(--pg-orange-lt);font-weight:600}
+.quiz-opt.correct{border-color:var(--pg-green);background:var(--pg-green-lt);color:var(--pg-green)}
+.quiz-opt.wrong{border-color:var(--pg-red);background:var(--pg-red-lt);color:var(--pg-red)}
+.quiz-letter{width:28px;height:28px;border-radius:50%;background:var(--gray-200);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+
+/* CERT */
+.cert-card{background:#fff;border:2px solid var(--pg-gold);border-radius:var(--radius);overflow:hidden;position:relative;max-width:600px}
+.cert-header{background:linear-gradient(135deg,var(--pg-blue),var(--pg-blue-md));padding:24px 30px;color:#fff;text-align:center}
+.cert-header h3{font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:.7;margin-bottom:8px}
+.cert-header h2{font-size:22px;font-weight:800}
+.cert-body{padding:28px 30px;text-align:center}
+.cert-name{font-size:24px;font-weight:800;color:var(--pg-blue);border-bottom:2px solid var(--pg-gold);padding-bottom:12px;margin-bottom:12px}
+.cert-desc{font-size:13px;color:var(--gray-600);line-height:1.6;margin-bottom:20px}
+.cert-footer{display:flex;justify-content:space-between;align-items:center;border-top:1px solid var(--gray-200);padding-top:16px}
+.cert-seal{width:50px;height:50px;border-radius:50%;background:var(--pg-orange);display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:10px;text-align:center;line-height:1.2}
+.cert-actions{display:flex;gap:8px;margin-top:16px}
+
+/* ADMIN */
+.admin-tabs{display:flex;gap:4px;background:var(--gray-100);padding:4px;border-radius:var(--radius);margin-bottom:20px;width:fit-content}
+.admin-tab{padding:8px 16px;border-radius:var(--radius-sm);border:none;background:none;font-size:13px;font-weight:500;color:var(--gray-600);cursor:pointer;transition:.15s}
+.admin-tab.active{background:#fff;color:var(--gray-900);font-weight:600;box-shadow:var(--shadow)}
+
+/* TABLE */
+.table-wrap{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);overflow:hidden;box-shadow:var(--shadow)}
+table{width:100%;border-collapse:collapse}
+thead{background:var(--gray-50)}
+th{text-align:left;padding:11px 16px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--gray-500);border-bottom:1px solid var(--gray-200)}
+td{padding:12px 16px;font-size:13px;border-bottom:1px solid var(--gray-100);color:var(--gray-700);vertical-align:middle}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:var(--gray-50)}
+.progress-cell{display:flex;align-items:center;gap:8px}
+.progress-mini{flex:1;height:5px;background:var(--gray-200);border-radius:3px;overflow:hidden;min-width:60px}
+.progress-mini-fill{height:100%;border-radius:3px;background:var(--pg-orange)}
+.progress-mini-fill.done{background:var(--pg-green)}
+.status-pill{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:600}
+.pill-green{background:var(--pg-green-lt);color:var(--pg-green)}
+.pill-orange{background:var(--pg-gold-lt);color:var(--pg-gold)}
+.pill-gray{background:var(--gray-100);color:var(--gray-500)}
+.pill-blue{background:var(--pg-blue-lt);color:var(--pg-blue)}
+
+/* AI ASSISTANT */
+.ai-panel{width:320px;background:#fff;border-left:1px solid var(--gray-200);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden}
+.ai-panel.hidden{display:none}
+.ai-header{padding:14px 16px;border-bottom:1px solid var(--gray-200);background:var(--pg-blue);display:flex;align-items:center;gap:10px}
+.ai-header-icon{width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,.15);display:flex;align-items:center;justify-content:center;font-size:16px}
+.ai-header-info b{color:#fff;font-size:13px;font-weight:600;display:block}
+.ai-header-info span{color:rgba(255,255,255,.6);font-size:11px}
+.ai-close-btn{margin-left:auto;background:none;border:none;color:rgba(255,255,255,.6);font-size:18px;cursor:pointer}
+.ai-close-btn:hover{color:#fff}
+.ai-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.ai-msg{max-width:85%;font-size:13px;line-height:1.5;padding:10px 12px;border-radius:var(--radius)}
+.ai-msg.bot{background:var(--gray-100);color:var(--gray-800);align-self:flex-start;border-radius:4px var(--radius) var(--radius) var(--radius)}
+.ai-msg.user{background:var(--pg-orange);color:#fff;align-self:flex-end;border-radius:var(--radius) 4px var(--radius) var(--radius)}
+.ai-typing{display:flex;gap:4px;padding:8px;align-self:flex-start}
+.ai-typing span{width:6px;height:6px;background:var(--gray-400);border-radius:50%;animation:bounce 1.2s infinite}
+.ai-typing span:nth-child(2){animation-delay:.2s}
+.ai-typing span:nth-child(3){animation-delay:.4s}
+@keyframes bounce{0%,80%,100%{transform:translateY(0)}40%{transform:translateY(-6px)}}
+.ai-input-area{padding:12px;border-top:1px solid var(--gray-200)}
+.ai-input-row{display:flex;gap:8px}
+.ai-input-row input{flex:1;padding:9px 12px;border:1px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;outline:none}
+.ai-input-row input:focus{border-color:var(--pg-orange)}
+.ai-send{background:var(--pg-orange);color:#fff;border:none;border-radius:var(--radius-sm);padding:9px 14px;font-size:14px;cursor:pointer;transition:.15s}
+.ai-send:hover{background:var(--pg-orange-dk)}
+.ai-quick{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.ai-quick button{border:1px solid var(--pg-orange);background:none;color:var(--pg-orange);border-radius:12px;font-size:11px;font-weight:600;padding:4px 10px;cursor:pointer;transition:.15s}
+.ai-quick button:hover{background:var(--pg-orange-lt)}
+
+/* RANKING */
+.ranking-item{display:flex;align-items:center;gap:12px;padding:12px 16px;background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);margin-bottom:8px}
+.rank-pos{width:28px;text-align:center;font-weight:800;font-size:16px;flex-shrink:0}
+.rank-1{color:var(--pg-gold)}
+.rank-2{color:var(--gray-400)}
+.rank-3{color:#CD7F32}
+.rank-avatar{width:36px;height:36px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;color:#fff}
+.rank-info{flex:1}
+.rank-info b{font-size:13px;font-weight:600;display:block}
+.rank-info span{font-size:11px;color:var(--gray-500)}
+.rank-xp{font-size:13px;font-weight:700;color:var(--pg-orange)}
+
+/* NOTIFICATIONS */
+.notif-list{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);overflow:hidden}
+.notif-item{display:flex;gap:12px;padding:14px 16px;border-bottom:1px solid var(--gray-100);cursor:pointer;transition:.12s}
+.notif-item:last-child{border-bottom:none}
+.notif-item:hover{background:var(--gray-50)}
+.notif-item.unread{background:var(--pg-orange-lt)}
+.notif-icon{width:36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:16px;flex-shrink:0}
+.notif-body{flex:1}
+.notif-body b{font-size:13px;font-weight:600;display:block;color:var(--gray-900)}
+.notif-body p{font-size:12px;color:var(--gray-500);margin-top:2px}
+.notif-body time{font-size:11px;color:var(--gray-400);margin-top:4px;display:block}
+
+/* DASHBOARD ACTIVITY */
+.activity-feed{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);overflow:hidden}
+.activity-header{padding:14px 16px;border-bottom:1px solid var(--gray-200);font-size:13px;font-weight:600;color:var(--gray-900);display:flex;align-items:center;justify-content:space-between}
+.activity-item{display:flex;gap:12px;padding:12px 16px;border-bottom:1px solid var(--gray-100)}
+.activity-item:last-child{border-bottom:none}
+.activity-dot{width:8px;height:8px;border-radius:50%;margin-top:5px;flex-shrink:0}
+.activity-body{flex:1;font-size:13px;color:var(--gray-700);line-height:1.4}
+.activity-body span{color:var(--gray-400);font-size:11px;display:block;margin-top:2px}
+
+/* CHART BARS */
+.mini-chart{display:flex;align-items:flex-end;gap:4px;height:60px}
+.mini-bar{flex:1;background:var(--pg-orange);border-radius:3px 3px 0 0;opacity:.7;transition:.3s}
+.mini-bar.active{opacity:1}
+
+/* UTILS */
+.section-title{font-size:14px;font-weight:700;color:var(--gray-900);margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.section-title::after{content:'';flex:1;height:1px;background:var(--gray-200)}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.three-col{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.empty-state{text-align:center;padding:48px 24px;color:var(--gray-400)}
+.empty-state .empty-icon{font-size:40px;margin-bottom:12px}
+.empty-state p{font-size:14px}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px}
+.form-field{margin-bottom:12px}
+.form-label{font-size:12px;font-weight:600;color:var(--gray-700);display:block;margin-bottom:5px;text-transform:uppercase;letter-spacing:.3px}
+.form-input{width:100%;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;outline:none;transition:.2s}
+.form-input:focus{border-color:var(--pg-orange)}
+.form-select{width:100%;padding:9px 12px;border:1.5px solid var(--gray-200);border-radius:var(--radius-sm);font-size:13px;outline:none;background:#fff;transition:.2s;appearance:none}
+.form-select:focus{border-color:var(--pg-orange)}
+.tag-wrap{display:flex;flex-wrap:wrap;gap:6px}
+
+/* NATIONAL MAP */
+.map-container{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px;margin-bottom:20px}
+.region-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:10px}
+.region-card{background:var(--gray-50);border:1px solid var(--gray-200);border-radius:var(--radius-sm);padding:12px;text-align:center;cursor:pointer;transition:.15s}
+.region-card:hover{border-color:var(--pg-orange);background:var(--pg-orange-lt)}
+.region-card.active{border-color:var(--pg-orange);background:var(--pg-orange-lt)}
+.region-name{font-size:11px;font-weight:700;color:var(--gray-700);margin-bottom:4px}
+.region-count{font-size:20px;font-weight:800;color:var(--pg-orange)}
+.region-label{font-size:10px;color:var(--gray-400)}
+
+/* GAMIFICATION */
+.trophy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.trophy-card{background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:16px;text-align:center;transition:.15s}
+.trophy-card.earned{border-color:var(--pg-gold);background:var(--pg-gold-lt)}
+.trophy-card.locked{opacity:.4}
+.trophy-icon{font-size:32px;margin-bottom:8px}
+.trophy-name{font-size:12px;font-weight:600;color:var(--gray-800)}
+.trophy-desc{font-size:11px;color:var(--gray-400);margin-top:3px}
+.level-badge{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(135deg,var(--pg-gold),#F59E0B);color:#fff;padding:4px 12px;border-radius:12px;font-size:12px;font-weight:700}
+
+/* RESPONSIVE */
+@media(max-width:768px){
+  .login-panel{width:100%;min-width:0}
+  .login-bg{display:none}
+  .sidebar{display:none}
+  .lesson-layout{grid-template-columns:1fr}
+  .lesson-sidebar{display:none}
+  .ai-panel{display:none}
+}
+</style>
+</head>
+<body>
+
+<div id="toast"></div>
+
+<!-- MODAL OVERLAY -->
+<div id="modal-overlay">
+  <div class="modal-box" id="modal-box">
+    <div class="modal-header">
+      <h3 id="modal-title">Modal</h3>
+      <button class="modal-close" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-footer" id="modal-footer"></div>
+  </div>
+</div>
+
+<!-- ════════ LOGIN ════════ -->
+<div id="screen-login">
+  <div class="login-panel">
+    <div class="login-logo">
+      <div class="login-logo-icon">PG</div>
+      <div class="login-logo-text">
+        <b>Academia PayGas</b>
+        <span>Plataforma Nacional de Capacitação</span>
+      </div>
+    </div>
+    <h2>Bem-vindo de volta!</h2>
+    <p>Acesse sua conta para continuar aprendendo e crescendo no ecossistema PayGas.</p>
+    <div class="field">
+      <label>E-mail</label>
+      <input type="email" id="inp-email" placeholder="seu@email.com" value="admin@paygas.com.br">
+    </div>
+    <div class="field">
+      <label>Senha</label>
+      <input type="password" id="inp-senha" placeholder="••••••••" value="123456">
+    </div>
+    <div class="field">
+      <label>Perfil de acesso</label>
+      <select id="inp-role">
+        <option value="">— Selecione seu perfil —</option>
+        <option value="paygas">🌐 PayGas (Administrador Nacional)</option>
+        <option value="gestor">⛽ Gestor de Posto</option>
+        <option value="atendente">👤 Atendente</option>
+        <option value="parceiro">🏪 Parceiro Comercial</option>
+        <option value="lider">⛪ Líder Comunitário</option>
+        <option value="erp">💻 Integrador ERP</option>
+      </select>
+    </div>
+    <button class="btn-login" onclick="doLogin()">Acessar Academia</button>
+    <p class="login-terms">Ao acessar, você concorda com os <a href="#" onclick="showTermsOnly();return false">Termos de Uso</a> e a <a href="#" onclick="showPrivacyOnly();return false">Política de Privacidade</a>.</p>
+  </div>
+  <div class="login-bg">
+    <span class="ver-badge-login">V26 — Edição Nacional</span>
+    <div class="login-bg-content">
+      <h1>Capacitação <span>Nacional</span><br>em um só lugar</h1>
+      <p>A Academia PayGas conecta postos, parceiros e comunidades em todo o Brasil com conteúdo profissional, trilhas personalizadas e certificação reconhecida.</p>
+      <div class="login-stats" style="grid-template-columns:1fr 1fr"><div class="login-stat"><b>12.400+</b><span>Usuários ativos</span></div><div class="login-stat"><b>27</b><span>Estados cobertos</span></div><div class="login-stat"><b>R$ 2,1M</b><span>Cashback gerado</span></div><div class="login-stat"><b>4,8</b><span>NPS médio</span></div></div>
+        <div class="login-stat"><b>27</b><span>Estados</span></div>
+        <div class="login-stat"><b>+1.200</b><span>Certificados</span></div>
+        <div class="login-stat"><b>98%</b><span>Satisfação</span></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════ APP SHELL ════════ -->
+<div id="screen-app">
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="header-logo">
+      <div class="header-logo-icon">PG</div>
+      <div>
+        <div class="header-logo-name">Academia PayGas</div>
+        <div class="header-logo-ver">V26 — Edição Nacional</div>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="header-search">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="Buscar módulos, trilhas, certificados...">
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="header-notif" onclick="goTo('notif')" title="Notificações">
+        🔔<span class="notif-dot"></span>
+      </button>
+      <button class="header-user" onclick="goTo('perfil')">
+        <div class="user-avatar" id="hdr-avatar">PG</div>
+        <div class="user-info">
+          <b id="hdr-name">Usuário</b>
+          <span id="hdr-role-label">Carregando...</span>
+        </div>
+      </button>
+      <button class="btn-logout" onclick="doLogout()">Sair</button>
+    </div>
+  </header>
+
+  <!-- BODY -->
+  <div class="app-body">
+    <!-- SIDEBAR -->
+    <nav class="sidebar" id="sidebar">
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Principal</div>
+        <button class="nav-item active" onclick="goTo('home')" data-page="home">
+          <span class="nav-icon">🏠</span> Dashboard
+        </button>
+        <button class="nav-item" onclick="goTo('trilhas')" data-page="trilhas">
+          <span class="nav-icon">📚</span> Trilhas de Aprendizado
+          <span class="nav-badge" id="nb-trilhas">0</span>
+        </button>
+        <button class="nav-item" onclick="goTo('modulos')" data-page="modulos">
+          <span class="nav-icon">📖</span> Módulos
+        </button>
+        <button class="nav-item" onclick="goTo('certificados')" data-page="certificados">
+          <span class="nav-icon">🏆</span> Certificados
+        </button>
+      </div>
+      <div class="sidebar-section" id="nav-gestor" style="display:none">
+        <div class="sidebar-section-label">Gestão</div>
+        <button class="nav-item" onclick="goTo('equipe')" data-page="equipe">
+          <span class="nav-icon">👥</span> Minha Equipe
+        </button>
+        <button class="nav-item" onclick="goTo('relatorios')" data-page="relatorios">
+          <span class="nav-icon">📊</span> Relatórios
+        </button>
+      </div>
+      <div class="sidebar-section" id="nav-admin" style="display:none">
+        <div class="sidebar-section-label">Administração</div>
+        <button class="nav-item" onclick="goTo('cms')" data-page="cms">
+          <span class="nav-icon">✏️</span> Gestão de Conteúdo
+        </button>
+        <button class="nav-item" onclick="goTo('usuarios')" data-page="usuarios">
+          <span class="nav-icon">🧑‍💼</span> Usuários
+        </button>
+        <button class="nav-item" onclick="goTo('nacional')" data-page="nacional">
+          <span class="nav-icon">🗺️</span> Painel Nacional
+        </button>
+        <button class="nav-item" onclick="goTo('analitica')" data-page="analitica">
+          <span class="nav-icon">📈</span> Analytics
+        </button>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Comunidade</div>
+        <button class="nav-item" onclick="goTo('mapa')" data-page="mapa"><span class="nav-icon">🗺️</span> Mapa Nacional</button>
+        <button class="nav-item" onclick="goTo('ranking')" data-page="ranking">
+          <span class="nav-icon">🥇</span> Ranking Nacional
+        </button>
+        <button class="nav-item" onclick="goTo('forum')" data-page="forum"><span class="nav-icon">💬</span> Fórum</button>
+        <button class="nav-item" onclick="goTo('conquistas')" data-page="conquistas">
+          <span class="nav-icon">⭐</span> Conquistas
+        </button>
+        <button class="nav-item" onclick="goTo('notif')" data-page="notif">
+          <span class="nav-icon">🔔</span> Notificações
+          <span class="nav-badge">3</span>
+        </button>
+      </div>
+      <div class="sidebar-section">
+        <div class="sidebar-section-label">Suporte</div>
+        <button class="nav-item" onclick="goTo('perfil')" data-page="perfil">
+          <span class="nav-icon">👤</span> Meu Perfil
+        </button>
+        <button class="nav-item" onclick="toggleAI()">
+          <span class="nav-icon">🤖</span> Assistente IA
+        </button>
+        <button class="nav-item" onclick="showTermsOnly()">
+          <span class="nav-icon">📄</span> Termos de Uso
+        </button>
+        <button class="nav-item" onclick="showPrivacyOnly()">
+          <span class="nav-icon">🔒</span> Privacidade
+        </button>
+      </div>
+      <div class="sidebar-xp">
+        <div class="xp-label"><span>⚡ XP Acumulado</span><span id="xp-val">0 pts</span></div>
+        <div class="xp-bar"><div class="xp-fill" id="xp-fill" style="width:0%"></div></div>
+        <div class="xp-pts" id="xp-next">Próximo nível: 0 pts restantes</div>
+      </div>
+    </nav>
+
+    <!-- PAGES -->
+    <main class="main" id="main-content">
+
+      <!-- ── HOME ── -->
+      <div class="page active" id="page-home">
+        <div class="page-header">
+          <div>
+            <div class="page-title" id="home-title">Olá! 👋</div>
+            <div class="page-subtitle" id="home-sub">Bem-vindo à Academia PayGas</div>
+          </div>
+          <div class="level-badge" id="level-badge">⭐ Nível 1</div>
+        </div>
+        <div class="cards-grid" id="home-stats"></div>
+        <div class="two-col" style="gap:16px;margin-bottom:24px">
+          <div>
+            <div class="section-title">Continuar Aprendendo</div>
+            <div id="home-continue"></div>
+          </div>
+          <div>
+            <div class="section-title">Atividade Recente</div>
+            <div class="activity-feed" id="home-activity"></div>
+          </div>
+        </div>
+        <div class="section-title">Progresso Semanal</div>
+        <div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:16px;margin-bottom:24px">
+          <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--gray-400);margin-bottom:8px">
+            <span>Seg</span><span>Ter</span><span>Qua</span><span>Qui</span><span>Sex</span><span>Sáb</span><span>Dom</span>
+          </div>
+          <div class="mini-chart" id="weekly-chart"></div>
+        </div>
+      </div>
+
+      <!-- ── TRILHAS ── -->
+      <div class="page" id="page-trilhas">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Trilhas de Aprendizado</div>
+            <div class="page-subtitle" id="trilhas-sub">Conteúdo personalizado para seu perfil</div>
+          </div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap" id="trilha-filters"></div>
+        </div>
+        <div class="track-grid" id="trilhas-grid"></div>
+      </div>
+
+      <!-- ── MÓDULOS (viewer) ── -->
+      <div class="page" id="page-modulos">
+        <div class="page-header">
+          <div>
+            <div class="page-title" id="mod-title">Módulo</div>
+            <div class="page-subtitle" id="mod-sub"></div>
+          </div>
+          <button class="btn-secondary" onclick="goTo('trilhas')">← Voltar às Trilhas</button>
+        </div>
+        <div class="lesson-layout" id="lesson-layout"></div>
+      </div>
+
+      <!-- ── CERTIFICADOS ── -->
+      <div class="page" id="page-certificados">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Meus Certificados</div>
+            <div class="page-subtitle">Conquistas oficiais emitidas pela Academia PayGas</div>
+          </div>
+        </div>
+        <div class="cards-grid" id="cert-grid" style="grid-template-columns:repeat(auto-fill,minmax(300px,1fr))"></div>
+      </div>
+
+      <!-- ── EQUIPE ── -->
+      <div class="page" id="page-equipe">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Minha Equipe</div>
+            <div class="page-subtitle">Acompanhe o progresso de cada colaborador</div>
+          </div>
+          <button class="btn-primary" onclick="toast('Relatório exportado! 📊')">📥 Exportar CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Colaborador</th><th>Trilha</th><th>Progresso</th><th>XP</th><th>Certificados</th><th>Status</th></tr></thead>
+            <tbody id="team-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── RELATÓRIOS ── -->
+      <div class="page" id="page-relatorios">
+        <div class="page-header">
+          <div class="page-title">Relatórios</div>
+        </div>
+        <div class="cards-grid" id="relat-cards"></div>
+        <div class="section-title">Desempenho por Módulo</div>
+        <div class="table-wrap" style="margin-bottom:24px">
+          <table>
+            <thead><tr><th>Módulo</th><th>Concluídos</th><th>Em Andamento</th><th>Taxa Conclusão</th><th>Nota Média</th></tr></thead>
+            <tbody id="relat-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── CMS ── -->
+      <div class="page" id="page-cms">
+        <div class="page-header">
+          <div class="page-title">Gestão de Conteúdo</div>
+          <button class="btn-primary" onclick="openNewContent()">+ Novo Módulo</button>
+        </div>
+        <div class="admin-tabs">
+          <button class="admin-tab active" onclick="cmsTab(this,'published')">Publicados</button>
+          <button class="admin-tab" onclick="cmsTab(this,'draft')">Rascunhos</button>
+          <button class="admin-tab" onclick="cmsTab(this,'all')">Todos</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Título</th><th>Persona</th><th>Aulas</th><th>Vídeo YT</th><th>Status</th><th>Ações</th></tr></thead>
+            <tbody id="cms-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── USUARIOS ── -->
+      <div class="page" id="page-usuarios">
+        <div class="page-header">
+          <div class="page-title">Usuários da Plataforma</div>
+          <button class="btn-primary" onclick="toast('Importação em breve! 📥')">📥 Importar Usuários</button>
+        </div>
+        <div class="cards-grid" id="usr-stats"></div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Estado</th><th>XP</th><th>Último Acesso</th><th>Status</th></tr></thead>
+            <tbody id="usr-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── NACIONAL ── -->
+      <div class="page" id="page-nacional">
+        <div class="page-header">
+          <div class="page-title">Painel Nacional</div>
+          <div class="page-subtitle">Academia PayGas em todo o Brasil</div>
+        </div>
+        <div class="cards-grid" id="nacional-stats"></div>
+        <div class="map-container">
+          <div class="section-title">Usuários por Região</div>
+          <div class="region-grid" id="region-grid"></div>
+        </div>
+        <div class="section-title">Top Estados</div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr><th>Estado</th><th>Usuários</th><th>Certificados</th><th>XP Total</th><th>Engajamento</th></tr></thead>
+            <tbody id="estados-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ── ANALITICA ── -->
+      <div class="page" id="page-analitica">
+        <div class="page-header">
+          <div class="page-title">Analytics</div>
+        </div>
+        <div class="cards-grid" id="anal-cards"></div>
+        <div class="two-col">
+          <div>
+            <div class="section-title">Módulos Mais Acessados</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Módulo</th><th>Acessos</th><th>Conclusão</th></tr></thead>
+                <tbody id="anal-mods"></tbody>
+              </table>
+            </div>
+          </div>
+          <div>
+            <div class="section-title">Personas Mais Ativas</div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr><th>Persona</th><th>Usuários</th><th>XP Médio</th></tr></thead>
+                <tbody id="anal-personas"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── RANKING ── -->
+      <div class="page" id="page-ranking">
+        <div class="page-header">
+          <div class="page-title">Ranking Nacional 🥇</div>
+          <div class="page-subtitle">Top alunos da Academia PayGas no Brasil</div>
+        </div>
+        <div id="ranking-list"></div>
+      </div>
+
+      <!-- ── CONQUISTAS ── -->
+      <div class="page" id="page-conquistas">
+        <div class="page-header">
+          <div class="page-title">Conquistas ⭐</div>
+          <div class="page-subtitle">Desbloqueie troféus completando módulos e desafios</div>
+        </div>
+        <div class="trophy-grid" id="trophy-grid"></div>
+      </div>
+
+      <!-- ── NOTIFICAÇÕES ── -->
+      <div class="page" id="page-notif">
+        <div class="page-header">
+          <div class="page-title">Notificações</div>
+          <button class="btn-secondary" onclick="markAllRead()">✓ Marcar todas como lidas</button>
+        </div>
+        <div class="notif-list" id="notif-list"></div>
+      </div>
+
+      <!-- ── PERFIL ── -->
+      <div class="page" id="page-perfil">
+        <div class="page-header">
+          <div class="page-title">Meu Perfil</div>
+        </div>
+        <div class="two-col">
+          <div>
+            <div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:24px;margin-bottom:16px">
+              <div style="display:flex;align-items:center;gap:16px;margin-bottom:20px">
+                <div class="user-avatar" id="perfil-avatar" style="width:56px;height:56px;font-size:20px"></div>
+                <div>
+                  <b id="perfil-nome" style="font-size:18px;display:block;color:var(--gray-900)"></b>
+                  <span id="perfil-role" style="font-size:13px;color:var(--gray-500)"></span>
+                </div>
+              </div>
+              <div class="form-field">
+                <label class="form-label">Nome Completo</label>
+                <input class="form-input" id="perfil-nome-inp" type="text">
+              </div>
+              <div class="form-field">
+                <label class="form-label">E-mail</label>
+                <input class="form-input" id="perfil-email-inp" type="email">
+              </div>
+              <div class="form-field">
+                <label class="form-label">Estado</label>
+                <select class="form-select" id="perfil-estado-inp">
+                  <option>São Paulo</option><option>Rio de Janeiro</option><option>Minas Gerais</option>
+                  <option>Bahia</option><option>Paraná</option><option>Rio Grande do Sul</option>
+                  <option>Goiás</option><option>Pernambuco</option><option>Ceará</option><option>Outros</option>
+                </select>
+              </div>
+              <button class="btn-primary" style="width:100%" onclick="savePerfil()">Salvar Alterações</button>
+            </div>
+          </div>
+          <div>
+            <div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:24px;margin-bottom:16px">
+              <div class="section-title">Estatísticas</div>
+              <div class="cards-grid" style="grid-template-columns:1fr 1fr;gap:10px" id="perfil-stats"></div>
+            </div>
+            <div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:24px">
+              <div class="section-title">Segurança</div>
+              <div class="form-field">
+                <label class="form-label">Nova Senha</label>
+                <input class="form-input" type="password" placeholder="••••••••">
+              </div>
+              <div class="form-field">
+                <label class="form-label">Confirmar Senha</label>
+                <input class="form-input" type="password" placeholder="••••••••">
+              </div>
+              <button class="btn-secondary" style="width:100%" onclick="toast('Senha alterada com sucesso! 🔒')">Alterar Senha</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    
+      <!-- ── MAPA NACIONAL ── -->
+      <div class="page" id="page-mapa">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Mapa Nacional PayGas</div>
+            <div class="page-subtitle">Distribuição de usuários e engajamento por região</div>
+          </div>
+          <button class="btn-primary" onclick="toast('Exportando relatório! 📊')">Exportar Relatório</button>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:16px;margin-bottom:24px" id="regioes-grid"></div>
+        <div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:24px;margin-bottom:24px">
+          <div class="section-title" style="margin-bottom:16px">Engajamento por Região</div>
+          <div id="nat-bars"></div>
+        </div>
+        <div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:24px">
+          <div class="section-title" style="margin-bottom:16px">Top Municípios</div>
+          <div id="top-municipios"></div>
+        </div>
+      </div>
+
+      <!-- ── FORUM ── -->
+      <div class="page" id="page-forum">
+        <div class="page-header">
+          <div>
+            <div class="page-title">Fórum da Comunidade</div>
+            <div class="page-subtitle">Conecte-se com profissionais PayGas de todo o Brasil</div>
+          </div>
+          <button class="btn-primary" onclick="openNovoPost()">+ Nova Publicação</button>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+          <button class="track-badge badge-progress" style="cursor:pointer;padding:6px 14px">Todos</button>
+          <button class="track-badge badge-new" style="cursor:pointer;padding:6px 14px" onclick="toast('Filtro: Dúvidas')">Dúvidas</button>
+          <button class="track-badge badge-new" style="cursor:pointer;padding:6px 14px" onclick="toast('Filtro: Dicas')">Dicas</button>
+          <button class="track-badge badge-new" style="cursor:pointer;padding:6px 14px" onclick="toast('Cases de Sucesso')">Cases de Sucesso</button>
+          <button class="track-badge badge-new" style="cursor:pointer;padding:6px 14px" onclick="toast('Filtro: Técnico')">Técnico</button>
+        </div>
+        <div id="forum-posts"></div>
+      </div>
+
+    </main><!-- /main -->
+
+    <!-- AI ASSISTANT PANEL -->
+    <div class="ai-panel hidden" id="ai-panel">
+      <div class="ai-header">
+        <div class="ai-header-icon">🤖</div>
+        <div class="ai-header-info">
+          <b>Assistente PayGas IA</b>
+          <span>Online agora</span>
+        </div>
+        <button class="ai-close-btn" onclick="toggleAI()">✕</button>
+      </div>
+      <div class="ai-messages" id="ai-msgs"></div>
+      <div class="ai-input-area">
+        <div class="ai-quick" id="ai-quick"></div>
+        <div class="ai-input-row">
+          <input type="text" id="ai-inp" placeholder="Pergunte ao assistente..." onkeydown="if(event.key==='Enter')sendAI()">
+          <button class="ai-send" onclick="sendAI()">➤</button>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /app-body -->
+</div><!-- /screen-app -->
+
+<script>
+var S={
+  role:'',email:'',nome:'',estado:'São Paulo',
+  termsAccepted:{},
+  xp:0,level:1,
+  currentTrack:null,currentLesson:0,
+  lessonProgress:{},
+  quizState:{},
+  cmsFilter:'published',
+  aiOpen:false
+};
+
+var PERSONAS={
+  paygas:{label:'Administrador Nacional',icon:'🌐',color:'#0A2E6E',initials:'AD',tracks:['all']},
+  gestor:{label:'Gestor de Posto',icon:'⛽',color:'#D97706',initials:'GP',tracks:['operacional','gestao','atendimento']},
+  atendente:{label:'Atendente',icon:'👤',color:'#16A34A',initials:'AT',tracks:['atendimento','cashback','terminal']},
+  parceiro:{label:'Parceiro Comercial',icon:'🏪',color:'#7C3AED',initials:'PC',tracks:['parceiro','cashback','marketing']},
+  lider:{label:'Líder Comunitário',icon:'⛪',color:'#0891B2',initials:'LC',tracks:['comunidade','cashback','pedágio']},
+  erp:{label:'Integrador ERP',icon:'💻',color:'#1F2937',initials:'ERP',tracks:['erp','api','integracao']}
+};
+
+var TRACKS=[
+  {id:'atendimento',label:'Excelência no Atendimento',icon:'👤',color:'#DCFCE7',desc:'Técnicas de atendimento e satisfação do cliente',personas:['paygas','gestor','atendente'],lessons:6,required:true},
+  {id:'cashback',label:'Sistema de Cashback PayGas',icon:'💰',color:'#FEF3C7',desc:'Como funciona e como comunicar o cashback ao cliente',personas:['paygas','gestor','atendente','parceiro','lider'],lessons:5,required:true},
+  {id:'gestao',label:'Gestão e KPIs do Posto',icon:'📊',color:'#E6EEF9',desc:'Dashboard, relatórios e indicadores de desempenho',personas:['paygas','gestor'],lessons:7,required:false},
+  {id:'terminal',label:'Operação do Terminal',icon:'📱',color:'#F3E8FF',desc:'Configuração e uso do terminal PayGas',personas:['paygas','atendente'],lessons:4,required:true},
+  {id:'parceiro',label:'Portal do Parceiro',icon:'🏪',color:'#FCE7F3',desc:'Cadastro, comissões e ferramentas para parceiros',personas:['paygas','parceiro'],lessons:5,required:false},
+  {id:'comunidade',label:'Pedágio Digital Comunitário',icon:'⛪',color:'#CFFAFE',desc:'Renda passiva e gestão da rede comunitária',personas:['paygas','lider'],lessons:4,required:false},
+  {id:'erp',label:'Integração via API',icon:'💻',color:'#F1F5F9',desc:'Endpoints, autenticação JWT e sincronização',personas:['paygas','erp'],lessons:6,required:true},
+  {id:'marketing',label:'Marketing Digital',icon:'📣',color:'#FEF0E6',desc:'Campanhas, redes sociais e fidelização',personas:['paygas','parceiro','gestor'],lessons:4,required:false},
+  {id:'lgpd',label:'LGPD e Segurança de Dados',icon:'🔒',color:'#F0FDF4',desc:'Proteção de dados e compliance',personas:['paygas','gestor','erp'],lessons:3,required:true},
+  {id:'lideranca',label:'Liderança e Desenvolvimento de Equipe',icon:'🚀',color:'#EDE9FE',desc:'Gestão de pessoas, metas e cultura de alta performance',personas:['paygas','gestor'],lessons:5,required:false},
+  {id:'financeiro',label:'Gestão Financeira do Posto',icon:'💼',color:'#FEF9C3',desc:'Fluxo de caixa, conciliação e relatórios financeiros',personas:['paygas','gestor'],lessons:4,required:false},
+  {id:'inovacao',label:'Inovação no Setor de Combustíveis',icon:'⚡',color:'#E0F2FE',desc:'Tendências, fintechs e transformação digital no GLP',personas:['paygas','gestor','erp'],lessons:4,required:false}
+];
+
+var LESSONS_DATA={
+  atendimento:[
+    {title:'Fundamentos do Atendimento',type:'video',duration:'8 min',content:'O atendimento de qualidade começa com empatia, clareza e agilidade. Nesta aula você aprende os pilares fundamentais para encantar o cliente no posto de combustível.'},
+    {title:'Comunicação Eficaz',type:'video',duration:'10 min',content:'Técnicas de comunicação verbal e não-verbal. Como adaptar a linguagem para diferentes perfis de clientes.'},
+    {title:'Resolução de Conflitos',type:'leitura',duration:'12 min',content:'Aprenda a lidar com situações difíceis e reverter experiências negativas em fidelização.'},
+    {title:'Cashback: Como Explicar ao Cliente',type:'video',duration:'7 min',content:'Script completo para apresentar o benefício do cashback de forma clara e convincente.'},
+    {title:'Avaliação de Desempenho',type:'quiz',duration:'10 min',content:'Quizz de fixação',quiz:{q:'Qual é o primeiro passo ao atender um cliente insatisfeito?',opts:['Ignorar a reclamação','Escutar ativamente sem interromper','Pedir que ele ligue para o SAC','Chamar o gerente imediatamente'],correct:1}},
+    {title:'Certificação — Atendimento',type:'cert',duration:'5 min',content:'Parabéns! Você concluiu a trilha de Atendimento.'}
+  ],
+  cashback:[
+    {title:'O que é o Cashback PayGas',type:'video',duration:'6 min',content:'Entenda o modelo de cashback da PayGas: como o cliente acumula, quem paga e qual o diferencial competitivo.'},
+    {title:'Cálculo e Regras',type:'leitura',duration:'8 min',content:'Tabela de percentuais por categoria de produto, limites mensais e regras de resgate.'},
+    {title:'Ativando o Cashback no App',type:'video',duration:'9 min',content:'Passo a passo: cadastro do cliente, vinculação no terminal, confirmação da transação.'},
+    {title:'Dúvidas Frequentes dos Clientes',type:'leitura',duration:'6 min',content:'As 15 perguntas mais comuns sobre cashback e as respostas padrão aprovadas pela PayGas.'},
+    {title:'Prova Final — Cashback',type:'quiz',duration:'10 min',content:'Avaliação final',quiz:{q:'Qual o prazo para o cashback aparecer na conta do cliente?',opts:['Imediatamente','Até 24 horas','Entre 2 e 5 dias úteis','Até 30 dias'],correct:2}}
+  ],
+  gestao:[
+    {title:'Dashboard do Gestor',type:'video',duration:'12 min',content:'Navegação pelo painel de controle: métricas de vendas, ranking de atendentes e alertas em tempo real.'},
+    {title:'KPIs Essenciais do Posto',type:'leitura',duration:'10 min',content:'Ticket médio, NPS, taxa de retorno e cashback gerado. Como interpretar e agir sobre cada indicador.'},
+    {title:'Gestão de Equipe',type:'video',duration:'8 min',content:'Escala de trabalho, treinamentos internos e como usar a Academia para monitorar o progresso da equipe.'},
+    {title:'Relatórios Semanais',type:'video',duration:'7 min',content:'Como extrair, interpretar e apresentar relatórios para a área regional PayGas.'},
+    {title:'Metas e Bonificações',type:'leitura',duration:'9 min',content:'Programa de incentivos PayGas para gestores: como bater metas e acionar bonificações.'},
+    {title:'Avaliação de Gestão',type:'quiz',duration:'12 min',content:'Prova final',quiz:{q:'Qual KPI indica diretamente a satisfação do cliente?',opts:['Ticket Médio','Margem de Lucro','NPS — Net Promoter Score','Volume de Vendas'],correct:2}},
+    {title:'Certificação — Gestão',type:'cert',duration:'5 min',content:'Você é agora um gestor certificado pela Academia PayGas!'}
+  ],
+  terminal:[
+    {title:'Visão Geral do Terminal',type:'video',duration:'8 min',content:'Hardware, software e conectividade. O que cada botão e indicador LED significa.'},
+    {title:'Configuração Inicial',type:'video',duration:'10 min',content:'Passo a passo do setup: rede, autenticação, impressora e modo de operação.'},
+    {title:'Transações e Conciliação',type:'leitura',duration:'8 min',content:'Como processar, cancelar e conciliar transações. Relatório de fechamento do dia.'},
+    {title:'Resolução de Problemas',type:'quiz',duration:'10 min',content:'Quiz de troubleshooting',quiz:{q:'O terminal exibe "Sem Conexão". Qual o primeiro passo?',opts:['Reiniciar o estabelecimento inteiro','Verificar o cabo de rede e status do roteador','Ligar para o suporte imediatamente','Aguardar 24h'],correct:1}}
+  ],
+  erp:[
+    {title:'Arquitetura da API PayGas',type:'leitura',duration:'10 min',content:'Visão geral dos endpoints REST, autenticação OAuth2 e limites de requisição.'},
+    {title:'Autenticação JWT',type:'video',duration:'12 min',content:'Fluxo completo de autenticação: geração de token, refresh e expiração.'},
+    {title:'Endpoints Principais',type:'leitura',duration:'15 min',content:'/transactions, /cashback, /users, /reports — parâmetros, respostas e códigos de erro.'},
+    {title:'Webhooks e Eventos',type:'video',duration:'10 min',content:'Como configurar webhooks para receber notificações em tempo real de transações e cashback.'},
+    {title:'Sandbox e Testes',type:'video',duration:'8 min',content:'Ambiente de homologação, dados de teste e como simular diferentes cenários.'},
+    {title:'Certificação — Integrador',type:'cert',duration:'5 min',content:'Você está certificado como Integrador ERP PayGas!'}
+  ]
+};
+
+var CMS_MODS=[
+  {id:1,title:'Boas-Vindas à Academia PayGas',persona:'Todos',aulas:3,yt:'https://www.youtube.com/embed/dQw4w9WgXcQ',status:'published'},
+  {id:2,title:'Manual do Atendente — Versão 2025',persona:'Atendente',aulas:8,yt:'',status:'published'},
+  {id:3,title:'Guia do Gestor Regional',persona:'Gestor',aulas:6,yt:'https://www.youtube.com/embed/example',status:'published'},
+  {id:4,title:'API PayGas — Documentação Técnica',persona:'ERP',aulas:5,yt:'',status:'draft'},
+  {id:5,title:'Cashback — Novidades 2025',persona:'Todos',aulas:4,yt:'',status:'published'}
+];
+
+var USERS_DATA=[
+  {nome:'Ana Paula Costa',email:'ana@posto1.com.br',role:'atendente',estado:'SP',xp:2400,acesso:'Hoje',ativo:true},
+  {nome:'Carlos Mendes',email:'carlos@posto2.com.br',role:'gestor',estado:'RJ',xp:4100,acesso:'Ontem',ativo:true},
+  {nome:'Fernanda Lima',email:'fernanda@parceiro.com',role:'parceiro',estado:'MG',xp:1800,acesso:'3 dias',ativo:true},
+  {nome:'João Santos',email:'joao@comunidade.org',role:'lider',estado:'BA',xp:3200,acesso:'Hoje',ativo:true},
+  {nome:'Mariana Tech',email:'mariana@erp.com',role:'erp',estado:'PR',xp:5500,acesso:'Hoje',ativo:true},
+  {nome:'Pedro Oliveira',email:'pedro@posto3.com.br',role:'atendente',estado:'SC',xp:900,acesso:'1 semana',ativo:false},
+  {nome:'Lúcia Ferreira',email:'lucia@posto4.com.br',role:'gestor',estado:'GO',xp:3800,acesso:'2 dias',ativo:true},
+  {nome:'Rafael Costa',email:'rafael@parceiro2.com',role:'parceiro',estado:'CE',xp:1200,acesso:'5 dias',ativo:true}
+];
+
+var NOTIFS=[
+  {title:'Novo módulo disponível!',body:'"Cashback — Novidades 2025" foi publicado para você.',icon:'📚',time:'Há 2 horas',unread:true},
+  {title:'Você subiu de nível! 🎉',body:'Parabéns! Você alcançou o Nível 2 na Academia.',icon:'⭐',time:'Há 1 dia',unread:true},
+  {title:'Lembrete de trilha',body:'Você não acessa a trilha "Gestão e KPIs" há 3 dias.',icon:'⏰',time:'Há 2 dias',unread:true},
+  {title:'Certificado emitido',body:'Seu certificado de Atendimento está disponível para download.',icon:'🏆',time:'Há 4 dias',unread:false},
+  {title:'Meta atingida!',body:'Sua equipe atingiu 80% de conclusão este mês.',icon:'🎯',time:'Há 1 semana',unread:false}
+];
+
+var TROPHIES=[
+  {name:'Primeira Aula',desc:'Complete sua 1ª aula',icon:'📖',earned:true},
+  {name:'Maratonista',desc:'5 aulas em um dia',icon:'🏃',earned:true},
+  {name:'Certifier',desc:'Obtenha 1 certificado',icon:'🏆',earned:true},
+  {name:'Trilheiro',desc:'Conclua 3 trilhas',icon:'🗺️',earned:false},
+  {name:'Expert',desc:'Nota 10 em 3 quizzes',icon:'🎯',earned:false},
+  {name:'Ranker',desc:'Top 10 nacional',icon:'🥇',earned:false},
+  {name:'Embaixador',desc:'Convide 5 colegas',icon:'🤝',earned:false},
+  {name:'Mestre',desc:'Conclua todas as trilhas',icon:'👑',earned:false}
+];
+
+var RANKING_DATA=[
+  {nome:'Mariana Tech',role:'Integrador ERP',estado:'PR',xp:5500,avatar:'MT'},
+  {nome:'Carlos Mendes',role:'Gestor',estado:'RJ',xp:4100,avatar:'CM'},
+  {nome:'Lúcia Ferreira',role:'Gestora',estado:'GO',xp:3800,avatar:'LF'},
+  {nome:'João Santos',role:'Líder Comunitário',estado:'BA',xp:3200,avatar:'JS'},
+  {nome:'Ana Paula Costa',role:'Atendente',estado:'SP',xp:2400,avatar:'AC'},
+  {nome:'Rafael Costa',role:'Parceiro',estado:'CE',xp:1200,avatar:'RC'},
+  {nome:'Fernanda Lima',role:'Parceira',estado:'MG',xp:1800,avatar:'FL'},
+  {nome:'Pedro Oliveira',role:'Atendente',estado:'SC',xp:900,avatar:'PO'}
+].sort((a,b)=>b.xp-a.xp);
+
+var REGIONS=[
+  {name:'Norte',states:['AM','PA','AC','RO','RR','AP','TO'],users:320},
+  {name:'Nordeste',states:['BA','PE','CE','MA','PI','AL','SE','PB','RN'],users:1140},
+  {name:'Centro-Oeste',states:['MT','MS','GO','DF'],users:480},
+  {name:'Sudeste',states:['SP','RJ','MG','ES'],users:2180},
+  {name:'Sul',states:['PR','SC','RS'],users:680}
+];
+
+var AI_KNOWLEDGE={
+  paygas:['A Academia PayGas tem +4.800 usuários em 27 estados.','Você pode gerenciar conteúdo na seção Gestão de Conteúdo.','O painel nacional mostra distribuição por região.','Use Analytics para ver métricas de engajamento.'],
+  gestor:['Acesse "Minha Equipe" para ver o progresso de cada atendente.','O KPI mais importante é o NPS de satisfação do cliente.','Você pode exportar relatórios em CSV.','A trilha de Gestão tem 7 módulos — recomendamos começar por KPIs.'],
+  atendente:['A trilha de Atendimento é obrigatória — 6 módulos.','Use o script de cashback para explicar ao cliente de forma simples.','Seu XP aumenta a cada aula concluída.','Dúvidas sobre o terminal? A trilha de Operação do Terminal cobre tudo.'],
+  parceiro:['Sua trilha principal é Portal do Parceiro — 5 módulos.','Aprenda sobre comissões e ferramentas de marketing.','O cashback atrai mais clientes para seu estabelecimento.'],
+  lider:['A trilha Pedágio Digital explica como gerar renda passiva.','Você não precisa de investimento para participar da rede.','Compartilhe os benefícios com sua comunidade.'],
+  erp:['A API PayGas usa autenticação OAuth2 com JWT.','Sandbox disponível para testes sem afetar produção.','Webhooks notificam em tempo real sobre transações.','Documentação técnica disponível na trilha API.']
+};
+
+function G(id){return document.getElementById(id)}
+function toast(msg,duration){
+  var t=G('toast');t.textContent=msg;t.classList.add('show');
+  setTimeout(function(){t.classList.remove('show')},duration||3000);
+}
+
+function doLogin(){
+  var role=G('inp-role').value;
+  var email=G('inp-email').value.trim();
+  if(!role){toast('⚠️ Selecione um perfil!');return}
+  if(!email){toast('⚠️ Informe seu e-mail!');return}
+  S.role=role;S.email=email;
+  if(!S.termsAccepted[role]){
+    showTermsModal(function(){S.termsAccepted[role]=true;launchApp()});
+  } else {
+    launchApp();
+  }
+}
+
+function showTermsModal(onAccept){
+  var content='<div class="terms-scroll">'
+    +'<h4>1. Aceitação dos Termos</h4><p>Ao utilizar a Academia PayGas, você concorda com estes Termos de Uso. Esta plataforma é de uso exclusivo de usuários autorizados pela PayGas e seus parceiros.</p>'
+    +'<h4>2. Uso da Plataforma</h4><p>Você se compromete a usar a plataforma apenas para finalidades educacionais relacionadas ao ecossistema PayGas. É proibido compartilhar credenciais, reproduzir conteúdos protegidos ou praticar engenharia reversa.</p>'
+    +'<h4>3. Propriedade Intelectual</h4><p>Todo o conteúdo da Academia PayGas — vídeos, textos, quizzes e certificados — é propriedade da PayGas Tecnologia S.A. e protegido por direitos autorais.</p>'
+    +'<h4>4. Privacidade e LGPD</h4><p>Seus dados são tratados conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018). Coletamos apenas informações necessárias para o funcionamento da plataforma.</p>'
+    +'<h4>5. Certificados</h4><p>Os certificados emitidos são digitais e reconhecidos pela rede PayGas. A PayGas não garante reconhecimento externo automático.</p>'
+    +'<h4>6. Alterações</h4><p>A PayGas pode atualizar estes termos com aviso prévio de 15 dias.</p>'
+    +'</div>'
+    +'<label class="terms-check"><input type="checkbox" id="terms-cb" onchange="G(\'btn-accept-terms\').disabled=!this.checked"> Li e aceito os Termos de Uso e a Política de Privacidade da Academia PayGas</label>';
+  var footer='<button class="btn-secondary" onclick="closeModal()">Cancelar</button>'
+    +'<button class="btn-accept" id="btn-accept-terms" disabled onclick="closeModal();('+onAccept.toString()+')()">Aceitar e Entrar ✓</button>';
+  openModal('Termos de Uso — Academia PayGas',content,footer);
+}
+
+function showTermsOnly(){
+  var content='<div class="terms-scroll" style="max-height:480px">'
+    +'<h4>1. Aceitação dos Termos</h4><p>Ao utilizar a Academia PayGas, você concorda com estes Termos de Uso. Esta plataforma é de uso exclusivo de usuários autorizados pela PayGas e seus parceiros.</p>'
+    +'<h4>2. Uso da Plataforma</h4><p>Você se compromete a usar a plataforma apenas para finalidades educacionais. É proibido compartilhar credenciais ou reproduzir conteúdos protegidos.</p>'
+    +'<h4>3. Propriedade Intelectual</h4><p>Todo o conteúdo da Academia PayGas é propriedade da PayGas Tecnologia S.A. e protegido por direitos autorais.</p>'
+    +'<h4>4. Privacidade e LGPD</h4><p>Seus dados são tratados conforme a Lei Geral de Proteção de Dados (Lei 13.709/2018).</p>'
+    +'<h4>5. Certificados</h4><p>Os certificados emitidos são digitais e reconhecidos pela rede PayGas.</p>'
+    +'<h4>6. Contato</h4><p>Para dúvidas: legal@paygas.com.br</p>'
+    +'</div>';
+  openModal('Termos de Uso',content,'<button class="btn-primary" onclick="closeModal()">Fechar</button>');
+}
+
+function showPrivacyOnly(){
+  var content='<div class="terms-scroll" style="max-height:480px">'
+    +'<h4>Política de Privacidade — Academia PayGas</h4>'
+    +'<h4>1. Dados Coletados</h4><p>Nome, e-mail, perfil de acesso, progresso nos módulos, resultados de quizzes e datas de acesso.</p>'
+    +'<h4>2. Finalidade</h4><p>Os dados são usados exclusivamente para personalizar sua experiência de aprendizado, emitir certificados e gerar relatórios de desempenho.</p>'
+    +'<h4>3. Compartilhamento</h4><p>Seus dados podem ser compartilhados com seu gestor direto e com a equipe PayGas responsável pelo seu posto/parceria. Não compartilhamos dados com terceiros para fins comerciais.</p>'
+    +'<h4>4. Seus Direitos (LGPD)</h4><p>Você tem direito a: acessar seus dados, corrigir informações incorretas, solicitar exclusão e portabilidade dos dados. Para exercer esses direitos: privacidade@paygas.com.br</p>'
+    +'<h4>5. Retenção</h4><p>Dados de progresso são retidos por 5 anos após o encerramento da conta. Certificados digitais são mantidos indefinidamente.</p>'
+    +'<h4>6. Segurança</h4><p>Utilizamos criptografia TLS 1.3, autenticação em dois fatores e auditoria de acessos.</p>'
+    +'</div>';
+  openModal('Política de Privacidade',content,'<button class="btn-primary" onclick="closeModal()">Fechar</button>');
+}
+
+function openModal(title,body,footer){
+  G('modal-title').textContent=title;
+  G('modal-body').innerHTML=body;
+  G('modal-footer').innerHTML=footer||'';
+  G('modal-overlay').classList.add('open');
+}
+function closeModal(){G('modal-overlay').classList.remove('open')}
+
+function launchApp(){
+  var p=PERSONAS[S.role];
+  if(!p)return;
+  G('screen-login').style.display='none';
+  G('screen-app').classList.add('active');
+  G('hdr-avatar').textContent=p.initials;
+  G('hdr-avatar').style.background=p.color;
+  G('hdr-name').textContent=getNome();
+  G('hdr-role-label').textContent=p.label;
+  S.xp=getStartXP();
+  updateXP();
+  buildNav();
+  goTo('home');
+  initAI();
+  toast('Bem-vindo(a) à Academia PayGas! 🎉');
+}
+
+function getNome(){
+  var nomes={paygas:'Admin Nacional',gestor:'Carlos Mendes',atendente:'Ana Paula Costa',parceiro:'Fernanda Lima',lider:'João Santos',erp:'Mariana Tech'};
+  return nomes[S.role]||'Usuário';
+}
+function getStartXP(){
+  var xps={paygas:8500,gestor:4100,atendente:2400,parceiro:1800,lider:3200,erp:5500};
+  return xps[S.role]||0;
+}
+
+function updateXP(){
+  var lv=Math.floor(S.xp/2000)+1;S.level=lv;
+  var pct=(S.xp%2000)/2000*100;
+  G('xp-fill').style.width=pct+'%';
+  G('xp-val').textContent=S.xp.toLocaleString('pt-BR')+' pts';
+  G('xp-next').textContent='Próximo nível: '+(2000-(S.xp%2000))+' pts';
+  if(G('level-badge'))G('level-badge').textContent='⭐ Nível '+lv;
+}
+
+function buildNav(){
+  var isGestor=S.role==='gestor'||S.role==='paygas';
+  var isAdmin=S.role==='paygas';
+  G('nav-gestor').style.display=isGestor?'':'none';
+  G('nav-admin').style.display=isAdmin?'':'none';
+  var cnt=getMyTracks().length;
+  G('nb-trilhas').textContent=cnt;
+}
+
+function getMyTracks(){
+  if(S.role==='paygas')return TRACKS;
+  return TRACKS.filter(function(t){return t.personas.indexOf(S.role)>=0});
+}
+
+function goTo(page){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active')});
+  var pg=G('page-'+page);if(!pg)return;
+  pg.classList.add('active');
+  var navBtn=document.querySelector('[data-page="'+page+'"]');
+  if(navBtn)navBtn.classList.add('active');
+  if(page==='home')renderHome();
+  else if(page==='trilhas')renderTrilhas();
+  else if(page==='certificados')renderCerts();
+  else if(page==='equipe')renderEquipe();
+  else if(page==='relatorios')renderRelatorios();
+  else if(page==='cms')renderCMS();
+  else if(page==='usuarios')renderUsuarios();
+  else if(page==='nacional')renderNacional();
+  else if(page==='analitica')renderAnalitica();
+  else if(page==='ranking')renderRanking();
+  else if(page==='conquistas')renderConquistas();
+  else if(page==='notif')renderNotif();
+  else if(page==='perfil')renderPerfil();
+}
+
+function renderHome(){
+  var p=PERSONAS[S.role];
+  G('home-title').textContent='Olá, '+getNome()+'! 👋';
+  G('home-sub').textContent=p.icon+' '+p.label+' — Academia PayGas';
+  var tracks=getMyTracks();
+  var stats=[
+    {icon:'📚',val:tracks.length,label:'Trilhas Disponíveis',trend:'+2 novas',up:true,color:'#FEF3C7'},
+    {icon:'✅',val:Math.ceil(tracks.length*0.3),label:'Trilhas Concluídas',trend:'30%',up:true,color:'#DCFCE7'},
+    {icon:'⚡',val:S.xp.toLocaleString('pt-BR'),label:'XP Acumulado',trend:'+150 hoje',up:true,color:'#E6EEF9'},
+    {icon:'🏆',val:Math.ceil(tracks.length*0.2),label:'Certificados',trend:'Emisão automática',up:true,color:'#FEF0E6'}
+  ];
+  if(S.role==='paygas'||S.role==='gestor'){
+    stats.push({icon:'👥',val:'8',label:'Equipe Ativa',trend:'2 novos esta semana',up:true,color:'#F3E8FF'});
+  }
+  G('home-stats').innerHTML=stats.map(function(s){
+    return '<div class="stat-card"><div class="stat-card-icon" style="background:'+s.color+'">'+s.icon+'</div>'
+      +'<div class="stat-card-val">'+s.val+'</div>'
+      +'<div class="stat-card-label">'+s.label+'</div>'
+      +'<div class="stat-card-trend '+(s.up?'trend-up':'trend-dn')+'">'+(s.up?'↑':'↓')+' '+s.trend+'</div>'
+      +'</div>';
+  }).join('');
+  var myTracks=getMyTracks().slice(0,3);
+  G('home-continue').innerHTML=myTracks.map(function(t,i){
+    var pct=[45,72,100][i]||30;
+    return '<div class="track-card" onclick="openTrack(\''+t.id+'\')" style="margin-bottom:10px">'
+      +'<div class="track-card-top"><div class="track-icon" style="background:'+t.color+'">'+t.icon+'</div>'
+      +'<div class="track-card-info"><h3>'+t.label+'</h3><p>'+t.lessons+' aulas · '+t.desc.substring(0,40)+'...</p></div></div>'
+      +'<div class="track-prog-bar"><div class="track-prog-fill'+(pct===100?' done':'')+'" style="width:'+pct+'%"></div></div>'
+      +'<div class="track-meta"><span>'+pct+'% concluído</span>'
+      +'<span class="track-badge '+(pct===100?'badge-done':pct>0?'badge-progress':'badge-new')+'">'+(pct===100?'✓ Concluído':pct>0?'Em andamento':'Novo')+'</span>'
+      +'</div></div>';
+  }).join('');
+  var activities=[
+    {dot:'#F47C20',text:'Você completou a aula "Cashback: Como Explicar ao Cliente"',time:'Há 1 hora'},
+    {dot:'#16A34A',text:'Certificado de Atendimento emitido',time:'Há 3 horas'},
+    {dot:'#0A2E6E',text:'Trilha "Sistema de Cashback" iniciada',time:'Ontem'},
+    {dot:'#D97706',text:'Quiz "Fundamentos do Atendimento" com nota 10',time:'2 dias atrás'},
+    {dot:'#7C3AED',text:'Login realizado na Academia PayGas',time:'2 dias atrás'}
+  ];
+  G('home-activity').innerHTML='<div class="activity-header">Atividade Recente <span style="font-size:11px;color:var(--gray-400);font-weight:400">Últimos 7 dias</span></div>'
+    +activities.map(function(a){
+      return '<div class="activity-item"><div class="activity-dot" style="background:'+a.dot+'"></div>'
+        +'<div class="activity-body">'+a.text+'<span>'+a.time+'</span></div></div>';
+    }).join('');
+  var days=[20,45,30,60,80,55,90];
+  G('weekly-chart').innerHTML=days.map(function(h,i){
+    return '<div class="mini-bar'+(i===6?' active':'')+'" style="height:'+h+'%" title="'+h+' min"></div>';
+  }).join('');
+}
+
+function renderTrilhas(){
+  var tracks=getMyTracks();
+  G('trilhas-sub').textContent=tracks.length+' trilhas disponíveis para '+PERSONAS[S.role].label;
+  var filters=['Todas','Obrigatórias','Em Andamento','Concluídas'];
+  G('trilha-filters').innerHTML=filters.map(function(f,i){
+    return '<button class="track-badge '+(i===0?'badge-progress':'badge-new')+'" style="cursor:pointer;padding:6px 14px;font-size:12px" onclick="toast(\'Filtro: '+f+' ✓\')">' + f+'</button>';
+  }).join('');
+  var pcts=[100,72,45,0,100,30,60,0,85];
+  G('trilhas-grid').innerHTML=tracks.map(function(t,i){
+    var pct=pcts[i]||0;
+    var badge=t.required?'badge-required':'badge-new';
+    return '<div class="track-card" onclick="openTrack(\''+t.id+'\')">'
+      +'<div class="track-card-top">'
+      +'<div class="track-icon" style="background:'+t.color+'">'+t.icon+'</div>'
+      +'<div class="track-card-info"><h3>'+t.label+'</h3><p>'+t.desc+'</p></div>'
+      +'</div>'
+      +'<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">'
+      +'<span class="track-badge '+(t.required?'badge-required':'badge-new')+'">'+(t.required?'Obrigatória':'Opcional')+'</span>'
+      +'<span class="track-badge badge-gray" style="background:var(--gray-100);color:var(--gray-600)">'+t.lessons+' aulas</span>'
+      +'</div>'
+      +'<div class="track-prog-bar"><div class="track-prog-fill'+(pct===100?' done':'')+'" style="width:'+pct+'%"></div></div>'
+      +'<div class="track-meta"><span>'+pct+'% concluído</span>'
+      +'<span class="track-badge '+(pct===100?'badge-done':pct>0?'badge-progress':'badge-new')+'">'
+      +(pct===100?'✓ Concluído':pct>0?'Em andamento':'Iniciar')+'</span></div>'
+      +'</div>';
+  }).join('');
+}
+
+function openTrack(id){
+  var track=TRACKS.find(function(t){return t.id===id});
+  if(!track){toast('Abrindo trilha...');return}
+  S.currentTrack=id;S.currentLesson=0;
+  var lessons=LESSONS_DATA[id];
+  if(!lessons){toast('Conteúdo da trilha em preparação! 📚');return}
+  G('mod-title').textContent=track.label;
+  G('mod-sub').textContent=track.desc+' · '+lessons.length+' aulas';
+  renderLessonViewer(track,lessons);
+  goTo('modulos');
+}
+
+function renderLessonViewer(track,lessons){
+  var sidebarItems=lessons.map(function(l,i){
+    var done=i<S.currentLesson;
+    var active=i===S.currentLesson;
+    return '<div class="lesson-item'+(active?' active':'')+(done?' done':'')+'" onclick="selectLesson('+i+')">'
+      +'<div class="lesson-num">'+(done?'✓':(i+1))+'</div>'
+      +'<div class="lesson-item-info"><b>'+l.title+'</b><span>'+l.type+' · '+l.duration+'</span></div>'
+      +(done?'<span class="lesson-check">✓</span>':'')+
+      '</div>';
+  }).join('');
+  var lesson=lessons[S.currentLesson];
+  var mainContent=renderLessonContent(lesson,track);
+  G('lesson-layout').innerHTML='<div class="lesson-sidebar">'
+    +'<div class="lesson-sidebar-header"><h3>'+track.label+'</h3><p>'+lessons.length+' aulas · '+track.desc.substring(0,50)+'</p></div>'
+    +sidebarItems+'</div>'
+    +'<div class="lesson-content">'+mainContent+'</div>';
+}
+
+function selectLesson(idx){
+  var track=TRACKS.find(function(t){return t.id===S.currentTrack});
+  var lessons=LESSONS_DATA[S.currentTrack];
+  if(!lessons||!track)return;
+  S.currentLesson=idx;
+  renderLessonViewer(track,lessons);
+}
+
+function renderLessonContent(lesson,track){
+  if(!lesson)return'<div class="lesson-body"><p>Aula não encontrada.</p></div>';
+  var video='<div class="lesson-video">'
+    +(lesson.yt
+      ?'<iframe width="100%" height="100%" src="'+lesson.yt+'" frameborder="0" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%"></iframe>'
+      :'<div class="lesson-video-placeholder"><div class="play-btn" onclick="toast(\'Vídeo carregando... 🎬\')">▶</div><p>'+lesson.title+'</p><small style="opacity:.5">Clique para reproduzir</small></div>')
+    +'</div>';
+  var body='<div class="lesson-body">'
+    +'<h2>'+lesson.title+'</h2>'
+    +'<div class="lesson-tags"><span class="lesson-tag">'+lesson.type+'</span><span class="lesson-tag">'+lesson.duration+'</span>'
+    +(track.required?'<span class="lesson-tag" style="background:var(--pg-red-lt);color:var(--pg-red)">Obrigatória</span>':'')+'</div>'
+    +(lesson.type==='quiz'?renderQuiz(lesson)
+      :lesson.type==='cert'?renderCertLesson()
+      :'<div class="lesson-text">'+lesson.content+'</div>'
+      +'<div class="lesson-objectives"><h4>🎯 Objetivos de Aprendizado</h4><ul>'
+      +'<li>Compreender os conceitos fundamentais desta aula</li>'
+      +'<li>Aplicar o conhecimento na rotina diária</li>'
+      +'<li>Identificar situações práticas de uso</li>'
+      +'</ul></div>'
+    )
+    +'<div class="lesson-actions">'
+    +'<button class="btn-primary" onclick="advanceLesson()">Concluir e Avançar ➜</button>'
+    +(S.currentLesson>0?'<button class="btn-secondary" onclick="selectLesson('+(S.currentLesson-1)+')">← Anterior</button>':'')
+    +'</div></div>';
+  return video+body;
+}
+
+function renderQuiz(lesson){
+  var q=lesson.quiz;
+  if(!q)return'<div class="lesson-text">'+lesson.content+'</div>';
+  var letters=['A','B','C','D'];
+  return'<div class="quiz-box">'
+    +'<div class="quiz-q">'+q.q+'</div>'
+    +'<div class="quiz-options">'
+    +q.opts.map(function(o,i){
+      return'<div class="quiz-opt" onclick="answerQuiz('+i+','+q.correct+')">'
+        +'<div class="quiz-letter">'+letters[i]+'</div>'+o+'</div>';
+    }).join('')
+    +'</div></div>';
+}
+
+function answerQuiz(sel,correct){
+  var opts=document.querySelectorAll('.quiz-opt');
+  opts.forEach(function(o,i){
+    if(i===correct)o.classList.add('correct');
+    else if(i===sel&&sel!==correct)o.classList.add('wrong');
+    o.onclick=null;
+  });
+  if(sel===correct){
+    toast('🎉 Correto! +50 XP');
+    S.xp+=50;updateXP();
+  } else {
+    toast('Ops! A resposta correta está em verde.',4000);
+  }
+}
+
+function renderCertLesson(){
+  var nome=getNome();
+  var track=TRACKS.find(function(t){return t.id===S.currentTrack});
+  return'<div class="cert-card" style="max-width:100%;margin-bottom:20px">'
+    +'<div class="cert-header"><h3>ACADEMIA PAYGAS — CERTIFICADO DIGITAL</h3><h2>'+track.label+'</h2></div>'
+    +'<div class="cert-body">'
+    +'<p style="font-size:12px;color:var(--gray-400);margin-bottom:8px">Certificamos que</p>'
+    +'<div class="cert-name">'+nome+'</div>'
+    +'<div class="cert-desc">concluiu com êxito a trilha de <strong>'+track.label+'</strong> na Academia PayGas,<br>demonstrando domínio dos conteúdos e competências avaliadas.</div>'
+    +'<div class="cert-footer">'
+    +'<div><p style="font-size:11px;color:var(--gray-400)">Data de Emissão</p><p style="font-size:13px;font-weight:600">'+new Date().toLocaleDateString('pt-BR')+'</p></div>'
+    +'<div class="cert-seal">PG<br>CERT</div>'
+    +'<div style="text-align:right"><p style="font-size:11px;color:var(--gray-400)">ID do Certificado</p><p style="font-size:11px;font-weight:600">#PG-'+Date.now().toString().slice(-8)+'</p></div>'
+    +'</div></div></div>'
+    +'<div class="cert-actions">'
+    +'<button class="btn-success" onclick="downloadCert()">📥 Baixar Certificado</button>'
+    +'<button class="btn-secondary" onclick="toast(\'Link copiado! 🔗\')">🔗 Compartilhar</button>'
+    +'</div>';
+}
+
+function advanceLesson(){
+  var lessons=LESSONS_DATA[S.currentTrack];
+  if(!lessons)return;
+  S.xp+=100;updateXP();
+  if(S.currentLesson<lessons.length-1){
+    S.currentLesson++;
+    var track=TRACKS.find(function(t){return t.id===S.currentTrack});
+    renderLessonViewer(track,lessons);
+    toast('Aula concluída! +100 XP ⚡');
+  } else {
+    toast('🏆 Trilha concluída! Certificado disponível!',4000);
+    S.xp+=500;updateXP();
+  }
+}
+
+function downloadCert(){toast('Certificado baixado em PDF! 📄 ✓')}
+
+function renderCerts(){
+  var tracks=getMyTracks().filter(function(t,i){return i<3});
+  var nome=getNome();
+  if(tracks.length===0){
+    G('cert-grid').innerHTML='<div class="empty-state"><div class="empty-icon">🏆</div><p>Conclua trilhas para ganhar certificados!</p></div>';
+    return;
+  }
+  G('cert-grid').innerHTML=tracks.map(function(t){
+    return'<div class="cert-card">'
+      +'<div class="cert-header"><h3>ACADEMIA PAYGAS</h3><h2>'+t.label+'</h2></div>'
+      +'<div class="cert-body">'
+      +'<p style="font-size:12px;color:rgba(255,255,255,.6);margin-bottom:6px">Certificamos que</p>'
+      +'<div class="cert-name">'+nome+'</div>'
+      +'<div class="cert-desc" style="font-size:12px">concluiu a trilha de <strong>'+t.label+'</strong> com êxito.</div>'
+      +'<div class="cert-footer">'
+      +'<span style="font-size:11px;color:var(--gray-400)">'+new Date().toLocaleDateString('pt-BR')+'</span>'
+      +'<div class="cert-seal">PG</div>'
+      +'</div></div>'
+      +'<div style="padding:12px 16px;display:flex;gap:8px">'
+      +'<button class="btn-success" style="font-size:12px;padding:7px 14px" onclick="downloadCert()">📥 Baixar</button>'
+      +'<button class="btn-secondary" style="font-size:12px;padding:7px 14px" onclick="toast(\'Compartilhado! 🔗\')">🔗 Compartilhar</button>'
+      +'</div></div>';
+  }).join('');
+}
+
+function renderEquipe(){
+  var rows=USERS_DATA.filter(function(u){return u.role!=='paygas'});
+  var pcts=[82,61,45,90,100,20,70,35];
+  G('team-table').innerHTML=rows.map(function(u,i){
+    var pct=pcts[i]||0;
+    var cert=pct===100?1:0;
+    return'<tr>'
+      +'<td><div style="display:flex;align-items:center;gap:10px">'
+      +'<div class="user-avatar" style="width:32px;height:32px;font-size:11px;background:'+PERSONAS[u.role].color+'">'+u.nome.split(' ').map(function(n){return n[0]}).slice(0,2).join('')+'</div>'
+      +'<div><b style="font-size:13px">'+u.nome+'</b><div style="font-size:11px;color:var(--gray-400)">'+u.estado+'</div></div></div></td>'
+      +'<td><span class="track-badge badge-new" style="font-size:11px">'+PERSONAS[u.role].label+'</span></td>'
+      +'<td><div class="progress-cell"><div class="progress-mini"><div class="progress-mini-fill'+(pct===100?' done':'')+'" style="width:'+pct+'%"></div></div><span style="font-size:12px;font-weight:600;min-width:32px">'+pct+'%</span></div></td>'
+      +'<td><span style="font-weight:600;color:var(--pg-orange)">'+u.xp.toLocaleString('pt-BR')+'</span></td>'
+      +'<td><span class="status-pill '+(cert?'pill-green':'pill-gray')+'">'+(cert?'✓ '+cert:'Pendente')+'</span></td>'
+      +'<td><span class="status-pill '+(u.ativo?'pill-green':'pill-gray')+'">'+(u.ativo?'Ativo':'Inativo')+'</span></td>'
+      +'</tr>';
+  }).join('');
+}
+
+function renderRelatorios(){
+  G('relat-cards').innerHTML=[
+    {icon:'📊',val:'76%',label:'Taxa de Conclusão',trend:'↑ +8% vs mês anterior',color:'#DCFCE7'},
+    {icon:'⭐',val:'8.4',label:'Nota Média nos Quizzes',trend:'↑ +0.3 pontos',color:'#FEF3C7'},
+    {icon:'👥',val:'8',label:'Usuários Ativos',trend:'↑ +2 novos',color:'#E6EEF9'},
+    {icon:'⚡',val:'24.700',label:'XP Total da Equipe',trend:'↑ +1.200 esta semana',color:'#FEF0E6'}
+  ].map(function(c){
+    return'<div class="stat-card"><div class="stat-card-icon" style="background:'+c.color+'">'+c.icon+'</div>'
+      +'<div class="stat-card-val">'+c.val+'</div><div class="stat-card-label">'+c.label+'</div>'
+      +'<div class="stat-card-trend trend-up">'+c.trend+'</div></div>';
+  }).join('');
+  var mods=[
+    ['Excelência no Atendimento',6,2,'75%','8.8'],
+    ['Sistema de Cashback PayGas',5,3,'62%','8.2'],
+    ['Gestão e KPIs do Posto',4,3,'57%','7.9'],
+    ['Operação do Terminal',7,1,'87%','9.1'],
+    ['LGPD e Segurança de Dados',3,2,'60%','8.5']
+  ];
+  G('relat-table').innerHTML=mods.map(function(m){
+    return'<tr><td><b>'+m[0]+'</b></td><td>'+m[1]+'</td><td>'+m[2]+'</td>'
+      +'<td><div class="progress-cell"><div class="progress-mini"><div class="progress-mini-fill" style="width:'+m[3]+'"></div></div>'+m[3]+'</div></td>'
+      +'<td><b>'+m[4]+'</b></td></tr>';
+  }).join('');
+}
+
+function renderCMS(){
+  var filter=S.cmsFilter;
+  var mods=filter==='all'?CMS_MODS:CMS_MODS.filter(function(m){return filter==='published'?m.status==='published':m.status==='draft'});
+  G('cms-table').innerHTML=mods.map(function(m){
+    return'<tr>'
+      +'<td><b>'+m.title+'</b></td>'
+      +'<td><span class="track-badge badge-new">'+m.persona+'</span></td>'
+      +'<td>'+m.aulas+' aulas</td>'
+      +'<td>'+(m.yt?'<span class="status-pill pill-green">✓ Vinculado</span>':'<span class="status-pill pill-gray">Sem vídeo</span>')+'</td>'
+      +'<td><span class="status-pill '+(m.status==='published'?'pill-green':'pill-orange')+'">'+(m.status==='published'?'Publicado':'Rascunho')+'</span></td>'
+      +'<td style="display:flex;gap:6px">'
+      +'<button class="btn-secondary" style="padding:5px 10px;font-size:11px" onclick="editContent('+m.id+')">✏️ Editar</button>'
+      +'<button class="btn-secondary" style="padding:5px 10px;font-size:11px" onclick="toast(\'Módulo visualizado!\')">👁️</button>'
+      +'<button class="btn-secondary" style="padding:5px 10px;font-size:11px;color:var(--pg-red);border-color:var(--pg-red)" onclick="deleteContent('+m.id+')">🗑️</button>'
+      +'</td></tr>';
+  }).join('');
+}
+
+function cmsTab(el,filter){
+  document.querySelectorAll('.admin-tab').forEach(function(t){t.classList.remove('active')});
+  el.classList.add('active');
+  S.cmsFilter=filter;
+  renderCMS();
+}
+
+function openNewContent(){
+  var body='<div class="form-row">'
+    +'<div class="form-field"><label class="form-label">Título do Módulo</label><input class="form-input" id="cms-titulo" placeholder="Ex: Atendimento Premium"></div>'
+    +'<div class="form-field"><label class="form-label">Persona</label>'
+    +'<select class="form-select" id="cms-persona"><option>Todos</option><option>Atendente</option><option>Gestor</option><option>Parceiro</option><option>Líder</option><option>ERP</option></select></div>'
+    +'</div>'
+    +'<div class="form-field"><label class="form-label">Link do Vídeo YouTube (embed)</label>'
+    +'<input class="form-input" id="cms-yt" placeholder="https://www.youtube.com/embed/VIDEO_ID">'
+    +'<button class="btn-secondary" style="margin-top:6px;padding:6px 12px;font-size:12px" onclick="previewYT()">▶ Testar Vídeo</button></div>'
+    +'<div id="cms-yt-preview"></div>'
+    +'<div class="form-field"><label class="form-label">Status</label>'
+    +'<select class="form-select" id="cms-status"><option value="draft">Rascunho</option><option value="published">Publicado</option></select></div>';
+  var footer='<button class="btn-secondary" onclick="closeModal()">Cancelar</button>'
+    +'<button class="btn-primary" onclick="saveNewContent()">Salvar Módulo</button>';
+  openModal('Novo Módulo de Conteúdo',body,footer);
+}
+
+function previewYT(){
+  var url=G('cms-yt').value.trim();
+  var prev=G('cms-yt-preview');
+  if(!url.includes('youtube.com/embed/')){
+    toast('Use o formato: https://www.youtube.com/embed/VIDEO_ID','warning');
+    prev.innerHTML='<p style="color:var(--pg-red);font-size:12px;margin-top:6px">⚠️ URL inválida. Use o formato embed do YouTube.</p>';
+    return;
+  }
+  prev.innerHTML='<div style="margin-top:10px;border-radius:var(--radius);overflow:hidden;aspect-ratio:16/9">'
+    +'<iframe width="100%" height="100%" src="'+url+'" frameborder="0" allowfullscreen style="display:block"></iframe></div>';
+  toast('Vídeo carregado! Verifique o preview. ✓');
+}
+
+function saveNewContent(){
+  var titulo=G('cms-titulo')?G('cms-titulo').value:'';
+  if(!titulo){toast('⚠️ Informe o título!');return}
+  var newMod={id:Date.now(),title:titulo,persona:'Todos',aulas:1,yt:G('cms-yt')?G('cms-yt').value:'',status:G('cms-status')?G('cms-status').value:'draft'};
+  CMS_MODS.push(newMod);
+  closeModal();
+  renderCMS();
+  toast('Módulo criado com sucesso! ✓');
+}
+
+function editContent(id){
+  var m=CMS_MODS.find(function(x){return x.id===id});
+  if(!m)return;
+  var body='<div class="form-field"><label class="form-label">Título</label><input class="form-input" id="edit-titulo" value="'+m.title+'"></div>'
+    +'<div class="form-field"><label class="form-label">Link YouTube (embed)</label>'
+    +'<input class="form-input" id="edit-yt" value="'+(m.yt||'')+'" placeholder="https://www.youtube.com/embed/...">'
+    +'<button class="btn-secondary" style="margin-top:6px;padding:6px 12px;font-size:12px" onclick="previewEditYT()">▶ Testar</button></div>'
+    +'<div id="edit-yt-preview"></div>'
+    +'<div class="form-field"><label class="form-label">Status</label>'
+    +'<select class="form-select" id="edit-status"><option value="published"'+(m.status==='published'?' selected':'')+'>Publicado</option>'
+    +'<option value="draft"'+(m.status==='draft'?' selected':'')+'>Rascunho</option></select></div>';
+  var footer='<button class="btn-secondary" onclick="closeModal()">Cancelar</button>'
+    +'<button class="btn-primary" onclick="saveEdit('+id+')">Salvar Alterações</button>';
+  openModal('Editar: '+m.title,body,footer);
+}
+
+function previewEditYT(){
+  var url=G('edit-yt')?G('edit-yt').value.trim():'';
+  var prev=G('edit-yt-preview');if(!prev)return;
+  if(!url.includes('youtube.com/embed/')){prev.innerHTML='<p style="color:var(--pg-red);font-size:12px;margin-top:6px">⚠️ URL inválida.</p>';return}
+  prev.innerHTML='<div style="margin-top:10px;border-radius:var(--radius);overflow:hidden;aspect-ratio:16/9">'
+    +'<iframe width="100%" height="100%" src="'+url+'" frameborder="0" allowfullscreen style="display:block"></iframe></div>';
+  toast('Preview carregado! ✓');
+}
+
+function saveEdit(id){
+  var m=CMS_MODS.find(function(x){return x.id===id});
+  if(!m)return;
+  if(G('edit-titulo'))m.title=G('edit-titulo').value;
+  if(G('edit-yt'))m.yt=G('edit-yt').value;
+  if(G('edit-status'))m.status=G('edit-status').value;
+  closeModal();renderCMS();toast('Alterações salvas! ✓');
+}
+
+function deleteContent(id){
+  openModal('Confirmar Exclusão',
+    '<p style="color:var(--gray-700)">Tem certeza que deseja excluir este módulo? Esta ação não pode ser desfeita.</p>',
+    '<button class="btn-secondary" onclick="closeModal()">Cancelar</button>'
+    +'<button class="btn-primary" style="background:var(--pg-red)" onclick="confirmDelete('+id+')">Excluir</button>');
+}
+function confirmDelete(id){
+  CMS_MODS=CMS_MODS.filter(function(m){return m.id!==id});
+  closeModal();renderCMS();toast('Módulo excluído.');
+}
+
+function renderUsuarios(){
+  G('usr-stats').innerHTML=[
+    {icon:'👥',val:'4.800+',label:'Total de Usuários',color:'#E6EEF9'},
+    {icon:'✅',val:'4.200',label:'Usuários Ativos',color:'#DCFCE7'},
+    {icon:'🆕',val:'127',label:'Novos este mês',color:'#FEF3C7'},
+    {icon:'🌎',val:'27',label:'Estados cobertos',color:'#FEF0E6'}
+  ].map(function(c){
+    return'<div class="stat-card"><div class="stat-card-icon" style="background:'+c.color+'">'+c.icon+'</div>'
+      +'<div class="stat-card-val">'+c.val+'</div><div class="stat-card-label">'+c.label+'</div></div>';
+  }).join('');
+  G('usr-table').innerHTML=USERS_DATA.map(function(u){
+    var p=PERSONAS[u.role];
+    return'<tr>'
+      +'<td><div style="display:flex;align-items:center;gap:10px">'
+      +'<div class="user-avatar" style="width:30px;height:30px;font-size:10px;flex-shrink:0;background:'+p.color+'">'+u.nome.split(' ').map(function(n){return n[0]}).slice(0,2).join('')+'</div>'
+      +'<b>'+u.nome+'</b></div></td>'
+      +'<td style="color:var(--gray-500)">'+u.email+'</td>'
+      +'<td><span class="track-badge badge-new" style="font-size:11px">'+p.icon+' '+p.label+'</span></td>'
+      +'<td>'+u.estado+'</td>'
+      +'<td><b style="color:var(--pg-orange)">'+u.xp.toLocaleString('pt-BR')+'</b></td>'
+      +'<td style="color:var(--gray-500)">'+u.acesso+'</td>'
+      +'<td><span class="status-pill '+(u.ativo?'pill-green':'pill-gray')+'">'+(u.ativo?'Ativo':'Inativo')+'</span></td>'
+      +'</tr>';
+  }).join('');
+}
+
+function renderNacional(){
+  G('nacional-stats').innerHTML=[
+    {icon:'🌎',val:'27',label:'Estados Atendidos',color:'#E6EEF9'},
+    {icon:'👥',val:'4.800+',label:'Usuários Cadastrados',color:'#DCFCE7'},
+    {icon:'🏆',val:'1.240',label:'Certificados Emitidos',color:'#FEF3C7'},
+    {icon:'⚡',val:'2.4M',label:'XP Total Acumulado',color:'#FEF0E6'},
+    {icon:'📊',val:'76%',label:'Taxa de Engajamento',color:'#F3E8FF'}
+  ].map(function(c){
+    return'<div class="stat-card"><div class="stat-card-icon" style="background:'+c.color+'">'+c.icon+'</div>'
+      +'<div class="stat-card-val">'+c.val+'</div><div class="stat-card-label">'+c.label+'</div></div>';
+  }).join('');
+  G('region-grid').innerHTML=REGIONS.map(function(r){
+    return'<div class="region-card" onclick="toast(\'Região '+r.name+': '+r.users+' usuários ✓\')">'
+      +'<div class="region-name">'+r.name+'</div>'
+      +'<div class="region-count">'+r.users.toLocaleString('pt-BR')+'</div>'
+      +'<div class="region-label">usuários</div>'
+      +'</div>';
+  }).join('');
+  var estados=[
+    ['São Paulo','SP',1840,520,'92%'],['Rio de Janeiro','RJ',890,210,'88%'],
+    ['Minas Gerais','MG',640,180,'85%'],['Paraná','PR',380,95,'82%'],
+    ['Rio Grande do Sul','RS',210,65,'78%'],['Goiás','GO',190,55,'75%'],
+    ['Bahia','BA',310,88,'80%'],['Ceará','CE',180,42,'74%'],
+    ['Pernambuco','PE',160,38,'72%'],['Mato Grosso','MT',145,32,'70%']
+  ];
+  G('estados-table').innerHTML=estados.map(function(e){
+    return'<tr><td><b>'+e[0]+'</b> <span style="color:var(--gray-400);font-size:11px">('+e[1]+')</span></td>'
+      +'<td>'+e[2].toLocaleString('pt-BR')+'</td><td>'+e[3]+'</td>'
+      +'<td><b style="color:var(--pg-orange)">'+parseInt(e[2]*2200).toLocaleString('pt-BR')+'</b></td>'
+      +'<td><div class="progress-cell"><div class="progress-mini"><div class="progress-mini-fill" style="width:'+e[4]+'"></div></div>'+e[4]+'</div></td>'
+      +'</tr>';
+  }).join('');
+}
+
+function renderAnalitica(){
+  G('anal-cards').innerHTML=[
+    {icon:'👁️',val:'12.400',label:'Visualizações/mês',trend:'↑ +18%',color:'#E6EEF9'},
+    {icon:'⏱️',val:'42 min',label:'Tempo Médio/sessão',trend:'↑ +5 min',color:'#FEF3C7'},
+    {icon:'🔁',val:'68%',label:'Taxa de Retorno',trend:'↑ +3%',color:'#DCFCE7'},
+    {icon:'📱',val:'54%',label:'Acesso Mobile',trend:'→ estável',color:'#FEF0E6'}
+  ].map(function(c){
+    return'<div class="stat-card"><div class="stat-card-icon" style="background:'+c.color+'">'+c.icon+'</div>'
+      +'<div class="stat-card-val">'+c.val+'</div><div class="stat-card-label">'+c.label+'</div>'
+      +'<div class="stat-card-trend trend-up">'+c.trend+'</div></div>';
+  }).join('');
+  G('anal-mods').innerHTML=[
+    ['Excelência no Atendimento',1840,'88%'],
+    ['Sistema de Cashback PayGas',1620,'75%'],
+    ['Operação do Terminal',1380,'91%'],
+    ['Gestão e KPIs do Posto',980,'68%'],
+    ['Integração via API',720,'82%']
+  ].map(function(m){
+    return'<tr><td><b>'+m[0]+'</b></td><td>'+m[1].toLocaleString('pt-BR')+'</td>'
+      +'<td><div class="progress-cell"><div class="progress-mini"><div class="progress-mini-fill" style="width:'+m[2]+'"></div></div>'+m[2]+'</div></td></tr>';
+  }).join('');
+  G('anal-personas').innerHTML=[
+    ['Atendente','1.840','1.820'],
+    ['Gestor','980','3.950'],
+    ['Parceiro','640','1.640'],
+    ['Líder Comunitário','420','2.840'],
+    ['Integrador ERP','280','4.920'],
+    ['Admin PayGas','120','7.800']
+  ].map(function(p){
+    return'<tr><td>'+p[0]+'</td><td><b>'+p[1]+'</b></td><td><b style="color:var(--pg-orange)">'+p[2]+'</b></td></tr>';
+  }).join('');
+}
+
+function renderRanking(){
+  G('ranking-list').innerHTML=RANKING_DATA.map(function(u,i){
+    var pos=i+1;
+    var color=['#F59E0B','#9CA3AF','#CD7F32'][i]||'var(--gray-600)';
+    var bg=['#FEF3C7','#F3F4F6','#FEF9F0'][i]||'#fff';
+    var avatarColors=['#0A2E6E','#D97706','#16A34A','#7C3AED','#DC2626','#0891B2','#F47C20','#1F2937'];
+    return'<div class="ranking-item" style="background:'+bg+';'+(i<3?'border: 1.5px solid '+color+';':'')+';">'
+      +'<div class="rank-pos" style="color:'+color+';font-size:'+(i<3?'20':'16')+'px">'+(i===0?'🥇':i===1?'🥈':i===2?'🥉':pos)+'</div>'
+      +'<div class="rank-avatar" style="background:'+avatarColors[i%8]+'">'+u.avatar+'</div>'
+      +'<div class="rank-info"><b>'+u.nome+'</b><span>'+u.role+' · '+u.estado+'</span></div>'
+      +'<div class="rank-xp">'+u.xp.toLocaleString('pt-BR')+' XP</div>'
+      +'</div>';
+  }).join('');
+}
+
+function renderConquistas(){
+  G('trophy-grid').innerHTML=TROPHIES.map(function(t){
+    return'<div class="trophy-card'+(t.earned?' earned':'')+(t.earned?'':' locked')+'">'
+      +'<div class="trophy-icon">'+t.icon+'</div>'
+      +'<div class="trophy-name">'+t.name+'</div>'
+      +'<div class="trophy-desc">'+t.desc+'</div>'
+      +(t.earned?'<div style="margin-top:6px;font-size:10px;color:var(--pg-green);font-weight:700">✓ Conquistado</div>':'')
+      +'</div>';
+  }).join('');
+}
+
+function renderNotif(){
+  G('notif-list').innerHTML=NOTIFS.map(function(n,i){
+    return'<div class="notif-item'+(n.unread?' unread':'')+'" onclick="markRead('+i+')">'
+      +'<div class="notif-icon" style="background:'+(n.unread?'var(--pg-orange-lt)':'var(--gray-100)')+'">'+n.icon+'</div>'
+      +'<div class="notif-body"><b>'+n.title+'</b><p>'+n.body+'</p><time>'+n.time+'</time></div>'
+      +(n.unread?'<div style="width:8px;height:8px;border-radius:50%;background:var(--pg-orange);margin-top:4px;flex-shrink:0"></div>':'')
+      +'</div>';
+  }).join('');
+}
+
+function markRead(i){NOTIFS[i].unread=false;renderNotif()}
+function markAllRead(){NOTIFS.forEach(function(n){n.unread=false});renderNotif();toast('Todas marcadas como lidas! ✓')}
+
+function renderPerfil(){
+  var p=PERSONAS[S.role];
+  var nome=getNome();
+  var av=G('perfil-avatar');
+  if(av){av.textContent=p.initials;av.style.background=p.color}
+  if(G('perfil-nome'))G('perfil-nome').textContent=nome;
+  if(G('perfil-role'))G('perfil-role').textContent=p.icon+' '+p.label;
+  if(G('perfil-nome-inp'))G('perfil-nome-inp').value=nome;
+  if(G('perfil-email-inp'))G('perfil-email-inp').value=S.email;
+  var stats=[
+    {icon:'⚡',val:S.xp.toLocaleString('pt-BR'),label:'XP Total'},
+    {icon:'⭐',val:S.level,label:'Nível Atual'},
+    {icon:'🏆',val:Math.ceil(getMyTracks().length*0.2),label:'Certificados'},
+    {icon:'📚',val:getMyTracks().length,label:'Trilhas'}
+  ];
+  if(G('perfil-stats')){
+    G('perfil-stats').innerHTML=stats.map(function(s){
+      return'<div class="stat-card" style="padding:14px"><div style="font-size:20px;margin-bottom:4px">'+s.icon+'</div>'
+        +'<div class="stat-card-val" style="font-size:20px">'+s.val+'</div>'
+        +'<div class="stat-card-label">'+s.label+'</div></div>';
+    }).join('');
+  }
+}
+
+function savePerfil(){
+  if(G('perfil-nome-inp'))S.nome=G('perfil-nome-inp').value;
+  toast('Perfil atualizado com sucesso! ✓');
+}
+
+/* ── AI ASSISTANT ── */
+var AI_FIRST={
+  paygas:'Olá, Admin Nacional! Posso ajudar com gestão de conteúdo, usuários, analytics ou o Painel Nacional. O que precisa?',
+  gestor:'Olá, Gestor! Posso ajudar com KPIs, relatórios de equipe ou as trilhas de gestão. Como posso ajudar?',
+  atendente:'Olá! Sou seu assistente na Academia PayGas. Posso tirar dúvidas sobre cashback, terminal ou trilhas de atendimento.',
+  parceiro:'Olá, Parceiro! Posso ajudar sobre comissões, cadastro no portal ou campanhas de marketing.',
+  lider:'Olá, Líder! Posso explicar o pedágio digital, renda passiva e como engajar sua comunidade.',
+  erp:'Olá, Integrador! Posso ajudar com endpoints da API, autenticação JWT, webhooks e sandbox de testes.'
+};
+
+var AI_QUICK={
+  paygas:['Ver usuários ativos','Como criar um módulo?','Analytics nacional'],
+  gestor:['KPIs mais importantes','Relatório da equipe','Trilha de gestão'],
+  atendente:['Script de cashback','Dúvidas do cliente','Operação do terminal'],
+  parceiro:['Minhas comissões','Como usar o cashback','Materiais de marketing'],
+  lider:['O que é pedágio digital?','Como gerar renda?','Engajar comunidade'],
+  erp:['Autenticação JWT','Endpoints da API','Como usar o sandbox?']
+};
+
+function initAI(){
+  var msgs=G('ai-msgs');if(!msgs)return;
+  msgs.innerHTML='';
+  addAIMsg(AI_FIRST[S.role]||'Olá! Como posso ajudar?','bot');
+  var quick=G('ai-quick');
+  if(quick){
+    var qs=AI_QUICK[S.role]||[];
+    quick.innerHTML=qs.map(function(q){
+      return'<button onclick="quickAI(\''+q+'\')">'+q+'</button>';
+    }).join('');
+  }
+}
+
+function addAIMsg(text,type){
+  var msgs=G('ai-msgs');if(!msgs)return;
+  var div=document.createElement('div');
+  div.className='ai-msg '+type;
+  div.textContent=text;
+  msgs.appendChild(div);
+  msgs.scrollTop=99999;
+}
+
+function quickAI(q){
+  var inp=G('ai-inp');if(inp)inp.value=q;
+  sendAI();
+}
+
+function sendAI(){
+  var inp=G('ai-inp');if(!inp)return;
+  var text=inp.value.trim();if(!text)return;
+  addAIMsg(text,'user');
+  inp.value='';
+  var msgs=G('ai-msgs');
+  var typing=document.createElement('div');typing.className='ai-typing';
+  typing.innerHTML='<span></span><span></span><span></span>';
+  if(msgs){msgs.appendChild(typing);msgs.scrollTop=99999}
+  setTimeout(function(){
+    if(msgs&&msgs.contains(typing))msgs.removeChild(typing);
+    var know=AI_KNOWLEDGE[S.role]||[];
+    var resp=know[Math.floor(Math.random()*know.length)]||'Entendido! Consulte as trilhas disponíveis para mais detalhes sobre este tema.';
+    if(text.toLowerCase().includes('certif'))resp='Os certificados são emitidos automaticamente ao concluir uma trilha. Acesse a seção "Certificados" no menu lateral.';
+    else if(text.toLowerCase().includes('xp'))resp='Você ganha XP (+100) por aula concluída, (+50) por quiz correto e (+500) ao terminar uma trilha completa. Nível atual: '+S.level+'.';
+    else if(text.toLowerCase().includes('quiz'))resp='Os quizzes são avaliações ao final de cada trilha. Acerte para ganhar XP bônus e avançar ao certificado.';
+    else if(text.toLowerCase().includes('ranking'))resp='O ranking nacional mostra os alunos com mais XP em todo o Brasil. Você pode ver no menu "Ranking Nacional".';
+    addAIMsg(resp,'bot');
+  },1200);
+}
+
+function toggleAI(){
+  S.aiOpen=!S.aiOpen;
+  var panel=G('ai-panel');if(!panel)return;
+  panel.classList.toggle('hidden',!S.aiOpen);
+  if(S.aiOpen&&!G('ai-msgs').children.length)initAI();
+}
+
+function doLogout(){
+  G('screen-app').classList.remove('active');
+  G('screen-login').style.display='';
+  S.role='';S.xp=0;
+  toast('Você saiu da sua conta. Até logo! 👋');
+}
+
+
+/* ===== V26 NEW DATA & FUNCTIONS ===== */
+var REGIONS_V26=[
+  {name:'Norte',icon:'🌿',users:1420,pct:68,growth:'+12%'},
+  {name:'Nordeste',icon:'☀️',users:3840,pct:82,growth:'+18%'},
+  {name:'Centro-Oeste',icon:'🌾',users:2100,pct:75,growth:'+9%'},
+  {name:'Sudeste',icon:'🏙️',users:4890,pct:91,growth:'+22%'},
+  {name:'Sul',icon:'⛵',users:2150,pct:88,growth:'+15%'}
+];
+
+var MUNICIPIOS_TOP=[
+  {cidade:'São Paulo, SP',postos:142,usuarios:1820,pos:'🏆'},
+  {cidade:'Rio de Janeiro, RJ',postos:98,usuarios:1240,pos:'🥈'},
+  {cidade:'Belo Horizonte, MG',postos:76,usuarios:980,pos:'🥉'},
+  {cidade:'Salvador, BA',postos:64,usuarios:820,pos:'4º'},
+  {cidade:'Fortaleza, CE',postos:58,usuarios:740,pos:'5º'},
+  {cidade:'Curitiba, PR',postos:54,usuarios:690,pos:'6º'},
+  {cidade:'Manaus, AM',postos:42,usuarios:530,pos:'7º'},
+  {cidade:'Goiânia, GO',postos:38,usuarios:480,pos:'8º'}
+];
+
+var FORUM_DATA=[
+  {autor:'Carlos Mendes',av:'CM',col:'#D97706',role:'Gestor · RJ',tempo:'Há 2 horas',tag:'Case de Sucesso',tc:'badge-done',
+   titulo:'Minha equipe zerou a trilha de atendimento em 1 semana!',
+   preview:'Organizamos os turnos para que cada atendente fizesse 2 aulas por dia. O NPS subiu 12 pontos no mês.',
+   likes:34,rep:18},
+  {autor:'Fernanda Lima',av:'FL',col:'#7C3AED',role:'Parceira · MG',tempo:'Há 5 horas',tag:'Dúvida',tc:'badge-required',
+   titulo:'Como configurar o cashback automático para novos clientes?',
+   preview:'Estou com dificuldade no passo 3 da trilha do terminal. Quando o cliente não tem CPF cadastrado, o sistema rejeita.',
+   likes:12,rep:24},
+  {autor:'João Santos',av:'JS',col:'#0891B2',role:'Líder · BA',tempo:'Há 1 dia',tag:'Dica',tc:'badge-progress',
+   titulo:'Dica: use o WhatsApp para engajar a comunidade no cashback',
+   preview:'Criei um grupo e mando um print toda semana com o cashback acumulado. A adesão saltou de 30% para 78%!',
+   likes:67,rep:31},
+  {autor:'Mariana Tech',av:'MT',col:'#1F2937',role:'Integradora · PR',tempo:'Há 2 dias',tag:'Técnico',tc:'badge-new',
+   titulo:'Documentei os 15 erros mais comuns da API v2',
+   preview:'Depois de 3 semanas integrando com o ERP, documentei os erros e as soluções. Espero ajudar outros integradores.',
+   likes:89,rep:42},
+  {autor:'Ana Paula Costa',av:'AC',col:'#16A34A',role:'Atendente · SP',tempo:'Há 3 dias',tag:'Case de Sucesso',tc:'badge-done',
+   titulo:'Primeiro certificado! Trilha de Excelência no Atendimento concluída',
+   preview:'Levei 4 dias para concluir. O módulo de resolução de conflitos mudou minha forma de lidar com clientes difíceis.',
+   likes:45,rep:16}
+];
+
+function renderMapa(){
+  if(!document.getElementById('regioes-grid'))return;
+  var total=REGIONS_V26.reduce(function(a,r){return a+r.users},0);
+  var barColors=['#16A34A','#F47C20','#D97706','#0A2E6E','#7C3AED'];
+  document.getElementById('regioes-grid').innerHTML=REGIONS_V26.map(function(r,ri){
+    return '<div class="region-card" onclick="showRegiao('+ri+')">'
+      +'<div style="font-size:28px;margin-bottom:6px">'+r.icon+'</div>'
+      +'<div class="region-users">'+r.users.toLocaleString('pt-BR')+'</div>'
+      +'<div class="region-name">'+r.name+'</div>'
+      +'<div class="region-pct">'+Math.round(r.users/total*100)+'% do Brasil · '+r.growth+'</div>'
+      +'<div class="track-prog-bar" style="margin-top:8px"><div class="track-prog-fill" style="width:'+r.pct+'%"></div></div>'
+      +'<div style="font-size:11px;color:var(--gray-400);margin-top:4px">'+r.pct+'% engajamento</div>'
+      +'</div>';
+  }).join('');
+  document.getElementById('nat-bars').innerHTML=REGIONS_V26.map(function(r,i){
+    return '<div style="margin-bottom:14px">'
+      +'<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:4px">'
+      +'<span>'+r.icon+' '+r.name+'</span>'
+      +'<span style="color:var(--gray-500)">'+r.pct+'% · '+r.users.toLocaleString('pt-BR')+' usuários · <span style="color:var(--pg-green)">'+r.growth+'</span></span>'
+      +'</div>'
+      +'<div class="nat-bar"><div class="nat-bar-fill" style="width:'+r.pct+'%;background:'+barColors[i]+'">'+r.pct+'%</div></div>'
+      +'</div>';
+  }).join('');
+  document.getElementById('top-municipios').innerHTML='<div class="table-wrap"><table>'
+    +'<thead><tr><th>Pos.</th><th>Município</th><th>Postos</th><th>Usuários</th><th>Engajamento</th></tr></thead><tbody>'
+    +MUNICIPIOS_TOP.map(function(m){
+      var pct=Math.round(m.usuarios/18);
+      return '<tr><td><b>'+m.pos+'</b></td><td><b>'+m.cidade+'</b></td><td>'+m.postos+'</td>'
+        +'<td>'+m.usuarios.toLocaleString('pt-BR')+'</td>'
+        +'<td><div class="progress-cell"><div class="progress-mini"><div class="progress-mini-fill" style="width:'+pct+'%"></div></div><span>'+pct+'%</span></div></td></tr>';
+    }).join('')
+    +'</tbody></table></div>';
+}
+
+function showRegiao(ri){
+  var r=REGIONS_V26[ri];
+  if(r)toast(r.icon+' '+r.name+': '+r.users.toLocaleString('pt-BR')+' usuários · '+r.growth+' este mês');
+}
+
+function renderForum(){
+  if(!document.getElementById('forum-posts'))return;
+  document.getElementById('forum-posts').innerHTML=FORUM_DATA.map(function(p,pi){
+    return '<div class="forum-post" onclick="openPost('+pi+')">'
+      +'<div class="forum-author">'
+      +'<div class="forum-avatar" style="background:'+p.col+'">'+p.av+'</div>'
+      +'<div class="forum-meta"><b>'+p.autor+'</b><span>'+p.role+' · '+p.tempo+'</span></div>'
+      +'<span class="track-badge '+p.tc+'" style="margin-left:auto">'+p.tag+'</span>'
+      +'</div>'
+      +'<div class="forum-title">'+p.titulo+'</div>'
+      +'<div class="forum-preview">'+p.preview+'</div>'
+      +'<div class="forum-footer">'
+      +'<span>❤️ '+p.likes+' curtidas</span>'
+      +'<span>💬 '+p.rep+' respostas</span>'
+      +'<span>🔖 Salvar</span>'
+      +'<span style="margin-left:auto;color:var(--pg-orange);font-weight:600">Ler mais →</span>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function openPost(pi){
+  var p=FORUM_DATA[pi];
+  if(!p)return;
+  var body='<div style="margin-bottom:12px;display:flex;align-items:center;gap:10px">'
+    +'<div style="width:40px;height:40px;border-radius:50%;background:'+p.col+';display:flex;align-items:center;justify-content:center;font-weight:700;color:#fff">'+p.av+'</div>'
+    +'<div><b>'+p.autor+'</b><br><span style="font-size:12px;color:var(--gray-400)">'+p.role+' · '+p.tempo+'</span></div>'
+    +'</div>'
+    +'<div style="font-size:14px;font-weight:600;color:var(--gray-900);margin-bottom:12px">'+p.titulo+'</div>'
+    +'<div style="font-size:13px;color:var(--gray-700);line-height:1.7;margin-bottom:16px">'+p.preview+'</div>'
+    +'<div style="background:var(--gray-50);border-radius:var(--radius);padding:14px">'
+    +'<div style="font-size:12px;font-weight:600;color:var(--gray-700);margin-bottom:8px">Adicionar resposta</div>'
+    +'<textarea class="form-input" rows="3" placeholder="Compartilhe sua experiência..."></textarea>'
+    +'</div>';
+  var footer='<button class="btn-secondary" onclick="closeModal()">Fechar</button>'
+    +'<button class="btn-primary" onclick="closeModal();toast(\'Resposta publicada!\');">Responder</button>';
+  openModal('Post do Fórum',body,footer);
+}
+
+function openNovoPost(){
+  var body='<div class="form-field"><label class="form-label">Categoria</label>'
+    +'<select class="form-input" id="novo-cat"><option>Dúvida</option><option>Dica</option><option>Case de Sucesso</option><option>Técnico</option></select></div>'
+    +'<div class="form-field"><label class="form-label">Título</label>'
+    +'<input class="form-input" id="novo-titulo" placeholder="Descreva seu post em uma linha..."></div>'
+    +'<div class="form-field"><label class="form-label">Conteúdo</label>'
+    +'<textarea class="form-input" id="novo-body" rows="5" placeholder="Detalhe sua dúvida, dica ou case..."></textarea></div>';
+  var footer='<button class="btn-secondary" onclick="closeModal()">Cancelar</button>'
+    +'<button class="btn-primary" onclick="closeModal();toast(\'Post publicado!\');">Publicar</button>';
+  openModal('Nova Publicação no Fórum',body,footer);
+}
+
+/* Override renderNacional with richer version */
+function renderNacional(){
+  var el=G('page-nacional');if(!el)return;
+  var totalUsers=REGIONS_V26.reduce(function(a,r){return a+r.users},0);
+  el.innerHTML='<div class="page-header"><div><div class="page-title">🌐 Painel Nacional</div>'
+    +'<div class="page-subtitle">Visão consolidada do Brasil — atualizado agora</div></div>'
+    +'<button class="btn-primary" onclick="toast(\'Relatório exportado!\');">Exportar PDF</button></div>'
+    +'<div class="cards-grid" style="grid-template-columns:repeat(auto-fill,minmax(180px,1fr))">'
+    +'<div class="stat-card"><div class="stat-card-icon" style="background:#FEF3C7">👥</div><div class="stat-card-val">'+totalUsers.toLocaleString('pt-BR')+'</div><div class="stat-card-label">Usuários Ativos</div><div class="stat-card-trend trend-up">↑ +22% este mês</div></div>'
+    +'<div class="stat-card"><div class="stat-card-icon" style="background:#DCFCE7">🏆</div><div class="stat-card-val">8.240</div><div class="stat-card-label">Certificados Emitidos</div><div class="stat-card-trend trend-up">↑ +340 esta semana</div></div>'
+    +'<div class="stat-card"><div class="stat-card-icon" style="background:#E6EEF9">📚</div><div class="stat-card-val">84%</div><div class="stat-card-label">Taxa de Conclusão</div><div class="stat-card-trend trend-up">↑ +6pp</div></div>'
+    +'<div class="stat-card"><div class="stat-card-icon" style="background:#FEF0E6">⭐</div><div class="stat-card-val">4,8</div><div class="stat-card-label">NPS Médio Brasil</div><div class="stat-card-trend trend-up">↑ +0,3</div></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">'
+    +'<div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px">'
+    +'<div class="section-title" style="margin-bottom:14px">Distribuição Regional</div>'
+    +REGIONS_V26.map(function(r){
+      return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">'
+        +'<span>'+r.icon+' <b>'+r.name+'</b></span>'
+        +'<span style="color:var(--gray-500)">'+r.users.toLocaleString('pt-BR')+' · <b style="color:var(--pg-green)">'+r.growth+'</b></span></div>'
+        +'<div class="nat-bar"><div class="nat-bar-fill" style="width:'+r.pct+'%;background:var(--pg-orange)">'+r.pct+'%</div></div></div>';
+    }).join('')
+    +'</div>'
+    +'<div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px">'
+    +'<div class="section-title" style="margin-bottom:14px">Trilhas Mais Populares</div>'
+    +['Cashback PayGas','Excelência no Atendimento','Gestão e KPIs','Operação do Terminal','LGPD e Segurança'].map(function(t,i){
+      var pcts=[94,88,76,71,68];
+      return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">'
+        +'<span>'+t+'</span><span style="color:var(--gray-500)">'+pcts[i]+'%</span></div>'
+        +'<div class="nat-bar"><div class="nat-bar-fill" style="width:'+pcts[i]+'%;background:var(--pg-blue)">'+pcts[i]+'%</div></div></div>';
+    }).join('')
+    +'</div></div>'
+    +'<div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px">'
+    +'<div class="section-title" style="margin-bottom:14px">Distribuição por Perfil</div>'
+    +'<div class="cards-grid" style="grid-template-columns:repeat(3,1fr)">'
+    +[{l:'Atendentes',v:'5.840',i:'👤'},{l:'Gestores',v:'2.100',i:'⛽'},{l:'Parceiros',v:'1.680',i:'🏪'},{l:'Líderes',v:'1.420',i:'⛪'},{l:'Integradores ERP',v:'840',i:'💻'},{l:'Admins',v:'520',i:'🌐'}].map(function(p){
+      return '<div class="stat-card" style="padding:14px;text-align:center">'
+        +'<div style="font-size:22px;margin-bottom:4px">'+p.i+'</div>'
+        +'<div style="font-size:18px;font-weight:800;color:var(--gray-900)">'+p.v+'</div>'
+        +'<div style="font-size:11px;color:var(--gray-400)">'+p.l+'</div>'
+        +'</div>';
+    }).join('')+'</div></div>';
+}
+
+/* Override ranking to show user position */
+function renderRanking(){
+  var el=G('ranking-list');if(!el)return;
+  var myOrder={paygas:1,erp:2,gestor:3,lider:4,atendente:5,parceiro:6};
+  var myPos=myOrder[S.role]||7;
+  var medals=['🥇','🥈','🥉'];
+  el.innerHTML=RANKING_DATA.map(function(r,i){
+    var isMe=(i+1)===myPos;
+    return '<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--radius);margin-bottom:8px;background:'+(isMe?'var(--pg-orange-lt)':'#fff')+';border:1px solid '+(isMe?'var(--pg-orange)':'var(--gray-200)')+';box-shadow:var(--shadow)">'
+      +'<div style="width:32px;text-align:center;font-size:'+(i<3?'20px':'14px')+';font-weight:700;color:var(--gray-500)">'+(medals[i]||('#'+(i+1)))+'</div>'
+      +'<div style="width:36px;height:36px;border-radius:50%;background:var(--pg-blue);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff">'+r.avatar+'</div>'
+      +'<div style="flex:1"><b style="font-size:14px;color:var(--gray-900)">'+r.nome+(isMe?' <span style="font-size:11px;background:var(--pg-orange);color:#fff;padding:2px 6px;border-radius:10px">Você</span>':'')+'</b>'
+      +'<div style="font-size:11px;color:var(--gray-400)">'+r.role+' · '+r.estado+'</div></div>'
+      +'<div style="text-align:right"><b style="font-size:16px;color:var(--pg-orange)">'+r.xp.toLocaleString('pt-BR')+'</b><div style="font-size:10px;color:var(--gray-400)">XP</div></div>'
+      +'</div>';
+  }).join('');
+}
+
+/* Override goTo to handle new pages */
+var _baseGoTo=goTo;
+goTo=function(page){
+  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
+  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active')});
+  var pg=G('page-'+page);if(!pg){toast('Seção em desenvolvimento!');return}
+  pg.classList.add('active');
+  var navBtn=document.querySelector('[data-page="'+page+'"]');
+  if(navBtn)navBtn.classList.add('active');
+  if(page==='home')renderHome();
+  else if(page==='trilhas')renderTrilhas();
+  else if(page==='certificados')renderCerts();
+  else if(page==='equipe')renderEquipe();
+  else if(page==='relatorios')renderRelatorios();
+  else if(page==='cms')renderCMS();
+  else if(page==='usuarios')renderUsuarios();
+  else if(page==='nacional')renderNacional();
+  else if(page==='analitica')renderAnalitica();
+  else if(page==='ranking')renderRanking();
+  else if(page==='conquistas')renderConquistas();
+  else if(page==='notif')renderNotif();
+  else if(page==='perfil')renderPerfil();
+  else if(page==='mapa')renderMapa();
+  else if(page==='forum')renderForum();
+};
+/* ===== END V26 ===== */
+
+// Init
+document.addEventListener('DOMContentLoaded',function(){
+  G('inp-email').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
+  G('inp-senha').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
+  G('modal-overlay').addEventListener('click',function(e){if(e.target===G('modal-overlay'))closeModal()});
+});
+</script>
+</body>
+</html>

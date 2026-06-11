@@ -28,6 +28,8 @@
     "**/*.tsx"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    "components/ui/**",
+    "hooks/use-toast.ts"
   ]
 }
