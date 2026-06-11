@@ -36,8 +36,8 @@ export default function App() {
               <AppLayout user={user!} xp={xp} tracksCount={tracks.length} onLogout={handleLogout}>
                 <Routes>
                   <Route path="/" element={<DashboardPage xp={xp} tracks={tracks} />} />
-                  <Route path="/trilhas" element={<TrilhasPage tracks={tracks} />} />
-                  <Route path="/trilhas/:trilhaId" element={<TrilhaModulosPage />} />
+                  <Route path="/modulos" element={<TrilhasPage tracks={tracks} />} />
+                  <Route path="/modulos/:trilhaId" element={<TrilhaModulosPage />} />
                   <Route path="/modulos/:moduloId" element={<ModulosPage />} />
                   <Route path="/certificados" element={<CertificadosPage tracks={tracks} />} />
                   <Route path="/equipe" element={<EquipePage user={user!} />} />

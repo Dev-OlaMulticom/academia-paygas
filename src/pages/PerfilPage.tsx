@@ -1,5 +1,6 @@
 import type { User } from '../hooks/useAuth'
 
+
 interface PerfilPageProps {
   user: User
   xp: number
@@ -50,22 +51,22 @@ export function PerfilPage({ user, xp, tracks }: PerfilPageProps) {
             <div className="section-title">Estatísticas</div>
             <div className="cards-grid" style={{ gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
               <div className="stat-card" style={{ padding: '14px' }}>
-                <div style={{ fontSize: '20px', marginBottom: '4px' }}>⚡</div>
-                <div className="stat-card-val" style={{ fontSize: '20px' }}>{xp.toLocaleString('pt-BR')}</div>
+                <div style={{ fontSize: '20px', marginBottom: '4px' }}><i className="icon-zap icon-lg" /></div>
+                <div className="stat-card-val" style={{ fontSize: '20px' }}>0</div>
                 <div className="stat-card-label">XP Total</div>
               </div>
               <div className="stat-card" style={{ padding: '14px' }}>
-                <div style={{ fontSize: '20px', marginBottom: '4px' }}>⭐</div>
-                <div className="stat-card-val" style={{ fontSize: '20px' }}>{Math.floor(xp / 2000) + 1}</div>
+                <div style={{ fontSize: '20px', marginBottom: '4px' }}><i className="icon-star icon-lg" /></div>
+                <div className="stat-card-val" style={{ fontSize: '20px' }}>0</div>
                 <div className="stat-card-label">Nível Atual</div>
               </div>
               <div className="stat-card" style={{ padding: '14px' }}>
-                <div style={{ fontSize: '20px', marginBottom: '4px' }}>🏆</div>
-                <div className="stat-card-val" style={{ fontSize: '20px' }}>{Math.ceil(tracks.length * 0.2)}</div>
+                <div style={{ fontSize: '20px', marginBottom: '4px' }}><i className="icon-trophy icon-lg" /></div>
+                <div className="stat-card-val" style={{ fontSize: '20px' }}>0</div>
                 <div className="stat-card-label">Certificados</div>
               </div>
               <div className="stat-card" style={{ padding: '14px' }}>
-                <div style={{ fontSize: '20px', marginBottom: '4px' }}>📚</div>
+                <div style={{ fontSize: '20px', marginBottom: '4px' }}><i className="icon-book-open icon-lg" /></div>
                 <div className="stat-card-val" style={{ fontSize: '20px' }}>{tracks.length}</div>
                 <div className="stat-card-label">Trilhas</div>
               </div>

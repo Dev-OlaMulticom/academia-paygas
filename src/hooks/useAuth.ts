@@ -7,13 +7,9 @@ export interface User {
   role: string
   email: string
   nome?: string
+  xp?: number
 }
 
-const XP_MAP: Record<string, number> = {
-  ADMIN: 8500,
-  GESTOR: 4100,
-  ATENDENTE: 2400,
-}
 
 export function useAuth() {
   const [user, setUser] = useState<User | null>(null)
@@ -25,7 +21,7 @@ export function useAuth() {
     if (storedUser && token) {
       const userData = JSON.parse(storedUser)
       setUser(userData)
-      setXp(XP_MAP[userData.role] || 0)
+      setXp(userData.xp || 0)
       api.setToken(token)
     }
   }, [])
@@ -34,7 +30,7 @@ export function useAuth() {
     setUser(userData)
     localStorage.setItem('user', JSON.stringify(userData))
     api.setToken(token)
-    setXp(XP_MAP[userData.role] || 0)
+    setXp(userData.xp || 0)
   }
 
   const handleLogout = () => {

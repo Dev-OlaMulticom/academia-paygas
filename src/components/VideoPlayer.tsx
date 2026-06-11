@@ -8,6 +8,7 @@ interface VideoPlayerProps {
   endAt?: number
   onReady?: () => void
   onTimeUpdate?: (time: number) => void
+  microLessons?: Array<{ hours: number; minutes: number; seconds: number; titulo: string }>
 }
 
 function extractYouTubeId(url: string): string | null {
@@ -23,7 +24,7 @@ function extractYouTubeId(url: string): string | null {
   return null
 }
 
-export function VideoPlayer({ url, startAt = 0, endAt, onReady, onTimeUpdate }: VideoPlayerProps) {
+export function VideoPlayer({ url, startAt = 0, endAt, onReady, onTimeUpdate, microLessons }: VideoPlayerProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<Plyr | null>(null)
 
@@ -95,10 +96,32 @@ export function VideoPlayer({ url, startAt = 0, endAt, onReady, onTimeUpdate }: 
       playerRef.current?.destroy()
       playerRef.current = null
     }
-  }, [url, startAt, endAt])
+  }, [url, startAt, endAt, microLessons])
 
   return (
     <div className="video-player-wrapper">
+      {microLessons && microLessons.length > 0 && (
+        <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          {microLessons.map((ml, i) => {
+            const totalSeconds = ml.hours * 3600 + ml.minutes * 60 + ml.seconds
+            return (
+              <button
+                key={i}
+                className="btn-secondary"
+                style={{ padding: '4px 8px', fontSize: '11px' }}
+                onClick={() => {
+                  if (playerRef.current) {
+                    playerRef.current.currentTime = totalSeconds
+                    playerRef.current.play()
+                  }
+                }}
+              >
+                {ml.hours > 0 ? `${ml.hours}h ` : ''}{ml.minutes}m {ml.seconds}s - {ml.titulo}
+              </button>
+            )
+          })}
+        </div>
+      )}
       <div ref={containerRef} className="plyr-container" />
     </div>
   )

@@ -84,9 +84,9 @@ export const db = new LocalDB()
 export function initSeedData() {
   // Seed users if empty
   db.seed('users', [
-    { id: '1', nome: 'Admin PayGas', email: 'admin@paygas.com.br', senha: '123456', role: 'ADMIN', xp: 8500, lastLogin: new Date().toISOString() },
-    { id: '2', nome: 'Gestor de Posto', email: 'gestor@paygas.com.br', senha: '123456', role: 'GESTOR', xp: 4100, lastLogin: new Date().toISOString() },
-    { id: '3', nome: 'Atendente', email: 'atendente@paygas.com.br', senha: '123456', role: 'ATENDENTE', xp: 2400, lastLogin: new Date().toISOString() },
+    { id: '1', nome: 'Admin PayGas', email: 'admin@paygas.com.br', senha: '123456', role: 'ADMIN', xp: 0, lastLogin: new Date().toISOString() },
+    { id: '2', nome: 'Gestor de Posto', email: 'gestor@paygas.com.br', senha: '123456', role: 'GESTOR', xp: 0, lastLogin: new Date().toISOString() },
+    { id: '3', nome: 'Atendente', email: 'atendente@paygas.com.br', senha: '123456', role: 'ATENDENTE', xp: 0, lastLogin: new Date().toISOString() },
   ])
 
   // Seed tracks if empty
