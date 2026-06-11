@@ -1,34 +1,87 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { api } from '../lib/api'
+import { VideoPlayer } from '../components/VideoPlayer'
 
 export function ModulosPage() {
   const navigate = useNavigate()
-  const [currentLesson, setCurrentLesson] = useState(3)
+  const [currentLesson, setCurrentLesson] = useState(0)
   const [showQuiz, setShowQuiz] = useState(false)
+  const [lessons, setLessons] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
 
-  const lessons = [
-    { title: 'Fundamentos do Atendimento', type: 'video', duration: '8 min', done: true, videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ', videoInicio: 0, videoFim: 480 },
-    { title: 'Comunicação Eficaz', type: 'video', duration: '10 min', done: true, videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ', videoInicio: 480, videoFim: 1080 },
-    { title: 'Resolução de Conflitos', type: 'leitura', duration: '12 min', done: true },
-    { title: 'Cashback: Como Explicar ao Cliente', type: 'video', duration: '7 min', done: false, active: true, videoUrl: 'https://www.youtube.com/embed/dQw4w9WgXcQ', videoInicio: 1080, videoFim: 1500 },
-    { title: 'Avaliação de Desempenho', type: 'quiz', duration: '10 min', done: false },
-    { title: 'Certificação — Atendimento', type: 'cert', duration: '5 min', done: false }
-  ]
+  useEffect(() => {
+    loadAulas()
+  }, [])
 
-  const handleComplete = () => {
-    if (lessons[currentLesson].type === 'quiz') {
-      setShowQuiz(true)
-    } else {
-      alert('Aula concluída! Notificação enviada ao gestor para aprovação do certificado.')
+  const loadAulas = async () => {
+    try {
+      // For demo, load from first trilha's first modulo
+      const trilhas = await api.getTrilhas()
+      if (trilhas.length > 0) {
+        const modulos = await api.getModulos(trilhas[0].id)
+        if (modulos.length > 0 && modulos[0].aulas) {
+          setLessons(modulos[0].aulas)
+        }
+      }
+    } catch (err) {
+      console.error('Erro ao carregar aulas:', err)
+      // Fallback to mock data
+      setLessons([
+        { id: '1', titulo: 'Fundamentos do Atendimento', tipo: 'video', duracaoMin: 8, concluido: true, videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', videoInicio: 0, videoFim: 480 },
+        { id: '2', titulo: 'Comunicação Eficaz', tipo: 'video', duracaoMin: 10, concluido: true, videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', videoInicio: 480, videoFim: 1080 },
+        { id: '3', titulo: 'Resolução de Conflitos', tipo: 'leitura', duracaoMin: 12, concluido: true },
+        { id: '4', titulo: 'Cashback: Como Explicar ao Cliente', tipo: 'video', duracaoMin: 7, concluido: false, videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', videoInicio: 1080, videoFim: 1500 },
+        { id: '5', titulo: 'Avaliação de Desempenho', tipo: 'quiz', duracaoMin: 10, concluido: false },
+        { id: '6', titulo: 'Certificação — Atendimento', tipo: 'cert', duracaoMin: 5, concluido: false },
+      ])
+    } finally {
+      setLoading(false)
     }
   }
+
+  const handleComplete = async () => {
+    const lesson = lessons[currentLesson]
+    if (!lesson) return
+
+    if (lesson.tipo === 'quiz') {
+      setShowQuiz(true)
+    } else {
+      try {
+        await api.updateProgresso(lesson.moduloId || 'demo', lesson.id, true)
+        const updated = [...lessons]
+        updated[currentLesson] = { ...updated[currentLesson], concluido: true }
+        setLessons(updated)
+        alert('Aula concluída! Progresso salvo.')
+      } catch {
+        alert('Aula concluída!')
+      }
+    }
+  }
+
+  const handleAnswerQuiz = (questionId: string, answer: string) => {
+    setSelectedAnswers(prev => ({ ...prev, [questionId]: answer }))
+  }
+
+  if (loading) {
+    return (
+      <div className="page active">
+        <div className="page-header">
+          <div className="page-title">Carregando módulo...</div>
+        </div>
+      </div>
+    )
+  }
+
+  const current = lessons[currentLesson]
 
   return (
     <div className="page active">
       <div className="page-header">
         <div>
           <div className="page-title">Módulo</div>
-          <div className="page-subtitle">Excelência no Atendimento · 6 aulas</div>
+          <div className="page-subtitle">Excelência no Atendimento · {lessons.length} aulas</div>
         </div>
         <button className="btn-secondary" onClick={() => navigate('/trilhas')}>← Voltar às Trilhas</button>
       </div>
@@ -36,33 +89,29 @@ export function ModulosPage() {
         <div className="lesson-sidebar">
           <div className="lesson-sidebar-header">
             <h3>Excelência no Atendimento</h3>
-            <p>6 aulas · Técnicas de atendimento e satisfação do cliente</p>
+            <p>{lessons.length} aulas · Técnicas de atendimento</p>
           </div>
           {lessons.map((lesson, i) => (
-            <div key={i} className={`lesson-item ${i === currentLesson ? 'active' : ''} ${lesson.done ? 'done' : ''}`} onClick={() => setCurrentLesson(i)}>
-              <div className="lesson-num">{lesson.done ? '✓' : i + 1}</div>
+            <div key={lesson.id || i} className={`lesson-item ${i === currentLesson ? 'active' : ''} ${lesson.concluido ? 'done' : ''}`} onClick={() => { setCurrentLesson(i); setShowQuiz(false); setSelectedAnswers({}) }}>
+              <div className="lesson-num">{lesson.concluido ? '✓' : i + 1}</div>
               <div className="lesson-item-info">
-                <b>{lesson.title}</b>
-                <span>{lesson.type} · {lesson.duration}</span>
+                <b>{lesson.titulo}</b>
+                <span>{lesson.tipo || 'video'} · {lesson.duracaoMin || 10} min</span>
               </div>
-              {lesson.done && <span className="lesson-check">✓</span>}
+              {lesson.concluido && <span className="lesson-check">✓</span>}
             </div>
           ))}
         </div>
         <div className="lesson-content">
           {!showQuiz ? (
             <>
-              {lessons[currentLesson].videoUrl ? (
+              {current?.videoUrl ? (
                 <div className="lesson-video">
-                  <iframe
-                    width="100%"
-                    height="400"
-                    src={`${lessons[currentLesson].videoUrl}?start=${lessons[currentLesson].videoInicio || 0}&end=${lessons[currentLesson].videoFim || ''}&autoplay=1`}
-                    title="YouTube video player"
-                    frameBorder="0"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                    allowFullScreen
-                  ></iframe>
+                  <VideoPlayer
+                    url={current.videoUrl}
+                    startAt={current.videoInicio || 0}
+                    endAt={current.videoFim}
+                  />
                 </div>
               ) : (
                 <div className="lesson-video">
@@ -74,10 +123,10 @@ export function ModulosPage() {
                 </div>
               )}
               <div className="lesson-body">
-                <h2>{lessons[currentLesson].title}</h2>
+                <h2>{current?.titulo}</h2>
                 <div className="lesson-tags">
-                  <span className="lesson-tag">{lessons[currentLesson].type}</span>
-                  <span className="lesson-tag">{lessons[currentLesson].duration}</span>
+                  <span className="lesson-tag">{current?.tipo || 'video'}</span>
+                  <span className="lesson-tag">{current?.duracaoMin || 10} min</span>
                   <span className="lesson-tag" style={{ background: 'var(--pg-red-lt)', color: 'var(--pg-red)' }}>Obrigatória</span>
                 </div>
                 <div className="lesson-text">
@@ -93,45 +142,37 @@ export function ModulosPage() {
                 </div>
                 <div className="lesson-actions">
                   <button className="btn-primary" onClick={handleComplete}>
-                    {lessons[currentLesson].type === 'quiz' ? 'Iniciar Quiz' : 'Concluir e Avançar ➜'}
+                    {current?.tipo === 'quiz' ? 'Iniciar Quiz' : 'Concluir e Avançar ➜'}
                   </button>
-                  {currentLesson > 0 && <button className="btn-secondary" onClick={() => setCurrentLesson(currentLesson - 1)}>← Anterior</button>}
+                  {currentLesson > 0 && <button className="btn-secondary" onClick={() => { setCurrentLesson(currentLesson - 1); setShowQuiz(false) }}>← Anterior</button>}
                 </div>
               </div>
             </>
           ) : (
             <div className="lesson-body">
-              <h2>Quiz: {lessons[currentLesson].title}</h2>
-              <div className="lesson-text">
-                Responda às perguntas abaixo para concluir esta aula.
-              </div>
+              <h2>Quiz: {current?.titulo}</h2>
+              <div className="lesson-text">Responda às perguntas abaixo para concluir esta aula.</div>
               <div style={{ marginTop: '20px' }}>
                 <div style={{ marginBottom: '20px', padding: '16px', background: '#f9f9f9', borderRadius: '8px' }}>
                   <p style={{ fontWeight: '600', marginBottom: '12px' }}>1. Qual é o principal objetivo do atendimento ao cliente?</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input type="radio" name="q1" /> A) Maximizar as vendas
-                    </label>
-                    <label style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input type="radio" name="q1" /> B) Garantir a satisfação do cliente
-                    </label>
-                    <label style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input type="radio" name="q1" /> C) Processar pagamentos rapidamente
-                    </label>
+                    {['A) Maximizar as vendas', 'B) Garantir a satisfação do cliente', 'C) Processar pagamentos rapidamente'].map(opt => (
+                      <label key={opt} style={{ display: 'flex', gap: '8px', alignItems: 'center', cursor: 'pointer' }}>
+                        <input type="radio" name="q1" checked={selectedAnswers['q1'] === opt[0]} onChange={() => handleAnswerQuiz('q1', opt[0])} />
+                        {opt}
+                      </label>
+                    ))}
                   </div>
                 </div>
                 <div style={{ marginBottom: '20px', padding: '16px', background: '#f9f9f9', borderRadius: '8px' }}>
                   <p style={{ fontWeight: '600', marginBottom: '12px' }}>2. Como lidar com clientes insatisfeitos?</p>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                    <label style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input type="radio" name="q2" /> A) Ignorar e atender o próximo cliente
-                    </label>
-                    <label style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input type="radio" name="q2" /> B) Ouvir ativamente e buscar solução
-                    </label>
-                    <label style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <input type="radio" name="q2" /> C) Argumentar que o cliente está errado
-                    </label>
+                    {['A) Ignorar e atender o próximo cliente', 'B) Ouvir ativamente e buscar solução', 'C) Argumentar que o cliente está errado'].map(opt => (
+                      <label key={opt} style={{ display: 'flex', gap: '8px', alignItems: 'center', cursor: 'pointer' }}>
+                        <input type="radio" name="q2" checked={selectedAnswers['q2'] === opt[0]} onChange={() => handleAnswerQuiz('q2', opt[0])} />
+                        {opt}
+                      </label>
+                    ))}
                   </div>
                 </div>
               </div>
