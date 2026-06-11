@@ -5,6 +5,7 @@ import { ProtectedRoute } from './components/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
 import { DashboardPage } from './pages/DashboardPage'
 import { TrilhasPage } from './pages/TrilhasPage'
+import { TrilhaModulosPage } from './pages/TrilhaModulosPage'
 import { ModulosPage } from './pages/ModulosPage'
 import { CertificadosPage } from './pages/CertificadosPage'
 import { EquipePage } from './pages/EquipePage'
@@ -36,7 +37,8 @@ export default function App() {
                 <Routes>
                   <Route path="/" element={<DashboardPage xp={xp} tracks={tracks} />} />
                   <Route path="/trilhas" element={<TrilhasPage tracks={tracks} />} />
-                  <Route path="/modulos" element={<ModulosPage />} />
+                  <Route path="/trilhas/:trilhaId" element={<TrilhaModulosPage />} />
+                  <Route path="/modulos/:moduloId" element={<ModulosPage />} />
                   <Route path="/certificados" element={<CertificadosPage tracks={tracks} />} />
                   <Route path="/equipe" element={<EquipePage user={user!} />} />
                   <Route path="/relatorios" element={<RelatoriosPage user={user!} />} />

@@ -23,11 +23,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
       const data = await api.getUsuarios()
       setUsuarios(data)
     } catch {
-      setUsuarios([
-        { id: '1', nome: 'Carlos Mendes', email: 'carlos@posto2.com.br', role: 'GESTOR', xp: 4100, lastLogin: 'Ontem' },
-        { id: '2', nome: 'Ana Paula Costa', email: 'ana@posto1.com.br', role: 'ATENDENTE', xp: 2400, lastLogin: 'Hoje' },
-        { id: '3', nome: 'João Silva', email: 'joao@posto1.com.br', role: 'ATENDENTE', xp: 1200, lastLogin: 'Hoje' },
-      ])
+      setUsuarios([])
     } finally { setLoading(false) }
   }
 
