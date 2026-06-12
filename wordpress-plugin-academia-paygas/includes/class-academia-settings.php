@@ -21,6 +21,18 @@ class Academia_Settings {
 
         add_submenu_page('academia-paygas', 'Dashboard', 'Dashboard', 'manage_options', 'academia-paygas', [$this, 'render_dashboard']);
         add_submenu_page('academia-paygas', 'API Settings', 'API Settings', 'manage_options', 'academia-paygas-settings', [$this, 'render_settings']);
+
+        // Submenus para CPTs (show_ui=false, asi que los registramos manualmente)
+        add_submenu_page('academia-paygas', 'Aulas', 'Aulas', 'edit_posts', 'edit.php?post_type=ap_aula');
+        add_submenu_page('academia-paygas', 'Quizzes', 'Quizzes', 'edit_posts', 'edit.php?post_type=ap_quiz');
+        add_submenu_page('academia-paygas', 'Certificados', 'Certificados', 'edit_posts', 'edit.php?post_type=ap_certificate');
+
+        // Submenus para taxonomias
+        add_submenu_page('academia-paygas', 'Trilhas', 'Trilhas', 'manage_categories', 'edit-tags.php?taxonomy=ap_trilha&post_type=ap_aula');
+        add_submenu_page('academia-paygas', 'Modulos', 'Modulos', 'manage_categories', 'edit-tags.php?taxonomy=ap_modulo&post_type=ap_aula');
+
+        // Submenu Usuarios (pagia nativa de WP)
+        add_submenu_page('academia-paygas', 'Usuarios', 'Usuarios', 'list_users', 'users.php');
     }
 
     public function enqueue_styles($hook): void {
@@ -76,21 +88,45 @@ class Academia_Settings {
         <div class="wrap ap-wrap">
             <h1>API Settings</h1>
 
-            <form method="post">
+            <form method="post" id="ap-settings-form">
                 <?php wp_nonce_field('academia_paygas_settings'); ?>
 
                 <div class="ap-card">
                     <div class="ap-card-header"><h2>API Key</h2></div>
                     <div class="ap-card-body">
-                        <p>Tu API Key (usar en header <code>X-API-Key</code>):</p>
-                        <div class="ap-api-key-display">
-                            <input type="text" value="<?php echo esc_attr($api_key); ?>" readonly id="ap-api-key">
+                        <?php if (empty($api_key)): ?>
+                            <p>No tienes una API Key. Haz clic en "Generar" para crear una:</p>
+                        <?php else: ?>
+                            <p>Tu API Key (usar en header <code>X-API-Key</code>):</p>
+                        <?php endif; ?>
+
+                        <div class="ap-api-key-row">
+                            <input type="text" value="<?php echo esc_attr($api_key); ?>" readonly id="ap-api-key"
+                                   style="flex:1; font-family:monospace; font-size:14px; padding:8px 12px; border:1px solid #ccd0d4; border-radius:4px; background:<?php echo $api_key ? '#f6f7f7' : '#fff'; ?>;">
+                            <button type="button" class="button" onclick="apCopyKey()" id="ap-copy-btn" title="Copiar">
+                                <span class="dashicons dashicons-admin-page" style="margin-top:4px;"></span>
+                            </button>
+                            <button type="button" class="button" onclick="apToggleKeyVis()" title="Mostrar/Ocultar">
+                                <span class="dashicons dashicons-visibility" style="margin-top:4px;" id="ap-eye-icon"></span>
+                            </button>
                         </div>
-                        <p class="description" style="margin-top: 8px;">Ejemplo: <code>curl -H "X-API-Key: <?php echo esc_html(substr($api_key, 0, 8)); ?>..." <?php echo esc_html($base_url); ?>/users</code></p>
-                    </div>
-                    <div class="ap-card-actions">
-                        <label><input type="checkbox" name="regenerate_key" value="1"> Regenerar API Key</label>
-                        <input type="submit" name="academia_paygas_save_settings" class="button button-primary" value="Guardar" style="margin-left: 12px;">
+
+                        <div class="ap-key-actions-row" style="margin-top:12px; display:flex; gap:8px; align-items:center;">
+                            <button type="submit" name="academia_paygas_save_settings" value="1" class="button button-primary" onclick="document.getElementById('ap-regen-input').value='1'">
+                                <?php echo $api_key ? 'Regenerar Key' : 'Generar Key'; ?>
+                            </button>
+                            <input type="hidden" name="regenerate_key" id="ap-regen-input" value="">
+                            <?php if ($api_key): ?>
+                                <span class="description" style="color:#646970;">Se creara una nueva key. La anterior dejara de funcionar.</span>
+                            <?php endif; ?>
+                        </div>
+
+                        <?php if ($api_key): ?>
+                        <div style="margin-top:16px; padding:12px; background:#f0f6fc; border-left:4px solid #2271b1; border-radius:0 4px 4px 0;">
+                            <strong>Ejemplo de uso:</strong>
+                            <pre style="margin:8px 0 0; background:#1d2327; color:#e6e6e6; padding:10px; border-radius:4px; font-size:12px;">curl -H "X-API-Key: <?php echo esc_html($api_key); ?>" <?php echo esc_html($base_url); ?>/users</pre>
+                        </div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -100,7 +136,10 @@ class Academia_Settings {
                         <table class="form-table">
                             <tr>
                                 <th>Max requests por minuto (por IP)</th>
-                                <td><input type="number" name="rate_limit" value="<?php echo esc_attr($rate_limit); ?>" min="1" max="1000" class="small-text"></td>
+                                <td>
+                                    <input type="number" name="rate_limit" value="<?php echo esc_attr($rate_limit); ?>" min="1" max="1000" class="small-text">
+                                    <p class="description">Ventana deslizante de 60 segundos por direccion IP.</p>
+                                </td>
                             </tr>
                         </table>
                     </div>
@@ -113,11 +152,34 @@ class Academia_Settings {
                         <textarea name="allowed_origins" rows="4" class="large-text" placeholder="https://tu-app.com"><?php echo esc_textarea($origins); ?></textarea>
                     </div>
                     <div class="ap-card-actions">
-                        <input type="submit" name="academia_paygas_save_settings" class="button button-primary" value="Guardar">
+                        <input type="submit" name="academia_paygas_save_settings" class="button button-primary" value="Guardar Settings">
                     </div>
                 </div>
             </form>
         </div>
+
+        <script>
+        function apCopyKey() {
+            var input = document.getElementById('ap-api-key');
+            var btn = document.getElementById('ap-copy-btn');
+            if (!input.value) return;
+            navigator.clipboard.writeText(input.value).then(function() {
+                btn.innerHTML = '<span class="dashicons dashicons-saved" style="margin-top:4px; color:#00a32a;"></span>';
+                setTimeout(function() { btn.innerHTML = '<span class="dashicons dashicons-admin-page" style="margin-top:4px;"></span>'; }, 2000);
+            });
+        }
+        function apToggleKeyVis() {
+            var input = document.getElementById('ap-api-key');
+            var icon = document.getElementById('ap-eye-icon');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'dashicons dashicons-hidden';
+            } else {
+                input.type = 'password';
+                icon.className = 'dashicons dashicons-visibility';
+            }
+        }
+        </script>
         <?php
     }
 }
