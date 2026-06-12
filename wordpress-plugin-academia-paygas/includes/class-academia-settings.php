@@ -21,6 +21,7 @@ class Academia_Settings {
 
         add_submenu_page('academia-paygas', 'Dashboard', 'Dashboard', 'manage_options', 'academia-paygas', [$this, 'render_dashboard']);
         add_submenu_page('academia-paygas', 'API Settings', 'API Settings', 'manage_options', 'academia-paygas-settings', [$this, 'render_settings']);
+        add_submenu_page('academia-paygas', 'API Documentation', 'API Documentation', 'manage_options', 'academia-paygas-docs', [$this, 'render_documentation']);
 
         // Submenus para CPTs (show_ui=false, asi que los registramos manualmente)
         add_submenu_page('academia-paygas', 'Aulas', 'Aulas', 'edit_posts', 'edit.php?post_type=ap_aula');
@@ -83,7 +84,7 @@ class Academia_Settings {
         $api_key     = get_option('academia_paygas_api_key', '');
         $rate_limit  = get_option('academia_paygas_rate_limit', 60);
         $origins     = get_option('academia_paygas_allowed_origins', '');
-        $base_url    = rest_url('academia-paygas/v1');
+        $base_url    = rest_url(ACADEMIA_PAYGAS_NAMESPACE);
         ?>
         <div class="wrap ap-wrap">
             <h1>API Settings</h1>
@@ -124,7 +125,8 @@ class Academia_Settings {
                         <?php if ($api_key): ?>
                         <div style="margin-top:16px; padding:12px; background:#f0f6fc; border-left:4px solid #2271b1; border-radius:0 4px 4px 0;">
                             <strong>Ejemplo de uso:</strong>
-                            <pre style="margin:8px 0 0; background:#1d2327; color:#e6e6e6; padding:10px; border-radius:4px; font-size:12px;">curl -H "X-API-Key: <?php echo esc_html($api_key); ?>" <?php echo esc_html($base_url); ?>/users</pre>
+                            <pre style="margin:8px 0 0; background:#1d2327; color:#e6e6e6; padding:10px; border-radius:4px; font-size:12px;">curl -H "X-API-Key: YOUR_API_KEY" <?php echo esc_html($base_url); ?>/users</pre>
+                            <p style="margin:8px 0 0; font-size:12px; color:#646970;">Reemplaza <code>YOUR_API_KEY</code> con tu API Key real.</p>
                         </div>
                         <?php endif; ?>
                     </div>
@@ -155,6 +157,82 @@ class Academia_Settings {
                         <input type="submit" name="academia_paygas_save_settings" class="button button-primary" value="Guardar Settings">
                     </div>
                 </div>
+
+                <div class="ap-card">
+                    <div class="ap-card-header"><h2>API Documentation</h2></div>
+                    <div class="ap-card-body">
+                        <p>Documentación interactiva de todos los endpoints disponibles en la API de Academia PayGas.</p>
+                        
+                        <div style="margin: 16px 0;">
+                            <a href="<?php echo esc_url(rest_url(ACADEMIA_PAYGAS_NAMESPACE . '/docs/html')); ?>" target="_blank" class="button button-primary">
+                                <span class="dashicons dashicons-external" style="margin-top:4px;"></span>
+                                Abrir Documentación Completa
+                            </a>
+                            <a href="<?php echo esc_url(rest_url(ACADEMIA_PAYGAS_NAMESPACE . '/docs/json')); ?>" target="_blank" class="button">
+                                <span class="dashicons dashicons-admin-code" style="margin-top:4px;"></span>
+                                Ver JSON (OpenAPI)
+                            </a>
+                        </div>
+
+                        <h3 style="margin-top: 20px; margin-bottom: 12px;">Endpoints Principales</h3>
+                        <table class="wp-list-table widefat fixed striped" style="margin-top: 12px;">
+                            <thead>
+                                <tr>
+                                    <th>Método</th>
+                                    <th>Ruta</th>
+                                    <th>Descripción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                    <td><code>/users</code></td>
+                                    <td>Listar usuarios</td>
+                                </tr>
+                                <tr>
+                                    <td><span style="color:#00a32a; font-weight:bold;">POST</span></td>
+                                    <td><code>/users</code></td>
+                                    <td>Crear usuario</td>
+                                </tr>
+                                <tr>
+                                    <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                    <td><code>/users/me</code></td>
+                                    <td>Obtener usuario autenticado</td>
+                                </tr>
+                                <tr>
+                                    <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                    <td><code>/trilhas</code></td>
+                                    <td>Listar trilhas</td>
+                                </tr>
+                                <tr>
+                                    <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                    <td><code>/modulos</code></td>
+                                    <td>Listar módulos</td>
+                                </tr>
+                                <tr>
+                                    <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                    <td><code>/aulas</code></td>
+                                    <td>Listar aulas</td>
+                                </tr>
+                                <tr>
+                                    <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                    <td><code>/progresso/porcentagem</code></td>
+                                    <td>Calcular porcentaje de progreso</td>
+                                </tr>
+                                <tr>
+                                    <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                    <td><code>/certificados</code></td>
+                                    <td>Listar certificados</td>
+                                </tr>
+                                <tr>
+                                    <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                    <td><code>/notifications</code></td>
+                                    <td>Listar notificaciones</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </form>
         </div>
 
@@ -180,6 +258,136 @@ class Academia_Settings {
             }
         }
         </script>
+        <?php
+    }
+
+    public function render_documentation(): void {
+        $docs_url = rest_url(ACADEMIA_PAYGAS_NAMESPACE . '/docs/html');
+        $json_url = rest_url(ACADEMIA_PAYGAS_NAMESPACE . '/docs/json');
+        ?>
+        <div class="wrap ap-wrap">
+            <h1>API Documentation</h1>
+            
+            <div class="ap-card">
+                <div class="ap-card-header">
+                    <h2>Documentación de la API REST</h2>
+                </div>
+                <div class="ap-card-body">
+                    <p>Documentación interactiva de todos los endpoints disponibles en la API de Academia PayGas.</p>
+                    
+                    <div style="margin: 16px 0;">
+                        <a href="<?php echo esc_url($docs_url); ?>" target="_blank" class="button button-primary">
+                            <span class="dashicons dashicons-external" style="margin-top:4px;"></span>
+                            Abrir Documentación en Nueva Pestaña
+                        </a>
+                        <a href="<?php echo esc_url($json_url); ?>" target="_blank" class="button">
+                            <span class="dashicons dashicons-admin-code" style="margin-top:4px;"></span>
+                            Ver JSON (OpenAPI)
+                        </a>
+                    </div>
+                    
+                    <div style="margin-top: 20px; border: 1px solid #ccd0d4; border-radius: 4px; overflow: hidden;">
+                        <iframe 
+                            src="<?php echo esc_url($docs_url); ?>" 
+                            style="width: 100%; height: 600px; border: none;"
+                            title="API Documentation">
+                        </iframe>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="ap-card">
+                <div class="ap-card-header">
+                    <h2>Endpoints Disponibles</h2>
+                </div>
+                <div class="ap-card-body">
+                    <table class="wp-list-table widefat fixed striped">
+                        <thead>
+                            <tr>
+                                <th>Método</th>
+                                <th>Ruta</th>
+                                <th>Descripción</th>
+                                <th>Autenticación</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                <td><code>/users</code></td>
+                                <td>Listar usuarios</td>
+                                <td>✓</td>
+                            </tr>
+                            <tr>
+                                <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                <td><code>/users/{id}</code></td>
+                                <td>Obtener usuario por ID</td>
+                                <td>✓</td>
+                            </tr>
+                            <tr>
+                                <td><span style="color:#00a32a; font-weight:bold;">POST</span></td>
+                                <td><code>/users</code></td>
+                                <td>Crear usuario</td>
+                                <td>✓</td>
+                            </tr>
+                            <tr>
+                                <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                <td><code>/users/me</code></td>
+                                <td>Obtener usuario autenticado</td>
+                                <td>Cookie</td>
+                            </tr>
+                            <tr>
+                                <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                <td><code>/trilhas</code></td>
+                                <td>Listar trilhas</td>
+                                <td>✓</td>
+                            </tr>
+                            <tr>
+                                <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                <td><code>/modulos</code></td>
+                                <td>Listar módulos</td>
+                                <td>✓</td>
+                            </tr>
+                            <tr>
+                                <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                <td><code>/aulas</code></td>
+                                <td>Listar aulas</td>
+                                <td>✓</td>
+                            </tr>
+                            <tr>
+                                <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                <td><code>/quizzes</code></td>
+                                <td>Listar quizzes</td>
+                                <td>✓</td>
+                            </tr>
+                            <tr>
+                                <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                <td><code>/certificados</code></td>
+                                <td>Listar certificados</td>
+                                <td>✓</td>
+                            </tr>
+                            <tr>
+                                <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                <td><code>/notifications</code></td>
+                                <td>Listar notificaciones</td>
+                                <td>✓</td>
+                            </tr>
+                            <tr>
+                                <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                <td><code>/progresso/porcentagem</code></td>
+                                <td>Calcular porcentaje de progreso</td>
+                                <td>✓</td>
+                            </tr>
+                            <tr>
+                                <td><span style="color:#2271b1; font-weight:bold;">GET</span></td>
+                                <td><code>/activity-logs</code></td>
+                                <td>Listar logs de actividad</td>
+                                <td>✓</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
         <?php
     }
 }
