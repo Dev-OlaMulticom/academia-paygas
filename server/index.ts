@@ -12,6 +12,7 @@ import certificatesRoutes from './routes/certificates'
 import notificationsRoutes from './routes/notifications'
 import progressoRoutes from './routes/progresso'
 import dashboardRoutes from './routes/dashboard'
+import docsRoutes from './routes/docs'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -37,6 +38,7 @@ app.use('/api/certificates', certificatesRoutes)
 app.use('/api/notifications', notificationsRoutes)
 app.use('/api/progresso', progressoRoutes)
 app.use('/api/dashboard', dashboardRoutes)
+app.use('/api/docs', docsRoutes)
 
 app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', encrypted: true, timestamp: new Date().toISOString() })

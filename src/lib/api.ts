@@ -1,8 +1,10 @@
 import { db, initSeedData } from './db'
+import { encrypt, decrypt } from './crypto'
 
-const API_BASE = '/api'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
+const API_KEY = import.meta.env.VITE_API_KEY || ''
 
-// Initialize seed data on load
+// Initialize seed data on load (fallback if API fails)
 initSeedData()
 
 class ApiClient {
@@ -28,6 +30,11 @@ class ApiClient {
 
     const headers: Record<string, string> = {
       ...((options.headers as Record<string, string>) || {}),
+    }
+
+    // Add API Key header for WordPress API authentication
+    if (API_KEY) {
+      headers['X-API-Key'] = API_KEY
     }
 
     if (this.token) {
@@ -79,24 +86,38 @@ class ApiClient {
 
   // Auth
   async login(email: string, password: string) {
-    // Use local database for authentication
-    const users = db.getAll('users')
-    const user = users.find((u: any) => u.email === email && u.senha === password)
-    
-    if (!user) {
-      throw new Error('Credenciais inválidas')
-    }
+    try {
+      // Try to use WordPress API for authentication
+      const response = await this.request<{ token: string; user: any }>('/login', {
+        method: 'POST',
+        body: JSON.stringify({ email, password }),
+      })
 
-    const token = `mock-token-${Date.now()}-${Math.random().toString(36).substr(2)}`
-    this.setToken(token)
-    
-    return {
-      token,
-      user: {
-        id: user.id,
-        email: user.email,
-        role: user.role,
-        nome: user.nome,
+      this.setToken(response.token)
+      localStorage.setItem('user', JSON.stringify(response.user))
+
+      return response
+    } catch (error) {
+      // Fallback to local database if API fails
+      console.warn('API login failed, using local database:', error)
+      const users = db.getAll('users')
+      const user = users.find((u: any) => u.email === email && u.senha === password)
+
+      if (!user) {
+        throw new Error('Credenciais inválidas')
+      }
+
+      const token = `mock-token-${Date.now()}-${Math.random().toString(36).substr(2)}`
+      this.setToken(token)
+
+      return {
+        token,
+        user: {
+          id: user.id,
+          email: user.email,
+          role: user.role,
+          nome: user.nome,
+        }
       }
     }
   }
@@ -104,156 +125,355 @@ class ApiClient {
   async getMe() {
     const token = this.token
     if (!token) throw new Error('Não autenticado')
-    // For now, return user from localStorage
-    const userStr = localStorage.getItem('user')
-    if (!userStr) throw new Error('Usuário não encontrado')
-    return JSON.parse(userStr)
+
+    try {
+      // Try to use WordPress API
+      return await this.request<any>('/me')
+    } catch (error) {
+      // Fallback to localStorage
+      console.warn('API getMe failed, using localStorage:', error)
+      const userStr = localStorage.getItem('user')
+      if (!userStr) throw new Error('Usuário não encontrado')
+      return JSON.parse(userStr)
+    }
   }
 
   logout() {
     this.setToken(null)
+    localStorage.removeItem('user')
   }
 
   // Usuarios
   async getUsuarios() {
-    return db.getAll('users')
+    try {
+      return await this.request<any[]>('/users')
+    } catch (error) {
+      console.warn('API getUsuarios failed, using local database:', error)
+      return db.getAll('users')
+    }
   }
 
   async createUsuario(data: { email: string; nome: string; senha: string; role: string }) {
-    return db.create('users', { ...data, xp: 0, lastLogin: new Date().toISOString() })
+    try {
+      return await this.request<any>('/users', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    } catch (error) {
+      console.warn('API createUsuario failed, using local database:', error)
+      return db.create('users', { ...data, xp: 0, lastLogin: new Date().toISOString() })
+    }
   }
 
   async updateUsuario(id: string, data: any) {
-    return db.update('users', id, data)
+    try {
+      return await this.request<any>(`/users/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      })
+    } catch (error) {
+      console.warn('API updateUsuario failed, using local database:', error)
+      return db.update('users', id, data)
+    }
   }
 
   async deleteUsuario(id: string) {
-    return db.delete('users', id)
+    try {
+      return await this.request<any>(`/users/${id}`, {
+        method: 'DELETE',
+      })
+    } catch (error) {
+      console.warn('API deleteUsuario failed, using local database:', error)
+      return db.delete('users', id)
+    }
   }
 
   async getEquipe() {
-    // Return all users except the current user
-    const currentUserStr = localStorage.getItem('user')
-    const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null
-    const allUsers = db.getAll('users')
-    return allUsers.filter((u: any) => u.id !== currentUser?.id)
+    try {
+      return await this.request<any[]>('/users')
+    } catch (error) {
+      console.warn('API getEquipe failed, using local database:', error)
+      const currentUserStr = localStorage.getItem('user')
+      const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null
+      const allUsers = db.getAll('users')
+      return allUsers.filter((u: any) => u.id !== currentUser?.id)
+    }
   }
 
   // Trilhas
   async getTrilhas() {
-    return db.getAll('tracks')
+    try {
+      return await this.request<any[]>('/trilhas')
+    } catch (error) {
+      console.warn('API getTrilhas failed, using local database:', error)
+      return db.getAll('tracks')
+    }
   }
 
   async createTrilha(data: any) {
-    return db.create('tracks', data)
+    try {
+      return await this.request<any>('/trilhas', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    } catch (error) {
+      console.warn('API createTrilha failed, using local database:', error)
+      return db.create('tracks', data)
+    }
   }
 
   async updateTrilha(id: string, data: any) {
-    return db.update('tracks', id, data)
+    try {
+      return await this.request<any>(`/trilhas/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      })
+    } catch (error) {
+      console.warn('API updateTrilha failed, using local database:', error)
+      return db.update('tracks', id, data)
+    }
   }
 
   async deleteTrilha(id: string) {
-    return db.delete('tracks', id)
+    try {
+      return await this.request<any>(`/trilhas/${id}`, {
+        method: 'DELETE',
+      })
+    } catch (error) {
+      console.warn('API deleteTrilha failed, using local database:', error)
+      return db.delete('tracks', id)
+    }
   }
 
   async getModulos(trilhaId: string) {
-    return db.find('modules', (m: any) => m.trilhaId === trilhaId)
+    try {
+      return await this.request<any[]>(`/modulos?trilha_id=${trilhaId}`)
+    } catch (error) {
+      console.warn('API getModulos failed, using local database:', error)
+      return db.find('modules', (m: any) => m.trilhaId === trilhaId)
+    }
   }
 
   // CMS - Modulos
   async getCmsModulos() {
-    return db.getAll('modules')
+    try {
+      return await this.request<any[]>('/modulos')
+    } catch (error) {
+      console.warn('API getCmsModulos failed, using local database:', error)
+      return db.getAll('modules')
+    }
   }
 
   async createModulo(data: any) {
-    return db.create('modules', data)
+    try {
+      return await this.request<any>('/modulos', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    } catch (error) {
+      console.warn('API createModulo failed, using local database:', error)
+      return db.create('modules', data)
+    }
   }
 
   async updateModulo(id: string, data: any) {
-    return db.update('modules', id, data)
+    try {
+      return await this.request<any>(`/modulos/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      })
+    } catch (error) {
+      console.warn('API updateModulo failed, using local database:', error)
+      return db.update('modules', id, data)
+    }
   }
 
   async deleteModulo(id: string) {
-    return db.delete('modules', id)
+    try {
+      return await this.request<any>(`/modulos/${id}`, {
+        method: 'DELETE',
+      })
+    } catch (error) {
+      console.warn('API deleteModulo failed, using local database:', error)
+      return db.delete('modules', id)
+    }
   }
 
   // Aulas
   async getAulas(moduloId: string) {
-    return db.find('lessons', (l: any) => l.moduloId === moduloId)
+    try {
+      return await this.request<any[]>(`/aulas?modulo_id=${moduloId}`)
+    } catch (error) {
+      console.warn('API getAulas failed, using local database:', error)
+      return db.find('lessons', (l: any) => l.moduloId === moduloId)
+    }
   }
 
   async createAula(moduloId: string, data: any) {
-    return db.create('lessons', { ...data, moduloId, tipo: data.tipo || 'video', microLessons: data.microLessons || [] })
+    try {
+      return await this.request<any>('/aulas', {
+        method: 'POST',
+        body: JSON.stringify({ ...data, moduloId }),
+      })
+    } catch (error) {
+      console.warn('API createAula failed, using local database:', error)
+      return db.create('lessons', { ...data, moduloId, tipo: data.tipo || 'video', microLessons: data.microLessons || [] })
+    }
   }
 
   async updateAula(id: string, data: any) {
-    return db.update('lessons', id, { ...data, tipo: data.tipo || 'video', microLessons: data.microLessons || [] })
+    try {
+      return await this.request<any>(`/aulas/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      })
+    } catch (error) {
+      console.warn('API updateAula failed, using local database:', error)
+      return db.update('lessons', id, { ...data, tipo: data.tipo || 'video', microLessons: data.microLessons || [] })
+    }
   }
 
   async deleteAula(id: string) {
-    return db.delete('lessons', id)
+    try {
+      return await this.request<any>(`/aulas/${id}`, {
+        method: 'DELETE',
+      })
+    } catch (error) {
+      console.warn('API deleteAula failed, using local database:', error)
+      return db.delete('lessons', id)
+    }
   }
 
   // Progresso
   async getProgresso() {
-    return db.getAll('progress')
+    try {
+      return await this.request<any[]>('/progresso')
+    } catch (error) {
+      console.warn('API getProgresso failed, using local database:', error)
+      return db.getAll('progress')
+    }
   }
 
   async updateProgresso(moduloId: string, aulaId: string, concluido: boolean) {
-    const existing = db.find('progress', (p: any) => p.aulaId === aulaId)
-    if (existing.length > 0) {
-      return db.update('progress', existing[0].id, { concluido })
+    try {
+      return await this.request<any>('/progresso', {
+        method: 'POST',
+        body: JSON.stringify({ moduloId, aulaId, concluido }),
+      })
+    } catch (error) {
+      console.warn('API updateProgresso failed, using local database:', error)
+      const existing = db.find('progress', (p: any) => p.aulaId === aulaId)
+      if (existing.length > 0) {
+        return db.update('progress', existing[0].id, { concluido })
+      }
+      return db.create('progress', { moduloId, aulaId, concluido })
     }
-    return db.create('progress', { moduloId, aulaId, concluido })
   }
 
   async getProgressoStats() {
-    const progress = db.getAll('progress')
-    const total = progress.length
-    const completed = progress.filter((p: any) => p.concluido).length
-    return { total, completed, percentage: total > 0 ? (completed / total) * 100 : 0 }
+    try {
+      return await this.request<any>('/progresso/stats')
+    } catch (error) {
+      console.warn('API getProgressoStats failed, using local database:', error)
+      const progress = db.getAll('progress')
+      const total = progress.length
+      const completed = progress.filter((p: any) => p.concluido).length
+      return { total, completed, percentage: total > 0 ? (completed / total) * 100 : 0 }
+    }
   }
 
   // Certificados
   async getCertificates() {
-    return db.getAll('certificates')
+    try {
+      return await this.request<any[]>('/certificados')
+    } catch (error) {
+      console.warn('API getCertificates failed, using local database:', error)
+      return db.getAll('certificates')
+    }
   }
 
   async createCertificate(trilhaId: string) {
-    return db.create('certificates', { trilhaId, emitidoEm: new Date().toISOString() })
+    try {
+      return await this.request<any>('/certificados', {
+        method: 'POST',
+        body: JSON.stringify({ trilhaId }),
+      })
+    } catch (error) {
+      console.warn('API createCertificate failed, using local database:', error)
+      return db.create('certificates', { trilhaId, emitidoEm: new Date().toISOString() })
+    }
   }
 
   async approveCertificate(id: string) {
-    return db.update('certificates', id, { aprovado: true, aprovadoEm: new Date().toISOString() })
+    try {
+      return await this.request<any>(`/certificados/${id}/approve`, {
+        method: 'POST',
+      })
+    } catch (error) {
+      console.warn('API approveCertificate failed, using local database:', error)
+      return db.update('certificates', id, { aprovado: true, aprovadoEm: new Date().toISOString() })
+    }
   }
 
   // Notificaciones
   async getNotifications() {
-    return db.getAll('notifications')
+    try {
+      return await this.request<any[]>('/notifications')
+    } catch (error) {
+      console.warn('API getNotifications failed, using local database:', error)
+      return db.getAll('notifications')
+    }
   }
 
   async sendNotification(toId: string, titulo: string, mensagem: string) {
-    return db.create('notifications', { toId, titulo, mensagem, lida: false, createdAt: new Date().toISOString() })
+    try {
+      return await this.request<any>('/notifications', {
+        method: 'POST',
+        body: JSON.stringify({ toId, titulo, mensagem }),
+      })
+    } catch (error) {
+      console.warn('API sendNotification failed, using local database:', error)
+      return db.create('notifications', { toId, titulo, mensagem, lida: false, createdAt: new Date().toISOString() })
+    }
   }
 
   async markNotificationRead(id: string) {
-    return db.update('notifications', id, { lida: true })
+    try {
+      return await this.request<any>(`/notifications/${id}/read`, {
+        method: 'POST',
+      })
+    } catch (error) {
+      console.warn('API markNotificationRead failed, using local database:', error)
+      return db.update('notifications', id, { lida: true })
+    }
   }
 
   async markAllNotificationsRead() {
-    const notifications = db.getAll('notifications')
-    notifications.forEach((n: any) => {
-      db.update('notifications', n.id, { lida: true })
-    })
-    return notifications.length
+    try {
+      return await this.request<any>('/notifications/read-all', {
+        method: 'POST',
+      })
+    } catch (error) {
+      console.warn('API markAllNotificationsRead failed, using local database:', error)
+      const notifications = db.getAll('notifications')
+      notifications.forEach((n: any) => {
+        db.update('notifications', n.id, { lida: true })
+      })
+      return notifications.length
+    }
   }
 
   // Dashboard
   async getDashboard() {
-    const tracks = db.getAll('tracks')
-    const progress = db.getAll('progress')
-    const notifications = db.getAll('notifications')
-    return { tracks, progress, notifications }
+    try {
+      return await this.request<any>('/dashboard')
+    } catch (error) {
+      console.warn('API getDashboard failed, using local database:', error)
+      const tracks = db.getAll('tracks')
+      const progress = db.getAll('progress')
+      const notifications = db.getAll('notifications')
+      return { tracks, progress, notifications }
+    }
   }
 }
 
