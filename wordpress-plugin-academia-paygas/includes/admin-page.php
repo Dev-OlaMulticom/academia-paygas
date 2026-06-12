@@ -324,6 +324,67 @@ function academia_paygas_admin_styles($hook) {
         .ap-help-box code {
             color: #a7aaad;
         }
+
+        /* Estilos para input de API Key */
+        .ap-key-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .ap-key-input-group {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            flex: 1;
+            max-width: 500px;
+        }
+        .ap-key-input {
+            flex: 1;
+            font-family: monospace;
+            font-size: 13px;
+            padding: 6px 10px;
+            border: 1px solid #ccd0d4;
+            border-right: none;
+            border-radius: 4px 0 0 4px;
+            background: #f6f7f7;
+            color: #50575e;
+            line-height: 1.4;
+        }
+        .ap-key-input:focus {
+            outline: none;
+            border-color: #2271b1;
+            box-shadow: 0 0 0 1px #2271b1;
+        }
+        .ap-key-toggle,
+        .ap-key-copy {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            height: 32px;
+            min-width: 32px;
+            padding: 0 6px;
+            border-radius: 0;
+            cursor: pointer;
+            background: #f6f7f7;
+            border: 1px solid #ccd0d4;
+            color: #50575e;
+        }
+        .ap-key-toggle:hover,
+        .ap-key-copy:hover {
+            background: #e0e0e0;
+        }
+        .ap-key-copy {
+            border-radius: 0 4px 4px 0;
+            border-left: none;
+        }
+        .ap-key-toggle .dashicons,
+        .ap-key-copy .dashicons {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+            line-height: 16px;
+        }
     </style>
     <?php
 }
@@ -602,8 +663,18 @@ function academia_paygas_api_keys_page() {
                         <?php $user = get_user_by('id', $key_data['user_id']); ?>
                         <div class="ap-key-item">
                             <div class="ap-key-info">
-                                <div>
-                                    <span class="ap-key-value"><?php echo esc_html(substr($key_data['key'], 0, 8)) . '••••••••' . esc_html(substr($key_data['key'], -8)); ?></span>
+                                <div class="ap-key-row">
+                                    <div class="ap-key-input-group">
+                                        <input type="password" class="ap-key-input" id="ap-key-<?php echo esc_attr($index); ?>" value="<?php echo esc_attr($key_data['key']); ?>" readonly>
+                                        <button type="button" class="ap-key-toggle button" onclick="apToggleKey(<?php echo esc_attr($index); ?>)" title="<?php _e('Mostrar/Ocultar', 'academia-paygas'); ?>">
+                                            <span class="dashicons dashicons-visibility ap-icon-show"></span>
+                                            <span class="dashicons dashicons-hidden ap-icon-hide" style="display:none;"></span>
+                                        </button>
+                                        <button type="button" class="ap-key-copy button" onclick="apCopyKey(<?php echo esc_attr($index); ?>)" title="<?php _e('Copiar', 'academia-paygas'); ?>">
+                                            <span class="dashicons dashicons-admin-page ap-icon-copy"></span>
+                                            <span class="dashicons dashicons-saved ap-icon-copied" style="display:none;"></span>
+                                        </button>
+                                    </div>
                                     <?php if ($key_data['last_used']): ?>
                                         <span class="ap-badge ap-badge-success"><?php _e('Activa', 'academia-paygas'); ?></span>
                                     <?php else: ?>
@@ -637,6 +708,41 @@ function academia_paygas_api_keys_page() {
             <p style="margin-top: 10px;"><?php _e('También puedes usar la Master API Key para acceso completo sin restricciones.', 'academia-paygas'); ?></p>
         </div>
     </div>
+    
+    <script>
+    function apToggleKey(index) {
+        var input = document.getElementById('ap-key-' + index);
+        var toggleBtn = input.nextElementSibling;
+        var iconShow = toggleBtn.querySelector('.ap-icon-show');
+        var iconHide = toggleBtn.querySelector('.ap-icon-hide');
+        
+        if (input.type === 'password') {
+            input.type = 'text';
+            iconShow.style.display = 'none';
+            iconHide.style.display = '';
+        } else {
+            input.type = 'password';
+            iconShow.style.display = '';
+            iconHide.style.display = 'none';
+        }
+    }
+    
+    function apCopyKey(index) {
+        var input = document.getElementById('ap-key-' + index);
+        var copyBtn = input.nextElementSibling.nextElementSibling;
+        var iconCopy = copyBtn.querySelector('.ap-icon-copy');
+        var iconCopied = copyBtn.querySelector('.ap-icon-copied');
+        
+        navigator.clipboard.writeText(input.value).then(function() {
+            iconCopy.style.display = 'none';
+            iconCopied.style.display = '';
+            setTimeout(function() {
+                iconCopy.style.display = '';
+                iconCopied.style.display = 'none';
+            }, 2000);
+        });
+    }
+    </script>
     <?php
 }
 
