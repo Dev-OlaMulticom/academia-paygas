@@ -13,3 +13,4 @@ server/certs/
 .env
 .env.local
 .env.production
+*.zip
