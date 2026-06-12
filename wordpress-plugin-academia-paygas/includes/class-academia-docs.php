@@ -4,19 +4,19 @@ if (!defined('ABSPATH')) exit;
 class Academia_Docs {
 
     public function register_routes(): void {
-        register_rest_route('academia-paygas/v1', '/docs', [
+        register_rest_route(ACADEMIA_PAYGAS_NAMESPACE, '/docs', [
             'methods'             => WP_REST_Server::READABLE,
             'callback'            => [$this, 'get_docs'],
             'permission_callback' => '__return_true',
         ]);
 
-        register_rest_route('academia-paygas/v1', '/docs/json', [
+        register_rest_route(ACADEMIA_PAYGAS_NAMESPACE, '/docs/json', [
             'methods'             => WP_REST_Server::READABLE,
             'callback'            => [$this, 'get_docs_json'],
             'permission_callback' => '__return_true',
         ]);
 
-        register_rest_route('academia-paygas/v1', '/docs/html', [
+        register_rest_route(ACADEMIA_PAYGAS_NAMESPACE, '/docs/html', [
             'methods'             => WP_REST_Server::READABLE,
             'callback'            => [$this, 'get_docs_html'],
             'permission_callback' => '__return_true',

@@ -10,7 +10,7 @@ class Academia_Notifications {
     }
 
     public function register_routes(): void {
-        $ns = 'academia-paygas/v1';
+        $ns = ACADEMIA_PAYGAS_NAMESPACE;
 
         register_rest_route($ns, '/notifications', [
             'methods'             => WP_REST_Server::READABLE,
@@ -81,6 +81,12 @@ class Academia_Notifications {
             'callback'            => [$this, 'update_progresso'],
             'permission_callback' => $this->auth->permission_callback(),
         ]);
+
+        register_rest_route($ns, '/progresso/porcentagem', [
+            'methods'             => WP_REST_Server::READABLE,
+            'callback'            => [$this, 'get_progresso_porcentagem'],
+            'permission_callback' => $this->auth->permission_callback(),
+        ]);
     }
 
     // --- Notifications ---
@@ -88,10 +94,13 @@ class Academia_Notifications {
     public function get_notifications(WP_REST_Request $request): WP_REST_Response {
         $to_id   = (int) $request->get_param('to_id');
         $from_id = (int) $request->get_param('from_id');
+        $page     = (int) $request->get_param('page') ?: 1;
+        $per_page = min((int) $request->get_param('per_page') ?: 20, 100);
 
         $args = [
             'post_type'      => 'ap_notification',
-            'posts_per_page' => -1,
+            'posts_per_page' => $per_page,
+            'paged'          => $page,
             'meta_query'     => [],
         ];
 
@@ -100,8 +109,23 @@ class Academia_Notifications {
 
         $posts = get_posts($args);
         $data  = array_map([$this, 'format_notification'], $posts);
+        
+        // Get total count for pagination
+        $count_args = $args;
+        $count_args['posts_per_page'] = -1;
+        $count_args['paged'] = 1;
+        $count_args['fields'] = 'ids';
+        $total = count(get_posts($count_args));
 
-        return new WP_REST_Response($data, 200);
+        return new WP_REST_Response([
+            'data'       => $data,
+            'pagination' => [
+                'total'       => $total,
+                'total_pages' => (int) ceil($total / $per_page),
+                'page'        => $page,
+                'per_page'    => $per_page,
+            ],
+        ], 200);
     }
 
     public function create_notification(WP_REST_Request $request): WP_REST_Response {
@@ -156,11 +180,14 @@ class Academia_Notifications {
     // --- Activity Logs ---
 
     public function get_activity_logs(WP_REST_Request $request): WP_REST_Response {
-        $user_id = (int) $request->get_param('user_id');
+        $user_id   = (int) $request->get_param('user_id');
+        $page      = (int) $request->get_param('page') ?: 1;
+        $per_page  = min((int) $request->get_param('per_page') ?: 20, 100);
 
         $args = [
             'post_type'      => 'ap_activity_log',
-            'posts_per_page' => -1,
+            'posts_per_page' => $per_page,
+            'paged'          => $page,
         ];
 
         if ($user_id) {
@@ -177,8 +204,23 @@ class Academia_Notifications {
                 'createdAt' => $post->post_date,
             ];
         }, $posts);
+        
+        // Get total count for pagination
+        $count_args = $args;
+        $count_args['posts_per_page'] = -1;
+        $count_args['paged'] = 1;
+        $count_args['fields'] = 'ids';
+        $total = count(get_posts($count_args));
 
-        return new WP_REST_Response($data, 200);
+        return new WP_REST_Response([
+            'data'       => $data,
+            'pagination' => [
+                'total'       => $total,
+                'total_pages' => (int) ceil($total / $per_page),
+                'page'        => $page,
+                'per_page'    => $per_page,
+            ],
+        ], 200);
     }
 
     public function create_activity_log(WP_REST_Request $request): WP_REST_Response {
@@ -342,6 +384,66 @@ class Academia_Notifications {
             'userId'    => (int) get_post_meta($post->ID, '_ap_progresso_user_id', true),
             'concluido' => get_post_meta($post->ID, '_ap_progresso_concluido', true) === '1',
             'updatedAt' => current_time('mysql'),
+        ], 200);
+    }
+
+    public function get_progresso_porcentagem(WP_REST_Request $request): WP_REST_Response {
+        $user_id = (int) $request->get_param('user_id');
+        $trilha_id = (int) $request->get_param('trilha_id');
+
+        if (!$user_id) {
+            return new WP_Error('missing_param', 'El parametro user_id es requerido', ['status' => 400]);
+        }
+
+        // Get all progress records for the user
+        $args = [
+            'post_type'      => 'ap_progresso',
+            'posts_per_page' => -1,
+            'meta_query'     => [
+                ['key' => '_ap_progresso_user_id', 'value' => $user_id],
+            ],
+        ];
+
+        if ($trilha_id) {
+            // Filter by trilha if specified (need to get modulos in that trilha first)
+            $modulo_args = [
+                'taxonomy'   => 'ap_modulo',
+                'hide_empty' => false,
+                'meta_query' => [
+                    ['key' => '_ap_modulo_trilha_id', 'value' => $trilha_id],
+                ],
+            ];
+            $modulos = get_terms($modulo_args);
+            $modulo_ids = wp_list_pluck($modulos, 'term_id');
+            
+            if (!empty($modulo_ids)) {
+                $args['meta_query'][] = [
+                    'key'     => '_ap_progresso_modulo_id',
+                    'value'   => $modulo_ids,
+                    'compare' => 'IN',
+                ];
+            }
+        }
+
+        $progress_posts = get_posts($args);
+        
+        $total = count($progress_posts);
+        $completed = 0;
+
+        foreach ($progress_posts as $post) {
+            if (get_post_meta($post->ID, '_ap_progresso_concluido', true) === '1') {
+                $completed++;
+            }
+        }
+
+        $percentage = $total > 0 ? round(($completed / $total) * 100, 2) : 0;
+
+        return new WP_REST_Response([
+            'userId'     => $user_id,
+            'trilhaId'   => $trilha_id ?: null,
+            'total'      => $total,
+            'completed'  => $completed,
+            'percentage' => $percentage,
         ], 200);
     }
 

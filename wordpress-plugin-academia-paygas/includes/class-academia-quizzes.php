@@ -10,7 +10,7 @@ class Academia_Quizzes {
     }
 
     public function register_routes(): void {
-        $ns = 'academia-paygas/v1';
+        $ns = ACADEMIA_PAYGAS_NAMESPACE;
 
         register_rest_route($ns, '/quizzes', [
             'methods'             => WP_REST_Server::READABLE,

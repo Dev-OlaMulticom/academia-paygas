@@ -10,7 +10,7 @@ class Academia_Modulos {
     }
 
     public function register_routes(): void {
-        $ns = 'academia-paygas/v1';
+        $ns = ACADEMIA_PAYGAS_NAMESPACE;
 
         register_rest_route($ns, '/modulos', [
             'methods'             => WP_REST_Server::READABLE,
@@ -65,9 +65,14 @@ class Academia_Modulos {
         }
 
         $terms = get_terms($args);
-        $total_query = new WP_Term_Query($args);
-        $total       = count($total_query->get_terms());
-        $data        = is_wp_error($terms) ? [] : array_map([$this, 'format_modulo'], $terms);
+        
+        // Separate count query without pagination to get total
+        $count_args = $args;
+        unset($count_args['number'], $count_args['offset']);
+        $count_query = new WP_Term_Query($count_args);
+        $total = count($count_query->get_terms());
+        
+        $data = is_wp_error($terms) ? [] : array_map([$this, 'format_modulo'], $terms);
 
         return new WP_REST_Response([
             'data'       => $data,

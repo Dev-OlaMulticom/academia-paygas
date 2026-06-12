@@ -10,7 +10,7 @@ class Academia_Users {
     }
 
     public function register_routes(): void {
-        $ns = 'academia-paygas/v1';
+        $ns = ACADEMIA_PAYGAS_NAMESPACE;
 
         register_rest_route($ns, '/users', [
             'methods'             => WP_REST_Server::READABLE,
@@ -23,6 +23,14 @@ class Academia_Users {
             'methods'             => WP_REST_Server::READABLE,
             'callback'            => [$this, 'get_user'],
             'permission_callback' => $this->auth->permission_callback(),
+        ]);
+
+        register_rest_route($ns, '/users/me', [
+            'methods'             => WP_REST_Server::READABLE,
+            'callback'            => [$this, 'get_me'],
+            'permission_callback' => function() {
+                return is_user_logged_in();
+            },
         ]);
 
         register_rest_route($ns, '/users', [
@@ -84,13 +92,41 @@ class Academia_Users {
         return new WP_REST_Response($this->format_user($user), 200);
     }
 
+    public function get_me(WP_REST_Request $request): WP_REST_Response {
+        $current_user = wp_get_current_user();
+
+        if (!$current_user || $current_user->ID === 0) {
+            return new WP_Error('user_not_logged_in', 'Usuario no autenticado', ['status' => 401]);
+        }
+
+        return new WP_REST_Response($this->format_user($current_user), 200);
+    }
+
     public function create_user(WP_REST_Request $request): WP_REST_Response {
         $params = $request->get_json_params();
 
+        // Extract username from email prefix (before @)
+        $email = sanitize_email($params['email']);
+        
+        // Check if email already exists
+        if (email_exists($email)) {
+            return new WP_Error('email_exists', 'El email ya está registrado en el sistema.', ['status' => 409]);
+        }
+        
+        $username = explode('@', $email)[0];
+        
+        // Ensure username is unique
+        $original_username = $username;
+        $counter = 1;
+        while (username_exists($username)) {
+            $username = $original_username . $counter;
+            $counter++;
+        }
+
         $user_id = wp_create_user(
-            sanitize_email($params['email']),
+            $username,
             $params['senha'],
-            sanitize_email($params['email'])
+            $email
         );
 
         if (is_wp_error($user_id)) {
@@ -144,7 +180,8 @@ class Academia_Users {
             'id'        => $user->ID,
             'email'     => $user->user_email,
             'nome'      => $user->display_name,
-            'role'      => $user->roles[0] ?? '',
+            'role'      => $user->roles[0] ?? '', // Primary role (first in array)
+            'roles'     => $user->roles, // All roles for complete information
             'gestorId'  => get_user_meta($user->ID, '_ap_gestor_id', true) ?: null,
             'createdAt' => $user->user_registered,
             'lastLogin' => get_user_meta($user->ID, '_ap_last_login', true) ?: null,

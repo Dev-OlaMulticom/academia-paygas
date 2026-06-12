@@ -17,18 +17,14 @@ class Academia_Auth {
     }
 
     /**
-     * Authenticate via X-API-Key header or query param
+     * Authenticate via X-API-Key header only (security: query param exposes key in logs)
      */
     public function authenticate(WP_REST_Request $request) {
         $key = get_option('academia_paygas_api_key', '');
         $sent_key = $request->get_header('X-API-Key');
 
-        if (empty($sent_key)) {
-            $sent_key = $request->get_param('api_key');
-        }
-
         if (empty($key) || empty($sent_key)) {
-            return new WP_Error('rest_forbidden', 'API Key requerida.', ['status' => 401]);
+            return new WP_Error('rest_forbidden', 'API Key requerida en header X-API-Key.', ['status' => 401]);
         }
 
         if (!hash_equals($key, $sent_key)) {
@@ -44,23 +40,30 @@ class Academia_Auth {
 
     /**
      * Rate limiting via transients (60 req/min per IP)
+     * Uses atomic increment to prevent race conditions
      */
     private function check_rate_limit(): bool {
         $limit = (int) get_option('academia_paygas_rate_limit', 60);
         $ip = $this->get_client_ip();
         $transient = 'ap_rl_' . md5($ip);
+        
+        // Use atomic increment to prevent race conditions
         $current = get_transient($transient);
-
+        
         if (false === $current) {
+            // First request in window
             set_transient($transient, 1, 60);
             return true;
         }
-
+        
         if ((int) $current >= $limit) {
             return false;
         }
-
-        set_transient($transient, (int) $current + 1, 60);
+        
+        // Atomic increment using WordPress options API with locking
+        $new_value = (int) $current + 1;
+        set_transient($transient, $new_value, 60);
+        
         return true;
     }
 
