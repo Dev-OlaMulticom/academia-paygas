@@ -8,27 +8,8 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-add_action('rest_api_init', 'academia_paygas_register_doc_routes');
-
-function academia_paygas_register_doc_routes() {
-    register_rest_route('academia-paygas/v1', '/docs', array(
-        'methods' => 'GET',
-        'callback' => 'academia_paygas_docs_handler',
-        'permission_callback' => '__return_true',
-    ));
-
-    register_rest_route('academia-paygas/v1', '/docs/json', array(
-        'methods' => 'GET',
-        'callback' => 'academia_paygas_docs_json_handler',
-        'permission_callback' => '__return_true',
-    ));
-
-    register_rest_route('academia-paygas/v1', '/docs/html', array(
-        'methods' => 'GET',
-        'callback' => 'academia_paygas_docs_html_handler',
-        'permission_callback' => '__return_true',
-    ));
-}
+// Routes are now registered via Academia_Docs class in class-academia-docs.php
+// to avoid duplicate registration conflicts
 
 function academia_paygas_get_api_spec() {
     return array(
