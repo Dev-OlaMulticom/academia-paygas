@@ -6,55 +6,63 @@ interface TrilhasPageProps {
   tracks: any[]
 }
 
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)+/g, '')
+}
+
 export function TrilhasPage({ tracks }: TrilhasPageProps) {
   const navigate = useNavigate()
-  const [dbTracks, setDbTracks] = useState<any[]>([])
+  const [trilhas, setTrilhas] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    loadTracks()
+    loadTrilhas()
   }, [])
 
-  const loadTracks = async () => {
+  const loadTrilhas = async () => {
     try {
       const data = await api.getTrilhas()
-      setDbTracks(data)
+      setTrilhas(data)
     } catch {
-      setDbTracks([])
+      setTrilhas([])
     } finally {
       setLoading(false)
     }
   }
 
-  const displayTracks = dbTracks
+  const displayTrilhas = trilhas
 
   return (
     <div className="page active">
       <div className="page-header">
         <div>
-          <div className="page-title">Módulos</div>
-          <div className="page-subtitle">{displayTracks.length} módulos disponíveis</div>
+          <div className="page-title">Trilhas de Aprendizado</div>
+          <div className="page-subtitle">{displayTrilhas.length} trilhas disponíveis</div>
         </div>
       </div>
       <div className="track-grid">
-        {displayTracks.length > 0 ? (
-          displayTracks.map((track: any, i: number) => {
-            const progress = track.progressPercent ?? [100, 72, 45, 0, 100, 30, 60, 0, 85, 55, 20, 40][i] ?? 0
+        {displayTrilhas.length > 0 ? (
+          displayTrilhas.map((trilha: any, i: number) => {
+            const progress = trilha.progressPercent ?? 0
             return (
-              <div key={track.id || i} className="track-card" onClick={() => navigate(`/modulos/${track.id || i}`)}>
+              <div key={trilha.id || i} className="track-card" onClick={() => navigate(`/trilhas-aprendizado/${trilha.id}`)}>
                 <div className="track-card-top">
-                  <div className="track-icon" style={{ background: track.color }}>{track.icon}</div>
+                  <div className="track-icon" style={{ background: trilha.color }}>{trilha.icon}</div>
                   <div className="track-card-info">
-                    <h3>{track.titulo || track.label}</h3>
-                    <p>{track.descricao || track.desc}</p>
+                    <h3>{trilha.titulo}</h3>
+                    <p>{trilha.descricao}</p>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
-                  <span className={`track-badge ${track.obrigatorio || track.required ? 'badge-required' : 'badge-new'}`}>
-                    {track.obrigatorio || track.required ? 'Obrigatória' : 'Opcional'}
+                  <span className={`track-badge ${trilha.obrigatorio ? 'badge-required' : 'badge-new'}`}>
+                    {trilha.obrigatorio ? 'Obrigatória' : 'Opcional'}
                   </span>
                   <span className="track-badge badge-gray" style={{ background: 'var(--gray-100)', color: 'var(--gray-600)' }}>
-                    {track.lessons || 0} aulas
+                    {trilha.lessons || 0} aulas
                   </span>
                 </div>
                 <div className="track-prog-bar">
@@ -71,7 +79,7 @@ export function TrilhasPage({ tracks }: TrilhasPageProps) {
           })
         ) : (
           <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--gray-400)', padding: '40px' }}>
-            Dados não carregados
+            {loading ? 'Carregando trilhas...' : 'Nenhuma trilha encontrada'}
           </div>
         )}
       </div>

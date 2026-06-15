@@ -344,6 +344,99 @@ class ApiClient {
     }
   }
 
+  // Quiz
+  async createQuiz(moduloId: string, data: { aulaId: string; titulo: string; autoGerarCertificado?: boolean }) {
+    try {
+      return await this.request<any>(`/modulos/${moduloId}/quiz`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    } catch (error) {
+      console.warn('API createQuiz failed, using local database:', error)
+      return db.create('quizzes', { ...data, moduloId, perguntas: [] })
+    }
+  }
+
+  async getQuiz(moduloId: string, aulaId: string) {
+    try {
+      return await this.request<any>(`/modulos/${moduloId}/quiz/${aulaId}`)
+    } catch (error) {
+      console.warn('API getQuiz failed, using local database:', error)
+      const quizzes = db.getAll('quizzes')
+      return quizzes.find((q: any) => q.aulaId === aulaId) || null
+    }
+  }
+
+  async updateQuiz(quizId: string, data: { titulo?: string; autoGerarCertificado?: boolean }) {
+    try {
+      return await this.request<any>(`/modulos/quiz/${quizId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      })
+    } catch (error) {
+      console.warn('API updateQuiz failed, using local database:', error)
+      return db.update('quizzes', quizId, data)
+    }
+  }
+
+  async deleteQuiz(quizId: string) {
+    try {
+      return await this.request<any>(`/modulos/quiz/${quizId}`, {
+        method: 'DELETE',
+      })
+    } catch (error) {
+      console.warn('API deleteQuiz failed, using local database:', error)
+      return db.delete('quizzes', quizId)
+    }
+  }
+
+  async addPergunta(quizId: string, data: { pergunta: string; opcaoA: string; opcaoB: string; opcaoC?: string; opcaoD?: string; correta: string }) {
+    try {
+      return await this.request<any>(`/modulos/quiz/${quizId}/perguntas`, {
+        method: 'POST',
+        body: JSON.stringify(data),
+      })
+    } catch (error) {
+      console.warn('API addPergunta failed, using local database:', error)
+      return db.create('quizQuestions', { ...data, quizId })
+    }
+  }
+
+  async updatePergunta(perguntaId: string, data: any) {
+    try {
+      return await this.request<any>(`/modulos/perguntas/${perguntaId}`, {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      })
+    } catch (error) {
+      console.warn('API updatePergunta failed, using local database:', error)
+      return db.update('quizQuestions', perguntaId, data)
+    }
+  }
+
+  async deletePergunta(perguntaId: string) {
+    try {
+      return await this.request<any>(`/modulos/perguntas/${perguntaId}`, {
+        method: 'DELETE',
+      })
+    } catch (error) {
+      console.warn('API deletePergunta failed, using local database:', error)
+      return db.delete('quizQuestions', perguntaId)
+    }
+  }
+
+  async submitQuiz(quizId: string, respostas: Record<string, string>) {
+    try {
+      return await this.request<any>(`/modulos/quiz/${quizId}/responder`, {
+        method: 'POST',
+        body: JSON.stringify({ respostas }),
+      })
+    } catch (error) {
+      console.warn('API submitQuiz failed, using local database:', error)
+      return { nota: 0, total: 0, correct: 0, concluido: false }
+    }
+  }
+
   // Progresso
   async getProgresso() {
     try {

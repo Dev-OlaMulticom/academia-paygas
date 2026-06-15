@@ -11,6 +11,7 @@ import { CertificadosPage } from './pages/CertificadosPage'
 import { EquipePage } from './pages/EquipePage'
 import { RelatoriosPage } from './pages/RelatoriosPage'
 import { CMSPage } from './pages/CMSPage'
+import { CriarModuloPage } from './pages/CriarModuloPage'
 import { UsuariosPage } from './pages/UsuariosPage'
 import { NotifPage } from './pages/NotifPage'
 import { PerfilPage } from './pages/PerfilPage'
@@ -36,13 +37,14 @@ export default function App() {
               <AppLayout user={user!} xp={xp} tracksCount={tracks.length} onLogout={handleLogout}>
                 <Routes>
                   <Route path="/" element={<DashboardPage xp={xp} tracks={tracks} />} />
-                  <Route path="/modulos" element={<TrilhasPage tracks={tracks} />} />
-                  <Route path="/modulos/:trilhaId" element={<TrilhaModulosPage />} />
-                  <Route path="/modulos/:moduloId" element={<ModulosPage />} />
+                  <Route path="/trilhas-aprendizado" element={<TrilhasPage tracks={tracks} />} />
+                  <Route path="/trilhas-aprendizado/:trilhaId" element={<TrilhaModulosPage />} />
+                  <Route path="/modulo/:moduloNombre" element={<ModulosPage />} />
                   <Route path="/certificados" element={<CertificadosPage tracks={tracks} />} />
                   <Route path="/equipe" element={<EquipePage user={user!} />} />
                   <Route path="/relatorios" element={<RelatoriosPage user={user!} />} />
                   <Route path="/cms" element={<CMSPage user={user!} />} />
+                  <Route path="/cms/criar-modulo" element={<CriarModuloPage user={user!} />} />
                   <Route path="/usuarios" element={<UsuariosPage user={user!} />} />
                   <Route path="/notif" element={<NotifPage user={user!} />} />
                   <Route path="/perfil" element={<PerfilPage user={user!} xp={xp} tracks={tracks} />} />
