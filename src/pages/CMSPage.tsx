@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
 import { VideoPreview } from '../components/VideoPreview'
@@ -22,22 +23,27 @@ interface VideoDuration {
 }
 
 export function CMSPage({ user }: CMSPageProps) {
+  const navigate = useNavigate()
   const [view, setView] = useState<'modulos' | 'aulas'>('modulos')
   const [selectedModulo, setSelectedModulo] = useState<any>(null)
-  const [showCreateModal, setShowCreateModal] = useState(false)
   const [showAulaModal, setShowAulaModal] = useState(false)
   const [editingMod, setEditingMod] = useState<any>(null)
   const [editingAula, setEditingAula] = useState<any>(null)
-  const [newModule, setNewModule] = useState({ titulo: '', descricao: '' })
   const [newAula, setNewAula] = useState({ titulo: '', tipo: 'video' as 'video' | 'pdf', url: '', microLessons: [] as MicroLesson[], duration: { hours: 0, minutes: 0, seconds: 0 } as VideoDuration })
   const [modulos, setModulos] = useState<any[]>([])
   const [aulas, setAulas] = useState<any[]>([])
+  const [gestores, setGestores] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [editingQuiz, setEditingQuiz] = useState<any>(null)
+  const [quizAula, setQuizAula] = useState<any>(null)
+  const [showQuizModal, setShowQuizModal] = useState(false)
+  const [newPergunta, setNewPergunta] = useState({ pergunta: '', opcaoA: '', opcaoB: '', opcaoC: '', opcaoD: '', correta: 'A' })
 
   const isAdmin = user?.role === 'ADMIN'
 
   useEffect(() => { loadModulos() }, [])
   useEffect(() => { if (selectedModulo) loadAulas(selectedModulo.id) }, [selectedModulo])
+  useEffect(() => { loadGestores() }, [])
 
   const loadModulos = async () => {
     try {
@@ -51,6 +57,15 @@ export function CMSPage({ user }: CMSPageProps) {
     } finally { setLoading(false) }
   }
 
+  const loadGestores = async () => {
+    try {
+      const users = await api.getUsuarios()
+      setGestores(users.filter((u: any) => u.role === 'GESTOR'))
+    } catch {
+      setGestores([])
+    }
+  }
+
   const loadAulas = async (moduloId: string) => {
     try {
       const lessons = await api.getAulas(moduloId)
@@ -60,26 +75,11 @@ export function CMSPage({ user }: CMSPageProps) {
     }
   }
 
-  const handleCreateModulo = async () => {
-    if (!newModule.titulo) {
-      alert('Título é obrigatório!')
-      return
-    }
-    try {
-      await api.createModulo(newModule)
-      alert('Módulo criado com sucesso!')
-      setShowCreateModal(false)
-      setNewModule({ titulo: '', descricao: '' })
-      loadModulos()
-    } catch (err: any) {
-      alert(err.message || 'Erro ao criar módulo')
-    }
-  }
 
   const handleEditModulo = async () => {
     if (!editingMod) return
     try {
-      await api.updateModulo(editingMod.id, { titulo: editingMod.titulo, descricao: editingMod.descricao })
+      await api.updateModulo(editingMod.id, { titulo: editingMod.titulo, descricao: editingMod.descricao, obrigatorio: editingMod.obrigatorio, disponivelParaTodos: editingMod.disponivelParaTodos, disponivelParaGestores: editingMod.disponivelParaGestores, autoCertificado: editingMod.autoCertificado })
       alert('Módulo atualizado!')
       setEditingMod(null)
       loadModulos()
@@ -139,6 +139,60 @@ export function CMSPage({ user }: CMSPageProps) {
     }
   }
 
+  const handleOpenQuiz = async (aula: any) => {
+    setQuizAula(aula)
+    if (aula.quiz) {
+      setEditingQuiz(aula.quiz)
+    } else {
+      setEditingQuiz(null)
+    }
+    setShowQuizModal(true)
+  }
+
+  const handleCreateQuiz = async () => {
+    if (!quizAula || !editingQuiz) return
+    try {
+      await api.createQuiz(selectedModulo.id, {
+        aulaId: quizAula.id,
+        titulo: editingQuiz.titulo || `Quiz: ${quizAula.titulo}`,
+        autoGerarCertificado: editingQuiz.autoGerarCertificado || false,
+      })
+      alert('Quiz criado com sucesso!')
+      loadAulas(selectedModulo.id)
+      setShowQuizModal(false)
+    } catch (err: any) {
+      alert(err.message || 'Erro ao criar quiz')
+    }
+  }
+
+  const handleAddPergunta = async () => {
+    if (!editingQuiz || !newPergunta.pergunta || !newPergunta.opcaoA || !newPergunta.opcaoB) {
+      alert('Pergunta e opções A e B são obrigatórias!')
+      return
+    }
+    try {
+      await api.addPergunta(editingQuiz.id, newPergunta)
+      alert('Pergunta adicionada!')
+      setNewPergunta({ pergunta: '', opcaoA: '', opcaoB: '', opcaoC: '', opcaoD: '', correta: 'A' })
+      // Reload quiz data
+      const updatedQuiz = await api.getQuiz(selectedModulo.id, quizAula.id)
+      setEditingQuiz(updatedQuiz)
+    } catch (err: any) {
+      alert(err.message || 'Erro ao adicionar pergunta')
+    }
+  }
+
+  const handleDeletePergunta = async (perguntaId: string) => {
+    if (!confirm('Excluir esta pergunta?')) return
+    try {
+      await api.deletePergunta(perguntaId)
+      const updatedQuiz = await api.getQuiz(selectedModulo.id, quizAula.id)
+      setEditingQuiz(updatedQuiz)
+    } catch (err: any) {
+      alert(err.message || 'Erro ao excluir pergunta')
+    }
+  }
+
   const addMicroLesson = () => {
     setNewAula({ ...newAula, microLessons: [...newAula.microLessons, { hours: 0, minutes: 0, seconds: 0, titulo: '' }] })
   }
@@ -163,7 +217,7 @@ export function CMSPage({ user }: CMSPageProps) {
           </div>
         </div>
         {view === 'modulos' ? (
-          <button className="btn-primary" onClick={() => setShowCreateModal(true)}>+ Novo Módulo</button>
+          <button className="btn-primary" onClick={() => navigate('/cms/criar-modulo')}>+ Novo Módulo</button>
         ) : (
           <>
             <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => setView('modulos')}><i className="icon-arrow-left icon-sm" /> Voltar aos Módulos</button>
@@ -187,7 +241,7 @@ export function CMSPage({ user }: CMSPageProps) {
                     <td>{mod._count?.aulas || 0} aulas</td>
                     <td style={{ display: 'flex', gap: '6px' }}>
                       <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => { setSelectedModulo(mod); setView('aulas') }}><i className="icon-book-open icon-xs" /> Aulas</button>
-                      <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingMod({ ...mod })}><i className="icon-pencil icon-xs" /> Editar</button>
+                      <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingMod({ ...mod, obrigatorio: mod.obrigatorio || false, disponivelParaTodos: mod.disponivelParaTodos !== false, disponivelParaGestores: mod.disponivelParaGestores || [], autoCertificado: mod.autoCertificado || false })}><i className="icon-pencil icon-xs" /> Editar</button>
                       {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDeleteModulo(mod.id)}><i className="icon-trash-2 icon-xs" /></button>}
                     </td>
                   </tr>
@@ -206,7 +260,7 @@ export function CMSPage({ user }: CMSPageProps) {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>Título</th><th>Tipo</th><th>URL</th><th>Micro-Leções</th><th>Ações</th></tr>
+              <tr><th>Título</th><th>Tipo</th><th>URL</th><th>Quiz</th><th>Ações</th></tr>
             </thead>
             <tbody>
               {aulas.length > 0 ? (
@@ -215,7 +269,11 @@ export function CMSPage({ user }: CMSPageProps) {
                     <td><b>{aula.titulo}</b></td>
                     <td><span className={`track-badge ${aula.tipo === 'video' ? 'badge-new' : 'badge-blue'}`} style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{aula.tipo === 'video' ? <><i className="icon-video icon-xs" /> Vídeo</> : <><i className="icon-file-text icon-xs" /> PDF</>}</span></td>
                     <td style={{ fontSize: '12px', color: 'var(--gray-500)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{aula.url}</td>
-                    <td>{aula.microLessons?.length || 0} pontos</td>
+                    <td>
+                      <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px', background: aula.quiz ? '#E8F5E9' : undefined, borderColor: aula.quiz ? '#4CAF50' : undefined, color: aula.quiz ? '#2E7D32' : undefined }} onClick={() => handleOpenQuiz(aula)}>
+                        <i className="icon-help-circle icon-xs" /> {aula.quiz ? `${aula.quiz.perguntas?.length || 0} perguntas` : 'Criar Quiz'}
+                      </button>
+                    </td>
                     <td style={{ display: 'flex', gap: '6px' }}>
                       <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingAula({ ...aula })}><i className="icon-pencil icon-xs" /> Editar</button>
                       {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDeleteAula(aula.id)}><i className="icon-trash-2 icon-xs" /></button>}
@@ -234,21 +292,6 @@ export function CMSPage({ user }: CMSPageProps) {
         </div>
       )}
 
-      {/* Modal Criar Módulo */}
-      {showCreateModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '24px', width: '400px', maxWidth: '90%' }}>
-            <h3 style={{ marginBottom: '16px' }}>Novo Módulo</h3>
-            <div className="form-field"><label className="form-label">Título</label><input className="form-input" value={newModule.titulo} onChange={e => setNewModule({ ...newModule, titulo: e.target.value })} /></div>
-            <div className="form-field"><label className="form-label">Descrição</label><textarea className="form-input" value={newModule.descricao} onChange={e => setNewModule({ ...newModule, descricao: e.target.value })} /></div>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-              <button className="btn-primary" onClick={handleCreateModulo}>Criar</button>
-              <button className="btn-secondary" onClick={() => setShowCreateModal(false)}>Cancelar</button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Modal Editar Módulo */}
       {editingMod && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
@@ -256,6 +299,80 @@ export function CMSPage({ user }: CMSPageProps) {
             <h3 style={{ marginBottom: '16px' }}>Editar Módulo</h3>
             <div className="form-field"><label className="form-label">Título</label><input className="form-input" value={editingMod.titulo} onChange={e => setEditingMod({ ...editingMod, titulo: e.target.value })} /></div>
             <div className="form-field"><label className="form-label">Descrição</label><textarea className="form-input" value={editingMod.descricao || ''} onChange={e => setEditingMod({ ...editingMod, descricao: e.target.value })} /></div>
+            <div className="form-field">
+              <label className="form-label">Obrigatório</label>
+              <select className="form-select" value={editingMod.obrigatorio ? 'true' : 'false'} onChange={e => setEditingMod({ ...editingMod, obrigatorio: e.target.value === 'true' })}>
+                <option value="false">Não</option>
+                <option value="true">Sim</option>
+              </select>
+            </div>
+            <div className="form-field">
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Gerar Certificado Automaticamente
+                <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
+                  <i className="icon-info icon-sm" style={{ color: 'var(--gray-400)', cursor: 'help' }} />
+                  <span style={{
+                    position: 'absolute',
+                    bottom: '100%',
+                    left: '50%',
+                    transform: 'translateX(-50%)',
+                    background: 'var(--gray-800)',
+                    color: '#fff',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    fontSize: '12px',
+                    whiteSpace: 'nowrap',
+                    opacity: 0,
+                    visibility: 'hidden',
+                    transition: 'opacity 0.2s, visibility 0.2s',
+                    marginBottom: '8px',
+                    zIndex: 100
+                  }} className="tooltip-content">
+                    Ativado: O certificado é gerado automaticamente ao concluir a avaliação
+                    <br />
+                    Desativado: O gestor do posto deve aprovar antes de gerar o certificado
+                  </span>
+                </span>
+              </label>
+              <select className="form-select" value={editingMod.autoCertificado ? 'true' : 'false'} onChange={e => setEditingMod({ ...editingMod, autoCertificado: e.target.value === 'true' })}>
+                <option value="false">Não (Requer aprovação do gestor)</option>
+                <option value="true">Sim (Automático ao concluir)</option>
+              </select>
+            </div>
+            <div className="form-field">
+              <label className="form-label">Disponibilidade</label>
+              <select className="form-select" value={editingMod.disponivelParaTodos ? 'todos' : 'especificos'} onChange={e => setEditingMod({ ...editingMod, disponivelParaTodos: e.target.value === 'todos', disponivelParaGestores: [] })}>
+                <option value="todos">Todos os usuários</option>
+                <option value="especificos">Gestores específicos</option>
+              </select>
+            </div>
+            {!editingMod.disponivelParaTodos && (
+              <div className="form-field">
+                <label className="form-label">Gestores Permitidos</label>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-sm)', padding: '8px' }}>
+                  {gestores.length > 0 ? (
+                    gestores.map((gestor) => (
+                      <label key={gestor.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', cursor: 'pointer' }}>
+                        <input
+                          type="checkbox"
+                          checked={editingMod.disponivelParaGestores?.includes(gestor.id)}
+                          onChange={e => {
+                            if (e.target.checked) {
+                              setEditingMod({ ...editingMod, disponivelParaGestores: [...(editingMod.disponivelParaGestores || []), gestor.id] })
+                            } else {
+                              setEditingMod({ ...editingMod, disponivelParaGestores: (editingMod.disponivelParaGestores || []).filter((id: string) => id !== gestor.id) })
+                            }
+                          }}
+                        />
+                        <span>{gestor.nome}</span>
+                      </label>
+                    ))
+                  ) : (
+                    <span style={{ color: 'var(--gray-400)', fontSize: '13px' }}>Nenhum gestor encontrado</span>
+                  )}
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
               <button className="btn-primary" onClick={handleEditModulo}>Salvar</button>
               <button className="btn-secondary" onClick={() => setEditingMod(null)}>Cancelar</button>
@@ -486,6 +603,108 @@ export function CMSPage({ user }: CMSPageProps) {
               <button className="btn-primary" onClick={handleEditAula}>Salvar</button>
               <button className="btn-secondary" onClick={() => setEditingAula(null)}>Cancelar</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Quiz Management */}
+      {showQuizModal && quizAula && (
+        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+          <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '24px', width: '700px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
+            <h3 style={{ marginBottom: '16px' }}>Quiz: {quizAula.titulo}</h3>
+
+            {!editingQuiz ? (
+              <div>
+                <p style={{ color: 'var(--gray-500)', marginBottom: '16px' }}>Esta aula não possui um quiz. Deseja criar um?</p>
+                <div className="form-field">
+                  <label className="form-label">Título do Quiz</label>
+                  <input className="form-input" value={`Quiz: ${quizAula.titulo}`} onChange={e => setEditingQuiz({ titulo: e.target.value, autoGerarCertificado: false, perguntas: [] })} />
+                </div>
+                <div className="form-field">
+                  <label className="form-label">Gerar Certificado Automaticamente</label>
+                  <select className="form-select" value={editingQuiz?.autoGerarCertificado ? 'true' : 'false'} onChange={e => setEditingQuiz({ ...(editingQuiz || { titulo: `Quiz: ${quizAula.titulo}`, perguntas: [] }), autoGerarCertificado: e.target.value === 'true' })}>
+                    <option value="false">Não</option>
+                    <option value="true">Sim (ao passar no quiz)</option>
+                  </select>
+                </div>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                  <button className="btn-primary" onClick={handleCreateQuiz}>Criar Quiz</button>
+                  <button className="btn-secondary" onClick={() => { setShowQuizModal(false); setQuizAula(null); setEditingQuiz(null) }}>Cancelar</button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                  <span style={{ color: 'var(--gray-500)' }}>{editingQuiz.perguntas?.length || 0} pergunta(s)</span>
+                  <span className={`track-badge ${editingQuiz.autoGerarCertificado ? 'badge-done' : 'badge-new'}`}>
+                    {editingQuiz.autoGerarCertificado ? 'Certificado Automático' : 'Sem Certificado Auto'}
+                  </span>
+                </div>
+
+                {/* Existing questions */}
+                {editingQuiz.perguntas?.length > 0 && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <h4 style={{ marginBottom: '8px' }}>Perguntas Existentes</h4>
+                    {editingQuiz.perguntas.map((p: any, i: number) => (
+                      <div key={p.id} style={{ padding: '12px', background: '#f9f9f9', borderRadius: '8px', marginBottom: '8px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                          <div>
+                            <p style={{ fontWeight: 600, margin: 0 }}>{i + 1}. {p.pergunta}</p>
+                            <p style={{ fontSize: '12px', color: 'var(--gray-500)', margin: '4px 0 0' }}>
+                              A: {p.opcaoA} | B: {p.opcaoB} {p.opcaoC ? `| C: ${p.opcaoC}` : ''} {p.opcaoD ? `| D: ${p.opcaoD}` : ''} | Resposta: <b>{p.correta}</b>
+                            </p>
+                          </div>
+                          <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)' }} onClick={() => handleDeletePergunta(p.id)}>
+                            <i className="icon-trash-2 icon-xs" />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Add new question form */}
+                <div style={{ borderTop: '1px solid var(--gray-200)', paddingTop: '16px' }}>
+                  <h4 style={{ marginBottom: '12px' }}>Adicionar Pergunta</h4>
+                  <div className="form-field">
+                    <label className="form-label">Pergunta</label>
+                    <textarea className="form-input" value={newPergunta.pergunta} onChange={e => setNewPergunta({ ...newPergunta, pergunta: e.target.value })} placeholder="Digite a pergunta..." />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    <div className="form-field">
+                      <label className="form-label">Opção A *</label>
+                      <input className="form-input" value={newPergunta.opcaoA} onChange={e => setNewPergunta({ ...newPergunta, opcaoA: e.target.value })} />
+                    </div>
+                    <div className="form-field">
+                      <label className="form-label">Opção B *</label>
+                      <input className="form-input" value={newPergunta.opcaoB} onChange={e => setNewPergunta({ ...newPergunta, opcaoB: e.target.value })} />
+                    </div>
+                    <div className="form-field">
+                      <label className="form-label">Opção C</label>
+                      <input className="form-input" value={newPergunta.opcaoC} onChange={e => setNewPergunta({ ...newPergunta, opcaoC: e.target.value })} />
+                    </div>
+                    <div className="form-field">
+                      <label className="form-label">Opção D</label>
+                      <input className="form-input" value={newPergunta.opcaoD} onChange={e => setNewPergunta({ ...newPergunta, opcaoD: e.target.value })} />
+                    </div>
+                  </div>
+                  <div className="form-field">
+                    <label className="form-label">Resposta Correta</label>
+                    <select className="form-select" value={newPergunta.correta} onChange={e => setNewPergunta({ ...newPergunta, correta: e.target.value })}>
+                      <option value="A">A</option>
+                      <option value="B">B</option>
+                      {newPergunta.opcaoC && <option value="C">C</option>}
+                      {newPergunta.opcaoD && <option value="D">D</option>}
+                    </select>
+                  </div>
+                  <button className="btn-primary" style={{ width: '100%', marginTop: '8px' }} onClick={handleAddPergunta}>+ Adicionar Pergunta</button>
+                </div>
+
+                <div style={{ display: 'flex', gap: '8px', marginTop: '16px', borderTop: '1px solid var(--gray-200)', paddingTop: '16px' }}>
+                  <button className="btn-secondary" onClick={() => { setShowQuizModal(false); setQuizAula(null); setEditingQuiz(null) }}>Fechar</button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

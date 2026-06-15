@@ -49,8 +49,8 @@ export function AppLayout({ user, xp, tracksCount, onLogout, children }: AppLayo
             <button id="nav-dashboard" className={`nav-item ${currentPath === '/' ? 'active' : ''}`} onClick={() => navigate('/')}>
               <i className="icon-home nav-icon" /> Dashboard
             </button>
-            <button id="nav-modulos" className={`nav-item ${currentPath === '/modulos' ? 'active' : ''}`} onClick={() => navigate('/modulos')}>
-              <i className="icon-book-open nav-icon" /> Módulos
+            <button id="nav-modulos" className={`nav-item ${currentPath.startsWith('/trilhas-aprendizado') || currentPath.startsWith('/modulo') ? 'active' : ''}`} onClick={() => navigate('/trilhas-aprendizado')}>
+              <i className="icon-book-open nav-icon" /> Trilhas de Aprendizado
               <span className="nav-badge">{tracksCount}</span>
             </button>
             <button id="nav-certificados" className={`nav-item ${currentPath === '/certificados' ? 'active' : ''}`} onClick={() => navigate('/certificados')}>

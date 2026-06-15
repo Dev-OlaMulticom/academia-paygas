@@ -595,6 +595,7 @@ a {
   background: var(--pg-orange);
   color: #fff;
   border: none;
+  padding: 8px;
   border-radius: var(--radius-sm);
 }
 
@@ -685,6 +686,7 @@ a {
   background: var(--pg-orange);
   color: #fff;
   border: none;
+  padding: 8px;
   border-radius: var(--radius-sm);
 }
 
