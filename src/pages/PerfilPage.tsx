@@ -4,10 +4,9 @@ import type { User } from '../hooks/useAuth'
 interface PerfilPageProps {
   user: User
   xp: number
-  tracks: any[]
 }
 
-export function PerfilPage({ user, xp, tracks }: PerfilPageProps) {
+export function PerfilPage({ user, xp }: PerfilPageProps) {
   return (
     <div className="page active">
       <div className="page-header">
@@ -67,8 +66,8 @@ export function PerfilPage({ user, xp, tracks }: PerfilPageProps) {
               </div>
               <div className="stat-card" style={{ padding: '14px' }}>
                 <div style={{ fontSize: '20px', marginBottom: '4px' }}><i className="icon-book-open icon-lg" /></div>
-                <div className="stat-card-val" style={{ fontSize: '20px' }}>{tracks.length}</div>
-                <div className="stat-card-label">Trilhas</div>
+                <div className="stat-card-val" style={{ fontSize: '20px' }}>0</div>
+                <div className="stat-card-label">Módulos</div>
               </div>
             </div>
           </div>

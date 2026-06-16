@@ -1,78 +1,242 @@
+import 'dotenv/config'
 import { PrismaClient } from '@prisma/client'
-import { PrismaBetterSqlite3 } from '@prisma/adapter-better-sqlite3'
-import path from 'path'
+import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
 
-const dbPath = path.resolve(process.cwd(), 'dev.db')
-const adapter = new PrismaBetterSqlite3({ url: `file:${dbPath}` })
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
 const prisma = new PrismaClient({ adapter })
 
 async function main() {
   console.log('🌱 Seeding database...')
   const defaultPassword = await bcrypt.hash('123456', 10)
 
-  const admin = await prisma.user.upsert({ where: { email: 'admin@paygas.com.br' }, update: {}, create: { email: 'admin@paygas.com.br', nome: 'Administrador PayGas', senha: defaultPassword, role: 'ADMIN' } })
-  const gestor = await prisma.user.upsert({ where: { email: 'gestor@paygas.com.br' }, update: {}, create: { email: 'gestor@paygas.com.br', nome: 'Carlos Mendes', senha: defaultPassword, role: 'GESTOR' } })
-  const atendente1 = await prisma.user.upsert({ where: { email: 'atendente@paygas.com.br' }, update: {}, create: { email: 'atendente@paygas.com.br', nome: 'Ana Paula Costa', senha: defaultPassword, role: 'ATENDENTE', gestorId: gestor.id } })
-  await prisma.user.upsert({ where: { email: 'joao@paygas.com.br' }, update: {}, create: { email: 'joao@paygas.com.br', nome: 'João Silva', senha: defaultPassword, role: 'ATENDENTE', gestorId: gestor.id } })
-  await prisma.user.upsert({ where: { email: 'maria@paygas.com.br' }, update: {}, create: { email: 'maria@paygas.com.br', nome: 'Maria Santos', senha: defaultPassword, role: 'ATENDENTE', gestorId: gestor.id } })
+  // ============ USERS ============
+  const admin = await prisma.user.upsert({
+    where: { email: 'admin@paygas.com.br' },
+    update: {},
+    create: { email: 'admin@paygas.com.br', nome: 'Administrador PayGas', senha: defaultPassword, role: 'ADMIN', emailVerificado: true },
+  })
+  const gestor = await prisma.user.upsert({
+    where: { email: 'gestor@paygas.com.br' },
+    update: {},
+    create: { email: 'gestor@paygas.com.br', nome: 'Carlos Mendes', senha: defaultPassword, role: 'GESTOR', emailVerificado: true },
+  })
+  const atendente1 = await prisma.user.upsert({
+    where: { email: 'atendente@paygas.com.br' },
+    update: {},
+    create: { email: 'atendente@paygas.com.br', nome: 'Ana Paula Costa', senha: defaultPassword, role: 'ATENDENTE', gestorId: gestor.id, emailVerificado: true },
+  })
+  const atendente2 = await prisma.user.upsert({
+    where: { email: 'joao@paygas.com.br' },
+    update: {},
+    create: { email: 'joao@paygas.com.br', nome: 'Joao Silva', senha: defaultPassword, role: 'ATENDENTE', gestorId: gestor.id, emailVerificado: true },
+  })
+  const atendente3 = await prisma.user.upsert({
+    where: { email: 'maria@paygas.com.br' },
+    update: {},
+    create: { email: 'maria@paygas.com.br', nome: 'Maria Santos', senha: defaultPassword, role: 'ATENDENTE', gestorId: gestor.id, emailVerificado: true },
+  })
   console.log('✅ Users created')
 
-  const trilhasData = [
-    { titulo: 'Excelência no Atendimento', descricao: 'Técnicas de atendimento', icon: '👤', color: '#DCFCE7', obrigatorio: true },
-    { titulo: 'Sistema de Cashback PayGas', descricao: 'Cashback', icon: '💰', color: '#FEF3C7', obrigatorio: true },
-    { titulo: 'Gestão e KPIs do Posto', descricao: 'Gestão', icon: '📊', color: '#E6EEF9', obrigatorio: false },
-    { titulo: 'Operação do Terminal', descricao: 'Terminal', icon: '📱', color: '#F3E8FF', obrigatorio: true },
-    { titulo: 'Integração via API', descricao: 'API', icon: '💻', color: '#F1F5F9', obrigatorio: true },
-    { titulo: 'LGPD e Segurança de Dados', descricao: 'LGPD', icon: '🔒', color: '#F0FDF4', obrigatorio: true },
-    { titulo: 'Liderança e Desenvolvimento de Equipe', descricao: 'Liderança', icon: '🚀', color: '#EDE9FE', obrigatorio: false },
-    { titulo: 'Gestão Financeira do Posto', descricao: 'Financeiro', icon: '💼', color: '#FEF9C3', obrigatorio: false },
-  ]
-  const trilhaRecords: any[] = []
-  for (const t of trilhasData) {
-    const existing = await prisma.trilha.findFirst({ where: { titulo: t.titulo } })
-    trilhaRecords.push(existing || await prisma.trilha.create({ data: t }))
+  // ============ MODULO: EXCELencia NO ATENDIMENTO ============
+  const moduloData = {
+    titulo: 'Excelencia no Atendimento',
+    descricao: 'Modulo completo de treinamento em atendimento ao cliente para postos de combustivel. Aprenda tecnicas de comunicacao, resolucao de conflitos e vendas consultivas.',
+    ordem: 1,
   }
-  console.log('✅ Trilhas created')
 
-  const trilhaAt = trilhaRecords[0]
-  const modulosData = [
-    { titulo: 'Fundamentos do Atendimento', descricao: 'Básicos', ordem: 1, aulas: [
-      { titulo: 'Atendimento de excelência', descricao: 'Intro', duracaoMin: 8, videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', videoInicio: 0, videoFim: 480 },
-      { titulo: 'Comunicação eficaz', descricao: 'Técnicas', duracaoMin: 10, videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', videoInicio: 480, videoFim: 1080 },
-      { titulo: 'Resolução de conflitos', descricao: 'Conflitos', duracaoMin: 12 },
-    ]},
-    { titulo: 'Cashback na Prática', descricao: 'Cashback', ordem: 2, aulas: [
-      { titulo: 'Explicar o Cashback', descricao: 'Guia', duracaoMin: 7, videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ', videoInicio: 1080, videoFim: 1500 },
-      { titulo: 'Quiz Cashback', descricao: 'Quiz', duracaoMin: 10 },
-    ]},
+  let modulo = await prisma.modulo.findFirst({
+    where: { titulo: moduloData.titulo },
+  })
+
+  if (!modulo) {
+    modulo = await prisma.modulo.create({
+      data: moduloData,
+    })
+  }
+
+  // ============ AULAS COM 3 LEICOES E QUIZ ============
+  const aulasData = [
+    {
+      titulo: 'Fundamentos do Atendimento',
+      descricao: 'Conceitos basicos de atendimento ao cliente, importancia da primeira impressao e tecnicas de boas-vindas.',
+      ordem: 1,
+      duracaoMin: 15,
+      videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      videoInicio: 0,
+      videoFim: 300,
+      quiz: {
+        titulo: 'Quiz: Fundamentos do Atendimento',
+        autoGerarCertificado: false,
+        perguntas: [
+          { pergunta: 'Qual e a importancia da primeira impressao no atendimento?', opcaoA: 'Nao tem importancia', opcaoB: 'E critica para a percepcao do cliente', opcaoC: 'Apenas para clientes novos', opcaoD: 'So em vendas high-value', correta: 'B' },
+          { pergunta: 'Como devemos cumprimentar o cliente?', opcaoA: 'Ola, tudo bem?', opcaoB: 'Oi', opcaoC: 'Bem-vindo a PayGas! Como posso ajudar?', opcaoD: 'Depende do humor', correta: 'C' },
+          { pergunta: 'Qual e o objetivo do atendimento excepcional?', opcaoA: 'Vender mais', opcaoB: 'Satisfazer e fidelizar o cliente', opcaoC: 'Terminar rapido', opcaoD: 'Seguir o manual', correta: 'B' },
+        ],
+      },
+    },
+    {
+      titulo: 'Comunicacao Eficaz',
+      descricao: 'Tecnicas de comunicacao verbal e nao-verbal, escuta ativa e empatia no atendimento.',
+      ordem: 2,
+      duracaoMin: 20,
+      videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      videoInicio: 300,
+      videoFim: 600,
+      quiz: {
+        titulo: 'Quiz: Comunicacao Eficaz',
+        autoGerarCertificado: false,
+        perguntas: [
+          { pergunta: 'O que e escuta ativa?', opcaoA: 'Ouvir enquanto faz outra coisa', opcaoB: 'Prestar atencao total ao que o cliente diz', opcaoC: 'Apenas concordar', opcaoD: 'Interromper quando necessario', correta: 'B' },
+          { pergunta: 'Qual linguagem corporal transmite confianca?', opcaoA: 'Bracos cruzados', opcaoB: 'Evitar contato visual', opcaoC: 'Postura aberta e contato visual', opcaoD: 'Olhar para o celular', correta: 'C' },
+          { pergunta: 'Como demonstrar empatia no atendimento?', opcaoA: 'Dizer que entende sem entender', opcaoB: 'Colocar-se no lugar do cliente', opcaoC: 'Seguir o script', opcaoD: 'Ignorar o problema', correta: 'B' },
+        ],
+      },
+    },
+    {
+      titulo: 'Resolucao de Conflitos',
+      descricao: 'Estrategias para lidar com clientes insatisfeitos, reclamacoes e situacoes dificeis.',
+      ordem: 3,
+      duracaoMin: 25,
+      videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      videoInicio: 600,
+      videoFim: 900,
+      quiz: {
+        titulo: 'Quiz: Resolucao de Conflitos',
+        autoGerarCertificado: false,
+        perguntas: [
+          { pergunta: 'Qual e o primeiro passo ao atender um cliente insatisfeito?', opcaoA: 'Discutir', opcaoB: 'Ouvir o cliente com atencao', opcaoC: 'Chamar o gerente', opcaoD: 'Ignorar', correta: 'B' },
+          { pergunta: 'O que NAO devemos fazer em um conflito?', opcaoA: 'Manter calma', opcaoB: 'Demonstrar empatia', opcaoC: 'Culpar o cliente', opcaoD: 'Buscar solucao', correta: 'C' },
+          { pergunta: 'Qual tecnica ajuda a acalmar o cliente?', opcaoA: 'Falar mais alto', opcaoB: 'Repetir "nao tenho culpa"', opcaoC: 'Validar o sentimento do cliente', opcaoD: 'Pedir para sair', correta: 'C' },
+        ],
+      },
+    },
+    {
+      titulo: 'Vendas Consultivas e Cross-selling',
+      descricao: 'Tecnicas de vendas adicionais, sugestoes inteligentes e aument ticket medio.',
+      ordem: 4,
+      duracaoMin: 20,
+      videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      videoInicio: 900,
+      videoFim: 1200,
+      quiz: {
+        titulo: 'Quiz: Vendas Consultivas',
+        autoGerarCertificado: true,
+        perguntas: [
+          { pergunta: 'O que e cross-selling?', opcaoA: 'Vender mais caro', opcaoB: 'Sugerir produtos complementares', opcaoC: 'Descontar produtos', opcaoD: 'Vender para concorrentes', correta: 'B' },
+          { pergunta: 'Qual a melhor hora para sugerir um adicional?', opcaoA: 'Antes do pagamento', opcaoB: 'Durante o abastecimento, de forma natural', opcaoC: 'Apos o cliente sair', opcaoD: 'Nunca', correta: 'B' },
+          { pergunta: 'Como aumentar o ticket medio?', opcaoA: 'Aumentar precos', opcaoB: 'Ignorar o cliente', opcaoC: 'Sugerir produtos relevantes com valor', opcaoD: 'Nao oferecer opcoes', correta: 'C' },
+        ],
+      },
+    },
   ]
-  for (const m of modulosData) {
-    const existing = await prisma.modulo.findFirst({ where: { titulo: m.titulo, trilhaId: trilhaAt.id } })
-    if (!existing) {
-      const modulo = await prisma.modulo.create({ data: { trilhaId: trilhaAt.id, titulo: m.titulo, descricao: m.descricao, ordem: m.ordem } })
-      for (let i = 0; i < m.aulas.length; i++) {
-        const a = m.aulas[i]
-        await prisma.aula.create({ data: { moduloId: modulo.id, titulo: a.titulo, descricao: a.descricao, ordem: i + 1, duracaoMin: a.duracaoMin, videoUrl: a.videoUrl || null, videoInicio: a.videoInicio || null, videoFim: a.videoFim || null } })
+
+  for (const aulaData of aulasData) {
+    let aula = await prisma.aula.findFirst({
+      where: { titulo: aulaData.titulo, moduloId: modulo.id },
+    })
+
+    if (!aula) {
+      const { quiz, ...aulaInfo } = aulaData
+      aula = await prisma.aula.create({
+        data: {
+          moduloId: modulo.id,
+          titulo: aulaInfo.titulo,
+          descricao: aulaInfo.descricao,
+          ordem: aulaInfo.ordem,
+          duracaoMin: aulaInfo.duracaoMin,
+          videoUrl: aulaInfo.videoUrl,
+          videoInicio: aulaInfo.videoInicio,
+          videoFim: aulaInfo.videoFim,
+        },
+      })
+
+      const existingQuiz = await prisma.quiz.findUnique({ where: { aulaId: aula.id } })
+      if (!existingQuiz) {
+        const createdQuiz = await prisma.quiz.create({
+          data: {
+            aulaId: aula.id,
+            titulo: quiz.titulo,
+            autoGerarCertificado: quiz.autoGerarCertificado,
+          },
+        })
+
+        for (let i = 0; i < quiz.perguntas.length; i++) {
+          const p = quiz.perguntas[i]
+          await prisma.quizPergunta.create({
+            data: {
+              quizId: createdQuiz.id,
+              pergunta: p.pergunta,
+              opcaoA: p.opcaoA,
+              opcaoB: p.opcaoB,
+              opcaoC: p.opcaoC || null,
+              opcaoD: p.opcaoD || null,
+              correta: p.correta,
+              ordem: i + 1,
+            },
+          })
+        }
       }
     }
   }
-  console.log('✅ Modulos created')
+  console.log('✅ Modulo Excelencia created with 4 aulas, 4 quizzes, 12 questions')
 
-  const existsA = await prisma.trilhaAtendente.findFirst({ where: { trilhaId: trilhaAt.id, userId: atendente1.id } })
-  if (!existsA) await prisma.trilhaAtendente.create({ data: { trilhaId: trilhaAt.id, userId: atendente1.id } })
+  // ============ PROGRESSO DE EXEMPLO ============
+  const allAulas = await prisma.aula.findMany({
+    where: { moduloId: modulo.id },
+    orderBy: { ordem: 'asc' },
+  })
 
-  const firstMod = await prisma.modulo.findFirst({ where: { trilhaId: trilhaAt.id }, include: { aulas: true } })
-  if (firstMod?.aulas[0]) {
-    const existsP = await prisma.progresso.findFirst({ where: { moduloId: firstMod.id, aulaId: firstMod.aulas[0].id, userId: atendente1.id } })
-    if (!existsP) await prisma.progresso.create({ data: { moduloId: firstMod.id, aulaId: firstMod.aulas[0].id, userId: atendente1.id, concluido: true } })
+  if (allAulas[0]) {
+    const existsP = await prisma.progresso.findFirst({ where: { moduloId: modulo.id, aulaId: allAulas[0].id, userId: atendente1.id } })
+    if (!existsP) await prisma.progresso.create({ data: { moduloId: modulo.id, aulaId: allAulas[0].id, userId: atendente1.id, concluido: true } })
+  }
+  if (allAulas[1]) {
+    const existsP = await prisma.progresso.findFirst({ where: { moduloId: modulo.id, aulaId: allAulas[1].id, userId: atendente1.id } })
+    if (!existsP) await prisma.progresso.create({ data: { moduloId: modulo.id, aulaId: allAulas[1].id, userId: atendente1.id, concluido: true } })
+  }
+  if (allAulas[0]) {
+    const existsP = await prisma.progresso.findFirst({ where: { moduloId: modulo.id, aulaId: allAulas[0].id, userId: atendente2.id } })
+    if (!existsP) await prisma.progresso.create({ data: { moduloId: modulo.id, aulaId: allAulas[0].id, userId: atendente2.id, concluido: true } })
   }
 
-  const existsN = await prisma.notification.findFirst({ where: { fromId: admin.id, toId: atendente1.id } })
-  if (!existsN) await prisma.notification.create({ data: { fromId: admin.id, toId: atendente1.id, titulo: 'Bem-vindo!', mensagem: 'Conta criada!' } })
+  console.log('✅ Progresso de exemplo criado')
 
+  // ============ XP PARA ATENDENTES ============
+  await prisma.user.update({ where: { id: atendente1.id }, data: { xp: 280 } })
+  await prisma.user.update({ where: { id: atendente2.id }, data: { xp: 80 } })
+  await prisma.user.update({ where: { id: atendente3.id }, data: { xp: 10 } })
+
+  // ============ POINTS TRANSACTIONS DE EXEMPLO ============
+  const existingTrans1 = await prisma.pointsTransaction.findFirst({ where: { userId: atendente1.id, action: 'LOGIN' } })
+  if (!existingTrans1) {
+    await prisma.pointsTransaction.create({ data: { userId: atendente1.id, action: 'LOGIN', points: 10, details: 'Acesso a plataforma' } })
+    await prisma.pointsTransaction.create({ data: { userId: atendente1.id, action: 'MODULE_OPEN', points: 20, details: 'Modulo aberto: Excelencia no Atendimento' } })
+    await prisma.pointsTransaction.create({ data: { userId: atendente1.id, action: 'LESSON_COMPLETE', points: 50, details: 'Aula: Fundamentos do Atendimento' } })
+    await prisma.pointsTransaction.create({ data: { userId: atendente1.id, action: 'QUIZ_PASS', points: 100, details: 'Quiz aprovado com nota 10/10' } })
+    await prisma.pointsTransaction.create({ data: { userId: atendente1.id, action: 'LESSON_COMPLETE', points: 50, details: 'Aula: Comunicacao Eficaz' } })
+    await prisma.pointsTransaction.create({ data: { userId: atendente1.id, action: 'QUIZ_PASS', points: 100, details: 'Quiz aprovado com nota 7/10' } })
+  }
+
+  const existingTrans2 = await prisma.pointsTransaction.findFirst({ where: { userId: atendente2.id, action: 'LOGIN' } })
+  if (!existingTrans2) {
+    await prisma.pointsTransaction.create({ data: { userId: atendente2.id, action: 'LOGIN', points: 10, details: 'Acesso a plataforma' } })
+    await prisma.pointsTransaction.create({ data: { userId: atendente2.id, action: 'MODULE_OPEN', points: 20, details: 'Modulo aberto: Excelencia no Atendimento' } })
+    await prisma.pointsTransaction.create({ data: { userId: atendente2.id, action: 'LESSON_COMPLETE', points: 50, details: 'Aula: Fundamentos do Atendimento' } })
+  }
+
+  // ============ NOTIFICATION ============
+  const existsN = await prisma.notification.findFirst({ where: { fromId: admin.id, toId: atendente1.id } })
+  if (!existsN) await prisma.notification.create({ data: { fromId: admin.id, toId: atendente1.id, titulo: 'Bem-vindo!', mensagem: 'Sua conta foi criada na Academia PayGas!' } })
+
+  // ============ ACTIVITY LOGS ============
   await prisma.activityLog.create({ data: { userId: atendente1.id, acao: 'Login', detalhes: 'Primeiro acesso' } })
-  console.log('🎉 Seed completed!')
+  await prisma.activityLog.create({ data: { userId: atendente1.id, acao: 'Modulo Aberto', detalhes: 'Excelencia no Atendimento' } })
+  await prisma.activityLog.create({ data: { userId: atendente1.id, acao: 'Aula Concluida', detalhes: 'Fundamentos do Atendimento' } })
+  await prisma.activityLog.create({ data: { userId: atendente1.id, acao: 'Quiz Aprovado', detalhes: 'Nota 10/10' } })
+  await prisma.activityLog.create({ data: { userId: atendente2.id, acao: 'Login', detalhes: 'Primeiro acesso' } })
+
+  console.log('🎉 Seed completed with gamification data!')
 }
 
 main().catch(e => { console.error(e); process.exit(1) }).finally(() => prisma.$disconnect())

@@ -1,10 +1,6 @@
 
 
-interface CertificadosPageProps {
-  tracks: any[]
-}
-
-export function CertificadosPage({ tracks }: CertificadosPageProps) {
+export function CertificadosPage() {
   const handleDownloadPDF = (track: any) => {
     alert(`Gerando PDF para ${track.label}...`)
   }
@@ -33,7 +29,7 @@ export function CertificadosPage({ tracks }: CertificadosPageProps) {
           <h2>${track.label}</h2>
           <p>Certificamos que</p>
           <div class="name">Usuário</div>
-          <div class="desc">concluiu a trilha de <strong>${track.label}</strong> com êxito.</div>
+          <div class="desc">concluiu o módulo de <strong>${track.label}</strong> com êxito.</div>
           <div class="footer">
             <span>${new Date().toLocaleDateString('pt-BR')}</span>
             <div class="seal">PG</div>
@@ -60,28 +56,9 @@ export function CertificadosPage({ tracks }: CertificadosPageProps) {
         </div>
       </div>
       <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
-        {tracks.slice(0, 3).map((track: any) => (
-          <div key={track.id} className="cert-card">
-            <div className="cert-header">
-              <h3>ACADEMIA PAYGAS</h3>
-              <h2>{track.label}</h2>
-            </div>
-            <div className="cert-body">
-              <p style={{ fontSize: '12px', color: 'rgba(255,255,255,.6)', marginBottom: '6px' }}>Certificamos que</p>
-              <div className="cert-name">Usuário</div>
-              <div className="cert-desc" style={{ fontSize: '12px' }}>concluiu a trilha de <strong>{track.label}</strong> com êxito.</div>
-              <div className="cert-footer">
-                <span style={{ fontSize: '11px', color: 'var(--gray-400)' }}>{new Date().toLocaleDateString('pt-BR')}</span>
-                <div className="cert-seal">PG</div>
-              </div>
-            </div>
-            <div style={{ padding: '12px 16px', display: 'flex', gap: '8px' }}>
-              <button className="btn-success" style={{ fontSize: '12px', padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => handleDownloadPDF(track)}><i className="icon-download icon-sm" /> Baixar PDF</button>
-              <button className="btn-secondary" style={{ fontSize: '12px', padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => handleDownloadHTML(track)}><i className="icon-file-text icon-sm" /> Baixar HTML</button>
-              <button className="btn-secondary" style={{ fontSize: '12px', padding: '7px 14px', display: 'inline-flex', alignItems: 'center', gap: '6px' }}><i className="icon-share-2 icon-sm" /> Compartilhar</button>
-            </div>
-          </div>
-        ))}
+        <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--gray-400)', padding: '40px' }}>
+          Nenhum certificado encontrado
+        </div>
       </div>
     </div>
   )

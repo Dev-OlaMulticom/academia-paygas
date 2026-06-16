@@ -1,9 +1,11 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
+import crypto from 'crypto'
 import { prisma } from '../lib/prisma'
 import { authenticate, authorize, AuthRequest } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
 import { Role } from '@prisma/client'
+import { sendVerificationEmail } from '../services/email'
 
 const router = Router()
 
@@ -27,6 +29,7 @@ router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequ
       email: u.email,
       nome: u.nome,
       role: u.role,
+      emailVerificado: u.emailVerificado,
       createdAt: u.createdAt,
       lastLogin: u.lastLogin,
       gestorId: u.gestorId,
@@ -52,7 +55,14 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
     const exists = await prisma.user.findUnique({ where: { email } })
     if (exists) return res.status(409).json({ error: 'Email já cadastrado' })
 
+    // GESTOR cannot create ADMIN users
+    if (req.userRole === 'GESTOR' && role === 'ADMIN') {
+      return res.status(403).json({ error: 'Gestores não podem criar usuários ADMIN' })
+    }
+
     const hashedPassword = await bcrypt.hash(senha, 10)
+    const verificationToken = crypto.randomBytes(32).toString('hex')
+
     const user = await prisma.user.create({
       data: {
         email,
@@ -60,8 +70,14 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
         senha: hashedPassword,
         role: role as Role,
         gestorId: req.userRole === 'GESTOR' ? req.userId : undefined,
+        tokenVerificacao: verificationToken,
       },
-      select: { id: true, email: true, nome: true, role: true, createdAt: true },
+      select: { id: true, email: true, nome: true, role: true, emailVerificado: true, createdAt: true },
+    })
+
+    // Send verification email (non-blocking)
+    sendVerificationEmail(email, nome, verificationToken).catch(err => {
+      console.error('Erro ao enviar email de verificacao:', err)
     })
 
     res.status(201).json(user)
@@ -125,6 +141,7 @@ router.get('/equipe', authenticate, authorize('ADMIN', 'GESTOR'), async (req: Au
       nome: m.nome,
       email: m.email,
       role: m.role,
+      gestorId: m.gestorId,
       xp: m._count.progressos * 150 + m._count.certificates * 500,
       certCount: m._count.certificates,
     }))
@@ -132,6 +149,67 @@ router.get('/equipe', authenticate, authorize('ADMIN', 'GESTOR'), async (req: Au
     res.json(result)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar equipe' })
+  }
+})
+
+// POST /api/usuarios/:id/validate-account - Admin/Gestor manually validate user
+router.post('/:id/validate-account', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
+  try {
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID invalido' })
+
+    const user = await prisma.user.findUnique({ where: { id } })
+    if (!user) return res.status(404).json({ error: 'Usuario nao encontrado' })
+
+    // GESTOR can only validate their own attendants
+    if (req.userRole === 'GESTOR' && user.gestorId !== req.userId) {
+      return res.status(403).json({ error: 'Voce so pode validar atendentes da sua equipe' })
+    }
+
+    await prisma.user.update({
+      where: { id },
+      data: {
+        emailVerificado: true,
+        tokenVerificacao: null,
+      },
+    })
+
+    res.json({ message: 'Conta validada com sucesso!' })
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao validar conta' })
+  }
+})
+
+// POST /api/usuarios/:id/resend-verification - Admin/Gestor resend verification email
+router.post('/:id/resend-verification', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
+  try {
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID invalido' })
+
+    const user = await prisma.user.findUnique({ where: { id } })
+    if (!user) return res.status(404).json({ error: 'Usuario nao encontrado' })
+
+    // GESTOR can only resend for their own attendants
+    if (req.userRole === 'GESTOR' && user.gestorId !== req.userId) {
+      return res.status(403).json({ error: 'Voce so pode reenviar para atendentes da sua equipe' })
+    }
+
+    if (user.emailVerificado) {
+      return res.status(400).json({ error: 'Email ja verificado' })
+    }
+
+    const verificationToken = crypto.randomBytes(32).toString('hex')
+
+    await prisma.user.update({
+      where: { id },
+      data: { tokenVerificacao: verificationToken },
+    })
+
+    await sendVerificationEmail(user.email, user.nome, verificationToken)
+
+    res.json({ message: 'Email de verificacao reenviado!' })
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao reenviar verificacao' })
   }
 })
 

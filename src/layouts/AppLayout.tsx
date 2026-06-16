@@ -7,12 +7,11 @@ import { PERSONAS } from '../data/constants'
 interface AppLayoutProps {
   user: User
   xp: number
-  tracksCount: number
   onLogout: () => void
   children: React.ReactNode
 }
 
-export function AppLayout({ user, xp, tracksCount, onLogout, children }: AppLayoutProps) {
+export function AppLayout({ user, xp, onLogout, children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
@@ -49,9 +48,8 @@ export function AppLayout({ user, xp, tracksCount, onLogout, children }: AppLayo
             <button id="nav-dashboard" className={`nav-item ${currentPath === '/' ? 'active' : ''}`} onClick={() => navigate('/')}>
               <i className="icon-home nav-icon" /> Dashboard
             </button>
-            <button id="nav-modulos" className={`nav-item ${currentPath.startsWith('/trilhas-aprendizado') || currentPath.startsWith('/modulo') ? 'active' : ''}`} onClick={() => navigate('/trilhas-aprendizado')}>
+            <button id="nav-trilhas" className={`nav-item ${currentPath === '/modulos' || currentPath.startsWith('/modulo/') ? 'active' : ''}`} onClick={() => navigate('/modulos')}>
               <i className="icon-book-open nav-icon" /> Trilhas de Aprendizado
-              <span className="nav-badge">{tracksCount}</span>
             </button>
             <button id="nav-certificados" className={`nav-item ${currentPath === '/certificados' ? 'active' : ''}`} onClick={() => navigate('/certificados')}>
               <i className="icon-trophy nav-icon" /> Certificados
@@ -60,6 +58,9 @@ export function AppLayout({ user, xp, tracksCount, onLogout, children }: AppLayo
           {(isAdmin || isGestor) && (
             <div className="sidebar-section">
               <div className="sidebar-section-label">Gestão</div>
+              <button id="nav-cms" className={`nav-item ${currentPath === '/cms' ? 'active' : ''}`} onClick={() => navigate('/cms')}>
+                <i className="icon-file-edit nav-icon" /> Gestão de Conteúdo
+              </button>
               <button id="nav-equipe" className={`nav-item ${currentPath === '/equipe' ? 'active' : ''}`} onClick={() => navigate('/equipe')}>
                 <i className="icon-users nav-icon" /> Equipe
               </button>
@@ -71,9 +72,6 @@ export function AppLayout({ user, xp, tracksCount, onLogout, children }: AppLayo
           {isAdmin && (
             <div className="sidebar-section">
               <div className="sidebar-section-label">Administração</div>
-              <button id="nav-cms" className={`nav-item ${currentPath === '/cms' ? 'active' : ''}`} onClick={() => navigate('/cms')}>
-                <i className="icon-file-edit nav-icon" /> Gestão de Conteúdo
-              </button>
               <button id="nav-usuarios" className={`nav-item ${currentPath === '/usuarios' ? 'active' : ''}`} onClick={() => navigate('/usuarios')}>
                 <i className="icon-user-cog nav-icon" /> Usuários
               </button>

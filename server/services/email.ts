@@ -69,13 +69,13 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
 /**
  * Send certificate notification email
  */
-export async function sendCertificateEmail(to: string, userName: string, trilhaName: string) {
+export async function sendCertificateEmail(to: string, userName: string, moduloName: string) {
   return sendEmail({
     to,
-    subject: `🎓 Certificado Emitido - ${trilhaName}`,
+    subject: `🎓 Certificado Emitido - ${moduloName}`,
     html: `
       <h2>Parabéns ${userName}! 🎉</h2>
-      <p>Você completou a trilha <strong>${trilhaName}</strong>.</p>
+      <p>Você completou o módulo <strong>${moduloName}</strong>.</p>
       <p>Seu certificado foi emitido com sucesso!</p>
       <p><a href="${process.env.APP_URL || 'https://academia.paygas.com.br'}/certificados" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ver Certificado</a></p>
     `,
@@ -92,7 +92,7 @@ export async function sendWelcomeEmail(to: string, userName: string, loginUrl: s
     html: `
       <h2>Bem-vindo ${userName}! 👋</h2>
       <p>Sua conta foi criada com sucesso na Academia PayGas.</p>
-      <p>Você já pode começar suas trilhas de aprendizagem.</p>
+      <p>Você já pode começar seus módulos de aprendizagem.</p>
       <p><a href="${loginUrl}" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Acessar Academia</a></p>
     `,
   })
@@ -112,6 +112,46 @@ export async function sendNotificationEmail(
     html: `
       <h2>${titulo}</h2>
       <p>${mensagem}</p>
+    `,
+  })
+}
+
+/**
+ * Send email verification link
+ */
+export async function sendVerificationEmail(to: string, userName: string, token: string) {
+  const verifyUrl = `${process.env.APP_URL || 'https://academia.paygas.com.br'}/verificar-email?token=${token}`
+
+  return sendEmail({
+    to,
+    subject: 'Verifique seu email - Academia PayGas',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="UTF-8"></head>
+      <body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;">
+        <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
+          <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:30px;text-align:center;">
+            <h1 style="margin:0;">Academia PayGas</h1>
+            <p style="margin:5px 0 0;">Verificacao de Email</p>
+          </div>
+          <div style="padding:30px;">
+            <h2>Ola, ${userName}!</h2>
+            <p>Voce foi cadastrado na <strong>Academia PayGas</strong>. Para ativar sua conta, clique no botao abaixo:</p>
+            <div style="text-align:center;margin:30px 0;">
+              <a href="${verifyUrl}" style="background:#667eea;color:white;padding:14px 30px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;">Confirmar Meu Email</a>
+            </div>
+            <p style="color:#666;font-size:13px;">Se o botao nao funcionar, copie e cole o link abaixo no seu navegador:</p>
+            <p style="word-break:break-all;color:#667eea;font-size:12px;">${verifyUrl}</p>
+            <p style="color:#666;font-size:13px;">Se voce nao solicitou este cadastro, ignore este email.</p>
+          </div>
+          <div style="background:#f8f9fa;padding:20px;text-align:center;color:#666;font-size:12px;">
+            <p>Este e um email automatico. Por favor, nao responda.</p>
+            <p>2026 Academia PayGas - Sistema de Ensino Online</p>
+          </div>
+        </div>
+      </body>
+      </html>
     `,
   })
 }

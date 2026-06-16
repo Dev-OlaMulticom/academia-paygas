@@ -22,49 +22,35 @@ enum CertificateStatus {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  nome      String
-  senha     String
-  role      Role
-  gestorId  String?
-  gestor    User?    @relation("GestorAtendentes", fields: [gestorId], references: [id])
-  atendentes User[]   @relation("GestorAtendentes")
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-  lastLogin DateTime?
+  id               String    @id @default(cuid())
+  email            String    @unique
+  nome             String
+  senha            String
+  role             Role
+  xp               Int       @default(0)
+  emailVerificado  Boolean   @default(false)
+  tokenVerificacao String?
+  gestorId         String?
+  gestor           User?     @relation("GestorAtendentes", fields: [gestorId], references: [id])
+  atendentes       User[]    @relation("GestorAtendentes")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastLogin        DateTime?
 
   // Relations
-  assignedTrilhas   TrilhaAtendente[]
   progressos        Progresso[]
   quizResponses     QuizResponse[]
   certificates      Certificate[]
   sentNotifications Notification[] @relation("SentNotifications")
   receivedNotifications Notification[] @relation("ReceivedNotifications")
   activityLogs      ActivityLog[]
+  pointsTransactions PointsTransaction[]
 
   @@index([gestorId])
 }
 
-model Trilha {
-  id          String   @id @default(cuid())
-  titulo      String
-  descricao   String
-  icon        String
-  color       String
-  obrigatorio Boolean  @default(false)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relations
-  modulos        Modulo[]
-  trilhasAtendentes TrilhaAtendente[]
-  certificates   Certificate[]
-}
-
 model Modulo {
   id          String   @id @default(cuid())
-  trilhaId    String
   titulo      String
   descricao   String
   ordem       Int
@@ -75,11 +61,9 @@ model Modulo {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  trilha      Trilha    @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
   aulas       Aula[]
   progressos  Progresso[]
-
-  @@index([trilhaId])
+  certificates Certificate[]
 }
 
 model Aula {
@@ -157,21 +141,6 @@ model QuizResponse {
   @@index([userId])
 }
 
-model TrilhaAtendente {
-  id        String   @id @default(cuid())
-  trilhaId  String
-  userId    String
-  createdAt DateTime @default(now())
-
-  // Relations
-  trilha    Trilha @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
-  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@unique([trilhaId, userId])
-  @@index([trilhaId])
-  @@index([userId])
-}
-
 model Progresso {
   id        String   @id @default(cuid())
   moduloId  String
@@ -195,7 +164,7 @@ model Progresso {
 model Certificate {
   id          String            @id @default(cuid())
   userId      String
-  trilhaId    String
+  moduloId    String
   status      CertificateStatus @default(PENDING)
   pdfUrl      String?
   htmlContent String?
@@ -206,10 +175,10 @@ model Certificate {
 
   // Relations
   user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
-  trilha      Trilha @relation(fields: [trilhaId], references: [id], onDelete: Cascade)
+  modulo      Modulo @relation(fields: [moduloId], references: [id], onDelete: Cascade)
 
   @@index([userId])
-  @@index([trilhaId])
+  @@index([moduloId])
 }
 
 model Notification {
@@ -241,4 +210,30 @@ model ActivityLog {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+enum PointsAction {
+  LOGIN
+  MODULE_OPEN
+  LESSON_COMPLETE
+  MODULE_COMPLETE
+  QUIZ_CORRECT
+  QUIZ_PASS
+  CERTIFICATE
+}
+
+model PointsTransaction {
+  id        String        @id @default(cuid())
+  userId    String
+  action    PointsAction
+  points    Int
+  details   String?
+  createdAt DateTime      @default(now())
+
+  // Relations
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
 }

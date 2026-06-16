@@ -39,10 +39,6 @@ export function useAuth() {
     api.logout()
   }
 
-  const getMyTracks = () => {
-    return []
-  }
-
   const persona = user ? PERSONAS[user.role as keyof typeof PERSONAS] : null
   const isAuthenticated = !!user
 
@@ -53,6 +49,5 @@ export function useAuth() {
     isAuthenticated,
     handleLogin,
     handleLogout,
-    getMyTracks,
   }
 }

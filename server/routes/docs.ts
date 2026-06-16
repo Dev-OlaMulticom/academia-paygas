@@ -7,7 +7,7 @@ function getApiSpec() {
     openapi: '3.1.0',
     info: {
       title: 'Academia PayGas API (Express Server)',
-      description: 'API REST para el sistema de aprendizaje Academia PayGas. Backend Express.js con Prisma ORM y MySQL.',
+      description: 'API REST para el sistema de aprendizaje Academia PayGas. Backend Express.js con Prisma ORM y PostgreSQL.',
       version: '1.0.0',
       contact: { name: 'PayGas', url: 'https://paygas.com' },
     },
@@ -43,16 +43,9 @@ function getApiSpec() {
       { method: 'DELETE', path: '/api/usuarios/:id', summary: 'Eliminar usuario', tags: ['Usuarios'], permission: 'ADMIN' },
       { method: 'GET', path: '/api/usuarios/equipe', summary: 'Obtener equipo del gestor', tags: ['Usuarios'], permission: 'ADMIN, GESTOR', response: { type: 'array', items: { id: 'string', nome: 'string', email: 'string', role: 'string', xp: 'number', certCount: 'number' } } },
 
-      // TRILHAS
-      { method: 'GET', path: '/api/trilhas', summary: 'Listar trilhas de aprendizaje', tags: ['Trilhas'], permission: 'authenticated', response: { type: 'array', items: { id: 'string', titulo: 'string', descricao: 'string', icon: 'string', color: 'string', obrigatorio: 'boolean', lessons: 'number', createdAt: 'datetime', updatedAt: 'datetime' } } },
-      { method: 'POST', path: '/api/trilhas', summary: 'Crear trilha', tags: ['Trilhas'], permission: 'ADMIN', request_body: { required: ['titulo'], optional: ['descricao', 'icon', 'color', 'obrigatorio'], properties: { titulo: { type: 'string' }, descricao: { type: 'string' }, icon: { type: 'string', description: 'Emoji icon (ej: 📚)' }, color: { type: 'string', description: 'Hex color (ej: #E6EEF9)' }, obrigatorio: { type: 'boolean' } } } },
-      { method: 'PUT', path: '/api/trilhas/:id', summary: 'Actualizar trilha', tags: ['Trilhas'], permission: 'ADMIN' },
-      { method: 'DELETE', path: '/api/trilhas/:id', summary: 'Eliminar trilha', tags: ['Trilhas'], permission: 'ADMIN' },
-      { method: 'GET', path: '/api/trilhas/:id/modulos', summary: 'Obtener modulos de una trilha', tags: ['Trilhas'], permission: 'authenticated' },
-
       // CMS / MODULOS
       { method: 'GET', path: '/api/cms', summary: 'Listar modulos (CMS)', tags: ['Modulos'], permission: 'ADMIN, GESTOR' },
-      { method: 'POST', path: '/api/cms', summary: 'Crear modulo', tags: ['Modulos'], permission: 'ADMIN, GESTOR', request_body: { required: ['trilhaId', 'titulo'], optional: ['descricao', 'ordem', 'videoUrl', 'videoInicio', 'videoFim'], properties: { trilhaId: { type: 'string' }, titulo: { type: 'string' }, descricao: { type: 'string' }, ordem: { type: 'number' }, videoUrl: { type: 'string', format: 'uri' }, videoInicio: { type: 'number', description: 'Seconds' }, videoFim: { type: 'number', description: 'Seconds' } } } },
+      { method: 'POST', path: '/api/cms', summary: 'Crear modulo', tags: ['Modulos'], permission: 'ADMIN, GESTOR', request_body: { required: ['titulo'], optional: ['descricao', 'ordem', 'videoUrl', 'videoInicio', 'videoFim'], properties: { titulo: { type: 'string' }, descricao: { type: 'string' }, ordem: { type: 'number' }, videoUrl: { type: 'string', format: 'uri' }, videoInicio: { type: 'number', description: 'Seconds' }, videoFim: { type: 'number', description: 'Seconds' } } } },
       { method: 'PUT', path: '/api/cms/:id', summary: 'Actualizar modulo', tags: ['Modulos'], permission: 'ADMIN, GESTOR' },
       { method: 'DELETE', path: '/api/cms/:id', summary: 'Eliminar modulo', tags: ['Modulos'], permission: 'ADMIN' },
       { method: 'GET', path: '/api/modulos/:id/aulas', summary: 'Obtener aulas de un modulo', tags: ['Modulos'], permission: 'authenticated' },
@@ -62,7 +55,7 @@ function getApiSpec() {
 
       // CERTIFICATES
       { method: 'GET', path: '/api/certificates', summary: 'Listar certificados', tags: ['Certificates'], permission: 'authenticated', description: 'ADMIN ve todos, otros ven los suyos' },
-      { method: 'POST', path: '/api/certificates', summary: 'Solicitar certificado', tags: ['Certificates'], permission: 'authenticated', request_body: { required: ['trilhaId'] } },
+      { method: 'POST', path: '/api/certificates', summary: 'Solicitar certificado', tags: ['Certificates'], permission: 'authenticated', request_body: { required: ['moduloId'] } },
       { method: 'PUT', path: '/api/certificates/:id/approve', summary: 'Aprobar certificado', tags: ['Certificates'], permission: 'authenticated' },
       { method: 'PUT', path: '/api/certificates/:id/issue', summary: 'Emitir certificado', tags: ['Certificates'], permission: 'authenticated' },
 
@@ -75,10 +68,10 @@ function getApiSpec() {
       // PROGRESSO
       { method: 'GET', path: '/api/progresso', summary: 'Obtener progreso del usuario', tags: ['Progresso'], permission: 'authenticated' },
       { method: 'PUT', path: '/api/progresso', summary: 'Actualizar/crear progreso', tags: ['Progresso'], permission: 'authenticated', request_body: { required: ['moduloId', 'aulaId'], optional: ['concluido'] } },
-      { method: 'GET', path: '/api/progresso/stats', summary: 'Estadisticas de progreso', tags: ['Progresso'], permission: 'authenticated', response: { totalAulas: 'number', concluidas: 'number', percentual: 'number', trilhasIniciadas: 'number', xp: 'number' } },
+      { method: 'GET', path: '/api/progresso/stats', summary: 'Estadisticas de progreso', tags: ['Progresso'], permission: 'authenticated', response: { totalAulas: 'number', concluidas: 'number', percentual: 'number', modulosIniciados: 'number', xp: 'number' } },
 
       // DASHBOARD
-      { method: 'GET', path: '/api/dashboard', summary: 'Dashboard del usuario', tags: ['Dashboard'], permission: 'authenticated', response: { totalTrilhas: 'number', trilhasConcluidas: 'number', totalCertificados: 'number', totalAulas: 'number', aulasConcluidas: 'number', percentual: 'number', xp: 'number', nivel: 'number', recentActivity: 'ActivityLog[]' } },
+      { method: 'GET', path: '/api/dashboard', summary: 'Dashboard del usuario', tags: ['Dashboard'], permission: 'authenticated', response: { totalModulos: 'number', modulosConcluidos: 'number', totalCertificados: 'number', totalAulas: 'number', aulasConcluidas: 'number', percentual: 'number', xp: 'number', nivel: 'number', recentActivity: 'ActivityLog[]' } },
 
       // HEALTH
       { method: 'GET', path: '/api/health', summary: 'Health check', tags: ['System'], permission: 'public', response: { status: 'ok', encrypted: 'boolean', timestamp: 'datetime' } },
@@ -90,22 +83,19 @@ function getApiSpec() {
     ],
     data_models: {
       User: { id: 'string (cuid)', email: 'string (unique)', nome: 'string', senha: 'string (bcrypt hashed)', role: 'enum: ADMIN | GESTOR | ATENDENTE', gestorId: 'string|null (FK User)', createdAt: 'datetime', updatedAt: 'datetime', lastLogin: 'datetime|null' },
-      Trilha: { id: 'string (cuid)', titulo: 'string', descricao: 'string', icon: 'string', color: 'string (hex)', obrigatorio: 'boolean (default: false)', createdAt: 'datetime', updatedAt: 'datetime' },
-      Modulo: { id: 'string (cuid)', trilhaId: 'string (FK Trilha)', titulo: 'string', descricao: 'string', ordem: 'number', videoUrl: 'string|null', videoInicio: 'number|null (seconds)', videoFim: 'number|null (seconds)', createdAt: 'datetime', updatedAt: 'datetime' },
+      Modulo: { id: 'string (cuid)', titulo: 'string', descricao: 'string', ordem: 'number', videoUrl: 'string|null', videoInicio: 'number|null (seconds)', videoFim: 'number|null (seconds)', createdAt: 'datetime', updatedAt: 'datetime' },
       Aula: { id: 'string (cuid)', moduloId: 'string (FK Modulo)', titulo: 'string', descricao: 'string', ordem: 'number', videoUrl: 'string|null', videoInicio: 'number|null', videoFim: 'number|null', duracaoMin: 'number|null', createdAt: 'datetime', updatedAt: 'datetime' },
       Quiz: { id: 'string (cuid)', aulaId: 'string (FK Aula, unique)', titulo: 'string', autoGerarCertificado: 'boolean', createdAt: 'datetime', updatedAt: 'datetime' },
       QuizPergunta: { id: 'string (cuid)', quizId: 'string (FK Quiz)', pergunta: 'string', opcaoA: 'string', opcaoB: 'string', opcaoC: 'string|null', opcaoD: 'string|null', correta: 'string (A|B|C|D)', ordem: 'number' },
       QuizResponse: { id: 'string (cuid)', quizId: 'string (FK Quiz)', userId: 'string (FK User)', nota: 'number', total: 'number', concluido: 'boolean', unique: '[quizId, userId]' },
-      Certificate: { id: 'string (cuid)', userId: 'string (FK User)', trilhaId: 'string (FK Trilha)', status: 'enum: PENDING | APPROVED | ISSUED', pdfUrl: 'string|null', htmlContent: 'string|null', aprovadoPor: 'string|null', aprovadoEm: 'datetime|null' },
+      Certificate: { id: 'string (cuid)', userId: 'string (FK User)', moduloId: 'string (FK Modulo)', status: 'enum: PENDING | APPROVED | ISSUED', pdfUrl: 'string|null', htmlContent: 'string|null', aprovadoPor: 'string|null', aprovadoEm: 'datetime|null' },
       Notification: { id: 'string (cuid)', fromId: 'string (FK User)', toId: 'string (FK User)', titulo: 'string', mensagem: 'string', lida: 'boolean (default: false)', createdAt: 'datetime' },
       ActivityLog: { id: 'string (cuid)', userId: 'string (FK User)', acao: 'string', detalhes: 'string|null', createdAt: 'datetime' },
       Progresso: { id: 'string (cuid)', moduloId: 'string (FK Modulo)', aulaId: 'string (FK Aula)', userId: 'string (FK User)', concluido: 'boolean', unique: '[moduloId, aulaId, userId]' },
-      TrilhaAtendente: { id: 'string (cuid)', trilhaId: 'string (FK Trilha)', userId: 'string (FK User)', unique: '[trilhaId, userId]' },
     },
     error_format: { error: 'string (human-readable message)' },
     examples: {
       login: { request: 'POST /api/auth/login', body: { email: 'admin@academia.com', password: 'admin123' }, response: { token: 'eyJhbGciOiJIUzI1NiIs...', user: { id: 'clx...', email: 'admin@academia.com', nome: 'Admin', role: 'ADMIN' } } },
-      list_trilhas: { request: 'GET /api/trilhas', headers: { Authorization: 'Bearer <token>' } },
       create_usuario: { request: 'POST /api/usuarios', body: { email: 'user@test.com', nome: 'Juan Perez', senha: 'pass123', role: 'ATENDENTE' } },
     },
   }
@@ -213,11 +203,11 @@ footer{text-align:center;padding:20px;font-size:12px;color:#999}
 <div class="container">
 <header>
   <h1>Academia PayGas - Express API</h1>
-  <p>Backend Express.js con Prisma ORM + MySQL. JWT Auth + AES-256-GCM Encryption.</p>
+  <p>Backend Express.js con Prisma ORM + PostgreSQL. JWT Auth + AES-256-GCM Encryption.</p>
   <span class="badge">v1.0.0</span>
   <span class="badge">Express 5</span>
   <span class="badge">Prisma ORM</span>
-  <span class="badge">MySQL</span>
+  <span class="badge">PostgreSQL</span>
   <span class="badge">JWT Auth</span>
   <span class="badge">AES-256-GCM</span>
 </header>

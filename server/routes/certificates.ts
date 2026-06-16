@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
-import { authenticate } from '../middleware/auth'
+import { authenticate, authorize } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
 
 const router = Router()
@@ -15,7 +15,7 @@ router.get('/', authenticate, async (req: any, res) => {
     const certs = await prisma.certificate.findMany({
       where,
       include: {
-        trilha: { select: { titulo: true, descricao: true } },
+        modulo: { select: { titulo: true, descricao: true } },
         user: { select: { nome: true, email: true } },
       },
       orderBy: { createdAt: 'desc' },
@@ -29,15 +29,15 @@ router.get('/', authenticate, async (req: any, res) => {
 // POST /api/certificates
 router.post('/', authenticate, async (req: any, res) => {
   try {
-    const { trilhaId } = req.body
+    const { moduloId } = req.body
     const existing = await prisma.certificate.findFirst({
-      where: { userId: req.userId, trilhaId },
+      where: { userId: req.userId, moduloId },
     })
     if (existing) return res.status(409).json({ error: 'Certificado já existe' })
 
     const cert = await prisma.certificate.create({
-      data: { userId: req.userId, trilhaId, status: 'PENDING' },
-      include: { trilha: { select: { titulo: true } } },
+      data: { userId: req.userId, moduloId, status: 'PENDING' },
+      include: { modulo: { select: { titulo: true } } },
     })
     res.status(201).json(cert)
   } catch (error) {
@@ -46,7 +46,7 @@ router.post('/', authenticate, async (req: any, res) => {
 })
 
 // PUT /api/certificates/:id/approve
-router.put('/:id/approve', authenticate, async (req: any, res) => {
+router.put('/:id/approve', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
@@ -61,7 +61,7 @@ router.put('/:id/approve', authenticate, async (req: any, res) => {
 })
 
 // PUT /api/certificates/:id/issue
-router.put('/:id/issue', authenticate, async (req, res) => {
+router.put('/:id/issue', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })

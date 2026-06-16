@@ -1,6 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
-import { authenticate } from '../middleware/auth'
+import { authenticate, authorize } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
 
 const router = Router()
@@ -20,7 +20,7 @@ router.get('/', authenticate, async (req: any, res) => {
 })
 
 // POST /api/notifications
-router.post('/', authenticate, async (req: any, res) => {
+router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: any, res) => {
   try {
     const { toId, titulo, mensagem } = req.body
     if (!toId || !titulo || !mensagem) {

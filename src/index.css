@@ -1349,6 +1349,15 @@ a {
   color: #fff;
 }
 
+.lesson-item.locked {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lesson-item.locked:hover {
+  background: transparent;
+}
+
 .lesson-num {
   width: 28px;
   height: 28px;
