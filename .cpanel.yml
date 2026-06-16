@@ -1,0 +1,82 @@
+---
+# ═══════════════════════════════════════════════════════════
+# Academia PayGas - cPanel Deployment Configuration
+# ═══════════════════════════════════════════════════════════
+# Usage: Push to Git → cPanel auto-deploys via Git Version Control
+# Requires: cPanel with Node.js (Phusion Passenger) enabled
+# ═══════════════════════════════════════════════════════════
+
+deployment:
+  tasks:
+    # ─── 1. Environment Setup ──────────────────────────────
+    - export DEPLOYPATH=/home/$USER/academia-paygas
+    - export NODE_ENV=production
+
+    # ─── 2. Create Directory Structure ─────────────────────
+    - /bin/mkdir -p $DEPLOYPATH
+    - /bin/mkdir -p $DEPLOYPATH/tmp
+    - /bin/mkdir -p $DEPLOYPATH/server/certs
+    - /bin/mkdir -p $DEPLOYPATH/dist
+
+    # ─── 3. Copy Project Files ─────────────────────────────
+    # Configuration files
+    - /bin/cp package.json $DEPLOYPATH/
+    - /bin/cp pnpm-lock.yaml $DEPLOYPATH/
+    - /bin/cp package-lock.json $DEPLOYPATH/ 2>/dev/null || true
+    - /bin/cp tsconfig.json $DEPLOYPATH/
+    - /bin/cp tsconfig.server.json $DEPLOYPATH/
+    - /bin/cp vite.config.ts $DEPLOYPATH/
+    - /bin/cp tailwind.config.ts $DEPLOYPATH/
+    - /bin/cp postcss.config.mjs $DEPLOYPATH/
+    - /bin/cp prisma.config.ts $DEPLOYPATH/
+    - /bin/cp index.html $DEPLOYPATH/
+    - /bin/cp app.js $DEPLOYPATH/
+
+    # Source code
+    - /bin/cp -r src $DEPLOYPATH/
+    - /bin/cp -r server $DEPLOYPATH/
+    - /bin/cp -r prisma $DEPLOYPATH/
+    - /bin/cp -r public $DEPLOYPATH/
+    - /bin/cp -r styles $DEPLOYPATH/
+
+    # ─── 4. Copy Environment Variables ─────────────────────
+    - /bin/cp -n .env $DEPLOYPATH/ 2>/dev/null || true
+
+    # ─── 5. Install Dependencies ───────────────────────────
+    - cd $DEPLOYPATH && npm install --production=false
+
+    # ─── 6. Generate Prisma Client ─────────────────────────
+    - cd $DEPLOYPATH && npx prisma generate
+
+    # ─── 7. Run Database Migrations ────────────────────────
+    - cd $DEPLOYPATH && npx prisma migrate deploy
+
+    # ─── 8. Compile Server (TypeScript → JavaScript) ───────
+    - cd $DEPLOYPATH && npx tsc --project tsconfig.server.json
+
+    # ─── 9. Build Frontend (Vite + React) ──────────────────
+    - cd $DEPLOYPATH && npx vite build
+
+    # ─── 10. Fix Compiled Server Module Format ──────────────
+    # Ensure dist/server/index.js uses require() correctly
+    - cd $DEPLOYPATH && sed -i 's/require("\.\/routes/require(".\/routes/g' dist/server/index.js 2>/dev/null || true
+
+    # ─── 11. Set Permissions ───────────────────────────────
+    - /bin/chmod 755 $DEPLOYPATH/app.js
+    - /bin/chmod 644 $DEPLOYPATH/.cpanel.yml
+    - /bin/chmod -R 755 $DEPLOYPATH/server/certs 2>/dev/null || true
+    - /bin/chmod -R 755 $DEPLOYPATH/dist 2>/dev/null || true
+
+    # ─── 12. Restart Passenger ─────────────────────────────
+    - /bin/touch $DEPLOYPATH/tmp/restart.txt
+
+    # ─── 13. Verify Build ──────────────────────────────────
+    - test -f $DEPLOYPATH/dist/server/index.js && echo "✅ Server compiled" || echo "❌ Server compilation failed"
+    - test -d $DEPLOYPATH/dist/assets && echo "✅ Frontend built" || echo "❌ Frontend build failed"
+    - test -f $DEPLOYPATH/node_modules/.prisma/client/index.js && echo "✅ Prisma generated" || echo "❌ Prisma generation failed"
+    - test -f $DEPLOYPATH/dist/index.html && echo "✅ SPA entry exists" || echo "❌ SPA entry missing"
+
+    # ─── 14. Cleanup ───────────────────────────────────────
+    - /bin/rm -rf $DEPLOYPATH/.git 2>/dev/null || true
+    - /bin/rm -rf $DEPLOYPATH/node_modules/.cache 2>/dev/null || true
+    - /bin/rm -rf $DEPLOYPATH/.next 2>/dev/null || true

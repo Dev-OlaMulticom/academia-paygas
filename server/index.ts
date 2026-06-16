@@ -43,25 +43,26 @@ app.get('/api/health', (_req, res) => {
   res.json({ status: 'ok', encrypted: true, timestamp: new Date().toISOString() })
 })
 
-// HTTPS
-const certPath = path.resolve(__dirname, 'certs')
-const keyFile = path.join(certPath, 'key.pem')
-const certFile = path.join(certPath, 'cert.pem')
+// Only start listening when run directly (not when imported by Passenger or test)
+if (require.main === module) {
+  const certPath = path.resolve(__dirname, 'certs')
+  const keyFile = path.join(certPath, 'key.pem')
+  const certFile = path.join(certPath, 'cert.pem')
 
-if (fs.existsSync(keyFile) && fs.existsSync(certFile)) {
-  const httpsOptions = {
-    key: fs.readFileSync(keyFile),
-    cert: fs.readFileSync(certFile),
+  if (fs.existsSync(keyFile) && fs.existsSync(certFile)) {
+    const httpsOptions = {
+      key: fs.readFileSync(keyFile),
+      cert: fs.readFileSync(certFile),
+    }
+
+    https.createServer(httpsOptions, app).listen(PORT, () => {
+      console.log(`🔒 HTTPS Server running on https://localhost:${PORT}`)
+    })
+  } else {
+    app.listen(PORT, () => {
+      console.log(`🚀 HTTP Server running on http://localhost:${PORT} (no SSL certs found)`)
+    })
   }
-
-  https.createServer(httpsOptions, app).listen(PORT, () => {
-    console.log(`🔒 HTTPS Server running on https://localhost:${PORT}`)
-  })
-} else {
-  // Fallback to HTTP if no certs
-  app.listen(PORT, () => {
-    console.log(`🚀 HTTP Server running on http://localhost:${PORT} (no SSL certs found)`)
-  })
 }
 
 export default app
