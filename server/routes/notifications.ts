@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { authenticate } from '../middleware/auth'
+import { getStringParam } from '../utils/queryParams'
 
 const router = Router()
 
@@ -39,8 +40,10 @@ router.post('/', authenticate, async (req: any, res) => {
 // PUT /api/notifications/:id/read
 router.put('/:id/read', authenticate, async (req, res) => {
   try {
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
     const notif = await prisma.notification.update({
-      where: { id: req.params.id },
+      where: { id },
       data: { lida: true },
     })
     res.json(notif)

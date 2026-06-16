@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { authenticate, authorize } from '../middleware/auth'
+import { getStringParam } from '../utils/queryParams'
 
 const router = Router()
 
@@ -13,7 +14,6 @@ router.get('/', authenticate, async (req: any, res) => {
           include: { aulas: true },
           orderBy: { ordem: 'asc' },
         },
-        _count: { select: { modulos: true } },
       },
       orderBy: { titulo: 'asc' },
     })
@@ -47,9 +47,19 @@ router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
 router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     const { titulo, descricao, icon, color, obrigatorio } = req.body
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
+    const updateData: any = {}
+    
+    if (titulo) updateData.titulo = titulo
+    if (descricao) updateData.descricao = descricao
+    if (icon) updateData.icon = icon
+    if (color) updateData.color = color
+    if (typeof obrigatorio === 'boolean') updateData.obrigatorio = obrigatorio
+    
     const trilha = await prisma.trilha.update({
-      where: { id: req.params.id },
-      data: { titulo, descricao, icon, color, obrigatorio },
+      where: { id },
+      data: updateData,
     })
     res.json(trilha)
   } catch (error) {
@@ -60,7 +70,9 @@ router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
 // DELETE /api/trilhas/:id
 router.delete('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
-    await prisma.trilha.delete({ where: { id: req.params.id } })
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
+    await prisma.trilha.delete({ where: { id } })
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ error: 'Erro ao excluir trilha' })
@@ -70,8 +82,10 @@ router.delete('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
 // GET /api/trilhas/:id/modulos
 router.get('/:id/modulos', authenticate, async (req, res) => {
   try {
+    const trilhaId = getStringParam(req.params.id)
+    if (!trilhaId) return res.status(400).json({ error: 'ID inválido' })
     const modulos = await prisma.modulo.findMany({
-      where: { trilhaId: req.params.id },
+      where: { trilhaId },
       include: {
         aulas: { orderBy: { ordem: 'asc' } },
         _count: { select: { aulas: true } },

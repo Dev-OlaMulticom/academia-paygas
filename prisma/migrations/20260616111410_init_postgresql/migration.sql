@@ -1,18 +1,18 @@
--- CreateTable
+-- CreateTable "User"
 CREATE TABLE "User" (
     "id" TEXT NOT NULL PRIMARY KEY,
-    "email" TEXT NOT NULL,
+    "email" TEXT NOT NULL UNIQUE,
     "nome" TEXT NOT NULL,
     "senha" TEXT NOT NULL,
     "role" TEXT NOT NULL,
     "gestorId" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
-    "lastLogin" DATETIME,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "lastLogin" TIMESTAMP(3),
     CONSTRAINT "User_gestorId_fkey" FOREIGN KEY ("gestorId") REFERENCES "User" ("id") ON DELETE SET NULL ON UPDATE CASCADE
 );
 
--- CreateTable
+-- CreateTable "Trilha"
 CREATE TABLE "Trilha" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "titulo" TEXT NOT NULL,
@@ -20,11 +20,11 @@ CREATE TABLE "Trilha" (
     "icon" TEXT NOT NULL,
     "color" TEXT NOT NULL,
     "obrigatorio" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL
 );
 
--- CreateTable
+-- CreateTable "Modulo"
 CREATE TABLE "Modulo" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "trilhaId" TEXT NOT NULL,
@@ -34,12 +34,12 @@ CREATE TABLE "Modulo" (
     "videoUrl" TEXT,
     "videoInicio" INTEGER,
     "videoFim" INTEGER,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "Modulo_trilhaId_fkey" FOREIGN KEY ("trilhaId") REFERENCES "Trilha" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- CreateTable
+-- CreateTable "Aula"
 CREATE TABLE "Aula" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "moduloId" TEXT NOT NULL,
@@ -50,23 +50,23 @@ CREATE TABLE "Aula" (
     "videoInicio" INTEGER,
     "videoFim" INTEGER,
     "duracaoMin" INTEGER,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "Aula_moduloId_fkey" FOREIGN KEY ("moduloId") REFERENCES "Modulo" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- CreateTable
+-- CreateTable "Quiz"
 CREATE TABLE "Quiz" (
     "id" TEXT NOT NULL PRIMARY KEY,
-    "aulaId" TEXT NOT NULL,
+    "aulaId" TEXT NOT NULL UNIQUE,
     "titulo" TEXT NOT NULL,
     "autoGerarCertificado" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "Quiz_aulaId_fkey" FOREIGN KEY ("aulaId") REFERENCES "Aula" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- CreateTable
+-- CreateTable "QuizPergunta"
 CREATE TABLE "QuizPergunta" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "quizId" TEXT NOT NULL,
@@ -77,12 +77,12 @@ CREATE TABLE "QuizPergunta" (
     "opcaoD" TEXT,
     "correta" TEXT NOT NULL,
     "ordem" INTEGER NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "QuizPergunta_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "Quiz" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- CreateTable
+-- CreateTable "QuizResponse"
 CREATE TABLE "QuizResponse" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "quizId" TEXT NOT NULL,
@@ -90,37 +90,37 @@ CREATE TABLE "QuizResponse" (
     "nota" INTEGER NOT NULL,
     "total" INTEGER NOT NULL,
     "concluido" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "QuizResponse_quizId_fkey" FOREIGN KEY ("quizId") REFERENCES "Quiz" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "QuizResponse_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- CreateTable
+-- CreateTable "TrilhaAtendente"
 CREATE TABLE "TrilhaAtendente" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "trilhaId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "TrilhaAtendente_trilhaId_fkey" FOREIGN KEY ("trilhaId") REFERENCES "Trilha" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "TrilhaAtendente_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- CreateTable
+-- CreateTable "Progresso"
 CREATE TABLE "Progresso" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "moduloId" TEXT NOT NULL,
     "aulaId" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "concluido" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "Progresso_moduloId_fkey" FOREIGN KEY ("moduloId") REFERENCES "Modulo" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Progresso_aulaId_fkey" FOREIGN KEY ("aulaId") REFERENCES "Aula" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Progresso_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- CreateTable
+-- CreateTable "Certificate"
 CREATE TABLE "Certificate" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "userId" TEXT NOT NULL,
@@ -129,14 +129,14 @@ CREATE TABLE "Certificate" (
     "pdfUrl" TEXT,
     "htmlContent" TEXT,
     "aprovadoPor" TEXT,
-    "aprovadoEm" DATETIME,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "updatedAt" DATETIME NOT NULL,
+    "aprovadoEm" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
     CONSTRAINT "Certificate_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Certificate_trilhaId_fkey" FOREIGN KEY ("trilhaId") REFERENCES "Trilha" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- CreateTable
+-- CreateTable "Notification"
 CREATE TABLE "Notification" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "fromId" TEXT NOT NULL,
@@ -144,23 +144,20 @@ CREATE TABLE "Notification" (
     "titulo" TEXT NOT NULL,
     "mensagem" TEXT NOT NULL,
     "lida" BOOLEAN NOT NULL DEFAULT false,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "Notification_fromId_fkey" FOREIGN KEY ("fromId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE,
     CONSTRAINT "Notification_toId_fkey" FOREIGN KEY ("toId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
 
--- CreateTable
+-- CreateTable "ActivityLog"
 CREATE TABLE "ActivityLog" (
     "id" TEXT NOT NULL PRIMARY KEY,
     "userId" TEXT NOT NULL,
     "acao" TEXT NOT NULL,
     "detalhes" TEXT,
-    "createdAt" DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT "ActivityLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User" ("id") ON DELETE CASCADE ON UPDATE CASCADE
 );
-
--- CreateIndex
-CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
 -- CreateIndex
 CREATE INDEX "User_gestorId_idx" ON "User"("gestorId");
@@ -172,13 +169,13 @@ CREATE INDEX "Modulo_trilhaId_idx" ON "Modulo"("trilhaId");
 CREATE INDEX "Aula_moduloId_idx" ON "Aula"("moduloId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Quiz_aulaId_key" ON "Quiz"("aulaId");
-
--- CreateIndex
 CREATE INDEX "Quiz_aulaId_idx" ON "Quiz"("aulaId");
 
 -- CreateIndex
 CREATE INDEX "QuizPergunta_quizId_idx" ON "QuizPergunta"("quizId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "QuizResponse_quizId_userId_key" ON "QuizResponse"("quizId", "userId");
 
 -- CreateIndex
 CREATE INDEX "QuizResponse_quizId_idx" ON "QuizResponse"("quizId");
@@ -187,7 +184,7 @@ CREATE INDEX "QuizResponse_quizId_idx" ON "QuizResponse"("quizId");
 CREATE INDEX "QuizResponse_userId_idx" ON "QuizResponse"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "QuizResponse_quizId_userId_key" ON "QuizResponse"("quizId", "userId");
+CREATE UNIQUE INDEX "TrilhaAtendente_trilhaId_userId_key" ON "TrilhaAtendente"("trilhaId", "userId");
 
 -- CreateIndex
 CREATE INDEX "TrilhaAtendente_trilhaId_idx" ON "TrilhaAtendente"("trilhaId");
@@ -196,7 +193,7 @@ CREATE INDEX "TrilhaAtendente_trilhaId_idx" ON "TrilhaAtendente"("trilhaId");
 CREATE INDEX "TrilhaAtendente_userId_idx" ON "TrilhaAtendente"("userId");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "TrilhaAtendente_trilhaId_userId_key" ON "TrilhaAtendente"("trilhaId", "userId");
+CREATE UNIQUE INDEX "Progresso_moduloId_aulaId_userId_key" ON "Progresso"("moduloId", "aulaId", "userId");
 
 -- CreateIndex
 CREATE INDEX "Progresso_moduloId_idx" ON "Progresso"("moduloId");
@@ -206,9 +203,6 @@ CREATE INDEX "Progresso_aulaId_idx" ON "Progresso"("aulaId");
 
 -- CreateIndex
 CREATE INDEX "Progresso_userId_idx" ON "Progresso"("userId");
-
--- CreateIndex
-CREATE UNIQUE INDEX "Progresso_moduloId_aulaId_userId_key" ON "Progresso"("moduloId", "aulaId", "userId");
 
 -- CreateIndex
 CREATE INDEX "Certificate_userId_idx" ON "Certificate"("userId");
