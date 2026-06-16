@@ -1,109 +1,168 @@
-// Simple localStorage-based database for CRUD operations
-// This is a temporary solution. For production, use a real database.
+import Dexie, { type Table } from 'dexie'
 
-const DB_PREFIX = 'academia_paygas_'
-
-interface DBRecord {
+export interface Modulo {
   id: string
-  [key: string]: any
+  titulo: string
+  descricao: string
+  ordem: number
+  videoUrl?: string | null
+  videoInicio?: number | null
+  videoFim?: number | null
+  createdAt?: string
+  updatedAt?: string
 }
 
-class LocalDB {
-  private getCollectionKey(collection: string): string {
-    return `${DB_PREFIX}${collection}`
-  }
+export interface Aula {
+  id: string
+  moduloId: string
+  titulo: string
+  descricao: string
+  ordem: number
+  videoUrl?: string | null
+  videoInicio?: number | null
+  videoFim?: number | null
+  duracaoMin?: number | null
+  createdAt?: string
+  updatedAt?: string
+}
 
-  private generateId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
-  }
+export interface Quiz {
+  id: string
+  aulaId: string
+  titulo: string
+  autoGerarCertificado: boolean
+  createdAt?: string
+  updatedAt?: string
+}
 
-  // Get all records from a collection
-  getAll(collection: string): DBRecord[] {
-    const key = this.getCollectionKey(collection)
-    const data = localStorage.getItem(key)
-    return data ? JSON.parse(data) : []
-  }
+export interface QuizPergunta {
+  id: string
+  quizId: string
+  pergunta: string
+  opcaoA: string
+  opcaoB: string
+  opcaoC?: string | null
+  opcaoD?: string | null
+  correta: string
+  ordem: number
+  createdAt?: string
+  updatedAt?: string
+}
 
-  // Get a single record by id
-  getById(collection: string, id: string): DBRecord | null {
-    const records = this.getAll(collection)
-    return records.find(r => r.id === id) || null
-  }
+export interface QuizResponse {
+  id: string
+  quizId: string
+  userId: string
+  nota: number
+  total: number
+  concluido: boolean
+  createdAt?: string
+  updatedAt?: string
+}
 
-  // Create a new record
-  create(collection: string, data: Omit<DBRecord, 'id'>): DBRecord {
-    const records = this.getAll(collection)
-    const newRecord = { ...data, id: this.generateId() }
-    records.push(newRecord)
-    localStorage.setItem(this.getCollectionKey(collection), JSON.stringify(records))
-    return newRecord
-  }
+export interface Progresso {
+  id: string
+  moduloId: string
+  aulaId: string
+  userId: string
+  concluido: boolean
+  createdAt?: string
+  updatedAt?: string
+}
 
-  // Update a record
-  update(collection: string, id: string, data: Partial<DBRecord>): DBRecord | null {
-    const records = this.getAll(collection)
-    const index = records.findIndex(r => r.id === id)
-    if (index === -1) return null
-    records[index] = { ...records[index], ...data }
-    localStorage.setItem(this.getCollectionKey(collection), JSON.stringify(records))
-    return records[index]
-  }
+export interface Certificate {
+  id: string
+  userId: string
+  moduloId: string
+  status: string
+  pdfUrl?: string | null
+  htmlContent?: string | null
+  aprovadoPor?: string | null
+  aprovadoEm?: string | null
+  createdAt?: string
+  updatedAt?: string
+}
 
-  // Delete a record
-  delete(collection: string, id: string): boolean {
-    const records = this.getAll(collection)
-    const filtered = records.filter(r => r.id !== id)
-    if (filtered.length === records.length) return false
-    localStorage.setItem(this.getCollectionKey(collection), JSON.stringify(filtered))
-    return true
-  }
+export interface Notification {
+  id: string
+  fromId: string
+  toId: string
+  titulo: string
+  mensagem: string
+  lida: boolean
+  createdAt?: string
+}
 
-  // Find records by filter
-  find(collection: string, filter: (record: DBRecord) => boolean): DBRecord[] {
-    const records = this.getAll(collection)
-    return records.filter(filter)
-  }
+export interface ActivityLog {
+  id: string
+  userId: string
+  acao: string
+  detalhes?: string | null
+  createdAt?: string
+}
 
-  // Clear a collection
-  clear(collection: string): void {
-    localStorage.removeItem(this.getCollectionKey(collection))
-  }
+export interface PointsTransaction {
+  id: string
+  userId: string
+  action: string
+  points: number
+  details?: string | null
+  createdAt?: string
+}
 
-  // Initialize with seed data
-  seed(collection: string, data: DBRecord[]): void {
-    const existing = this.getAll(collection)
-    if (existing.length === 0) {
-      localStorage.setItem(this.getCollectionKey(collection), JSON.stringify(data))
-    }
+export interface User {
+  id: string
+  email: string
+  nome: string
+  role: string
+  xp: number
+  emailVerificado?: boolean
+  gestorId?: string | null
+  createdAt?: string
+  updatedAt?: string
+  lastLogin?: string | null
+}
+
+export interface SyncQueueItem {
+  id?: number
+  method: string
+  path: string
+  body: string
+  createdAt: string
+  retryCount: number
+}
+
+class AcademiaDB extends Dexie {
+  modulos!: Table<Modulo>
+  aulas!: Table<Aula>
+  quizzes!: Table<Quiz>
+  perguntas!: Table<QuizPergunta>
+  quizResponses!: Table<QuizResponse>
+  progressos!: Table<Progresso>
+  certificates!: Table<Certificate>
+  notifications!: Table<Notification>
+  activityLogs!: Table<ActivityLog>
+  pointsTransactions!: Table<PointsTransaction>
+  users!: Table<User>
+  syncQueue!: Table<SyncQueueItem>
+
+  constructor() {
+    super('academia-paygas')
+    this.version(2).stores({
+      modulos: 'id',
+      aulas: 'id, moduloId',
+      quizzes: 'id, aulaId',
+      perguntas: 'id, quizId',
+      quizResponses: 'id, quizId, userId',
+      progressos: 'id, [moduloId+aulaId+userId], userId',
+      certificates: 'id, userId, moduloId',
+      notifications: 'id, toId',
+      activityLogs: 'id, userId',
+      pointsTransactions: 'id, userId',
+      users: 'id, email',
+      syncQueue: '++id, createdAt',
+    })
   }
 }
 
-export const db = new LocalDB()
-
-// Initialize seed data
-export function initSeedData() {
-  // Seed users if empty
-  db.seed('users', [
-    { id: '1', nome: 'Admin PayGas', email: 'admin@paygas.com.br', senha: '123456', role: 'ADMIN', xp: 0, lastLogin: new Date().toISOString() },
-    { id: '2', nome: 'Gestor de Posto', email: 'gestor@paygas.com.br', senha: '123456', role: 'GESTOR', xp: 0, lastLogin: new Date().toISOString() },
-    { id: '3', nome: 'Atendente', email: 'atendente@paygas.com.br', senha: '123456', role: 'ATENDENTE', xp: 0, lastLogin: new Date().toISOString() },
-  ])
-
-  // Seed tracks if empty
-  db.seed('tracks', [])
-
-  // Seed modules if empty
-  db.seed('modules', [])
-
-  // Seed lessons if empty
-  db.seed('lessons', [])
-
-  // Seed notifications if empty
-  db.seed('notifications', [])
-
-  // Seed certificates if empty
-  db.seed('certificates', [])
-
-  // Seed progress if empty
-  db.seed('progress', [])
-}
+export const db = new AcademiaDB()

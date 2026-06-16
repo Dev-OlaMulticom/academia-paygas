@@ -3,10 +3,10 @@ import { useAuth } from './hooks/useAuth'
 import { AppLayout } from './layouts/AppLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
 import { LoginPage } from './pages/LoginPage'
+import { VerificarEmailPage } from './pages/VerificarEmailPage'
 import { DashboardPage } from './pages/DashboardPage'
-import { TrilhasPage } from './pages/TrilhasPage'
-import { TrilhaModulosPage } from './pages/TrilhaModulosPage'
 import { ModulosPage } from './pages/ModulosPage'
+import { ModulosListPage } from './pages/ModulosListPage'
 import { CertificadosPage } from './pages/CertificadosPage'
 import { EquipePage } from './pages/EquipePage'
 import { RelatoriosPage } from './pages/RelatoriosPage'
@@ -17,9 +17,15 @@ import { NotifPage } from './pages/NotifPage'
 import { PerfilPage } from './pages/PerfilPage'
 import './index.css'
 
+function RoleRoute({ user, allowedRoles, children }: { user: any; allowedRoles: string[]; children: React.ReactNode }) {
+  if (!user || !allowedRoles.includes(user.role)) {
+    return <Navigate to="/" replace />
+  }
+  return <>{children}</>
+}
+
 export default function App() {
-  const { user, xp, isAuthenticated, handleLogin, handleLogout, getMyTracks } = useAuth()
-  const tracks = getMyTracks()
+  const { user, xp, isAuthenticated, handleLogin, handleLogout } = useAuth()
 
   return (
     <BrowserRouter>
@@ -31,23 +37,42 @@ export default function App() {
           }
         />
         <Route
+          path="/verificar-email"
+          element={<VerificarEmailPage />}
+        />
+        <Route
           path="/*"
           element={
             <ProtectedRoute user={user}>
-              <AppLayout user={user!} xp={xp} tracksCount={tracks.length} onLogout={handleLogout}>
+              <AppLayout user={user!} xp={xp} onLogout={handleLogout}>
                 <Routes>
-                  <Route path="/" element={<DashboardPage xp={xp} tracks={tracks} />} />
-                  <Route path="/trilhas-aprendizado" element={<TrilhasPage tracks={tracks} />} />
-                  <Route path="/trilhas-aprendizado/:trilhaId" element={<TrilhaModulosPage />} />
+                  <Route path="/" element={<DashboardPage xp={xp} user={user} />} />
+                  <Route path="/modulos" element={<ModulosListPage />} />
                   <Route path="/modulo/:moduloNombre" element={<ModulosPage />} />
-                  <Route path="/certificados" element={<CertificadosPage tracks={tracks} />} />
-                  <Route path="/equipe" element={<EquipePage user={user!} />} />
-                  <Route path="/relatorios" element={<RelatoriosPage user={user!} />} />
+                  <Route path="/certificados" element={<CertificadosPage />} />
+                  <Route path="/equipe" element={
+                    <RoleRoute user={user} allowedRoles={['ADMIN', 'GESTOR']}>
+                      <EquipePage user={user!} />
+                    </RoleRoute>
+                  } />
+                  <Route path="/relatorios" element={
+                    <RoleRoute user={user} allowedRoles={['ADMIN', 'GESTOR']}>
+                      <RelatoriosPage user={user!} />
+                    </RoleRoute>
+                  } />
                   <Route path="/cms" element={<CMSPage user={user!} />} />
-                  <Route path="/cms/criar-modulo" element={<CriarModuloPage user={user!} />} />
-                  <Route path="/usuarios" element={<UsuariosPage user={user!} />} />
+                  <Route path="/cms/criar-modulo" element={
+                    <RoleRoute user={user} allowedRoles={['ADMIN']}>
+                      <CriarModuloPage user={user!} />
+                    </RoleRoute>
+                  } />
+                  <Route path="/usuarios" element={
+                    <RoleRoute user={user} allowedRoles={['ADMIN']}>
+                      <UsuariosPage user={user!} />
+                    </RoleRoute>
+                  } />
                   <Route path="/notif" element={<NotifPage user={user!} />} />
-                  <Route path="/perfil" element={<PerfilPage user={user!} xp={xp} tracks={tracks} />} />
+                  <Route path="/perfil" element={<PerfilPage user={user!} xp={xp} />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>
               </AppLayout>

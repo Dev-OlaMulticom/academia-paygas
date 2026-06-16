@@ -6,6 +6,7 @@ const IV_LENGTH = 16
 const ITERATIONS = 100000
 const KEY_LENGTH = 32
 const SALT_LENGTH = 64
+const AUTH_TAG_LENGTH = 16
 
 const SECRET_KEY = process.env.ENCRYPTION_KEY || 'academia-paygas-encryption-key-2026-production'
 
@@ -17,10 +18,13 @@ function decryptSync(encryptedData: string): string {
   const combined = Buffer.from(encryptedData, 'base64')
   const salt = combined.subarray(0, SALT_LENGTH)
   const iv = combined.subarray(SALT_LENGTH, SALT_LENGTH + IV_LENGTH)
-  const data = combined.subarray(SALT_LENGTH + IV_LENGTH)
+  const dataWithTag = combined.subarray(SALT_LENGTH + IV_LENGTH)
+  const data = dataWithTag.subarray(0, dataWithTag.length - AUTH_TAG_LENGTH)
+  const authTag = dataWithTag.subarray(dataWithTag.length - AUTH_TAG_LENGTH)
 
   const key = deriveKey(salt)
   const decipher = crypto.createDecipheriv(ALGORITHM, key, iv)
+  decipher.setAuthTag(authTag)
   const decrypted = Buffer.concat([decipher.update(data), decipher.final()])
   return decrypted.toString('utf8')
 }
@@ -32,8 +36,9 @@ function encryptSync(text: string): string {
 
   const cipher = crypto.createCipheriv(ALGORITHM, key, iv)
   const encrypted = Buffer.concat([cipher.update(text, 'utf8'), cipher.final()])
+  const authTag = cipher.getAuthTag()
 
-  const combined = Buffer.concat([salt, iv, encrypted])
+  const combined = Buffer.concat([salt, iv, encrypted, authTag])
   return combined.toString('base64')
 }
 

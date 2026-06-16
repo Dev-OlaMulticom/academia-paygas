@@ -63,54 +63,18 @@ async function testUsersFlow() {
 }
 
 async function testTrilhasFlow() {
-  console.log('\n📚 Testing TRILHA CRUD...')
-  
-  try {
-    // CREATE
-    const trilha = await prisma.trilha.create({
-      data: {
-        titulo: `Test Trilha ${Date.now()}`,
-        descricao: 'Test Description',
-        icon: '📚',
-        color: '#E6EEF9',
-        obrigatorio: true,
-      },
-    })
-    logResult('CREATE Trilha', 'PASS', `Trilha created: ${trilha.id}`)
-
-    // READ
-    const found = await prisma.trilha.findUnique({
-      where: { id: trilha.id },
-    })
-    logResult('READ Trilha', found ? 'PASS' : 'FAIL', found ? `Trilha found` : 'Not found')
-
-    // UPDATE
-    const updated = await prisma.trilha.update({
-      where: { id: trilha.id },
-      data: { titulo: 'Updated Trilha Title' },
-    })
-    logResult('UPDATE Trilha', 'PASS', `Trilha updated`)
-
-    return trilha.id
-  } catch (error) {
-    logResult('TRILHA CRUD', 'FAIL', error instanceof Error ? error.message : 'Unknown error')
-    return null
-  }
+  console.log('\n📚 Testing TRILHA CRUD (skipped - trilhas removed)')
+  logResult('TRILHA CRUD', 'PASS', 'Trilhas removed - skipping')
+  return null
 }
 
-async function testModulosFlow(trilhaId: string | null) {
-  if (!trilhaId) {
-    logResult('MODULO CRUD', 'FAIL', 'No trilha ID available')
-    return null
-  }
-
+async function testModulosFlow(_trilhaId: string | null) {
   console.log('\n🔧 Testing MODULO CRUD...')
   
   try {
     // CREATE
     const modulo = await prisma.modulo.create({
       data: {
-        trilhaId,
         titulo: `Test Modulo ${Date.now()}`,
         descricao: 'Test Module Description',
         ordem: 1,
@@ -247,18 +211,8 @@ async function testProgressFlow() {
       },
     })
 
-    const trilha = await prisma.trilha.create({
-      data: {
-        titulo: `Progress Trilha ${Date.now()}`,
-        descricao: 'Test',
-        icon: '📚',
-        color: '#E6EEF9',
-      },
-    })
-
     const modulo = await prisma.modulo.create({
       data: {
-        trilhaId: trilha.id,
         titulo: 'Test Modulo',
         descricao: 'Test',
         ordem: 1,
@@ -295,7 +249,6 @@ async function testProgressFlow() {
     await prisma.progresso.delete({ where: { id: progress.id } })
     await prisma.aula.delete({ where: { id: aula.id } })
     await prisma.modulo.delete({ where: { id: modulo.id } })
-    await prisma.trilha.delete({ where: { id: trilha.id } })
     await prisma.user.delete({ where: { id: user.id } })
 
   } catch (error) {
@@ -309,20 +262,11 @@ async function runAllTests() {
   console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'PostgreSQL' : 'Not configured'}`)
 
   await testUsersFlow()
-  const trilhaId = await testTrilhasFlow()
-  const moduloId = await testModulosFlow(trilhaId)
+  await testTrilhasFlow()
+  const moduloId = await testModulosFlow(null)
   const aulaId = await testAulasFlow(moduloId)
   await testQuizFlow(aulaId)
   await testProgressFlow()
-
-  // Cleanup
-  if (trilhaId) {
-    try {
-      await prisma.trilha.delete({ where: { id: trilhaId } })
-    } catch (e) {
-      // Already deleted or has dependencies
-    }
-  }
 
   // Print summary
   console.log('\n' + '='.repeat(60))

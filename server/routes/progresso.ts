@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { authenticate } from '../middleware/auth'
+import { awardPoints } from '../services/gamification'
 
 const router = Router()
 
@@ -10,7 +11,7 @@ router.get('/', authenticate, async (req: any, res) => {
     const progresso = await prisma.progresso.findMany({
       where: { userId: req.userId },
       include: {
-        modulo: { select: { id: true, titulo: true, trilhaId: true } },
+        modulo: { select: { id: true, titulo: true } },
         aula: { select: { id: true, titulo: true } },
       },
     })
@@ -28,6 +29,10 @@ router.put('/', authenticate, async (req: any, res) => {
       return res.status(400).json({ error: 'moduloId e aulaId são obrigatórios' })
     }
 
+    const existing = await prisma.progresso.findFirst({
+      where: { moduloId, aulaId, userId: req.userId },
+    })
+
     const progresso = await prisma.progresso.upsert({
       where: {
         moduloId_aulaId_userId: { moduloId, aulaId, userId: req.userId },
@@ -35,6 +40,33 @@ router.put('/', authenticate, async (req: any, res) => {
       update: { concluido: concluido !== false },
       create: { moduloId, aulaId, userId: req.userId, concluido: concluido !== false },
     })
+
+    // Award points for lesson completion (only if newly completed)
+    if (!existing?.concluido && concluido !== false) {
+      const aula = await prisma.aula.findUnique({ where: { id: aulaId } })
+      await awardPoints(req.userId, 'LESSON_COMPLETE', `Aula: ${aula?.titulo || aulaId}`)
+
+      // Check if all aulas in the modulo are completed
+      const modulo = await prisma.modulo.findUnique({
+        where: { id: moduloId },
+        include: { aulas: true },
+      })
+
+      if (modulo) {
+        const completedCount = await prisma.progresso.count({
+          where: {
+            moduloId,
+            userId: req.userId,
+            concluido: true,
+          },
+        })
+
+        if (completedCount >= modulo.aulas.length) {
+          await awardPoints(req.userId, 'MODULE_COMPLETE', `Modulo: ${modulo.titulo}`)
+        }
+      }
+    }
+
     res.json(progresso)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao atualizar progresso' })
@@ -49,24 +81,22 @@ router.get('/stats', authenticate, async (req: any, res) => {
       where: { userId: req.userId, concluido: true },
     })
 
-    const trilhasIniciadas = await prisma.progresso.groupBy({
+    const modulosIniciados = await prisma.progresso.groupBy({
       by: ['moduloId'],
       where: { userId: req.userId },
     })
 
-    const trilhasComProgresso = await prisma.modulo.findMany({
-      where: { id: { in: trilhasIniciadas.map(t => t.moduloId) } },
-      select: { trilhaId: true },
+    const user = await prisma.user.findUnique({
+      where: { id: req.userId },
+      select: { xp: true },
     })
-
-    const uniqueTrilhas = [...new Set(trilhasComProgresso.map(t => t.trilhaId))]
 
     res.json({
       totalAulas,
       concluidas,
       percentual: totalAulas > 0 ? Math.round((concluidas / totalAulas) * 100) : 0,
-      trilhasIniciadas: uniqueTrilhas.length,
-      xp: concluidas * 150,
+      modulosIniciados: modulosIniciados.length,
+      xp: user?.xp || 0,
     })
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar estatísticas' })

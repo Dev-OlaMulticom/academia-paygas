@@ -217,11 +217,11 @@ export function CMSPage({ user }: CMSPageProps) {
           </div>
         </div>
         {view === 'modulos' ? (
-          <button className="btn-primary" onClick={() => navigate('/cms/criar-modulo')}>+ Novo Módulo</button>
+          isAdmin && <button className="btn-primary" onClick={() => navigate('/cms/criar-modulo')}>+ Novo Módulo</button>
         ) : (
           <>
             <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => setView('modulos')}><i className="icon-arrow-left icon-sm" /> Voltar aos Módulos</button>
-            <button className="btn-primary" onClick={() => setShowAulaModal(true)}>+ Nova Aula</button>
+            {isAdmin && <button className="btn-primary" onClick={() => setShowAulaModal(true)}>+ Nova Aula</button>}
           </>
         )}
       </div>
@@ -241,7 +241,7 @@ export function CMSPage({ user }: CMSPageProps) {
                     <td>{mod._count?.aulas || 0} aulas</td>
                     <td style={{ display: 'flex', gap: '6px' }}>
                       <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => { setSelectedModulo(mod); setView('aulas') }}><i className="icon-book-open icon-xs" /> Aulas</button>
-                      <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingMod({ ...mod, obrigatorio: mod.obrigatorio || false, disponivelParaTodos: mod.disponivelParaTodos !== false, disponivelParaGestores: mod.disponivelParaGestores || [], autoCertificado: mod.autoCertificado || false })}><i className="icon-pencil icon-xs" /> Editar</button>
+                      {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingMod({ ...mod, obrigatorio: mod.obrigatorio || false, disponivelParaTodos: mod.disponivelParaTodos !== false, disponivelParaGestores: mod.disponivelParaGestores || [], autoCertificado: mod.autoCertificado || false })}><i className="icon-pencil icon-xs" /> Editar</button>}
                       {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDeleteModulo(mod.id)}><i className="icon-trash-2 icon-xs" /></button>}
                     </td>
                   </tr>
@@ -275,7 +275,7 @@ export function CMSPage({ user }: CMSPageProps) {
                       </button>
                     </td>
                     <td style={{ display: 'flex', gap: '6px' }}>
-                      <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingAula({ ...aula })}><i className="icon-pencil icon-xs" /> Editar</button>
+                      {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingAula({ ...aula })}><i className="icon-pencil icon-xs" /> Editar</button>}
                       {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDeleteAula(aula.id)}><i className="icon-trash-2 icon-xs" /></button>}
                     </td>
                   </tr>

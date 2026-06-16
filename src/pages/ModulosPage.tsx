@@ -38,6 +38,8 @@ export function ModulosPage() {
         setModulo(foundModulo)
         const aulasData = await api.getAulas(foundModulo.id)
         setLessons(aulasData)
+        // Track module open for gamification
+        api.trackModuleOpen(foundModulo.id).catch(() => {})
       } else {
         setModulo(null)
         setLessons([])
@@ -136,7 +138,7 @@ export function ModulosPage() {
       <div className="page active">
         <div className="page-header">
           <div>
-            <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }} onClick={() => navigate('/trilhas-aprendizado')}><i className="icon-arrow-left icon-sm" /> Voltar às Trilhas</button>
+            <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }} onClick={() => navigate('/cms')}><i className="icon-arrow-left icon-sm" /> Voltar</button>
             <div className="page-title">Módulo não encontrado</div>
           </div>
         </div>
@@ -159,16 +161,39 @@ export function ModulosPage() {
             <h3>{modulo.titulo}</h3>
             <p>{lessons.length} aulas</p>
           </div>
-          {lessons.map((lesson, i) => (
-            <div key={lesson.id || i} className={`lesson-item ${i === currentLesson ? 'active' : ''} ${lesson.concluido ? 'done' : ''}`} onClick={() => { setCurrentLesson(i); setShowQuiz(false); setSelectedAnswers({}); setQuizSubmitted(false); setQuizResult(null) }}>
-              <div className="lesson-num">{lesson.concluido ? <i className="icon-check icon-sm" /> : i + 1}</div>
-              <div className="lesson-item-info">
-                <b>{lesson.titulo}</b>
-                <span>{lesson.quiz ? 'Quiz' : (lesson.videoUrl ? 'Vídeo' : 'PDF')} · {lesson.duracaoMin || 10} min</span>
+          {lessons.map((lesson, i) => {
+            const isQuiz = !!lesson.quiz
+            const isCert = lesson.tipo === 'certificado' || lesson.titulo?.toLowerCase().includes('certificado')
+            const isDisabled = isQuiz || isCert
+            const prevAllDone = i === 0 || lessons.slice(0, i).every((l: any) => l.concluido)
+            const canClick = !isDisabled || prevAllDone
+
+            return (
+              <div
+                key={lesson.id || i}
+                className={`lesson-item ${i === currentLesson ? 'active' : ''} ${lesson.concluido ? 'done' : ''} ${isDisabled && !prevAllDone ? 'locked' : ''}`}
+                onClick={() => {
+                  if (!canClick) return
+                  setCurrentLesson(i)
+                  setShowQuiz(false)
+                  setSelectedAnswers({})
+                  setQuizSubmitted(false)
+                  setQuizResult(null)
+                }}
+                style={!canClick ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+              >
+                <div className="lesson-num">
+                  {lesson.concluido ? <i className="icon-check icon-sm" /> : isDisabled && !prevAllDone ? <i className="icon-lock icon-sm" /> : i + 1}
+                </div>
+                <div className="lesson-item-info">
+                  <b>{lesson.titulo}</b>
+                  <span>{isQuiz ? 'Quiz' : isCert ? 'Certificado' : (lesson.videoUrl ? 'Vídeo' : 'PDF')} · {lesson.duracaoMin || 10} min</span>
+                </div>
+                {lesson.concluido && <span className="lesson-check"><i className="icon-check icon-sm" /></span>}
+                {isDisabled && !prevAllDone && !lesson.concluido && <span style={{ color: 'var(--gray-400)', fontSize: '14px' }}><i className="icon-lock icon-sm" /></span>}
               </div>
-              {lesson.concluido && <span className="lesson-check"><i className="icon-check icon-sm" /></span>}
-            </div>
-          ))}
+            )
+          })}
           {lessons.length > 0 && lessons.every((l: any) => l.concluido) && (
             <div style={{ padding: '16px', textAlign: 'center', background: '#E8F5E9', borderRadius: '8px', marginTop: '12px' }}>
               <i className="icon-check-circle icon-lg" style={{ color: '#2E7D32' }} />
@@ -216,10 +241,24 @@ export function ModulosPage() {
                 )}
                 <div className="lesson-actions">
                   {!current?.concluido ? (
-                    <button className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }} onClick={handleConcluir}>
-                      {current?.quiz ? 'Iniciar Quiz' : 'Concluir e Avançar'}
-                      {!current?.quiz && <i className="icon-chevron-right icon-sm" />}
-                    </button>
+                    <>
+                      {current?.quiz ? (
+                        <>
+                          <button className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }} onClick={handleConcluir}>
+                            Iniciar Quiz <i className="icon-chevron-right icon-sm" />
+                          </button>
+                          {currentLesson < lessons.length - 1 && (
+                            <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }} onClick={handleAvanzar}>
+                              Próximo <i className="icon-chevron-right icon-sm" />
+                            </button>
+                          )}
+                        </>
+                      ) : (
+                        <button className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }} onClick={handleConcluir}>
+                          Concluir e Avançar <i className="icon-chevron-right icon-sm" />
+                        </button>
+                      )}
+                    </>
                   ) : (
                     <>
                       {currentLesson < lessons.length - 1 && (

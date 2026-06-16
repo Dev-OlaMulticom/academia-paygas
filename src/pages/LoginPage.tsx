@@ -83,7 +83,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         <span className="ver-badge-login">V26 — Edição Nacional</span>
         <div className="login-bg-content">
           <h1>Capacitação <span>Nacional</span><br/>em um só lugar</h1>
-          <p>A Academia PayGas conecta postos, parceiros e comunidades em todo o Brasil com conteúdo profissional, trilhas personalizadas e certificação reconhecida.</p>
+          <p>A Academia PayGas conecta postos, parceiros e comunidades em todo o Brasil com conteúdo profissional, módulos personalizados e certificação reconhecida.</p>
           <div className="login-stats" style={{ gridTemplateColumns: '1fr 1fr' }}>
             <div className="login-stat"><b>12.400+</b><span>Usuários ativos</span></div>
             <div className="login-stat"><b>27</b><span>Estados cobertos</span></div>

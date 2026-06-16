@@ -1,3 +1,4 @@
+import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
 import https from 'https'
@@ -6,7 +7,6 @@ import path from 'path'
 import { encryptedPayload } from './middleware/encryption'
 import authRoutes from './routes/auth'
 import usuariosRoutes from './routes/usuarios'
-import trilhasRoutes from './routes/trilhas'
 import cmsRoutes from './routes/cms'
 import certificatesRoutes from './routes/certificates'
 import notificationsRoutes from './routes/notifications'
@@ -31,7 +31,6 @@ app.use((req, res, next) => {
 
 app.use('/api/auth', authRoutes)
 app.use('/api/usuarios', usuariosRoutes)
-app.use('/api/trilhas', trilhasRoutes)
 app.use('/api/cms', cmsRoutes)
 app.use('/api/modulos', cmsRoutes)
 app.use('/api/certificates', certificatesRoutes)

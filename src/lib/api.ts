@@ -1,11 +1,9 @@
-import { db, initSeedData } from './db'
 import { encrypt, decrypt } from './crypto'
+import { db } from './db'
+import { queueSync, isOnline } from './sync'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 const API_KEY = import.meta.env.VITE_API_KEY || ''
-
-// Initialize seed data on load (fallback if API fails)
-initSeedData()
 
 class ApiClient {
   private token: string | null = null
@@ -32,7 +30,6 @@ class ApiClient {
       ...((options.headers as Record<string, string>) || {}),
     }
 
-    // Add API Key header for WordPress API authentication
     if (API_KEY) {
       headers['X-API-Key'] = API_KEY
     }
@@ -43,7 +40,6 @@ class ApiClient {
 
     let body = options.body as string | undefined
 
-    // Encrypt write requests with payload
     if (isWrite && body && this.encryptionEnabled) {
       try {
         const parsed = JSON.parse(body)
@@ -52,7 +48,7 @@ class ApiClient {
         headers['Content-Type'] = 'application/json'
         headers['X-Encrypted'] = 'true'
       } catch {
-        // If body isn't JSON, pass through
+        // pass through
       }
     } else if (body && !headers['Content-Type']) {
       headers['Content-Type'] = 'application/json'
@@ -71,7 +67,6 @@ class ApiClient {
 
     const data = await res.json()
 
-    // Decrypt encrypted response
     if (data?.encrypted && this.encryptionEnabled) {
       try {
         const decrypted = await decrypt(data.encrypted)
@@ -84,57 +79,91 @@ class ApiClient {
     return data
   }
 
-  // Auth
-  async login(email: string, password: string) {
+  private async getWithCache<T>(
+    path: string,
+    table: any,
+    options?: { index?: string; indexValue?: any }
+  ): Promise<T> {
     try {
-      // Try to use WordPress API for authentication
-      const response = await this.request<{ token: string; user: any }>('/login', {
-        method: 'POST',
-        body: JSON.stringify({ email, password }),
-      })
-
-      this.setToken(response.token)
-      localStorage.setItem('user', JSON.stringify(response.user))
-
-      return response
+      const data = await this.request<T>(path)
+      if (Array.isArray(data)) {
+        await table.bulkPut(data)
+      } else {
+        await table.put(data as any)
+      }
+      return data
     } catch (error) {
-      // Fallback to local database if API fails
-      console.warn('API login failed, using local database:', error)
-      const users = db.getAll('users')
-      const user = users.find((u: any) => u.email === email && u.senha === password)
-
-      if (!user) {
-        throw new Error('Credenciais inválidas')
+      let cached: any[]
+      if (options?.index && options?.indexValue !== undefined) {
+        cached = await table.where(options.index).equals(options.indexValue).toArray()
+      } else {
+        cached = await table.toArray()
       }
-
-      const token = `mock-token-${Date.now()}-${Math.random().toString(36).substr(2)}`
-      this.setToken(token)
-
-      return {
-        token,
-        user: {
-          id: user.id,
-          email: user.email,
-          role: user.role,
-          nome: user.nome,
-        }
+      if (cached && cached.length > 0) {
+        return cached as T
       }
+      throw error
     }
+  }
+
+  private async writeWithCache<T>(
+    path: string,
+    method: string,
+    body: any,
+    table: any,
+    options?: { offlineTransform?: (body: any) => any }
+  ): Promise<T> {
+    const token = this.token
+    if (isOnline() && token) {
+      try {
+        const result = await this.request<T>(path, { method, body: JSON.stringify(body) })
+        if (table) {
+          if (Array.isArray(result)) {
+            await table.bulkPut(result)
+          } else {
+            await table.put(result as any)
+          }
+        }
+        return result
+      } catch (error) {
+        await queueSync(method, path, body)
+        const offlineData = options?.offlineTransform ? options.offlineTransform(body) : { ...body, id: `pending-${Date.now()}`, _pending: true }
+        if (table) await table.put(offlineData as any)
+        return offlineData as T
+      }
+    } else {
+      await queueSync(method, path, body)
+      const offlineData = options?.offlineTransform ? options.offlineTransform(body) : { ...body, id: `pending-${Date.now()}`, _pending: true }
+      if (table) await table.put(offlineData as any)
+      return offlineData as T
+    }
+  }
+
+  // ==================== AUTH ====================
+
+  async login(email: string, password: string) {
+    const response = await this.request<{ token: string; user: any }>('/auth/login', {
+      method: 'POST',
+      body: JSON.stringify({ email, password }),
+    })
+    this.setToken(response.token)
+    localStorage.setItem('user', JSON.stringify(response.user))
+    return response
   }
 
   async getMe() {
     const token = this.token
     if (!token) throw new Error('Não autenticado')
-
     try {
-      // Try to use WordPress API
-      return await this.request<any>('/me')
+      const user = await this.request<any>('/auth/me')
+      await db.users.put(user)
+      return user
     } catch (error) {
-      // Fallback to localStorage
-      console.warn('API getMe failed, using localStorage:', error)
-      const userStr = localStorage.getItem('user')
-      if (!userStr) throw new Error('Usuário não encontrado')
-      return JSON.parse(userStr)
+      const cached = await db.users.toArray()
+      const stored = localStorage.getItem('user')
+      if (stored) return JSON.parse(stored)
+      if (cached.length > 0) return cached[0]
+      throw error
     }
   }
 
@@ -143,430 +172,355 @@ class ApiClient {
     localStorage.removeItem('user')
   }
 
-  // Usuarios
+  // ==================== USUARIOS ====================
+
   async getUsuarios() {
-    try {
-      return await this.request<any[]>('/users')
-    } catch (error) {
-      console.warn('API getUsuarios failed, using local database:', error)
-      return db.getAll('users')
-    }
+    return this.getWithCache<any[]>('/usuarios', db.users)
   }
 
   async createUsuario(data: { email: string; nome: string; senha: string; role: string }) {
-    try {
-      return await this.request<any>('/users', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      })
-    } catch (error) {
-      console.warn('API createUsuario failed, using local database:', error)
-      return db.create('users', { ...data, xp: 0, lastLogin: new Date().toISOString() })
-    }
+    return this.writeWithCache('/usuarios', 'POST', data, db.users)
   }
 
   async updateUsuario(id: string, data: any) {
-    try {
-      return await this.request<any>(`/users/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      })
-    } catch (error) {
-      console.warn('API updateUsuario failed, using local database:', error)
-      return db.update('users', id, data)
-    }
+    return this.writeWithCache(`/usuarios/${id}`, 'PUT', data, db.users, {
+      offlineTransform: (body) => ({ ...body, id }),
+    })
   }
 
   async deleteUsuario(id: string) {
-    try {
-      return await this.request<any>(`/users/${id}`, {
-        method: 'DELETE',
-      })
-    } catch (error) {
-      console.warn('API deleteUsuario failed, using local database:', error)
-      return db.delete('users', id)
+    if (isOnline() && this.token) {
+      try {
+        await this.request(`/usuarios/${id}`, { method: 'DELETE' })
+        await db.users.delete(id)
+        return
+      } catch (error) {
+        await queueSync('DELETE', `/usuarios/${id}`)
+        await db.users.delete(id)
+        return
+      }
     }
+    await queueSync('DELETE', `/usuarios/${id}`)
+    await db.users.delete(id)
+  }
+
+  // ==================== EMAIL VERIFICATION ====================
+
+  async verifyEmail(token: string) {
+    return await this.request<{ message: string; alreadyVerified?: boolean }>(`/auth/verify-email?token=${token}`)
+  }
+
+  async validateAccount(id: string) {
+    return await this.request<{ message: string }>(`/usuarios/${id}/validate-account`, {
+      method: 'POST',
+    })
+  }
+
+  async resendVerification(id: string) {
+    return await this.request<{ message: string }>(`/usuarios/${id}/resend-verification`, {
+      method: 'POST',
+    })
   }
 
   async getEquipe() {
-    try {
-      return await this.request<any[]>('/users')
-    } catch (error) {
-      console.warn('API getEquipe failed, using local database:', error)
-      const currentUserStr = localStorage.getItem('user')
-      const currentUser = currentUserStr ? JSON.parse(currentUserStr) : null
-      const allUsers = db.getAll('users')
-      return allUsers.filter((u: any) => u.id !== currentUser?.id)
-    }
+    return this.getWithCache<any[]>('/usuarios/equipe', db.users)
   }
 
-  // Trilhas
-  async getTrilhas() {
-    try {
-      return await this.request<any[]>('/trilhas')
-    } catch (error) {
-      console.warn('API getTrilhas failed, using local database:', error)
-      return db.getAll('tracks')
-    }
-  }
+  // ==================== CMS - MODULOS ====================
 
-  async createTrilha(data: any) {
-    try {
-      return await this.request<any>('/trilhas', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      })
-    } catch (error) {
-      console.warn('API createTrilha failed, using local database:', error)
-      return db.create('tracks', data)
-    }
-  }
-
-  async updateTrilha(id: string, data: any) {
-    try {
-      return await this.request<any>(`/trilhas/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      })
-    } catch (error) {
-      console.warn('API updateTrilha failed, using local database:', error)
-      return db.update('tracks', id, data)
-    }
-  }
-
-  async deleteTrilha(id: string) {
-    try {
-      return await this.request<any>(`/trilhas/${id}`, {
-        method: 'DELETE',
-      })
-    } catch (error) {
-      console.warn('API deleteTrilha failed, using local database:', error)
-      return db.delete('tracks', id)
-    }
-  }
-
-  async getModulos(trilhaId: string) {
-    try {
-      return await this.request<any[]>(`/modulos?trilha_id=${trilhaId}`)
-    } catch (error) {
-      console.warn('API getModulos failed, using local database:', error)
-      return db.find('modules', (m: any) => m.trilhaId === trilhaId)
-    }
-  }
-
-  // CMS - Modulos
   async getCmsModulos() {
-    try {
-      return await this.request<any[]>('/modulos')
-    } catch (error) {
-      console.warn('API getCmsModulos failed, using local database:', error)
-      return db.getAll('modules')
-    }
+    return this.getWithCache<any[]>('/cms', db.modulos)
   }
 
   async createModulo(data: any) {
-    try {
-      return await this.request<any>('/modulos', {
-        method: 'POST',
-        body: JSON.stringify(data),
-      })
-    } catch (error) {
-      console.warn('API createModulo failed, using local database:', error)
-      return db.create('modules', data)
-    }
+    return this.writeWithCache('/cms', 'POST', data, db.modulos)
   }
 
   async updateModulo(id: string, data: any) {
-    try {
-      return await this.request<any>(`/modulos/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      })
-    } catch (error) {
-      console.warn('API updateModulo failed, using local database:', error)
-      return db.update('modules', id, data)
-    }
+    return this.writeWithCache(`/cms/${id}`, 'PUT', data, db.modulos, {
+      offlineTransform: (body) => ({ ...body, id }),
+    })
   }
 
   async deleteModulo(id: string) {
-    try {
-      return await this.request<any>(`/modulos/${id}`, {
-        method: 'DELETE',
-      })
-    } catch (error) {
-      console.warn('API deleteModulo failed, using local database:', error)
-      return db.delete('modules', id)
+    if (isOnline() && this.token) {
+      try {
+        await this.request(`/cms/${id}`, { method: 'DELETE' })
+        await db.modulos.delete(id)
+        return
+      } catch (error) {
+        await queueSync('DELETE', `/cms/${id}`)
+        await db.modulos.delete(id)
+        return
+      }
     }
+    await queueSync('DELETE', `/cms/${id}`)
+    await db.modulos.delete(id)
   }
 
-  // Aulas
+  // ==================== AULAS ====================
+
   async getAulas(moduloId: string) {
-    try {
-      return await this.request<any[]>(`/aulas?modulo_id=${moduloId}`)
-    } catch (error) {
-      console.warn('API getAulas failed, using local database:', error)
-      return db.find('lessons', (l: any) => l.moduloId === moduloId)
-    }
+    return this.getWithCache<any[]>(`/modulos/${moduloId}/aulas`, db.aulas, {
+      index: 'moduloId',
+      indexValue: moduloId,
+    })
   }
 
   async createAula(moduloId: string, data: any) {
-    try {
-      return await this.request<any>('/aulas', {
-        method: 'POST',
-        body: JSON.stringify({ ...data, moduloId }),
-      })
-    } catch (error) {
-      console.warn('API createAula failed, using local database:', error)
-      return db.create('lessons', { ...data, moduloId, tipo: data.tipo || 'video', microLessons: data.microLessons || [] })
-    }
+    return this.writeWithCache(`/modulos/${moduloId}/aulas`, 'POST', data, db.aulas)
   }
 
   async updateAula(id: string, data: any) {
-    try {
-      return await this.request<any>(`/aulas/${id}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      })
-    } catch (error) {
-      console.warn('API updateAula failed, using local database:', error)
-      return db.update('lessons', id, { ...data, tipo: data.tipo || 'video', microLessons: data.microLessons || [] })
-    }
+    return this.writeWithCache(`/modulos/aulas/${id}`, 'PUT', data, db.aulas, {
+      offlineTransform: (body) => ({ ...body, id }),
+    })
   }
 
   async deleteAula(id: string) {
-    try {
-      return await this.request<any>(`/aulas/${id}`, {
-        method: 'DELETE',
-      })
-    } catch (error) {
-      console.warn('API deleteAula failed, using local database:', error)
-      return db.delete('lessons', id)
+    if (isOnline() && this.token) {
+      try {
+        await this.request(`/modulos/aulas/${id}`, { method: 'DELETE' })
+        await db.aulas.delete(id)
+        return
+      } catch (error) {
+        await queueSync('DELETE', `/modulos/aulas/${id}`)
+        await db.aulas.delete(id)
+        return
+      }
     }
+    await queueSync('DELETE', `/modulos/aulas/${id}`)
+    await db.aulas.delete(id)
   }
 
-  // Quiz
+  // ==================== QUIZ ====================
+
   async createQuiz(moduloId: string, data: { aulaId: string; titulo: string; autoGerarCertificado?: boolean }) {
-    try {
-      return await this.request<any>(`/modulos/${moduloId}/quiz`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      })
-    } catch (error) {
-      console.warn('API createQuiz failed, using local database:', error)
-      return db.create('quizzes', { ...data, moduloId, perguntas: [] })
-    }
+    return this.writeWithCache(`/modulos/${moduloId}/quiz`, 'POST', data, db.quizzes)
   }
 
   async getQuiz(moduloId: string, aulaId: string) {
     try {
-      return await this.request<any>(`/modulos/${moduloId}/quiz/${aulaId}`)
+      const quiz = await this.request<any>(`/modulos/${moduloId}/quiz/${aulaId}`)
+      await db.quizzes.put(quiz)
+      return quiz
     } catch (error) {
-      console.warn('API getQuiz failed, using local database:', error)
-      const quizzes = db.getAll('quizzes')
-      return quizzes.find((q: any) => q.aulaId === aulaId) || null
+      const cached = await db.quizzes.where('aulaId').equals(aulaId).first()
+      if (cached) return cached
+      throw error
     }
   }
 
   async updateQuiz(quizId: string, data: { titulo?: string; autoGerarCertificado?: boolean }) {
-    try {
-      return await this.request<any>(`/modulos/quiz/${quizId}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      })
-    } catch (error) {
-      console.warn('API updateQuiz failed, using local database:', error)
-      return db.update('quizzes', quizId, data)
-    }
+    return this.writeWithCache(`/modulos/quiz/${quizId}`, 'PUT', data, db.quizzes, {
+      offlineTransform: (body) => ({ ...body, id: quizId }),
+    })
   }
 
   async deleteQuiz(quizId: string) {
-    try {
-      return await this.request<any>(`/modulos/quiz/${quizId}`, {
-        method: 'DELETE',
-      })
-    } catch (error) {
-      console.warn('API deleteQuiz failed, using local database:', error)
-      return db.delete('quizzes', quizId)
+    if (isOnline() && this.token) {
+      try {
+        await this.request(`/modulos/quiz/${quizId}`, { method: 'DELETE' })
+        await db.quizzes.delete(quizId)
+        return
+      } catch (error) {
+        await queueSync('DELETE', `/modulos/quiz/${quizId}`)
+        await db.quizzes.delete(quizId)
+        return
+      }
     }
+    await queueSync('DELETE', `/modulos/quiz/${quizId}`)
+    await db.quizzes.delete(quizId)
   }
 
   async addPergunta(quizId: string, data: { pergunta: string; opcaoA: string; opcaoB: string; opcaoC?: string; opcaoD?: string; correta: string }) {
-    try {
-      return await this.request<any>(`/modulos/quiz/${quizId}/perguntas`, {
-        method: 'POST',
-        body: JSON.stringify(data),
-      })
-    } catch (error) {
-      console.warn('API addPergunta failed, using local database:', error)
-      return db.create('quizQuestions', { ...data, quizId })
-    }
+    return this.writeWithCache(`/modulos/quiz/${quizId}/perguntas`, 'POST', data, db.perguntas)
   }
 
   async updatePergunta(perguntaId: string, data: any) {
-    try {
-      return await this.request<any>(`/modulos/perguntas/${perguntaId}`, {
-        method: 'PUT',
-        body: JSON.stringify(data),
-      })
-    } catch (error) {
-      console.warn('API updatePergunta failed, using local database:', error)
-      return db.update('quizQuestions', perguntaId, data)
-    }
+    return this.writeWithCache(`/modulos/perguntas/${perguntaId}`, 'PUT', data, db.perguntas, {
+      offlineTransform: (body) => ({ ...body, id: perguntaId }),
+    })
   }
 
   async deletePergunta(perguntaId: string) {
-    try {
-      return await this.request<any>(`/modulos/perguntas/${perguntaId}`, {
-        method: 'DELETE',
-      })
-    } catch (error) {
-      console.warn('API deletePergunta failed, using local database:', error)
-      return db.delete('quizQuestions', perguntaId)
+    if (isOnline() && this.token) {
+      try {
+        await this.request(`/modulos/perguntas/${perguntaId}`, { method: 'DELETE' })
+        await db.perguntas.delete(perguntaId)
+        return
+      } catch (error) {
+        await queueSync('DELETE', `/modulos/perguntas/${perguntaId}`)
+        await db.perguntas.delete(perguntaId)
+        return
+      }
     }
+    await queueSync('DELETE', `/modulos/perguntas/${perguntaId}`)
+    await db.perguntas.delete(perguntaId)
   }
 
   async submitQuiz(quizId: string, respostas: Record<string, string>) {
-    try {
-      return await this.request<any>(`/modulos/quiz/${quizId}/responder`, {
-        method: 'POST',
-        body: JSON.stringify({ respostas }),
-      })
-    } catch (error) {
-      console.warn('API submitQuiz failed, using local database:', error)
-      return { nota: 0, total: 0, correct: 0, concluido: false }
-    }
+    return this.writeWithCache(`/modulos/quiz/${quizId}/responder`, 'POST', { respostas }, db.quizResponses, {
+      offlineTransform: (body) => ({
+        id: `pending-${Date.now()}`,
+        quizId,
+        userId: '',
+        nota: 0,
+        total: 0,
+        concluido: false,
+        _pending: true,
+      }),
+    })
   }
 
-  // Progresso
+  // ==================== PROGRESSO ====================
+
   async getProgresso() {
-    try {
-      return await this.request<any[]>('/progresso')
-    } catch (error) {
-      console.warn('API getProgresso failed, using local database:', error)
-      return db.getAll('progress')
-    }
+    return this.getWithCache<any[]>('/progresso', db.progressos)
   }
 
   async updateProgresso(moduloId: string, aulaId: string, concluido: boolean) {
-    try {
-      return await this.request<any>('/progresso', {
-        method: 'POST',
-        body: JSON.stringify({ moduloId, aulaId, concluido }),
-      })
-    } catch (error) {
-      console.warn('API updateProgresso failed, using local database:', error)
-      const existing = db.find('progress', (p: any) => p.aulaId === aulaId)
-      if (existing.length > 0) {
-        return db.update('progress', existing[0].id, { concluido })
-      }
-      return db.create('progress', { moduloId, aulaId, concluido })
-    }
+    return this.writeWithCache('/progresso', 'PUT', { moduloId, aulaId, concluido }, db.progressos, {
+      offlineTransform: (body) => ({
+        id: `pending-${Date.now()}`,
+        moduloId,
+        aulaId,
+        userId: '',
+        concluido,
+        _pending: true,
+      }),
+    })
   }
 
   async getProgressoStats() {
     try {
       return await this.request<any>('/progresso/stats')
     } catch (error) {
-      console.warn('API getProgressoStats failed, using local database:', error)
-      const progress = db.getAll('progress')
-      const total = progress.length
-      const completed = progress.filter((p: any) => p.concluido).length
-      return { total, completed, percentage: total > 0 ? (completed / total) * 100 : 0 }
+      const cached = await db.progressos.toArray()
+      if (cached.length > 0) {
+        const completed = cached.filter(p => p.concluido).length
+        return {
+          totalAulas: cached.length,
+          concluidas: completed,
+          percentual: cached.length > 0 ? Math.round((completed / cached.length) * 100) : 0,
+          modulosIniciados: new Set(cached.map(p => p.moduloId)).size,
+          xp: 0,
+        }
+      }
+      throw error
     }
   }
 
-  // Certificados
+  // ==================== CERTIFICADOS ====================
+
   async getCertificates() {
-    try {
-      return await this.request<any[]>('/certificados')
-    } catch (error) {
-      console.warn('API getCertificates failed, using local database:', error)
-      return db.getAll('certificates')
-    }
+    return this.getWithCache<any[]>('/certificates', db.certificates)
   }
 
-  async createCertificate(trilhaId: string) {
-    try {
-      return await this.request<any>('/certificados', {
-        method: 'POST',
-        body: JSON.stringify({ trilhaId }),
-      })
-    } catch (error) {
-      console.warn('API createCertificate failed, using local database:', error)
-      return db.create('certificates', { trilhaId, emitidoEm: new Date().toISOString() })
-    }
+  async createCertificate(moduloId: string) {
+    return this.writeWithCache('/certificates', 'POST', { moduloId }, db.certificates, {
+      offlineTransform: (body) => ({
+        id: `pending-${Date.now()}`,
+        userId: '',
+        moduloId,
+        status: 'PENDING',
+        _pending: true,
+      }),
+    })
   }
 
   async approveCertificate(id: string) {
-    try {
-      return await this.request<any>(`/certificados/${id}/approve`, {
-        method: 'POST',
-      })
-    } catch (error) {
-      console.warn('API approveCertificate failed, using local database:', error)
-      return db.update('certificates', id, { aprovado: true, aprovadoEm: new Date().toISOString() })
-    }
+    return this.writeWithCache(`/certificates/${id}/approve`, 'PUT', {}, db.certificates, {
+      offlineTransform: (body) => ({ id, status: 'APPROVED', _pending: true }),
+    })
   }
 
-  // Notificaciones
+  // ==================== NOTIFICACIONES ====================
+
   async getNotifications() {
-    try {
-      return await this.request<any[]>('/notifications')
-    } catch (error) {
-      console.warn('API getNotifications failed, using local database:', error)
-      return db.getAll('notifications')
-    }
+    return this.getWithCache<any[]>('/notifications', db.notifications)
   }
 
   async sendNotification(toId: string, titulo: string, mensagem: string) {
-    try {
-      return await this.request<any>('/notifications', {
-        method: 'POST',
-        body: JSON.stringify({ toId, titulo, mensagem }),
-      })
-    } catch (error) {
-      console.warn('API sendNotification failed, using local database:', error)
-      return db.create('notifications', { toId, titulo, mensagem, lida: false, createdAt: new Date().toISOString() })
-    }
+    return this.writeWithCache('/notifications', 'POST', { toId, titulo, mensagem }, db.notifications, {
+      offlineTransform: (body) => ({
+        id: `pending-${Date.now()}`,
+        fromId: '',
+        toId,
+        titulo,
+        mensagem,
+        lida: false,
+        _pending: true,
+      }),
+    })
   }
 
   async markNotificationRead(id: string) {
-    try {
-      return await this.request<any>(`/notifications/${id}/read`, {
-        method: 'POST',
-      })
-    } catch (error) {
-      console.warn('API markNotificationRead failed, using local database:', error)
-      return db.update('notifications', id, { lida: true })
-    }
+    return this.writeWithCache(`/notifications/${id}/read`, 'PUT', {}, db.notifications, {
+      offlineTransform: (body) => ({ id, lida: true, _pending: true }),
+    })
   }
 
   async markAllNotificationsRead() {
+    return this.writeWithCache('/notifications/read-all', 'PUT', {}, null)
+  }
+
+  // ==================== DASHBOARD ====================
+
+  async getDashboard() {
     try {
-      return await this.request<any>('/notifications/read-all', {
-        method: 'POST',
-      })
+      const data = await this.request<any>('/dashboard')
+      return data
     } catch (error) {
-      console.warn('API markAllNotificationsRead failed, using local database:', error)
-      const notifications = db.getAll('notifications')
-      notifications.forEach((n: any) => {
-        db.update('notifications', n.id, { lida: true })
-      })
-      return notifications.length
+      const progressos = await db.progressos.toArray()
+      const modulos = await db.modulos.toArray()
+      const certificates = await db.certificates.toArray()
+      if (progressos.length > 0 || modulos.length > 0) {
+        const completed = progressos.filter(p => p.concluido).length
+        return {
+          totalModulos: modulos.length,
+          modulosConcluidos: 0,
+          totalCertificados: certificates.filter(c => c.status === 'ISSUED').length,
+          totalAulas: progressos.length,
+          aulasConcluidas: completed,
+          percentual: progressos.length > 0 ? Math.round((completed / progressos.length) * 100) : 0,
+          xp: 0,
+          level: 1,
+          recentActivity: [],
+          pointsByAction: [],
+        }
+      }
+      throw error
     }
   }
 
-  // Dashboard
-  async getDashboard() {
+  // ==================== GAMIFICATION ====================
+
+  async trackModuleOpen(moduloId: string) {
+    return this.writeWithCache(`/modulos/${moduloId}/open`, 'POST', {}, null)
+  }
+
+  async getLeaderboard() {
+    return this.getWithCache<any[]>('/modulos/gamification/leaderboard', db.users)
+  }
+
+  async getGamificationStats() {
     try {
-      return await this.request<any>('/dashboard')
+      return await this.request<any>('/modulos/gamification/stats')
     } catch (error) {
-      console.warn('API getDashboard failed, using local database:', error)
-      const tracks = db.getAll('tracks')
-      const progress = db.getAll('progress')
-      const notifications = db.getAll('notifications')
-      return { tracks, progress, notifications }
+      const users = await db.users.toArray()
+      const totalXp = users.reduce((sum, u) => sum + (u.xp || 0), 0)
+      return {
+        totalXpDistributed: totalXp,
+        averageXp: users.length > 0 ? Math.round(totalXp / users.length) : 0,
+        totalUsers: users.length,
+        topActions: [],
+      }
     }
+  }
+
+  async getDashboardLeaderboard() {
+    return this.getWithCache<any>('/dashboard/leaderboard', db.users)
   }
 }
 

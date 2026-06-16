@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { authenticate, authorize } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
+import { awardPoints } from '../services/gamification'
 
 const router = Router()
 
@@ -10,7 +11,6 @@ router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => 
   try {
     const modulos = await prisma.modulo.findMany({
       include: {
-        trilha: { select: { titulo: true } },
         aulas: { select: { id: true } },
         _count: { select: { aulas: true, progressos: true } },
       },
@@ -23,21 +23,19 @@ router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => 
 })
 
 // POST /api/cms/modulos
-router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
+router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
-    const { trilhaId, titulo, descricao, ordem, videoUrl, videoInicio, videoFim } = req.body
-    if (!trilhaId || !titulo) {
-      return res.status(400).json({ error: 'Trilha e título são obrigatórios' })
+    const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim } = req.body
+    if (!titulo) {
+      return res.status(400).json({ error: 'Título é obrigatório' })
     }
 
     const maxOrdem = await prisma.modulo.aggregate({
-      where: { trilhaId },
       _max: { ordem: true },
     })
 
     const modulo = await prisma.modulo.create({
       data: {
-        trilhaId,
         titulo,
         descricao: descricao || '',
         ordem: ordem ?? ((maxOrdem._max.ordem ?? 0) + 1),
@@ -53,7 +51,7 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) =>
 })
 
 // PUT /api/cms/modulos/:id
-router.put('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
+router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim } = req.body
     const id = getStringParam(req.params.id)
@@ -97,7 +95,7 @@ router.get('/:id/aulas', authenticate, async (req, res) => {
 })
 
 // POST /api/modulos/:id/aulas
-router.post('/:id/aulas', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
+router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     const { titulo, descricao, videoUrl, videoInicio, videoFim, duracaoMin } = req.body
     const moduloId = getStringParam(req.params.id)
@@ -127,7 +125,7 @@ router.post('/:id/aulas', authenticate, authorize('ADMIN', 'GESTOR'), async (req
 })
 
 // PUT /api/aulas/:id
-router.put('/aulas/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
+router.put('/aulas/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     const { titulo, descricao, videoUrl, videoInicio, videoFim, duracaoMin, ordem } = req.body
     const id = getStringParam(req.params.id)
@@ -157,7 +155,7 @@ router.delete('/aulas/:id', authenticate, authorize('ADMIN'), async (req, res) =
 // ==================== QUIZ ENDPOINTS ====================
 
 // POST /api/modulos/:moduloId/quiz - Create quiz for an aula
-router.post('/:moduloId/quiz', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
+router.post('/:moduloId/quiz', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     const { aulaId, titulo, autoGerarCertificado } = req.body
     if (!aulaId || !titulo) {
@@ -203,7 +201,7 @@ router.get('/:moduloId/quiz/:aulaId', authenticate, async (req, res) => {
 })
 
 // PUT /api/modulos/quiz/:quizId - Update quiz
-router.put('/quiz/:quizId', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
+router.put('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     const { titulo, autoGerarCertificado } = req.body
     const quizId = getStringParam(req.params.quizId)
@@ -231,7 +229,7 @@ router.delete('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req, res
 })
 
 // POST /api/modulos/quiz/:quizId/perguntas - Add question to quiz
-router.post('/quiz/:quizId/perguntas', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
+router.post('/quiz/:quizId/perguntas', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     const { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta } = req.body
     const quizId = getStringParam(req.params.quizId)
@@ -264,7 +262,7 @@ router.post('/quiz/:quizId/perguntas', authenticate, authorize('ADMIN', 'GESTOR'
 })
 
 // PUT /api/modulos/perguntas/:perguntaId - Update question
-router.put('/perguntas/:perguntaId', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
+router.put('/perguntas/:perguntaId', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     const { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta, ordem } = req.body
     const perguntaId = getStringParam(req.params.perguntaId)
@@ -318,24 +316,32 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
       create: { quizId: req.params.quizId, userId: req.userId, nota, total, concluido },
     })
 
+    // Award points for correct answers
+    if (correct > 0) {
+      await awardPoints(req.userId, 'QUIZ_CORRECT', `${correct}/${total} respostas corretas no quiz`)
+    }
+
+    // Award points for passing the quiz
+    if (concluido) {
+      await awardPoints(req.userId, 'QUIZ_PASS', `Quiz aprovado com nota ${nota}/10`)
+    }
+
     // Auto-generate certificate if quiz passed and autoGerarCertificado is enabled
     if (concluido && quiz.autoGerarCertificado) {
       const aula = await prisma.aula.findUnique({ where: { id: quiz.aulaId } })
       if (aula) {
-        const modulo = await prisma.modulo.findUnique({ where: { id: aula.moduloId } })
-        if (modulo) {
-          const existingCert = await prisma.certificate.findFirst({
-            where: { userId: req.userId, trilhaId: modulo.trilhaId },
+        const existingCert = await prisma.certificate.findFirst({
+          where: { userId: req.userId, moduloId: aula.moduloId },
+        })
+        if (!existingCert) {
+          await prisma.certificate.create({
+            data: {
+              userId: req.userId,
+              moduloId: aula.moduloId,
+              status: 'APPROVED',
+            },
           })
-          if (!existingCert) {
-            await prisma.certificate.create({
-              data: {
-                userId: req.userId,
-                trilhaId: modulo.trilhaId,
-                status: 'APPROVED',
-              },
-            })
-          }
+          await awardPoints(req.userId, 'CERTIFICATE', `Certificado emitido: ${aula.moduloId}`)
         }
       }
     }
@@ -357,6 +363,71 @@ router.get('/quiz/:quizId/resultados', authenticate, async (req: any, res) => {
     res.json(responses)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar resultados' })
+  }
+})
+
+// POST /api/modulos/:id/open - Track module open
+router.post('/:id/open', authenticate, async (req: any, res) => {
+  try {
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID invalido' })
+
+    const modulo = await prisma.modulo.findUnique({ where: { id } })
+    if (!modulo) return res.status(404).json({ error: 'Modulo nao encontrado' })
+
+    await awardPoints(req.userId, 'MODULE_OPEN', `Modulo aberto: ${modulo.titulo}`)
+
+    res.json({ message: 'Modulo registrado', xp: 20 })
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao registrar abertura do modulo' })
+  }
+})
+
+// GET /api/modulos/gamification/leaderboard - Get leaderboard
+router.get('/gamification/leaderboard', authenticate, async (req: any, res) => {
+  try {
+    const users = await prisma.user.findMany({
+      select: { id: true, nome: true, email: true, role: true, xp: true },
+      orderBy: { xp: 'desc' },
+      take: 20,
+    })
+
+    const result = users.map((u, i) => ({
+      ...u,
+      rank: i + 1,
+      level: Math.floor(u.xp / 2000) + 1,
+    }))
+
+    res.json(result)
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar leaderboard' })
+  }
+})
+
+// GET /api/modulos/gamification/stats - Get gamification stats
+router.get('/gamification/stats', authenticate, async (req: any, res) => {
+  try {
+    const totalXpResult = await prisma.user.aggregate({
+      _sum: { xp: true },
+      _avg: { xp: true },
+      _count: { id: true },
+    })
+
+    const topActions = await prisma.pointsTransaction.groupBy({
+      by: ['action'],
+      _sum: { points: true },
+      _count: { id: true },
+      orderBy: { _sum: { points: 'desc' } },
+    })
+
+    res.json({
+      totalXpDistributed: totalXpResult._sum.xp || 0,
+      averageXp: Math.round(totalXpResult._avg.xp || 0),
+      totalUsers: totalXpResult._count.id,
+      topActions,
+    })
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar estatisticas de gamificacao' })
   }
 })
 
