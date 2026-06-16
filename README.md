@@ -1,466 +1,500 @@
-# Academia PayGas V26
+# 🎓 Academia PayGas - Sistema de Aprendizaje Empresarial
 
-## Sistema de Gestao de Aprendizagem (LMS) para o Ecossistema PayGas
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.7.3-blue)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19-61dafb)](https://react.dev/)
+[![Express](https://img.shields.io/badge/Express-5.2-green)](https://expressjs.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Nhost-336791)](https://nhost.io/)
+[![Prisma](https://img.shields.io/badge/Prisma-7.8-2D3748)](https://www.prisma.io/)
 
----
+## 📋 Índice
 
-## 1. Descricao Geral
-
-Academia PayGas e uma plataforma de capacitacao corporativa desenhada para o ecossistema de postos de combustivel PayGas no Brasil. O sistema permite a formacao, certificacao e acompanhamento do desempenho de diferentes atores dentro da rede: desde frentistas ate parceiros comerciais e lideres comunitarios.
-
-### Objetivo Principal
-
-Centralizar a educacao corporativa e criar um sistema de certificacao que garanta padroes de qualidade no atendimento ao cliente, operacoes de combustivel e servicos financeiros digitais (PayGas Pay).
-
----
-
-## 2. Perfis de Usuario
-
-O sistema implementa **3 perfis diferenciados**, cada um com seu proprio dashboard, funcionalidades e metricas:
-
-| Perfil | Descricao | Acessos |
-|--------|-----------|---------|
-| **Admin PayGas** | Equipe corporativa nacional | Todos + CMS, Usuarios |
-| **Gestor de Posto** | Donos/administradores de postos | Dashboard + Equipe, Relatorios |
-| **Atendente** | Frentistas e caixas | Trilhas, Modulos, Certificados |
+- [Visión General](#visión-general)
+- [Stack Tecnológico](#stack-tecnológico)
+- [Comenzar Rápidamente](#comenzar-rápidamente)
+- [Estructura del Proyecto](#estructura-del-proyecto)
+- [Configuración](#configuración)
+- [API Endpoints](#api-endpoints)
+- [Funcionalidades](#funcionalidades)
+- [Desarrollo](#desarrollo)
+- [Testing](#testing)
+- [Deployment](#deployment)
 
 ---
 
-## 3. Arquitetura do Sistema
+## 🎯 Visión General
 
-### 3.1 Stack Tecnologico (V26)
+Academia PayGas es una plataforma **de aprendizaje corporativo** para educación y desarrollo de equipo. Ofrece un sistema completo de rutas de aprendizaje, módulos, lecciones con vídeos, cuestionarios interactivos, certificación y gamificación.
 
+**Público objetivo**: Empleados de estaciones de gasolina PayGas que necesitan entrenamiento continuo en excelencia de servicio, operación de terminales, seguridad de datos, gestión financiera y liderazgo.
+
+### Características Principales
+
+✅ **Rutas de Aprendizaje** - 8 rutas estructuradas  
+✅ **Contenido Multimedia** - Vídeos, PDFs, documentación  
+✅ **Cuestionarios Interactivos** - Evaluación automática con certificación  
+✅ **Gamificación** - XP, niveles, logros y ranking  
+✅ **Autenticación** - JWT + control de acceso por perfil  
+✅ **Email** - Notificaciones y certificados por SMTP  
+✅ **Dashboard** - Progreso, estadísticas e informes  
+✅ **Mobile Ready** - Interfaz responsiva con Tailwind CSS  
+
+---
+
+## 🛠️ Stack Tecnológico
+
+### Frontend
+- **React 19** - UI library
+- **TypeScript 5.7** - Type safety
+- **Vite** - Build tool  
+- **TailwindCSS 4** - Styling
+- **Radix UI** - Componentes accesibles
+- **React Router 7** - Enrutamiento del lado del cliente
+- **Zustand** - Gestión de estado
+- **React Query** - Obtención de datos y caché
+
+### Backend
+- **Express.js 5** - Marco web
+- **Node.js 24** - Runtime
+- **TypeScript** - Backend seguro de tipos
+- **Prisma 7** - ORM
+- **PostgreSQL (Nhost)** - Base de datos
+- **JWT** - Autenticación
+- **bcryptjs** - Hash de contraseñas
+- **Nodemailer** - Servicio de correo
+- **Zod** - Validación de esquemas
+
+### DevTools
+- **ESLint** - Linting de código
+- **TypeScript** - Type checking
+- **tsx** - Ejecutor de TypeScript
+- **Concurrently** - Ejecutar múltiples procesos
+
+---
+
+## 🚀 Comenzar Rápidamente
+
+### Requisitos Previos
+- Node.js 22+ 
+- pnpm (o npm/yarn)
+- Git
+
+### Instalación
+
+```bash
+# Clone el repositorio
+git clone https://github.com/Dev-OlaMulticom/academia-paygas.git
+cd academia-paygas
+
+# Instale dependencias
+pnpm install
+
+# Configure variables de entorno
+cp .env.example .env
+# Edite .env con sus credenciales
+
+# Prepare la base de datos
+npx prisma migrate deploy
+npx prisma db seed  # (opcional)
+
+# Inicie el servidor
+pnpm dev
 ```
-Frontend:
-  Framework:      React 19 + TypeScript
-  Bundler:        Vite 6
-  Roteamento:     React Router DOM v7
-  Estilo:         CSS Vanilla customizado (design system proprio)
-  Estado:         useState + localStorage (via useAuth hook)
-  Componentes:    shadcn/ui (57 componentes disponiveis)
 
-Backend:
-  Runtime:        Node.js + Express 5
-  ORM:            Prisma (MySQL)
-  Autenticacao:   JWT (jsonwebtoken)
-  Criptografia:   AES-256-GCM (payloads)
-  Certificados:   HTTPS (auto-signed)
-```
+Navegue a:
+- 🔧 **Frontend**: http://localhost:5173
+- ⚙️ **Backend**: http://localhost:3001
+- 📚 **API Docs**: http://localhost:3001/api/docs
 
-### 3.2 Estrutura de Arquivos
+---
+
+## 📁 Estructura del Proyecto
 
 ```
 academia-paygas/
-  src/                          # Frontend (React + Vite)
-    App.tsx                     # Configuracao de rotas (React Router)
-    main.tsx                    # Entry point com BrowserRouter
-    index.css                   # Design system completo
-    data/
-      constants.ts              # PERSONAS e TRACKS (constantes globais)
-    hooks/
-      useAuth.ts                # Hook de autenticacao e estado do usuario
-      use-mobile.ts             # Hook de deteccao mobile
-    layouts/
-      AppLayout.tsx             # Layout com Header + Sidebar + conteudo
-    components/
-      ProtectedRoute.tsx        # Rota protegida (redireciona para /login)
-      VideoPlayer.tsx           # Player de video YouTube (Plyr)
-      VideoPreview.tsx          # Preview de video para CMS
-      PDFViewer.tsx             # Visualizador de PDF
-      ui/                       # 57 componentes shadcn/ui
-    pages/
-      LoginPage.tsx             # Tela de login
-      DashboardPage.tsx         # Dashboard principal
-      TrilhasPage.tsx           # Lista de trilhas de aprendizado
-      TrilhaModulosPage.tsx     # Modulos dentro de uma trilha
-      ModulosPage.tsx           # Conteudo do modulo (aulas + quiz)
-      CertificadosPage.tsx      # Certificados do usuario
-      EquipePage.tsx            # Gestao de equipe
-      RelatoriosPage.tsx        # Relatorios e metricas
-      CMSPage.tsx               # Gestao de conteudo (modulos + aulas + quiz)
-      CriarModuloPage.tsx       # Formulario de criacao de modulo
-      UsuariosPage.tsx          # Gestao de usuarios
-      NotifPage.tsx             # Notificacoes
-      PerfilPage.tsx            # Perfil do usuario
-    lib/
-      api.ts                    # Cliente API (fetch + fallback localStorage)
-      db.ts                     # Banco localStorage (fallback)
-      crypto.ts                 # Criptografia client-side
-      utils.ts                  # Utilitarios
-
-  server/                       # Backend (Express + Prisma)
-    index.ts                    # Entry point do servidor (HTTPS/HTTP)
-    lib/
-      prisma.ts                 # Cliente Prisma (singleton)
-      crypto.ts                 # Utilitarios de criptografia
-    middleware/
-      auth.ts                   # Middleware JWT de autenticacao
-      encryption.ts             # Criptografia AES-256-GCM
-    routes/
-      auth.ts                   # POST /login, GET /me
-      usuarios.ts               # CRUD de usuarios
-      trilhas.ts                # CRUD de trilhas
-      cms.ts                    # CRUD modulos + aulas + quiz
-      certificates.ts           # Gestao de certificados
-      notifications.ts          # Gestao de notificacoes
-      progresso.ts              # Tracking de progresso
-      dashboard.ts              # Estatisticas do dashboard
-      docs.ts                   # Documentacao da API
-
-  prisma/                       # Banco de dados
-    schema.prisma               # Schema do banco (11 tabelas)
-    seed.ts                     # Dados iniciais
-    migrations/                 # Migracoes do banco
-
-  agents.md                     # Documentacao de agentes
-  design.md                     # Documentacao de design
+├── server/                    # Backend Express
+│   ├── index.ts              # Servidor principal
+│   ├── lib/
+│   │   ├── prisma.ts        # Cliente Prisma singleton
+│   │   └── auth.ts          # Utilitarios de autenticación
+│   ├── middleware/
+│   │   ├── auth.ts          # JWT y autorización
+│   │   ├── encryption.ts    # Payloads cifrados
+│   │   └── errorHandler.ts  # Manejo de errores
+│   ├── routes/
+│   │   ├── auth.ts          # Login/logout
+│   │   ├── usuarios.ts      # Gestionar usuarios
+│   │   ├── trilhas.ts       # Rutas de aprendizaje
+│   │   ├── cms.ts           # Módulos, lecciones, cuestionarios
+│   │   ├── progreso.ts      # Seguimiento de progreso
+│   │   ├── certificates.ts  # Certificados
+│   │   ├── dashboard.ts     # Estadísticas
+│   │   └── notifications.ts # Notificaciones
+│   ├── services/
+│   │   └── email.ts         # Envío de correos SMTP
+│   └── utils/
+│       └── queryParams.ts   # Utilitarios de parámetros
+│
+├── src/                      # Frontend React
+│   ├── App.tsx              # Router principal
+│   ├── pages/
+│   │   ├── LoginPage.tsx
+│   │   ├── DashboardPage.tsx
+│   │   ├── TrilhasPage.tsx
+│   │   ├── ModulosPage.tsx
+│   │   ├── CertificadosPage.tsx
+│   │   └── ...
+│   ├── components/          # Componentes React
+│   ├── hooks/
+│   │   └── useAuth.ts      # Hook personalizado de autenticación
+│   └── types/              # Interfaces TypeScript
+│
+├── prisma/
+│   ├── schema.prisma       # Definición del esquema
+│   ├── migrations/         # Migraciones de bases de datos
+│   └── seed.ts            # Script de inicialización
+│
+├── scripts/
+│   └── test-crud.ts       # Pruebas CRUD
+│
+├── public/                # Activos estáticos
+├── styles/                # CSS global
+└── package.json
 ```
-
-### 3.3 Banco de Dados (Prisma + MySQL)
-
-```
-Tabelas (11):
-
-User              # Usuarios do sistema (Admin, Gestor, Atendente)
-  ├── TrilhaAtendente   # Atribuicao de trilhas a usuarios
-  ├── Progresso         # Progresso em aulas
-  ├── QuizResponse      # Respostas de quizzes
-  ├── Certificate       # Certificados emitidos
-  ├── Notification      # Notificacoes enviadas/recebidas
-  └── ActivityLog       # Log de atividades
-
-Trilha             # Trilhas de aprendizado (cursos)
-  └── Modulo        # Modulos (categorias dentro da trilha)
-       └── Aula     # Aulas (video ou PDF)
-            └── Quiz        # Quiz opcional (1:1 com aula)
-                 └── QuizPergunta  # Perguntas (multipla escolha)
-```
-
-### 3.4 Fluxo de Autenticacao
-
-```
-1. Usuario acessa o sistema
-         |
-         v
-2. ProtectedRoute verifica localStorage
-         |
-    +----+----+
-    |         |
-    v         v
-3a. Sem     3b. Com
-    dados      dados
-    |         |
-    v         v
-4a. Login   4b. Dashboard
-```
-
-### 3.5 Mapa de Rotas
-
-| Rota | Componente | Acesso | Descricao |
-|------|-----------|--------|-----------|
-| `/login` | LoginPage | Publico | Tela de login |
-| `/` | DashboardPage | Autenticado | Dashboard principal |
-| `/trilhas-aprendizado` | TrilhasPage | Autenticado | Lista de trilhas |
-| `/trilhas-aprendizado/:trilhaId` | TrilhaModulosPage | Autenticado | Modulos de uma trilha |
-| `/modulo/:moduloNombre` | ModulosPage | Autenticado | Conteudo do modulo (aulas + quiz) |
-| `/certificados` | CertificadosPage | Autenticado | Certificados do usuario |
-| `/equipe` | EquipePage | Gestor, Admin | Gestao de equipe |
-| `/relatorios` | RelatoriosPage | Gestor, Admin | Relatorios e metricas |
-| `/cms` | CMSPage | Admin | Gestao de conteudo |
-| `/cms/criar-modulo` | CriarModuloPage | Admin | Criar novo modulo |
-| `/usuarios` | UsuariosPage | Admin | Gestao de usuarios |
-| `/notif` | NotifPage | Autenticado | Notificacoes |
-| `/perfil` | PerfilPage | Autenticado | Perfil do usuario |
 
 ---
 
-## 4. Sistema de Aprendizagem
+## ⚙️ Configuración
 
-### 4.1 Hierarquia de Conteudo
+### Variables de Entorno
 
+```bash
+# Base de datos
+DATABASE_URL="postgres://user:pass@host:5432/dbname"
+
+# Email (SMTP)
+SMTP_HOST="smtp.example.com"
+SMTP_PORT="465"
+SMTP_USER="user@example.com"
+SMTP_PASS="password"
+SMTP_FROM="noreply@example.com"
+SMTP_SECURE="true"
+
+# Autenticación
+JWT_SECRET="your-secret-key"
+ENCRYPTION_KEY="your-encryption-key"
+
+# API
+API_BASE_URL="https://api.example.com"
+API_KEY="your-api-key"
+
+# Frontend
+VITE_API_BASE_URL="https://api.example.com"
+VITE_API_KEY="your-api-key"
 ```
-Trilha (Trilha de Aprendizado)
-  └── Modulo (Categoria / Secao)
-       └── Aula (Video YouTube ou PDF)
-            └── Quiz? (Opcional, 1:1 com Aula)
-                 └── QuizPergunta (Multipla escolha: A, B, C, D)
+
+### Configurar Base de Datos
+
+```bash
+# Crear tablas desde el esquema
+npx prisma migrate deploy
+
+# Ver datos con Prisma Studio
+npx prisma studio
+
+# Reset y seed (solo desarrollo)
+npm run db:reset
 ```
 
-### 4.2 Fluxo do Estudante
+---
 
-1. Acessa **Trilhas de Aprendizado** (`/trilhas-aprendizado`)
-2. Seleciona uma trilha → ve os modulos (`/trilhas-aprendizado/:trilhaId`)
-3. Clica em um modulo → ve as aulas (`/modulo/:nombre`)
-4. Assist video YouTube ou le PDF
-5. Clica em **"Concluir e Avançar"** → progresso salvo
-6. Ao final de todas aulas → **Quiz** (se existir)
-7. Responde perguntas de selecao simples (A/B/C/D)
-8. Nota >= 7 = **Aprovado** → certificado automatico (se configurado)
+## 🔌 API Endpoints
 
-### 4.3 Trilhas de Aprendizagem (8 trilhas)
+### Autenticación
+```
+POST   /api/auth/login       # Login
+GET    /api/auth/me          # Usuario actual
+```
 
-| Trilha | Aulas | Obrigatoria | Perfis |
-|--------|-------|-------------|--------|
-| Excelencia no Atendimento | 6 | Sim | Admin, Gestor, Atendente |
-| Sistema de Cashback PayGas | 5 | Sim | Todos |
-| Gestao e KPIs do Posto | 7 | Nao | Admin, Gestor |
-| Operacao do Terminal | 4 | Sim | Admin, Atendente |
-| Integracao via API | 6 | Sim | Admin |
-| LGPD e Seguranca de Dados | 3 | Sim | Admin, Gestor |
-| Lideranca e Desenvolvimento | 5 | Nao | Admin, Gestor |
-| Gestao Financeira do Posto | 4 | Nao | Admin, Gestor |
+### Usuarios
+```
+GET    /api/usuarios                    # Listar usuarios
+POST   /api/usuarios                    # Crear usuario
+PUT    /api/usuarios/:id                # Actualizar usuario
+DELETE /api/usuarios/:id                # Eliminar usuario
+GET    /api/usuarios/equipe             # Miembros del equipo
+```
 
-### 4.4 Sistema de Gamificacao
+### Rutas de Aprendizaje
+```
+GET    /api/trilhas                     # Listar rutas
+POST   /api/trilhas                     # Crear ruta
+PUT    /api/trilhas/:id                 # Actualizar ruta
+DELETE /api/trilhas/:id                 # Eliminar ruta
+GET    /api/trilhas/:id/modulos         # Módulos de una ruta
+```
 
-- **XP (Experiencia)**: Pontos acumulados por atividades
-- **Niveis**: Baseados em XP (2000 pts por nivel)
-- **Conquistas**: 6 trofeus desbloqueaveis
-- **Ranking**: Classificacao nacional
+### Módulos y Lecciones
+```
+POST   /api/cms                         # Crear módulo
+PUT    /api/cms/:id                     # Actualizar módulo
+DELETE /api/cms/:id                     # Eliminar módulo
+GET    /api/cms/:id/aulas               # Lecciones de un módulo
+POST   /api/cms/:id/aulas               # Crear lección
+PUT    /api/cms/aulas/:id               # Actualizar lección
+DELETE /api/cms/aulas/:id               # Eliminar lección
+```
+
+### Cuestionarios
+```
+POST   /api/cms/:moduloId/quiz          # Crear cuestionario
+GET    /api/cms/:moduloId/quiz/:aulaId  # Obtener cuestionario
+PUT    /api/cms/quiz/:quizId            # Actualizar cuestionario
+DELETE /api/cms/quiz/:quizId            # Eliminar cuestionario
+POST   /api/cms/quiz/:quizId/perguntas  # Agregar pregunta
+PUT    /api/cms/perguntas/:id           # Actualizar pregunta
+POST   /api/cms/quiz/:quizId/responder  # Enviar respuestas
+```
+
+### Progreso
+```
+GET    /api/progreso                    # Progreso del usuario
+PUT    /api/progreso                    # Actualizar progreso
+GET    /api/progreso/stats              # Estadísticas
+```
+
+### Certificados
+```
+GET    /api/certificates                # Listar certificados
+POST   /api/certificates                # Solicitar certificado
+PUT    /api/certificates/:id/approve    # Aprobar certificado
+PUT    /api/certificates/:id/issue      # Emitir certificado
+```
+
+### Dashboard e Informes
+```
+GET    /api/dashboard                   # Estadísticas del dashboard
+GET    /api/notifications               # Notificaciones
+```
+
+---
+
+## ✨ Funcionalidades Principales
+
+### 1. Sistema de Rutas (Learning Paths)
+
+**8 Rutas Disponibles:**
+1. **Excelencia en el Servicio al Cliente** ✅ Obligatoria
+2. **Sistema Cashback PayGas** ✅ Obligatoria
+3. **Operación del Terminal** ✅ Obligatoria
+4. **Integración vía API** ✅ Obligatoria
+5. **LGPD y Seguridad de Datos** ✅ Obligatoria
+6. **Gestión y KPIs de la Estación** 
+7. **Liderazgo y Desarrollo del Equipo**
+8. **Gestión Financiera de la Estación**
+
+Cada ruta contiene múltiples módulos, y cada módulo contiene múltiples lecciones.
+
+### 2. Contenido Multimedia
+- **Vídeos YouTube** - Embeds con marcas de tiempo
+- **PDFs** - Documentos para descargar
+- **Textos** - Contenido formateado
+- **Marcas de tiempo** - Inicio y fin de vídeos
+
+### 3. Cuestionarios y Certificación
+- **Preguntas de opción múltiple** (A, B, C, D)
+- **Calificaciones automáticas** (0-10)
+- **Puntuación mínima**: 7.0 para aprobación
+- **Certificación automática** (opcional)
+- **Emisión de diplomas** en PDF/HTML
+
+### 4. Gamificación
+```
+Cálculo de XP del Usuario:
+  Base = 150 XP por lección completada
+       + 500 XP por certificado
+```
 
 | Perfil | XP Inicial |
 |--------|-----------|
-| Admin PayGas | 8.500 |
-| Gestor de Posto | 4.100 |
+| Admin  | 8.500 |
+| Gestor | 4.100 |
 | Atendente | 2.400 |
 
-### 4.5 Certificacao Digital
+**Logros Desbloqueables:**
+- 🏆 Primera Lección
+- 🔥 Maratonista (5 lecciones en 1 día)
+- 📜 Certificador (1 certificado)
+- 🌟 Trilhero (3 rutas)
+- 🎯 Experto (10 en 3 cuestionarios)
+- 👑 Ranker (Top 10 nacional)
 
-- Certificados gerados automaticamente ao concluir quiz com nota >= 7 (quando `autoGerarCertificado` ativado)
-- Ou manualmente via aprovacao do gestor
-- Layout visual com header azul, selo laranja, e rodape com data
-- Opcoes de download (PDF/HTML) e compartilhamento
+### 5. Autenticación y Autorización
 
-### 4.6 Sistema de Quiz
+**Roles:**
+- **ADMIN** - Acceso total (gestión de usuarios, contenido, informes)
+- **GESTOR** - Gestiona su equipo de atendentes (gestión de equipo, informes)
+- **ATENDENTE** - Estudia rutas (acceso al aprendizaje)
 
-- **Criacao**: Admin cria quiz no CMS (`/cms`) ao lado de cada aula
-- **Perguntas**: Selecao simples (A, B, C, D) com resposta correta marcada
-- **Aplicacao**: Estudante responde ao final da aula
-- **Correcao**: Automatica, nota de 0 a 10
-- **Aprovacao**: Nota >= 7
-- **Certificado**: Gerado automatico se `autoGerarCertificado = true`
+**Middleware JWT:**
+```typescript
+authenticate() - Valida token JWT
+authorize('ADMIN', 'GESTOR') - Verifica permisos
+```
 
-**Endpoints de Quiz:**
+### 6. Email y Notificaciones
 
-| Metodo | Rota | Descricao |
-|--------|------|-----------|
-| POST | `/api/modulos/:moduloId/quiz` | Criar quiz |
-| GET | `/api/modulos/:moduloId/quiz/:aulaId` | Obter quiz com perguntas |
-| PUT | `/api/modulos/quiz/:quizId` | Atualizar quiz |
-| DELETE | `/api/modulos/quiz/:quizId` | Excluir quiz |
-| POST | `/api/modulos/quiz/:quizId/perguntas` | Adicionar pergunta |
-| PUT | `/api/modulos/perguntas/:perguntaId` | Atualizar pergunta |
-| DELETE | `/api/modulos/perguntas/:perguntaId` | Excluir pergunta |
-| POST | `/api/modulos/quiz/:quizId/responder` | Enviar respostas |
-| GET | `/api/modulos/quiz/:quizId/resultados` | Ver resultados |
+**Eventos que disparan correos:**
+- ✉️ Bienvenida (nuevo usuario)
+- 🎓 Certificado emitido
+- 📬 Notificaciones personalizadas
 
----
-
-## 5. Funcionalidades por Modulo
-
-| Modulo | Descricao | Acesso |
-|--------|-----------|--------|
-| **Dashboard** | Vista resumida com metricas e progresso | Todos |
-| **Trilhas de Aprendizado** | Catalogo de trilhas com filtros | Todos |
-| **Modulos da Trilha** | Modulos dentro de uma trilha | Todos |
-| **Conteudo do Modulo** | Aulas (video/PDF) + concluir/avancar + quiz | Todos |
-| **Certificados** | Historico de certificacoes | Todos |
-| **Equipe** | Gestao de colaboradores | Gestor, Admin |
-| **Relatorios** | Metricas e desempenho | Gestor, Admin |
-| **CMS** | Gestao de conteudo (modulos + aulas + quiz) | Admin |
-| **Usuarios** | Gestao de usuarios | Admin |
-| **Notificacoes** | Alertas e novidades | Todos |
-| **Perfil** | Edicao de dados pessoais | Todos |
+Implementado con **Nodemailer** + SMTP corporativo.
 
 ---
 
-## 6. Instalacao e Execucao
+## 💻 Desarrollo
 
-### Requisitos
-
-- Node.js 18+ ou pnpm
-- MySQL 8+
-- Navegador web moderno
-
-### Como Executar
+### Comandos Principales
 
 ```bash
-# Instalar dependencias
-pnpm install
-
-# Configurar banco de dados
-cp .env.example .env  # Configurar variaveis de ambiente
-pnpm prisma migrate dev  # Executar migracoes
-pnpm prisma db seed      # Dados iniciais
-
-# Iniciar backend (porta 3001)
-pnpm server
-
-# Iniciar frontend (porta 5173)
+# Iniciar en modo desarrollo
 pnpm dev
 
-# Build de producao
+# Solo servidor backend
+pnpm dev:server
+
+# Solo cliente frontend
+pnpm dev:client
+
+# Build para producción
 pnpm build
 
-# Preview do build
-pnpm preview
+# Linting
+pnpm lint
+
+# Type checking
+npx tsc --noEmit
+
+# Pruebas CRUD
+npx tsx scripts/test-crud.ts
 ```
 
-### Variaveis de Ambiente (.env)
+### Estructura de Código
 
-```env
-# Banco de dados
-DATABASE_URL="mysql://user:password@localhost:3306/academia_paygas"
-
-# JWT
-JWT_SECRET="sua-chave-secreta"
-
-# API
-VITE_API_BASE_URL="https://localhost:3001/api"
-VITE_API_KEY="sua-chave-api"
-```
-
-### Credenciais de Teste
-
-| Perfil | Email | Senha |
-|--------|-------|-------|
-| Admin | admin@paygas.com.br | 123456 |
-| Gestor | gestor@paygas.com.br | 123456 |
-| Atendente | atendente@paygas.com.br | 123456 |
+**Patrones:**
+- ✅ TypeScript strict mode
+- ✅ Componentes funcionales React con hooks
+- ✅ Manejo explícito de errores
+- ✅ Validación con Zod
+- ✅ Respuestas JSON estandarizadas
 
 ---
 
-## 7. Deploy
+## 🧪 Testing
 
-### Deploy estatico (cPanel, Nginx, Apache)
+### Ejecutar Pruebas CRUD
 
 ```bash
+npx tsx scripts/test-crud.ts
+```
+
+**Lo que se prueba:**
+✅ CREATE - Crear usuarios, rutas, módulos, lecciones, cuestionarios  
+✅ READ - Buscar registros en la base de datos  
+✅ UPDATE - Actualizar datos  
+✅ DELETE - Eliminar registros  
+✅ RELATIONSHIPS - Relaciones entre tablas  
+
+---
+
+## 📊 Esquema de Datos
+
+### Modelos Principales
+
+```prisma
+User (Usuario)
+Trilha (Ruta de Aprendizaje)
+Modulo (Módulo)
+Aula (Lección)
+Quiz (Cuestionario)
+QuizPergunta (Pregunta del Cuestionario)
+QuizResponse (Respuesta del Usuario)
+Progresso (Progreso)
+Certificate (Certificado)
+Notification (Notificación)
+ActivityLog (Registro de Actividad)
+```
+
+Total de **13 modelos** relacionados para gestionar todo el sistema de aprendizaje corporativo.
+
+---
+
+## 🚀 Deployment
+
+### Producción
+
+```bash
+# Build
 pnpm build
-# Subir conteudo de dist/ para o servidor
+
+# Iniciar servidor
+node dist/server.js
 ```
 
-Criar `.htaccess` para SPA routing no cPanel:
+### Variables de Entorno (Producción)
 
-```apache
-<IfModule mod_rewrite.c>
-  RewriteEngine On
-  RewriteBase /
-  RewriteRule ^index\.html$ - [L]
-  RewriteCond %{REQUEST_FILENAME} !-f
-  RewriteCond %{REQUEST_FILENAME} !-d
-  RewriteRule . /index.html [L]
-</IfModule>
+```bash
+NODE_ENV=production
+DATABASE_URL=...
+JWT_SECRET=... (use generadores fuertes)
+ENCRYPTION_KEY=... (use AES-256-GCM)
+SMTP_* = ... (sus datos SMTP)
 ```
 
----
+### Consideraciones de Seguridad
 
-## 8. Documentacao Adicional
-
-- [agents.md](agents.md) - Arquitetura de agentes do sistema
-- [design.md](design.md) - Design system e componentes
-- API Docs: `GET /api/docs` (quando servidor rodando)
-
----
-
-## 9. Roadmap
-
-### Fase 1 - MVP Frontend (Concluido)
-
-- [x] Autenticacao por perfil
-- [x] 3 perfis diferenciados
-- [x] Dashboard personalizado
-- [x] 8 trilhas de aprendizagem
-- [x] Sistema de gamificacao (XP, conquistas)
-- [x] Certificacao digital
-- [x] Roteamento com React Router DOM
-
-### Fase 2 - Backend (Concluido)
-
-- [x] Banco de dados MySQL (Prisma ORM)
-- [x] API REST com autenticacao JWT
-- [x] Persistencia real de progresso
-- [x] CRUD completo (usuarios, trilhas, modulos, aulas)
-- [x] Sistema de quiz (criacao, perguntas, respostas)
-- [x] Certificados automaticos via quiz
-- [x] Notificacoes server-side
-- [x] Criptografia de payloads (AES-256-GCM)
-- [x] HTTPS com certificados auto-signed
-
-### Fase 3 - LMS Completo (Concluido)
-
-- [x] Routing: `/trilhas-aprendizado` → `/modulo/[nombre]`
-- [x] Aulas com video YouTube e PDF
-- [x] Botao "Concluir e Avançar" funcional
-- [x] Quiz com perguntas de selecao simples
-- [x] Correcao automatica e notas
-- [x] Integracao quiz → certificado automatico
-- [x] Gestao de quiz no CMS
-
-### Fase 4 - Avancado (Pendente)
-
-- [ ] App movel (React Native)
-- [ ] Notificacoes push
-- [ ] Conteudo offline
-- [ ] Sistema de avaliacao avancado
-
-### Fase 5 - Analytics (Pendente)
-
-- [ ] Dashboard de BI
-- [ ] Machine Learning para recomendacoes
-- [ ] Predicao de abandono
-- [ ] A/B testing de conteudo
+✅ HTTPS obligatorio  
+✅ JWT con expiración  
+✅ Contraseñas con bcrypt (10+ rounds)  
+✅ Payloads cifrados en tránsito  
+✅ CORS configurado  
+✅ Protección contra inyección SQL (Prisma)  
 
 ---
 
-## 10. Tecnologias
+## 📚 Documentación Adicional
 
-### Frontend
-
-| Tecnologia | Versao | Uso |
-|-----------|--------|-----|
-| React | 19 | Framework UI |
-| TypeScript | 5.7 | Tipagem |
-| Vite | 6 | Bundler |
-| React Router DOM | 7 | Roteamento |
-| shadcn/ui | - | 57 componentes UI |
-| Plyr | - | Player de video YouTube |
-
-### Backend
-
-| Tecnologia | Versao | Uso |
-|-----------|--------|-----|
-| Node.js | 18+ | Runtime |
-| Express | 5 | Framework HTTP |
-| Prisma | 5 | ORM (MySQL) |
-| MySQL | 8 | Banco de dados |
-| jsonwebtoken | - | Autenticacao JWT |
-| bcrypt | - | Hash de senhas |
-
-### Infraestrutura
-
-| Tecnologia | Uso |
-|-----------|-----|
-| HTTPS | Comunicacao segura (cert auto-signed) |
-| AES-256-GCM | Criptografia de payloads |
-| CORS | Controle de acesso cross-origin |
+- **[Agents](./agents.md)** - Sistema de agentes
+- **[Changelog](./CHANGELOG.md)** - Historial de cambios
 
 ---
 
-## 11. Contato e Suporte
+## 🤝 Soporte y Contribución
 
-| Canal | Informacao |
-|-------|------------|
-| **Email** | academia@paygas.com.br |
-| **Telefone** | 0800-XXX-XXXX |
-| **Horario** | Segunda a Sexta, 8h as 18h (Brasilia) |
+**Reportar Problemas**: [GitHub Issues](https://github.com/Dev-OlaMulticom/academia-paygas/issues)
 
----
-
-## 12. Licenca
-
-Este software e propriedade da PayGas Brasil. Todos os direitos reservados.
+**Pull Requests**: ¡Bienvenidos! Por favor:
+1. Cree rama feature (`git checkout -b feature/AmazingFeature`)
+2. Commit sus cambios (`git commit -m 'Add AmazingFeature'`)
+3. Push a la rama (`git push origin feature/AmazingFeature`)
+4. Abra un Pull Request
 
 ---
 
-**Versao**: 26.0  
-**Ultima atualizacao**: Junho 2026  
-**Autor**: Equipe de Produto PayGas
+## 📝 Licencia
+
+Propiedad de OlaMulticom. Solo para uso interno.
+
+---
+
+## 📞 Contacto
+
+**Email Admin**: 24hwww@gmail.com  
+**Proyecto**: Academia PayGas  
+**Estado**: 🟢 En Producción  
+
+---
+
+**Última actualización**: 2026-06-16  
+**Versión**: 0.1.0  
+**Mantenido por**: OlaMulticom & Copilot

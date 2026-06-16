@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { authenticate, authorize } from '../middleware/auth'
+import { getStringParam } from '../utils/queryParams'
 
 const router = Router()
 
@@ -39,7 +40,7 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) =>
         trilhaId,
         titulo,
         descricao: descricao || '',
-        ordem: ordem ?? (maxOrdem._max.ordem ?? 0) + 1,
+        ordem: ordem ?? ((maxOrdem._max.ordem ?? 0) + 1),
         videoUrl: videoUrl || null,
         videoInicio: videoInicio || null,
         videoFim: videoFim || null,
@@ -55,8 +56,10 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) =>
 router.put('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
   try {
     const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim } = req.body
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
     const modulo = await prisma.modulo.update({
-      where: { id: req.params.id },
+      where: { id },
       data: { titulo, descricao, ordem, videoUrl, videoInicio, videoFim },
     })
     res.json(modulo)
@@ -68,7 +71,9 @@ router.put('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) 
 // DELETE /api/cms/modulos/:id
 router.delete('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
-    await prisma.modulo.delete({ where: { id: req.params.id } })
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
+    await prisma.modulo.delete({ where: { id } })
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ error: 'Erro ao excluir módulo' })
@@ -78,8 +83,10 @@ router.delete('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
 // GET /api/modulos/:id/aulas
 router.get('/:id/aulas', authenticate, async (req, res) => {
   try {
+    const moduloId = getStringParam(req.params.id)
+    if (!moduloId) return res.status(400).json({ error: 'ID inválido' })
     const aulas = await prisma.aula.findMany({
-      where: { moduloId: req.params.id },
+      where: { moduloId },
       include: { quiz: { include: { perguntas: true } } },
       orderBy: { ordem: 'asc' },
     })
@@ -93,15 +100,17 @@ router.get('/:id/aulas', authenticate, async (req, res) => {
 router.post('/:id/aulas', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
   try {
     const { titulo, descricao, videoUrl, videoInicio, videoFim, duracaoMin } = req.body
+    const moduloId = getStringParam(req.params.id)
+    if (!moduloId) return res.status(400).json({ error: 'ID inválido' })
 
     const maxOrdem = await prisma.aula.aggregate({
-      where: { moduloId: req.params.id },
+      where: { moduloId },
       _max: { ordem: true },
     })
 
     const aula = await prisma.aula.create({
       data: {
-        moduloId: req.params.id,
+        moduloId,
         titulo,
         descricao: descricao || '',
         ordem: (maxOrdem._max.ordem ?? 0) + 1,
@@ -121,8 +130,10 @@ router.post('/:id/aulas', authenticate, authorize('ADMIN', 'GESTOR'), async (req
 router.put('/aulas/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
   try {
     const { titulo, descricao, videoUrl, videoInicio, videoFim, duracaoMin, ordem } = req.body
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
     const aula = await prisma.aula.update({
-      where: { id: req.params.id },
+      where: { id },
       data: { titulo, descricao, videoUrl, videoInicio, videoFim, duracaoMin, ordem },
     })
     res.json(aula)
@@ -134,7 +145,9 @@ router.put('/aulas/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req,
 // DELETE /api/aulas/:id
 router.delete('/aulas/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
-    await prisma.aula.delete({ where: { id: req.params.id } })
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
+    await prisma.aula.delete({ where: { id } })
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ error: 'Erro ao excluir aula' })
@@ -143,7 +156,7 @@ router.delete('/aulas/:id', authenticate, authorize('ADMIN'), async (req, res) =
 
 // ==================== QUIZ ENDPOINTS ====================
 
-// POST /api/modulos/:id/quiz - Create quiz for an aula
+// POST /api/modulos/:moduloId/quiz - Create quiz for an aula
 router.post('/:moduloId/quiz', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
   try {
     const { aulaId, titulo, autoGerarCertificado } = req.body
@@ -172,8 +185,10 @@ router.post('/:moduloId/quiz', authenticate, authorize('ADMIN', 'GESTOR'), async
 // GET /api/modulos/:moduloId/quiz/:aulaId - Get quiz with questions
 router.get('/:moduloId/quiz/:aulaId', authenticate, async (req, res) => {
   try {
+    const aulaId = getStringParam(req.params.aulaId)
+    if (!aulaId) return res.status(400).json({ error: 'ID inválido' })
     const quiz = await prisma.quiz.findUnique({
-      where: { aulaId: req.params.aulaId },
+      where: { aulaId },
       include: {
         perguntas: { orderBy: { ordem: 'asc' } },
       },
@@ -191,8 +206,10 @@ router.get('/:moduloId/quiz/:aulaId', authenticate, async (req, res) => {
 router.put('/quiz/:quizId', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
   try {
     const { titulo, autoGerarCertificado } = req.body
+    const quizId = getStringParam(req.params.quizId)
+    if (!quizId) return res.status(400).json({ error: 'ID inválido' })
     const quiz = await prisma.quiz.update({
-      where: { id: req.params.quizId },
+      where: { id: quizId },
       data: { titulo, autoGerarCertificado },
     })
     res.json(quiz)
@@ -204,7 +221,9 @@ router.put('/quiz/:quizId', authenticate, authorize('ADMIN', 'GESTOR'), async (r
 // DELETE /api/modulos/quiz/:quizId - Delete quiz
 router.delete('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
-    await prisma.quiz.delete({ where: { id: req.params.quizId } })
+    const quizId = getStringParam(req.params.quizId)
+    if (!quizId) return res.status(400).json({ error: 'ID inválido' })
+    await prisma.quiz.delete({ where: { id: quizId } })
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ error: 'Erro ao excluir quiz' })
@@ -215,18 +234,20 @@ router.delete('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req, res
 router.post('/quiz/:quizId/perguntas', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
   try {
     const { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta } = req.body
+    const quizId = getStringParam(req.params.quizId)
+    if (!quizId) return res.status(400).json({ error: 'ID inválido' })
     if (!pergunta || !opcaoA || !opcaoB || !correta) {
       return res.status(400).json({ error: 'Pergunta, opção A, opção B e resposta correta são obrigatórias' })
     }
 
     const maxOrdem = await prisma.quizPergunta.aggregate({
-      where: { quizId: req.params.quizId },
+      where: { quizId },
       _max: { ordem: true },
     })
 
     const newPergunta = await prisma.quizPergunta.create({
       data: {
-        quizId: req.params.quizId,
+        quizId,
         pergunta,
         opcaoA,
         opcaoB,
@@ -246,8 +267,10 @@ router.post('/quiz/:quizId/perguntas', authenticate, authorize('ADMIN', 'GESTOR'
 router.put('/perguntas/:perguntaId', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
   try {
     const { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta, ordem } = req.body
+    const perguntaId = getStringParam(req.params.perguntaId)
+    if (!perguntaId) return res.status(400).json({ error: 'ID inválido' })
     const updated = await prisma.quizPergunta.update({
-      where: { id: req.params.perguntaId },
+      where: { id: perguntaId },
       data: { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta, ordem },
     })
     res.json(updated)
@@ -259,7 +282,9 @@ router.put('/perguntas/:perguntaId', authenticate, authorize('ADMIN', 'GESTOR'),
 // DELETE /api/modulos/perguntas/:perguntaId - Delete question
 router.delete('/perguntas/:perguntaId', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
-    await prisma.quizPergunta.delete({ where: { id: req.params.perguntaId } })
+    const perguntaId = getStringParam(req.params.perguntaId)
+    if (!perguntaId) return res.status(400).json({ error: 'ID inválido' })
+    await prisma.quizPergunta.delete({ where: { id: perguntaId } })
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ error: 'Erro ao excluir pergunta' })

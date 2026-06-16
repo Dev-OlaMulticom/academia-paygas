@@ -1,0 +1,353 @@
+#!/usr/bin/env node
+/**
+ * CRUD Testing Script - Academia PayGas
+ * Tests all main API endpoints
+ */
+
+import 'dotenv/config'
+import { PrismaClient } from '@prisma/client'
+
+const prisma = new PrismaClient()
+
+interface TestResult {
+  test: string
+  status: 'PASS' | 'FAIL'
+  message: string
+}
+
+const results: TestResult[] = []
+
+function logResult(test: string, status: 'PASS' | 'FAIL', message: string) {
+  results.push({ test, status, message })
+  const icon = status === 'PASS' ? '✅' : '❌'
+  console.log(`${icon} ${test}: ${message}`)
+}
+
+async function testUsersFlow() {
+  console.log('\n📝 Testing USER CRUD...')
+  
+  try {
+    // CREATE
+    const user = await prisma.user.create({
+      data: {
+        email: `test-user-${Date.now()}@test.com`,
+        nome: 'Test User',
+        senha: 'hashed_password',
+        role: 'ATENDENTE',
+      },
+    })
+    logResult('CREATE User', 'PASS', `User created: ${user.id}`)
+
+    // READ
+    const foundUser = await prisma.user.findUnique({
+      where: { id: user.id },
+    })
+    logResult('READ User', foundUser ? 'PASS' : 'FAIL', foundUser ? `User found: ${foundUser.email}` : 'User not found')
+
+    // UPDATE
+    const updated = await prisma.user.update({
+      where: { id: user.id },
+      data: { nome: 'Updated User' },
+    })
+    logResult('UPDATE User', 'PASS', `User updated: ${updated.nome}`)
+
+    // DELETE
+    await prisma.user.delete({
+      where: { id: user.id },
+    })
+    logResult('DELETE User', 'PASS', 'User deleted successfully')
+
+  } catch (error) {
+    logResult('USER CRUD', 'FAIL', error instanceof Error ? error.message : 'Unknown error')
+  }
+}
+
+async function testTrilhasFlow() {
+  console.log('\n📚 Testing TRILHA CRUD...')
+  
+  try {
+    // CREATE
+    const trilha = await prisma.trilha.create({
+      data: {
+        titulo: `Test Trilha ${Date.now()}`,
+        descricao: 'Test Description',
+        icon: '📚',
+        color: '#E6EEF9',
+        obrigatorio: true,
+      },
+    })
+    logResult('CREATE Trilha', 'PASS', `Trilha created: ${trilha.id}`)
+
+    // READ
+    const found = await prisma.trilha.findUnique({
+      where: { id: trilha.id },
+    })
+    logResult('READ Trilha', found ? 'PASS' : 'FAIL', found ? `Trilha found` : 'Not found')
+
+    // UPDATE
+    const updated = await prisma.trilha.update({
+      where: { id: trilha.id },
+      data: { titulo: 'Updated Trilha Title' },
+    })
+    logResult('UPDATE Trilha', 'PASS', `Trilha updated`)
+
+    return trilha.id
+  } catch (error) {
+    logResult('TRILHA CRUD', 'FAIL', error instanceof Error ? error.message : 'Unknown error')
+    return null
+  }
+}
+
+async function testModulosFlow(trilhaId: string | null) {
+  if (!trilhaId) {
+    logResult('MODULO CRUD', 'FAIL', 'No trilha ID available')
+    return null
+  }
+
+  console.log('\n🔧 Testing MODULO CRUD...')
+  
+  try {
+    // CREATE
+    const modulo = await prisma.modulo.create({
+      data: {
+        trilhaId,
+        titulo: `Test Modulo ${Date.now()}`,
+        descricao: 'Test Module Description',
+        ordem: 1,
+      },
+    })
+    logResult('CREATE Modulo', 'PASS', `Modulo created: ${modulo.id}`)
+
+    // READ
+    const found = await prisma.modulo.findUnique({
+      where: { id: modulo.id },
+    })
+    logResult('READ Modulo', found ? 'PASS' : 'FAIL', found ? `Modulo found` : 'Not found')
+
+    // UPDATE
+    const updated = await prisma.modulo.update({
+      where: { id: modulo.id },
+      data: { titulo: 'Updated Modulo Title' },
+    })
+    logResult('UPDATE Modulo', 'PASS', `Modulo updated`)
+
+    return modulo.id
+  } catch (error) {
+    logResult('MODULO CRUD', 'FAIL', error instanceof Error ? error.message : 'Unknown error')
+    return null
+  }
+}
+
+async function testAulasFlow(moduloId: string | null) {
+  if (!moduloId) {
+    logResult('AULA CRUD', 'FAIL', 'No modulo ID available')
+    return null
+  }
+
+  console.log('\n📖 Testing AULA CRUD...')
+  
+  try {
+    // CREATE
+    const aula = await prisma.aula.create({
+      data: {
+        moduloId,
+        titulo: `Test Aula ${Date.now()}`,
+        descricao: 'Test Lesson Description',
+        ordem: 1,
+        videoUrl: 'https://youtube.com/watch?v=test',
+        duracaoMin: 15,
+      },
+    })
+    logResult('CREATE Aula', 'PASS', `Aula created: ${aula.id}`)
+
+    // READ
+    const found = await prisma.aula.findUnique({
+      where: { id: aula.id },
+    })
+    logResult('READ Aula', found ? 'PASS' : 'FAIL', found ? `Aula found` : 'Not found')
+
+    // UPDATE
+    const updated = await prisma.aula.update({
+      where: { id: aula.id },
+      data: { titulo: 'Updated Aula Title' },
+    })
+    logResult('UPDATE Aula', 'PASS', `Aula updated`)
+
+    return aula.id
+  } catch (error) {
+    logResult('AULA CRUD', 'FAIL', error instanceof Error ? error.message : 'Unknown error')
+    return null
+  }
+}
+
+async function testQuizFlow(aulaId: string | null) {
+  if (!aulaId) {
+    logResult('QUIZ CRUD', 'FAIL', 'No aula ID available')
+    return
+  }
+
+  console.log('\n❓ Testing QUIZ CRUD...')
+  
+  try {
+    // CREATE QUIZ
+    const quiz = await prisma.quiz.create({
+      data: {
+        aulaId,
+        titulo: `Test Quiz ${Date.now()}`,
+        autoGerarCertificado: false,
+      },
+    })
+    logResult('CREATE Quiz', 'PASS', `Quiz created: ${quiz.id}`)
+
+    // CREATE QUESTION
+    const pergunta = await prisma.quizPergunta.create({
+      data: {
+        quizId: quiz.id,
+        pergunta: 'What is 2+2?',
+        opcaoA: '3',
+        opcaoB: '4',
+        opcaoC: '5',
+        opcaoD: '6',
+        correta: 'B',
+        ordem: 1,
+      },
+    })
+    logResult('CREATE Quiz Question', 'PASS', `Question created`)
+
+    // READ QUIZ
+    const found = await prisma.quiz.findUnique({
+      where: { id: quiz.id },
+      include: { perguntas: true },
+    })
+    logResult('READ Quiz with Questions', found && found.perguntas.length > 0 ? 'PASS' : 'FAIL', 'Quiz with questions retrieved')
+
+    // UPDATE QUIZ
+    const updated = await prisma.quiz.update({
+      where: { id: quiz.id },
+      data: { titulo: 'Updated Quiz Title' },
+    })
+    logResult('UPDATE Quiz', 'PASS', `Quiz updated`)
+
+  } catch (error) {
+    logResult('QUIZ CRUD', 'FAIL', error instanceof Error ? error.message : 'Unknown error')
+  }
+}
+
+async function testProgressFlow() {
+  console.log('\n📊 Testing PROGRESS Flow...')
+  
+  try {
+    // Create test data
+    const user = await prisma.user.create({
+      data: {
+        email: `progress-test-${Date.now()}@test.com`,
+        nome: 'Progress Test',
+        senha: 'hashed',
+        role: 'ATENDENTE',
+      },
+    })
+
+    const trilha = await prisma.trilha.create({
+      data: {
+        titulo: `Progress Trilha ${Date.now()}`,
+        descricao: 'Test',
+        icon: '📚',
+        color: '#E6EEF9',
+      },
+    })
+
+    const modulo = await prisma.modulo.create({
+      data: {
+        trilhaId: trilha.id,
+        titulo: 'Test Modulo',
+        descricao: 'Test',
+        ordem: 1,
+      },
+    })
+
+    const aula = await prisma.aula.create({
+      data: {
+        moduloId: modulo.id,
+        titulo: 'Test Aula',
+        descricao: 'Test',
+        ordem: 1,
+      },
+    })
+
+    // CREATE PROGRESS
+    const progress = await prisma.progresso.create({
+      data: {
+        userId: user.id,
+        moduloId: modulo.id,
+        aulaId: aula.id,
+        concluido: true,
+      },
+    })
+    logResult('CREATE Progress', 'PASS', 'Progress recorded')
+
+    // READ PROGRESS
+    const found = await prisma.progresso.findMany({
+      where: { userId: user.id },
+    })
+    logResult('READ User Progress', found.length > 0 ? 'PASS' : 'FAIL', `Found ${found.length} progress records`)
+
+    // Cleanup
+    await prisma.progresso.delete({ where: { id: progress.id } })
+    await prisma.aula.delete({ where: { id: aula.id } })
+    await prisma.modulo.delete({ where: { id: modulo.id } })
+    await prisma.trilha.delete({ where: { id: trilha.id } })
+    await prisma.user.delete({ where: { id: user.id } })
+
+  } catch (error) {
+    logResult('PROGRESS Flow', 'FAIL', error instanceof Error ? error.message : 'Unknown error')
+  }
+}
+
+async function runAllTests() {
+  console.log('🚀 Starting Academy PayGas CRUD Tests...\n')
+  console.log(`📅 Timestamp: ${new Date().toISOString()}`)
+  console.log(`🗄️  Database: ${process.env.DATABASE_URL ? 'PostgreSQL' : 'Not configured'}`)
+
+  await testUsersFlow()
+  const trilhaId = await testTrilhasFlow()
+  const moduloId = await testModulosFlow(trilhaId)
+  const aulaId = await testAulasFlow(moduloId)
+  await testQuizFlow(aulaId)
+  await testProgressFlow()
+
+  // Cleanup
+  if (trilhaId) {
+    try {
+      await prisma.trilha.delete({ where: { id: trilhaId } })
+    } catch (e) {
+      // Already deleted or has dependencies
+    }
+  }
+
+  // Print summary
+  console.log('\n' + '='.repeat(60))
+  console.log('TEST SUMMARY')
+  console.log('='.repeat(60))
+  
+  const passed = results.filter(r => r.status === 'PASS').length
+  const failed = results.filter(r => r.status === 'FAIL').length
+  const total = results.length
+
+  results.forEach(r => {
+    const icon = r.status === 'PASS' ? '✅' : '❌'
+    console.log(`${icon} ${r.test}: ${r.message}`)
+  })
+
+  console.log('\n' + '-'.repeat(60))
+  console.log(`Total: ${total} | Passed: ${passed} ✅ | Failed: ${failed} ❌`)
+  console.log(`Success Rate: ${((passed / total) * 100).toFixed(1)}%`)
+  console.log('='.repeat(60))
+
+  await prisma.$disconnect()
+  process.exit(failed > 0 ? 1 : 0)
+}
+
+runAllTests().catch(error => {
+  console.error('Fatal error:', error)
+  process.exit(1)
+})

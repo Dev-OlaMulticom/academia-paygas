@@ -1,291 +1,510 @@
-# Agents - Academia PayGas
+# Arquitectura de Agentes - Academia PayGas
 
-## Arquitetura de Agentes
+## Descripción General
 
-O sistema Academia PayGas utiliza uma arquitetura baseada em agentes para gerenciar a interacao entre usuarios e funcionalidades da plataforma.
+Academia PayGas utiliza una arquitectura modular de agentes para gestionar la interacción entre usuarios y las funcionalidades de la plataforma. Cada agente es responsable de un aspecto específico del sistema y se comunica con otros agentes a través de eventos, API REST y estado compartido.
 
-## Agentes do Sistema
+---
 
-### 1. Authentication Agent
+## 1. Authentication Agent
 
-Responsavel pela autenticacao e gerenciamento de sessoes.
+**Responsable de:** Autenticación, gestión de sesiones y validación de permisos.
 
-| Campo | Valor |
-|-------|-------|
+| Propiedad | Valor |
+|-----------|-------|
 | **Tipo** | Primario |
-| **Escopo** | Global |
-| **Responsabilidades** | Login, logout, validacao de sessao, persistencia em localStorage |
-| **Arquivo** | `src/hooks/useAuth.ts` |
+| **Alcance** | Global |
+| **Archivo Principal** | `src/hooks/useAuth.ts` |
+| **Dependencias** | Ninguna |
+| **API Endpoints** | `POST /api/auth/login`, `GET /api/auth/me` |
+
+### Funcionalidades
+
+- Login con email y contraseña
+- Validación de token JWT
+- Gestión de sesiones en localStorage
+- Control de roles y permisos (ADMIN, GESTOR, ATENDENTE)
+- Logout y limpieza de sesión
+
+### Flujo de Autenticación
 
 ```
-Fluxo:
-  Login -> Validacao -> Persistencia -> Dashboard
-  Logout -> Limpeza -> Tela de Login
+1. Usuario accede a /login
+2. Completa formulario (email + contraseña)
+3. POST /api/auth/login → backend valida credenciales
+4. Backend retorna token JWT + usuario
+5. Frontend almacena en localStorage (key: "user")
+6. useAuth() hook proporciona contexto global
+7. Redirige a /dashboard (página protegida)
 ```
 
-### 2. Navigation Agent
+### Estructura de Sesión (localStorage)
 
-Gerencia a navegacao entre paginas e controle de acesso baseado em perfis.
+```json
+{
+  "user": {
+    "id": "uuid",
+    "email": "usuario@paygas.com",
+    "nombre": "Nombre del Usuario",
+    "rol": "ATENDENTE|GESTOR|ADMIN",
+    "xp": 2400,
+    "nivel": 5,
+    "token": "eyJhbGc..."
+  }
+}
+```
 
-| Campo | Valor |
-|-------|-------|
+### Roles y Permisos
+
+| Rol | Permisos | XP Inicial |
+|-----|----------|-----------|
+| **ADMIN** | Crear/editar trilhas, módulos, gestionar usuarios, CMS completo | 8500 |
+| **GESTOR** | Editar módulos de su gestoría, ver reportes, gestionar equipo | 4100 |
+| **ATENDENTE** | Ver trilhas, completar aulas, hacer quizzes, ver certificados | 2400 |
+
+---
+
+## 2. Navigation Agent
+
+**Responsable de:** Enrutamiento, control de acceso y navegación entre páginas.
+
+| Propiedad | Valor |
+|-----------|-------|
 | **Tipo** | Primario |
-| **Escopo** | Global |
-| **Responsabilidades** | Roteamento, controle de permissoes, historico de navegacao |
-| **Arquivo** | `src/App.tsx` (React Router) |
+| **Alcance** | Global |
+| **Archivo Principal** | `src/App.tsx` (React Router v6) |
+| **Dependencias** | Authentication Agent |
+| **Middleware** | Private routes, role-based redirects |
 
-**Sistema de Roteamento:**
+### Mapa de Rutas
 
-| Rota | Componente | Acesso |
-|------|-----------|--------|
-| `/login` | LoginPage | Publico |
-| `/` | DashboardPage | Autenticado |
-| `/trilhas-aprendizado` | TrilhasPage | Autenticado |
-| `/trilhas-aprendizado/:trilhaId` | TrilhaModulosPage | Autenticado |
-| `/modulo/:moduloNombre` | ModulosPage | Autenticado |
-| `/certificados` | CertificadosPage | Autenticado |
-| `/equipe` | EquipePage | Gestor, Admin |
-| `/relatorios` | RelatoriosPage | Gestor, Admin |
-| `/cms` | CMSPage | Admin |
-| `/cms/criar-modulo` | CriarModuloPage | Admin |
-| `/usuarios` | UsuariosPage | Admin |
-| `/notif` | NotifPage | Autenticado |
-| `/perfil` | PerfilPage | Autenticado |
+| Ruta | Componente | Acceso | Descripción |
+|------|-----------|--------|-------------|
+| `/login` | LoginPage | Público | Página de login |
+| `/` | DashboardPage | Autenticado | Panel principal |
+| `/trilhas-aprendizado` | TrilhasPage | Autenticado | Lista de trilhas |
+| `/trilhas-aprendizado/:trilhaId` | TrilhaModulosPage | Autenticado | Módulos de una trilha |
+| `/modulo/:moduloNombre` | ModulosPage | Autenticado | Aulas y contenido |
+| `/certificados` | CertificadosPage | Autenticado | Certificados emitidos |
+| `/equipe` | EquipePage | Gestor/Admin | Gestión de equipo |
+| `/relatorios` | RelatoriosPage | Gestor/Admin | Reportes y estadísticas |
+| `/cms` | CMSPage | Admin | Gestión de contenido |
+| `/cms/crear-modulo` | CriarModuloPage | Admin | Crear nuevo módulo |
+| `/usuarios` | UsuariosPage | Admin | Gestión de usuarios |
+| `/notif` | NotifPage | Autenticado | Notificaciones |
+| `/perfil` | PerfilPage | Autenticado | Perfil del usuario |
 
-### 3. Learning Agent
+### Flujo de Navegación
 
-Gerencia trilhas de aprendizagem, progresso e certificacao.
+```
+Acceso a ruta
+  ↓
+¿Token válido? → No → Redirige a /login
+  ↓ Sí
+¿Ruta requiere rol específico? → No → Carga componente
+  ↓ Sí
+¿Usuario tiene rol? → No → Redirige a /
+  ↓ Sí
+Carga componente con acceso
+```
 
-| Campo | Valor |
-|-------|-------|
+---
+
+## 3. Learning Agent
+
+**Responsable de:** Gestión de trilhas, módulos, aulas y progreso del estudiante.
+
+| Propiedad | Valor |
+|-----------|-------|
 | **Tipo** | Sub-agente |
-| **Dependencias** | Navigation Agent |
-| **Responsabilidades** | Carregar trilhas, atualizar progresso, emitir certificados |
-| **Arquivo** | `src/pages/TrilhasPage.tsx`, `src/pages/TrilhaModulosPage.tsx`, `src/pages/ModulosPage.tsx` |
+| **Alcance** | Por usuario |
+| **Archivos Principales** | `src/pages/TrilhasPage.tsx`, `src/pages/TrilhaModulosPage.tsx`, `src/pages/ModulosPage.tsx` |
+| **Dependencias** | Navigation Agent, Quiz Agent |
+| **API Endpoints** | `/api/trilhas/*`, `/api/modulos/*`, `/api/progresso/*` |
 
-**Hierarquia de Conteudo:**
+### Jerarquía de Contenido
 
 ```
 Trilha (Trilha de Aprendizado)
-  └── Modulo (Categoria)
-       └── Aula (Video YouTube ou PDF)
-            └── Quiz? (Opcional, 1:1 com Aula)
-                 └── QuizPergunta (Multipla escolha: A, B, C, D)
+  ├── Modulo (Categoría dentro de la trilha)
+  │    ├── Aula #1 (Video YouTube o PDF)
+  │    │    └── Quiz? (Opcional, 1:1 con aula)
+  │    │         └── Pregunta de opción múltiple
+  │    ├── Aula #2
+  │    │    └── Quiz?
+  │    └── Aula #N
+  └── [Siguiente Módulo]
 ```
 
-**Trilhas Disponiveis (8):**
+### 8 Trilhas Disponibles
 
-| ID | Trilha | Aulas | Obrigatoria |
-|----|--------|-------|-------------|
-| atendimento | Excelencia no Atendimento | 6 | Sim |
-| cashback | Sistema de Cashback PayGas | 5 | Sim |
-| gestao | Gestao e KPIs do Posto | 7 | Nao |
-| terminal | Operacao do Terminal | 4 | Sim |
-| erp | Integracao via API | 6 | Sim |
-| lgpd | LGPD e Seguranca de Dados | 3 | Sim |
-| lideranca | Lideranca e Desenvolvimento de Equipe | 5 | Nao |
-| financeiro | Gestao Financeira do Posto | 4 | Nao |
+| ID | Nombre | Aulas | Obligatoria | Descripción |
+|----|--------|-------|-------------|-------------|
+| `atendimiento` | Excelencia en el Atendimiento | 6 | ✅ | Buenas prácticas de servicio al cliente |
+| `cashback` | Sistema de Cashback PayGas | 5 | ✅ | Funcionamiento y beneficios del programa |
+| `gestao` | Gestión y KPIs del Posto | 7 | ❌ | Indicadores clave y análisis de desempeño |
+| `terminal` | Operación del Terminal | 4 | ✅ | Uso correcto del POS y terminales |
+| `erp` | Integración vía API | 6 | ✅ | Conexión con sistemas empresariales |
+| `lgpd` | LGPD y Seguridad de Datos | 3 | ✅ | Cumplimiento normativo y protección |
+| `lideranca` | Liderazgo y Desarrollo de Equipo | 5 | ❌ | Gestión de personas y motivación |
+| `financeiro` | Gestión Financiera del Posto | 4 | ❌ | Control de ingresos y gastos |
 
-**Fluxo do Estudante:**
+### Flujo de Aprendizaje (Estudiante)
 
 ```
-1. Trilhas de Aprendizado (/trilhas-aprendizado)
-   → Lista todas as trilhas disponiveis
-
-2. Modulos da Trilha (/trilhas-aprendizado/:trilhaId)
-   → Lista os modulos dentro de uma trilha
-
-3. Conteudo do Modulo (/modulo/:moduloNombre)
-   → Lista de aulas (video ou PDF)
-   → Botao "Concluir e Avançar" em cada aula
-   → Botao "Anterior" para voltar
-   → Ao final: Quiz (se existir)
-   → Quiz: perguntas de selecao simples (A/B/C/D)
-   → Ao concluir quiz: nota >= 7 = aprovado
-   → Se autoGerarCertificado: certificado gerado automaticamente
+1. Ver Trilhas (GET /api/trilhas)
+   ↓
+2. Seleccionar Trilha → Ver Módulos (GET /api/trilhas/:id/modulos)
+   ↓
+3. Abrir Módulo → Ver Aulas (GET /api/modulos/:id/aulas)
+   ↓
+4. Para cada Aula:
+   - Mostrar contenido (video/PDF)
+   - Botón "Siguiente Aula" o "Concluir"
+   - Actualizar progreso (PUT /api/progresso)
+   ↓
+5. En última aula del módulo → Mostrar Quiz (si existe)
+   ↓
+6. Quiz completado:
+   - Si nota >= 7: Aprobado ✅
+   - Si autoGerarCertificado: Emitir automáticamente
+   - Si nota < 7: Permitir reintentar
+   ↓
+7. Ver Certificado (GET /api/certificates)
 ```
 
-### 4. Gamification Agent
+### Endpoint de Progreso
 
-Gerencia XP, niveis, conquistas e ranking.
+**GET /api/progresso** - Obtiene progreso del usuario actual
+```json
+{
+  "trilhasCompletadas": 2,
+  "aulasTotales": 38,
+  "aulasCompletadas": 15,
+  "porcentajeTotal": 39.5,
+  "certificadosEmitidos": 1,
+  "proximasAulas": [...],
+  "nivelActual": 5,
+  "xpActual": 2450
+}
+```
 
-| Campo | Valor |
-|-------|-------|
+---
+
+## 4. Gamification Agent
+
+**Responsable de:** Sistema de puntos (XP), niveles y logros.
+
+| Propiedad | Valor |
+|-----------|-------|
 | **Tipo** | Sub-agente |
-| **Responsabilidades** | Calcular XP, gerenciar niveis, atualizar ranking |
-| **Arquivo** | `src/hooks/useAuth.ts` |
+| **Alcance** | Por usuario |
+| **Archivo Principal** | `src/hooks/useAuth.ts` (cálculo de XP) |
+| **Dependencias** | Learning Agent, Quiz Agent |
+| **Métrica** | XP (Experience Points) |
 
-**Sistema de XP:**
+### Sistema de XP
 
-| Perfil | XP Inicial |
-|--------|-----------|
-| Admin PayGas | 8.500 |
-| Gestor de Posto | 4.100 |
-| Atendente | 2.400 |
+| Acción | XP Ganado | Notas |
+|--------|----------|-------|
+| Completar aula | +50 XP | Sin quiz |
+| Aprobar quiz (nota >= 7) | +100 XP | Basado en nota |
+| Obtener certificado | +250 XP | Una sola vez por trilha |
+| Subir de nivel | 1000 XP/nivel | Acumulativo |
+| Completar trilha obligatoria | +500 XP | Bonus especial |
 
-**Conquistas:**
+### 6 Conquistas (Achievements)
 
-| Conquista | Condicao | Recompensa |
-|-----------|----------|------------|
-| Primeira Aula | Completar 1a aula | XP bonus |
-| Maratonista | 5 aulas em um dia | XP bonus |
-| Certifier | Obter 1 certificado | XP bonus |
-| Trilheiro | Concluir 3 trilhas | XP bonus |
-| Expert | Nota 10 em 3 quizzes | XP bonus |
-| Ranker | Top 10 nacional | XP bonus |
+| Logro | Condición | Recompensa | Desbloquea |
+|-------|-----------|-----------|-----------|
+| 🎯 Primer Paso | Completar 1ª aula | +100 XP | Badge: "Iniciador" |
+| 🏃 Maratonista | 5+ aulas en un día | +200 XP | Badge: "Rápido" |
+| 📜 Certifier | Obtener 1 certificado | +250 XP | Badge: "Certificado" |
+| 🗺️ Trilheiro | Completar 3 trilhas | +500 XP | Badge: "Explorador" |
+| 🧠 Expert | Nota 10 en 3 quizzes | +300 XP | Badge: "Experto" |
+| 🏆 Ranker | Estar en Top 10 nacional | +1000 XP | Badge: "Campeón" |
 
-### 5. Notification Agent
+### Cálculo de Nivel
 
-Gerencia e exibe notificacoes para os usuarios.
+```javascript
+// Nivel = Math.floor(xpTotal / 1000) + 1
+// Nivel 1: 0-999 XP
+// Nivel 2: 1000-1999 XP
+// Nivel 3: 2000-2999 XP
+// ...
+// Nivel N: (N-1)*1000 XP
+```
 
-| Campo | Valor |
-|-------|-------|
+---
+
+## 5. Quiz Agent
+
+**Responsable de:** Creación, gestión y corrección de cuestionarios.
+
+| Propiedad | Valor |
+|-----------|-------|
 | **Tipo** | Sub-agente |
-| **Responsabilidades** | Criar, armazenar e exibir notificacoes |
-| **Arquivo** | `src/pages/NotifPage.tsx` |
-
-**Tipos de Notificacao:**
-- Novo modulo disponivel
-- Subida de nivel
-- Certificado emitido
-- Atualizacoes de trilhas
-
-### 6. Quiz Agent (Novo)
-
-Gerencia quizzes, perguntas e respostas dos usuarios.
-
-| Campo | Valor |
-|-------|-------|
-| **Tipo** | Sub-agente |
+| **Alcance** | Por aula/módulo |
+| **Archivos Principales** | `src/pages/ModulosPage.tsx` (respuesta), `src/pages/CMSPage.tsx` (gestión) |
+| **API Endpoints** | `/api/modulos/quiz/*`, `/api/modulos/perguntas/*` |
 | **Dependencias** | Learning Agent |
-| **Responsabilidades** | Criar/editar quizzes, gerenciar perguntas, processar respostas, calcular notas |
-| **Arquivo Frontend** | `src/pages/ModulosPage.tsx` (resposta), `src/pages/CMSPage.tsx` (gestao) |
-| **Arquivo Backend** | `server/routes/cms.ts` (endpoints de quiz) |
 
-**Endpoints de Quiz:**
+### Endpoints de Quiz
 
-| Metodo | Rota | Descricao |
+| Método | Ruta | Descripción | Rol |
+|--------|------|-----------|-----|
+| POST | `/api/modulos/:moduloId/quiz` | Crear quiz | Admin |
+| GET | `/api/modulos/:moduloId/quiz/:aulaId` | Obtener quiz | Cualquiera |
+| PUT | `/api/modulos/quiz/:quizId` | Actualizar quiz | Admin |
+| DELETE | `/api/modulos/quiz/:quizId` | Eliminar quiz | Admin |
+| POST | `/api/modulos/quiz/:quizId/perguntas` | Añadir pregunta | Admin |
+| PUT | `/api/modulos/perguntas/:perguntaId` | Actualizar pregunta | Admin |
+| DELETE | `/api/modulos/perguntas/:perguntaId` | Eliminar pregunta | Admin |
+| POST | `/api/modulos/quiz/:quizId/responder` | Enviar respuestas | Estudiante |
+| GET | `/api/modulos/quiz/:quizId/resultados` | Ver resultados | Estudiante |
+
+### Estructura de Quiz
+
+```json
+{
+  "id": "uuid",
+  "aulaId": "uuid",
+  "titulo": "Quiz - Excelencia en Atendimiento",
+  "descripcion": "Valida conocimientos sobre atención al cliente",
+  "autoGerarCertificado": true,
+  "notaMinima": 7,
+  "preguntas": [
+    {
+      "id": "uuid",
+      "orden": 1,
+      "texto": "¿Cuál es el primer paso para excelencia en atendimiento?",
+      "opciones": {
+        "A": "Escuchar activamente",
+        "B": "Hablar rápido",
+        "C": "Ignorar al cliente",
+        "D": "Presionar venta"
+      },
+      "respuestaCorrecta": "A"
+    }
+  ]
+}
+```
+
+### Flujo de Quiz
+
+```
+Estudiante abre última aula del módulo
+  ↓
+¿Existe quiz? → No → Mostrar "Módulo completado"
+  ↓ Sí
+Mostrar formulario de quiz
+  ↓
+Estudiante selecciona respuestas (A/B/C/D)
+  ↓
+Clica "Enviar Respuestas" → POST /api/modulos/quiz/:quizId/responder
+  ↓
+Backend calcula nota (0-10)
+  ↓
+nota >= notaMinima?
+  ├─ Sí → Mostrar "Aprobado ✅"
+  │        ↓
+  │        autoGerarCertificado?
+  │        ├─ Sí → POST /api/certificates (auto-emitir)
+  │        └─ No → Notificar al administrador
+  │
+  └─ No → Mostrar "Reprobado ❌"
+           ↓
+           ¿Intentos restantes? → Sí → Permitir reintentar
+```
+
+### Gestión en CMS
+
+```
+Admin accede a /cms/crear-modulo
+  ↓
+1. Selecciona o crea un módulo
+2. Añade aulas (videos/PDFs)
+3. Clica "Crear Quiz" en aula específica
+4. Modal: Título, auto-certificar, nota mínima
+5. Añade preguntas: texto, opciones A/B/C/D, marca respuesta correcta
+6. Guarda → Quiz vinculado a aula en BD
+7. Quiz disponible cuando estudiante llega a esa aula
+```
+
+---
+
+## 6. Notification Agent
+
+**Responsable de:** Creación, almacenamiento y entrega de notificaciones.
+
+| Propiedad | Valor |
+|-----------|-------|
+| **Tipo** | Sub-agente |
+| **Alcance** | Por usuario |
+| **Archivo Principal** | `src/pages/NotifPage.tsx` |
+| **API Endpoints** | `/api/notifications/*` |
+| **Dependencias** | Authentication Agent, Learning Agent |
+
+### Tipos de Notificación
+
+| Tipo | Evento Disparador | Contenido |
+|------|------------------|----------|
+| 📚 Nuevo Módulo | Admin publica módulo | "Nueva aula disponible: {nombre}" |
+| ⬆️ Subida de Nivel | Usuario alcanza nivel X | "¡Subiste a nivel {nivel}!" |
+| 📜 Certificado | Quiz aprobado | "Certificado emitido: {trilha}" |
+| 🎯 Logro Desbloqueado | Condición cumplida | "Desbloqueaste: {logro}" |
+| ⚠️ Sistema | Mantenimiento, actualizaciones | "Sistema en mantenimiento..." |
+
+### Endpoint de Notificaciones
+
+**GET /api/notifications** - Obtiene notificaciones del usuario
+```json
+{
+  "notificaciones": [
+    {
+      "id": "uuid",
+      "tipo": "CERTIFICADO",
+      "titulo": "Certificado Emitido",
+      "descripcion": "Has aprobado la trilha 'Excelencia en Atendimiento'",
+      "leida": false,
+      "createdAt": "2024-01-15T10:30:00Z"
+    }
+  ],
+  "noLeidasCount": 3
+}
+```
+
+### Endpoints Completos
+
+| Método | Ruta | Descripción |
 |--------|------|-----------|
-| POST | `/api/modulos/:moduloId/quiz` | Criar quiz para uma aula |
-| GET | `/api/modulos/:moduloId/quiz/:aulaId` | Obter quiz com perguntas |
-| PUT | `/api/modulos/quiz/:quizId` | Atualizar quiz |
-| DELETE | `/api/modulos/quiz/:quizId` | Excluir quiz |
-| POST | `/api/modulos/quiz/:quizId/perguntas` | Adicionar pergunta |
-| PUT | `/api/modulos/perguntas/:perguntaId` | Atualizar pergunta |
-| DELETE | `/api/modulos/perguntas/:perguntaId` | Excluir pergunta |
-| POST | `/api/modulos/quiz/:quizId/responder` | Enviar respostas |
-| GET | `/api/modulos/quiz/:quizId/resultados` | Ver resultados |
+| GET | `/api/notifications` | Listar notificaciones |
+| POST | `/api/notifications` | Crear notificación |
+| POST | `/api/notifications/:id/read` | Marcar como leída |
+| POST | `/api/notifications/read-all` | Marcar todas como leídas |
+| DELETE | `/api/notifications/:id` | Eliminar |
 
-**Fluxo de Quiz:**
+---
+
+## Flujo de Datos General
 
 ```
-1. Estudante clica em "Concluir e Avançar" na ultima aula (ou aula com quiz)
-2. Exibe formulario de quiz com perguntas de multipla escolha
-3. Estudante seleciona respostas (A, B, C ou D)
-4. Clica em "Enviar Respostas"
-5. Sistema calcula nota (0-10)
-6. Se nota >= 7: Aprovado
-7. Se autoGerarCertificado=true: gera certificado automaticamente
-8. Estudante pode tentar novamente se reprovado
+┌─────────────────────────────────────────────────────────────────────┐
+│                        USUARIO (Frontend)                            │
+└─────────────┬───────────────────────────────────────────────────────┘
+              │
+              ├─→ Authentication Agent (Login/Logout/Permisos)
+              │
+              ├─→ Navigation Agent (Rutas protegidas)
+              │
+              ├─→ Learning Agent (Ver trilhas/módulos/aulas)
+              │
+              ├─→ Quiz Agent (Responder cuestionarios)
+              │
+              ├─→ Gamification Agent (Ganar XP, logros)
+              │
+              └─→ Notification Agent (Recibir alertas)
+                      │
+                      ↓
+              ┌──────────────────┐
+              │  Express Server  │
+              │  (API REST)      │
+              └────────┬─────────┘
+                      │
+        ┌──────────────┼──────────────┐
+        │              │              │
+        ↓              ↓              ↓
+   PostgreSQL    Nodemailer       Storage
+   (Datos)     (Email/SMTP)      (Archivos)
 ```
 
-**Gestao de Quiz no CMS:**
+---
+
+## Integración SMTP
+
+Todas las notificaciones críticas son enviadas por email mediante **Nodemailer**:
 
 ```
-1. Admin acessa Gestao de Conteúdo (/cms)
-2. Seleciona um modulo → ve as aulas
-3. Clica no botao "Criar Quiz" ao lado da aula
-4. Modal abre: titulo do quiz, opcao de certificado automatico
-5. Adiciona perguntas: texto, opcoes A/B/C/D, marca resposta correta
-6. Perguntas sao salvas no banco de dados
-7. Quiz fica disponivel para o estudante na aula correspondente
+Quiz Aprobado → Quiz Agent notifica
+                     ↓
+              Notification Agent (crea registro)
+                     ↓
+              Email Service (Nodemailer)
+                     ↓
+              SMTP (Credenciales en .env)
+                     ↓
+              Email al usuario ✉️
 ```
 
-## Fluxo de Dados
+### Variables SMTP (.env)
 
+```env
+SMTP_HOST=mail.midominio.com
+SMTP_PORT=587
+SMTP_USER=notificaciones@midominio.com
+SMTP_PASS=contraseña_segura
+SMTP_FROM=Academia PayGas <notificaciones@midominio.com>
+SMTP_SECURE=true
+APP_URL=https://academia.paygas.com
 ```
-Usuario -> Authentication Agent (useAuth.ts) -> Login
-         -> Navigation Agent (App.tsx + Router) -> Dashboard
-         -> Learning Agent (TrilhasPage/TrilhaModulosPage/ModulosPage) -> Conteudo
-         -> Quiz Agent (ModulosPage + cms.ts) -> Avaliacoes
-         -> Gamification Agent (useAuth.ts) -> XP/Conquistas
-         -> Notification Agent (NotifPage.tsx) -> Alertas
+
+---
+
+## Persistencia de Datos
+
+| Datos | Ubicación | Método | Agente Responsable |
+|-------|-----------|--------|-------------------|
+| Sesión de usuario | localStorage | Key: "user" | Authentication |
+| Preferencias | localStorage | Key: "preferences" | Navigation |
+| Progreso del estudiante | PostgreSQL (Progresso) | API REST | Learning |
+| Quizzes y respuestas | PostgreSQL (Quiz, QuizResponse) | API REST | Quiz |
+| XP y logros | PostgreSQL (User) | Calculado | Gamification |
+| Notificaciones | PostgreSQL (Notification) | API REST | Notification |
+| Certificados | PostgreSQL (Certificate) | API REST | Learning |
+
+---
+
+## Desarrollo e Integración
+
+### Agregar un Nuevo Agente
+
+1. Crear archivo en `src/hooks/useNewAgent.ts` o `src/services/NewAgent.ts`
+2. Implementar interfaz y métodos principales
+3. Conectar con componentes en `src/pages/`
+4. Crear endpoints en `server/routes/newagent.ts`
+5. Documentar en este archivo (agents.md)
+
+### Testing de Agentes
+
+Ejecutar tests unitarios:
+```bash
+npm run test
 ```
 
-## Persistencia
+Ejecutar suite de CRUD:
+```bash
+npx ts-node scripts/test-crud.ts
+```
 
-| Dados | Local | Metodo |
-|-------|-------|--------|
-| Sessao do usuario | localStorage | `user` key |
-| Preferencias | localStorage | `preferences` key |
-| Progresso | MySQL (Prisma) | `Progresso` table via API |
-| Quizzes | MySQL (Prisma) | `Quiz`, `QuizPergunta`, `QuizResponse` tables |
-| XP e nivel | MySQL (Prisma) | Calculado a partir de progresso e certificados |
+---
 
-## API Endpoints Completos
+## Referencias Rápidas
 
-### Auth
-- `POST /api/auth/login` - Login
-- `GET /api/auth/me` - Usuario atual
+**Archivos Clave:**
+- Authentication: `src/hooks/useAuth.ts`
+- Navigation: `src/App.tsx`
+- Learning: `src/pages/TrilhasPage.tsx`, `ModulosPage.tsx`
+- Quiz: `server/routes/cms.ts`
+- Notifications: `src/pages/NotifPage.tsx`
+- Email: `server/services/email.ts`
 
-### Trilhas
-- `GET /api/trilhas` - Listar trilhas
-- `POST /api/trilhas` - Criar trilha (Admin)
-- `PUT /api/trilhas/:id` - Atualizar trilha (Admin)
-- `DELETE /api/trilhas/:id` - Excluir trilha (Admin)
-- `GET /api/trilhas/:id/modulos` - Modulos de uma trilha
+**Variables de Entorno Críticas:**
+- `DATABASE_URL` - PostgreSQL (Nhost)
+- `JWT_SECRET` - Autenticación de tokens
+- `ENCRYPTION_KEY` - Encriptación de datos
+- `SMTP_*` - Email (Nodemailer)
 
-### CMS (Modulos + Aulas + Quiz)
-- `GET /api/cms` - Listar modulos (Admin/Gestor)
-- `POST /api/cms` - Criar modulo (Admin/Gestor)
-- `PUT /api/cms/:id` - Atualizar modulo (Admin/Gestor)
-- `DELETE /api/cms/:id` - Excluir modulo (Admin)
-- `GET /api/modulos/:id/aulas` - Aulas de um modulo
-- `POST /api/modulos/:id/aulas` - Criar aula (Admin/Gestor)
-- `PUT /api/modulos/aulas/:id` - Atualizar aula (Admin/Gestor)
-- `DELETE /api/modulos/aulas/:id` - Excluir aula (Admin)
+---
 
-### Quiz
-- `POST /api/modulos/:moduloId/quiz` - Criar quiz
-- `GET /api/modulos/:moduloId/quiz/:aulaId` - Obter quiz
-- `PUT /api/modulos/quiz/:quizId` - Atualizar quiz
-- `DELETE /api/modulos/quiz/:quizId` - Excluir quiz
-- `POST /api/modulos/quiz/:quizId/perguntas` - Adicionar pergunta
-- `PUT /api/modulos/perguntas/:perguntaId` - Atualizar pergunta
-- `DELETE /api/modulos/perguntas/:perguntaId` - Excluir pergunta
-- `POST /api/modulos/quiz/:quizId/responder` - Enviar respostas
-- `GET /api/modulos/quiz/:quizId/resultados` - Ver resultados
-
-### Progresso
-- `GET /api/progresso` - Progresso do usuario
-- `PUT /api/progresso` - Atualizar progresso
-- `GET /api/progresso/stats` - Estatisticas
-
-### Certificados
-- `GET /api/certificates` - Listar certificados
-- `POST /api/certificates` - Solicitar certificado
-- `PUT /api/certificates/:id/approve` - Aprovar
-- `PUT /api/certificates/:id/issue` - Emitir
-
-### Notificacoes
-- `GET /api/notifications` - Listar
-- `POST /api/notifications` - Criar
-- `POST /api/notifications/:id/read` - Marcar lida
-- `POST /api/notifications/read-all` - Marcar todas lidas
-
-### Dashboard
-- `GET /api/dashboard` - Estatisticas do dashboard
-
-### Usuarios
-- `GET /api/usuarios` - Listar
-- `POST /api/usuarios` - Criar
-- `PUT /api/usuarios/:id` - Atualizar
-- `DELETE /api/usuarios/:id` - Excluir
-
-## Seguranca
-
-- Autenticacao JWT com middleware de autorizacao
-- Sessoes persistidas em localStorage (token JWT)
-- Controle de acesso por perfil (ADMIN, GESTOR, ATENDENTE)
-- Payloads criptografados com AES-256-GCM em requisicoes POST/PUT/PATCH
-- Rotas administrativas protegidas por `authorize('ADMIN')`
+*Última actualización: 2024*
+*Versión de Documentación: 2.0*

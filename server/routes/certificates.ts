@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { authenticate } from '../middleware/auth'
+import { getStringParam } from '../utils/queryParams'
 
 const router = Router()
 
@@ -47,8 +48,10 @@ router.post('/', authenticate, async (req: any, res) => {
 // PUT /api/certificates/:id/approve
 router.put('/:id/approve', authenticate, async (req: any, res) => {
   try {
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
     const cert = await prisma.certificate.update({
-      where: { id: req.params.id },
+      where: { id },
       data: { status: 'APPROVED', aprovadoPor: req.userId, aprovadoEm: new Date() },
     })
     res.json(cert)
@@ -60,8 +63,10 @@ router.put('/:id/approve', authenticate, async (req: any, res) => {
 // PUT /api/certificates/:id/issue
 router.put('/:id/issue', authenticate, async (req, res) => {
   try {
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
     const cert = await prisma.certificate.update({
-      where: { id: req.params.id },
+      where: { id },
       data: { status: 'ISSUED' },
     })
     res.json(cert)

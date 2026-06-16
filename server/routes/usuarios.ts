@@ -2,6 +2,8 @@ import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import { prisma } from '../lib/prisma'
 import { authenticate, authorize, AuthRequest } from '../middleware/auth'
+import { getStringParam } from '../utils/queryParams'
+import { Role } from '@prisma/client'
 
 const router = Router()
 
@@ -14,19 +16,23 @@ router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequ
 
     const users = await prisma.user.findMany({
       where,
-      select: {
-        id: true, email: true, nome: true, role: true, createdAt: true, lastLogin: true, gestorId: true,
+      include: {
         _count: { select: { progressos: true, certificates: true } },
       },
       orderBy: { nome: 'asc' },
     })
 
     const usersWithXp = users.map(u => ({
-      ...u,
+      id: u.id,
+      email: u.email,
+      nome: u.nome,
+      role: u.role,
+      createdAt: u.createdAt,
+      lastLogin: u.lastLogin,
+      gestorId: u.gestorId,
       xp: u._count.progressos * 150 + u._count.certificates * 500,
       progressCount: u._count.progressos,
       certCount: u._count.certificates,
-      _count: undefined,
     }))
 
     res.json(usersWithXp)
@@ -52,7 +58,7 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
         email,
         nome,
         senha: hashedPassword,
-        role: role as any,
+        role: role as Role,
         gestorId: req.userRole === 'GESTOR' ? req.userId : undefined,
       },
       select: { id: true, email: true, nome: true, role: true, createdAt: true },
@@ -68,9 +74,18 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
 router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
     const { nome, email, role, gestorId } = req.body
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
+    const updateData: any = {}
+    
+    if (nome) updateData.nome = nome
+    if (email) updateData.email = email
+    if (role) updateData.role = role as Role
+    if (gestorId) updateData.gestorId = gestorId
+    
     const user = await prisma.user.update({
-      where: { id: req.params.id },
-      data: { nome, email, role, gestorId },
+      where: { id },
+      data: updateData,
       select: { id: true, email: true, nome: true, role: true },
     })
     res.json(user)
@@ -82,7 +97,9 @@ router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
 // DELETE /api/usuarios/:id
 router.delete('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
-    await prisma.user.delete({ where: { id: req.params.id } })
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
+    await prisma.user.delete({ where: { id } })
     res.json({ success: true })
   } catch (error) {
     res.status(500).json({ error: 'Erro ao excluir usuário' })
@@ -94,21 +111,22 @@ router.get('/equipe', authenticate, authorize('ADMIN', 'GESTOR'), async (req: Au
   try {
     const where = req.userRole === 'GESTOR'
       ? { gestorId: req.userId }
-      : { role: 'ATENDENTE' }
+      : { role: 'ATENDENTE' as Role }
 
     const members = await prisma.user.findMany({
       where,
-      select: {
-        id: true, nome: true, email: true, role: true,
+      include: {
         _count: { select: { progressos: true, certificates: true } },
       },
     })
 
     const result = members.map(m => ({
-      ...m,
+      id: m.id,
+      nome: m.nome,
+      email: m.email,
+      role: m.role,
       xp: m._count.progressos * 150 + m._count.certificates * 500,
       certCount: m._count.certificates,
-      _count: undefined,
     }))
 
     res.json(result)
