@@ -6,10 +6,12 @@ interface LoginPageProps {
   onLogin: (user: any, token: string) => void
 }
 
+const isProd = import.meta.env.PROD
+
 export function LoginPage({ onLogin }: LoginPageProps) {
   const navigate = useNavigate()
-  const [email, setEmail] = useState('admin@paygas.com.br')
-  const [password, setPassword] = useState('123456')
+  const [email, setEmail] = useState(isProd ? '' : 'admin@paygas.com.br')
+  const [password, setPassword] = useState(isProd ? '' : '123456')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
