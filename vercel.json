@@ -1,0 +1,18 @@
+{
+  "buildCommand": "npx prisma generate && npx vite build",
+  "outputDirectory": "dist",
+  "framework": null,
+  "installCommand": "pnpm install",
+  "functions": {
+    "api/index.ts": {
+      "maxDuration": 30,
+      "runtime": "@vercel/node@3"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "/api/index.ts"
+    }
+  ]
+}
