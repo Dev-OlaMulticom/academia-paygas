@@ -1,0 +1,10 @@
+RewriteEngine On
+
+# Proxy /api/* requests to Node.js Express server on port 3001
+RewriteRule ^api/(.*)$ http://127.0.0.1:3001/api/$1 [P,L]
+
+# SPA fallback: serve index.html for all non-file, non-api routes
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteCond %{REQUEST_URI} !^/api/
+RewriteRule ^ /index.html [L]
