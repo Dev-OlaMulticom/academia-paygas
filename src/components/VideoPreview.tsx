@@ -23,13 +23,11 @@ function extractYouTubeId(url: string): string | null {
 export function VideoPreview({ url, onDurationChange }: VideoPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const playerRef = useRef<Plyr | null>(null)
-  const [thumbnail, setThumbnail] = useState<string>('')
   const [duration, setDuration] = useState<number>(0)
   const [loaded, setLoaded] = useState(false)
 
   useEffect(() => {
     if (!url) {
-      setThumbnail('')
       setDuration(0)
       setLoaded(false)
       return
@@ -37,14 +35,10 @@ export function VideoPreview({ url, onDurationChange }: VideoPreviewProps) {
 
     const videoId = extractYouTubeId(url)
     if (!videoId) {
-      setThumbnail('')
       setDuration(0)
       setLoaded(false)
       return
     }
-
-    // Set thumbnail
-    setThumbnail(`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`)
 
     // Initialize Plyr to get duration
     if (containerRef.current) {

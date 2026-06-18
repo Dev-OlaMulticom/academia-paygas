@@ -391,6 +391,33 @@ td: 13px / var(--gray-700)
 .trophy-card.locked { opacity: .4; }
 ```
 
+### 3.11 Sandbox (Admin Profile)
+
+Bloque visible solo para ADMIN en `/perfil` que muestra usuarios de prueba del seed. Misma estructura visual que los demas bloques del perfil.
+
+```css
+.sandbox-block {
+  background: #fff;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius);
+  padding: 24px;
+}
+.sandbox-user-card {
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--gray-50);
+  border: 1px solid var(--gray-100);
+}
+```
+
+#### Colores por rol (avatar y badge)
+
+| Rol | Avatar BG | Badge BG | Badge Text |
+|-----|-----------|----------|------------|
+| ADMIN | var(--pg-red) | var(--pg-red-lt) | var(--pg-red) |
+| GESTOR | var(--pg-gold) | var(--pg-gold-lt) | var(--pg-gold) |
+| ATENDENTE | var(--pg-green) | var(--pg-green-lt) | var(--pg-green) |
+
 #### Level Badge
 ```css
 .level-badge {

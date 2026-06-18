@@ -99,6 +99,52 @@ export async function sendWelcomeEmail(to: string, userName: string, loginUrl: s
 }
 
 /**
+ * Send notification alert email — simple alert with link to Academy
+ */
+export async function sendNotificationAlertEmail(
+  to: string,
+  userName: string,
+  titulo: string
+) {
+  const appUrl = process.env.APP_URL || 'https://academia.paygas.com.br'
+  const now = new Date()
+  const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
+  const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+  return sendEmail({
+    to,
+    subject: `🔔 Nova notificação - Academia PayGas`,
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="UTF-8"></head>
+      <body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;margin:0;">
+        <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
+          <div style="background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);color:white;padding:30px;text-align:center;">
+            <h1 style="margin:0;font-size:22px;">Academia PayGas</h1>
+            <p style="margin:5px 0 0;font-size:14px;">Nova Notificação</p>
+          </div>
+          <div style="padding:30px;text-align:center;">
+            <h2 style="margin:0 0 8px;color:#333;">Olá, ${userName}!</h2>
+            <p style="color:#555;font-size:15px;margin:0 0 20px;">Você recebeu uma nova notificação na <strong>Academia PayGas</strong>.</p>
+            <div style="background:#f9f9f9;border-radius:8px;padding:16px;margin:0 0 24px;">
+              <p style="margin:0;color:#333;font-weight:bold;font-size:14px;">${titulo}</p>
+              <p style="margin:6px 0 0;color:#888;font-size:12px;">${dateStr} às ${timeStr}</p>
+            </div>
+            <a href="${appUrl}" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">Ir para a Academia</a>
+          </div>
+          <div style="background:#f8f9fa;padding:16px;text-align:center;color:#999;font-size:11px;">
+            <p style="margin:0;">Este é um email automático. Por favor, não responda.</p>
+            <p style="margin:4px 0 0;">© 2026 Academia PayGas</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  })
+}
+
+/**
  * Send notification email
  */
 export async function sendNotificationEmail(

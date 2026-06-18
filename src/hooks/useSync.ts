@@ -42,9 +42,5 @@ export function useSync() {
     }
   }, [])
 
-  useEffect(() => {
-    updatePendingCount()
-  }, [pendingCount])
-
   return { isOnline: online, pendingCount, isSyncing, forceSync }
 }

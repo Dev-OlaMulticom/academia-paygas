@@ -2,21 +2,37 @@ import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 
-// Generate a secure JWT secret if not provided or if it's weak
+const JWT_SECRET_FALLBACK_FILE = '.jwt-secret'
+
 function getJWTSecret(): string {
   const envSecret = process.env.JWT_SECRET
   
-  // Check if secret exists and is strong enough (at least 32 chars, not a common pattern)
   if (envSecret && envSecret.length >= 32 && !envSecret.includes('academia-paygas')) {
     return envSecret
   }
   
-  // If weak or missing, generate a random secret
-  if (envSecret) {
-    console.warn('⚠️  JWT_SECRET is weak. Generating a stronger secret for this session.')
+  // Try to load persisted secret from file
+  try {
+    const fs = require('fs')
+    if (fs.existsSync(JWT_SECRET_FALLBACK_FILE)) {
+      const persisted = fs.readFileSync(JWT_SECRET_FALLBACK_FILE, 'utf8').trim()
+      if (persisted && persisted.length >= 32) {
+        return persisted
+      }
+    }
+  } catch { /* */ }
+  
+  // Generate new secret and persist it
+  const newSecret = crypto.randomBytes(64).toString('hex')
+  try {
+    const fs = require('fs')
+    fs.writeFileSync(JWT_SECRET_FALLBACK_FILE, newSecret, { mode: 0o600 })
+    console.log('🔑 JWT secret generated and persisted to .jwt-secret')
+  } catch {
+    console.warn('⚠️  Could not persist JWT secret. Tokens will be invalidated on restart.')
   }
   
-  return crypto.randomBytes(64).toString('hex')
+  return newSecret
 }
 
 const JWT_SECRET = getJWTSecret()

@@ -89,7 +89,7 @@ async function testModulosFlow(_trilhaId: string | null) {
     logResult('READ Modulo', found ? 'PASS' : 'FAIL', found ? `Modulo found` : 'Not found')
 
     // UPDATE
-    const updated = await prisma.modulo.update({
+    const _updated = await prisma.modulo.update({
       where: { id: modulo.id },
       data: { titulo: 'Updated Modulo Title' },
     })
@@ -131,7 +131,7 @@ async function testAulasFlow(moduloId: string | null) {
     logResult('READ Aula', found ? 'PASS' : 'FAIL', found ? `Aula found` : 'Not found')
 
     // UPDATE
-    const updated = await prisma.aula.update({
+    const _updated = await prisma.aula.update({
       where: { id: aula.id },
       data: { titulo: 'Updated Aula Title' },
     })
@@ -164,7 +164,7 @@ async function testQuizFlow(aulaId: string | null) {
     logResult('CREATE Quiz', 'PASS', `Quiz created: ${quiz.id}`)
 
     // CREATE QUESTION
-    const pergunta = await prisma.quizPergunta.create({
+    const _pergunta = await prisma.quizPergunta.create({
       data: {
         quizId: quiz.id,
         pergunta: 'What is 2+2?',

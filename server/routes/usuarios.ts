@@ -72,7 +72,7 @@ router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequ
         totalPages: Math.ceil(total / limit),
       },
     })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao buscar usuarios' })
   }
 })
@@ -135,7 +135,7 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
     })
 
     res.status(201).json(user)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao criar usuário' })
   }
 })
@@ -153,7 +153,7 @@ router.put('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthR
       if (!isOwn) return res.status(403).json({ error: 'Sem permissão para editar este usuario' })
       // GESTOR cannot change role
       if (role && role !== 'ATENDENTE') {
-        return res.status(403).json({ error: 'Gestores só podem manter角色 ATENDENTE' })
+        return res.status(403).json({ error: 'Gestores só podem manter role ATENDENTE' })
       }
     }
 
@@ -171,8 +171,43 @@ router.put('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthR
 
     await logActivity(req.userId!, 'Editar Usuario', `Editou usuario: ${user.nome}`)
     res.json(user)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao atualizar usuário' })
+  }
+})
+
+// PUT /api/usuarios/change-password
+router.put('/change-password', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias' })
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Nova senha deve ter pelo menos 8 caracteres' })
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId } })
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' })
+    }
+
+    const validPassword = await bcrypt.compare(currentPassword, user.senha)
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Senha atual incorreta' })
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12)
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: { senha: hashedPassword },
+    })
+
+    await logActivity(req.userId!, 'Alterar Senha', 'Senha alterada com sucesso')
+    res.json({ message: 'Senha alterada com sucesso' })
+  } catch {
+    res.status(500).json({ error: 'Erro ao alterar senha' })
   }
 })
 
@@ -193,7 +228,7 @@ router.delete('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: Au
 
     await logActivity(req.userId!, 'Excluir Usuario', `Excluiu usuario: ${user?.nome} (${user?.email})`)
     res.json({ success: true })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao excluir usuário' })
   }
 })
@@ -255,7 +290,7 @@ router.get('/equipe', authenticate, authorize('ADMIN', 'GESTOR'), async (req: Au
     }))
 
     res.json(teams)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao buscar equipe' })
   }
 })
@@ -274,7 +309,7 @@ router.get('/equipe/stats', authenticate, authorize('ADMIN'), async (req: AuthRe
       totalAtendentesComGestor,
       totalAtendentesSemGestor,
     })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao buscar estatisticas' })
   }
 })
@@ -301,7 +336,7 @@ router.post('/:id/validate-account', authenticate, authorize('ADMIN', 'GESTOR'),
     await awardPoints(req.userId!, 'LESSON_COMPLETE', 'Gestor validou conta de atendente')
 
     res.json({ message: 'Conta validada com sucesso!' })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao validar conta' })
   }
 })
@@ -335,7 +370,7 @@ router.post('/:id/resend-verification', authenticate, authorize('ADMIN', 'GESTOR
     await logActivity(req.userId!, 'Reenviar Verificacao', `Reenviou verificacao para: ${user.nome}`)
 
     res.json({ message: 'Email de verificacao reenviado!' })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao reenviar verificacao' })
   }
 })

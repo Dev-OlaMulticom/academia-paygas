@@ -26,8 +26,6 @@ const MUNICIPIOS = [
   { cidade: 'Curitiba, PR', postos: 54, usuarios: 690, pos: '6º' },
 ]
 
-const BAR_COLORS = ['#16A34A', '#F47C20', '#D97706', '#0A2E6E', '#7C3AED']
-
 export function NacionalPage() {
   const totalUsers = REGIONS.reduce((a, r) => a + r.users, 0)
 

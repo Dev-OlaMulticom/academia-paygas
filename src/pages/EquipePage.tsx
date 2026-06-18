@@ -14,16 +14,16 @@ export function EquipePage({ user }: EquipePageProps) {
   const [teamData, setTeamData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => { loadEquipe() }, [])
-
   const loadEquipe = async () => {
     try {
       const data = await api.getEquipe()
       setTeamData(data)
     } catch {
-      setTeamData(isAdmin ? [] : [])
+      setTeamData([])
     } finally { setLoading(false) }
   }
+
+  useEffect(() => { loadEquipe() }, [])
 
   if (loading) {
     return (
@@ -53,7 +53,7 @@ export function EquipePage({ user }: EquipePageProps) {
           <span style={{
             display: 'inline-flex', alignItems: 'center', gap: '4px',
             padding: '2px 8px', borderRadius: '12px',
-            background: '#E6EEF9', color: '#0A2E6E',
+            background: 'var(--pg-blue-lt)', color: 'var(--pg-blue)',
             fontSize: '12px', fontWeight: 'bold',
           }}>
             Lv. {level}
@@ -135,29 +135,31 @@ export function EquipePage({ user }: EquipePageProps) {
         </div>
       ) : (
         teams.map((team: any, idx: number) => (
-          <div key={team.gestor.id} style={{ marginBottom: '32px' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px',
-              padding: '12px 16px', borderRadius: 'var(--radius)',
-              background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
-              border: '1px solid #f59e0b',
-            }}>
-              <div className="user-avatar" style={{ background: PERSONAS.GESTOR?.color || '#f59e0b', width: '36px', height: '36px', fontSize: '12px' }}>
-                {team.gestor.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
-              </div>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 700, fontSize: '15px' }}>{team.gestor.nome}</div>
-                <div style={{ fontSize: '12px', color: '#92400e' }}>{team.gestor.email}</div>
-              </div>
-              <span style={{
-                padding: '4px 12px', borderRadius: '16px',
-                background: '#f59e0b', color: '#fff',
-                fontSize: '12px', fontWeight: 700,
+          <div key={team.gestor?.id || idx} style={{ marginBottom: '32px' }}>
+            {team.gestor && (
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px',
+                padding: '12px 16px', borderRadius: 'var(--radius)',
+                background: 'var(--pg-gold-lt)',
+                border: '1px solid var(--pg-gold)',
               }}>
-                {team.totalMembros} atendente(s)
-              </span>
-            </div>
-            {team.membros.length > 0 ? (
+                <div className="user-avatar" style={{ background: PERSONAS.GESTOR?.color || 'var(--pg-gold)', width: '36px', height: '36px', fontSize: '12px' }}>
+                  {team.gestor.nome?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') || '?'}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: '15px' }}>{team.gestor.nome}</div>
+                  <div style={{ fontSize: '12px', color: 'var(--gray-600)' }}>{team.gestor.email}</div>
+                </div>
+                <span style={{
+                  padding: '4px 12px', borderRadius: '16px',
+                  background: 'var(--pg-gold)', color: '#fff',
+                  fontSize: '12px', fontWeight: 700,
+                }}>
+                  {team.totalMembros} atendente(s)
+                </span>
+              </div>
+            )}
+            {team.membros?.length > 0 ? (
               <div className="table-wrap">
                 <table>
                   {tableHeaders}

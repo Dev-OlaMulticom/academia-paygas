@@ -181,6 +181,148 @@ async function main() {
   }
   console.log('✅ Modulo Excelencia created with 4 aulas, 4 quizzes, 12 questions')
 
+  // ============ MODULO: SEGURANCA E NORMAS ============
+  const modulo2Data = {
+    titulo: 'Seguranca e Normas',
+    descricao: 'Capacitacao em seguranca do trabalho, normas ABNT, procedimentos de emergencia e prevencao de acidentes em postos de combustivel.',
+    ordem: 2,
+  }
+
+  let modulo2 = await prisma.modulo.findFirst({
+    where: { titulo: modulo2Data.titulo },
+  })
+
+  if (!modulo2) {
+    modulo2 = await prisma.modulo.create({
+      data: modulo2Data,
+    })
+  }
+
+  const aulas2Data = [
+    {
+      titulo: 'Introducao a Seguranca no Trabalho',
+      descricao: 'Conceitos basicos de seguranca do trabalho, principais riscos em postos de combustivel e importancia das normas de seguranca.',
+      ordem: 1,
+      duracaoMin: 15,
+      videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      videoInicio: 0,
+      videoFim: 300,
+      quiz: {
+        titulo: 'Quiz: Introducao a Seguranca',
+        autoGerarCertificado: false,
+        perguntas: [
+          { pergunta: 'Qual o principal risco em um posto de combustivel?', opcaoA: 'Queda de altura', opcaoB: 'Incendio e explosao', opcaoC: 'Golpe de calor', opcaoD: 'Queda de objeto', correta: 'B' },
+          { pergunta: 'O que significa EPI?', opcaoA: 'Equipamento de Protecao Individual', opcaoB: 'Extintor de Protecao Interno', opcaoC: 'Evento de Prevencao de Incendios', opcaoD: 'Estrutura de Protecao de Infantaria', correta: 'A' },
+          { pergunta: 'Qual o primeiro passo ao perceber um risco?', opcaoA: 'Ignorar', opcaoB: 'Reportar ao supervisor', opcaoC: 'Continuar trabalhando', opcaoD: 'Esperar alguem resolver', correta: 'B' },
+        ],
+      },
+    },
+    {
+      titulo: 'Equipamentos de Protecao Individual',
+      descricao: 'Tipos de EPI, uso correto, conservacao e substituicao. Foco em luvas, oculos, calcados de seguranca e roupas ignifugadas.',
+      ordem: 2,
+      duracaoMin: 20,
+      videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      videoInicio: 300,
+      videoFim: 600,
+      quiz: {
+        titulo: 'Quiz: EPIs',
+        autoGerarCertificado: false,
+        perguntas: [
+          { pergunta: 'Qual EPI e obrigatorio ao abastecer?', opcaoA: 'Capacete', opcaoB: 'Luvas e oculos de protecao', opcaoC: 'Avental', opcaoD: 'Mascara', correta: 'B' },
+          { pergunta: 'Quando devo trocar meu EPI?', opcaoA: 'Apenas quando quebrar', opcaoB: 'Quando estiver danificado ou vencido', opcaoC: 'Nunca', opcaoD: 'A cada 5 anos', correta: 'B' },
+          { pergunta: 'Quem e responsavel pela distribuicao de EPIs?', opcaoA: 'O funcionario', opcaoB: 'O cliente', opcaoC: 'O empregador', opcaoD: 'Ninguem', correta: 'C' },
+        ],
+      },
+    },
+    {
+      titulo: 'Procedimentos de Emergencia',
+      descricao: 'Plano de emergencia, rotas de fuga, uso de extintores, acionamento de bombeiros e comunicacao de incidentes.',
+      ordem: 3,
+      duracaoMin: 25,
+      videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      videoInicio: 600,
+      videoFim: 900,
+      quiz: {
+        titulo: 'Quiz: Emergencias',
+        autoGerarCertificado: false,
+        perguntas: [
+          { pergunta: 'Qual o numero da Brigada de Incendio?', opcaoA: '190', opcaoB: '193', opcaoC: '192', opcaoD: '197', correta: 'A' },
+          { pergunta: 'Ao detectar um incendio, qual a primeira acao?', opcaoA: 'Tentar apagar sozinho', opcaoB: 'Acionar alarme e evacuar', opcaoC: 'Fotografar', opcaoD: 'Esperar esfriar', correta: 'B' },
+          { pergunta: 'Onde ficam localizados os extintores?', opcaoA: 'No escritorio apenas', opcaoB: 'Em pontos estrategicos sinalizados', opcaoC: 'No deposito', opcaoD: 'No estacionamento', correta: 'B' },
+        ],
+      },
+    },
+    {
+      titulo: 'Normas ABNT e Certificacoes',
+      descricao: 'Principais normas ABNT aplicaveis a postos de combustivel, certificacoes obrigatorias e auditorias de seguranca.',
+      ordem: 4,
+      duracaoMin: 20,
+      videoUrl: 'https://www.youtube.com/watch?v=dQw4w9WgXcQ',
+      videoInicio: 900,
+      videoFim: 1200,
+      quiz: {
+        titulo: 'Quiz: Normas ABNT',
+        autoGerarCertificado: true,
+        perguntas: [
+          { pergunta: 'Qual norma trata de EPIs?', opcaoA: 'NBR 15834', opcaoB: 'NR-6', opcaoC: 'ABNT NBR 14000', opcaoD: 'ISO 9001', correta: 'B' },
+          { pergunta: 'A cada quanto tempo deve ser feita a auditoria de seguranca?', opcaoA: 'A cada 10 anos', opcaoB: 'A cada 2 anos', opcaoC: 'Anualmente', opcaoD: 'Nunca', correta: 'C' },
+          { pergunta: 'Qual certificacao e importante para postos de combustivel?', opcaoA: 'ISO 14001', opcaoB: 'NBR 15834', opcaoC: 'Todas as anteriores', opcaoD: 'Nenhuma', correta: 'C' },
+        ],
+      },
+    },
+  ]
+
+  for (const aulaData of aulas2Data) {
+    let aula = await prisma.aula.findFirst({
+      where: { titulo: aulaData.titulo, moduloId: modulo2.id },
+    })
+
+    if (!aula) {
+      const { quiz, ...aulaInfo } = aulaData
+      aula = await prisma.aula.create({
+        data: {
+          moduloId: modulo2.id,
+          titulo: aulaInfo.titulo,
+          descricao: aulaInfo.descricao,
+          ordem: aulaInfo.ordem,
+          duracaoMin: aulaInfo.duracaoMin,
+          videoUrl: aulaInfo.videoUrl,
+          videoInicio: aulaInfo.videoInicio,
+          videoFim: aulaInfo.videoFim,
+        },
+      })
+
+      const existingQuiz = await prisma.quiz.findUnique({ where: { aulaId: aula.id } })
+      if (!existingQuiz) {
+        const createdQuiz = await prisma.quiz.create({
+          data: {
+            aulaId: aula.id,
+            titulo: quiz.titulo,
+            autoGerarCertificado: quiz.autoGerarCertificado,
+          },
+        })
+
+        for (let i = 0; i < quiz.perguntas.length; i++) {
+          const p = quiz.perguntas[i]
+          await prisma.quizPergunta.create({
+            data: {
+              quizId: createdQuiz.id,
+              pergunta: p.pergunta,
+              opcaoA: p.opcaoA,
+              opcaoB: p.opcaoB,
+              opcaoC: p.opcaoC || null,
+              opcaoD: p.opcaoD || null,
+              correta: p.correta,
+              ordem: i + 1,
+            },
+          })
+        }
+      }
+    }
+  }
+  console.log('✅ Modulo Seguranca created with 4 aulas, 4 quizzes, 12 questions')
+
   // ============ PROGRESSO DE EXEMPLO ============
   const allAulas = await prisma.aula.findMany({
     where: { moduloId: modulo.id },

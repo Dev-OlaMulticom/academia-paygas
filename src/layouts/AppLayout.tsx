@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState, useEffect, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import type { User } from '../hooks/useAuth'
@@ -11,7 +11,7 @@ interface AppLayoutProps {
   children: React.ReactNode
 }
 
-export function AppLayout({ user, xp, onLogout, children }: AppLayoutProps) {
+export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
   const location = useLocation()
@@ -21,13 +21,7 @@ export function AppLayout({ user, xp, onLogout, children }: AppLayoutProps) {
   const isGestor = user?.role === 'GESTOR'
   const currentPath = location.pathname
 
-  useEffect(() => {
-    fetchUnreadCount()
-    const interval = setInterval(fetchUnreadCount, 30000)
-    return () => clearInterval(interval)
-  }, [])
-
-  const fetchUnreadCount = async () => {
+  const fetchUnreadCount = useCallback(async () => {
     try {
       const token = localStorage.getItem('token')
       if (!token) return
@@ -39,7 +33,13 @@ export function AppLayout({ user, xp, onLogout, children }: AppLayoutProps) {
         setUnreadCount(data.count || 0)
       }
     } catch { /* */ }
-  }
+  }, [])
+
+  useEffect(() => {
+    fetchUnreadCount()
+    const interval = setInterval(fetchUnreadCount, 30000)
+    return () => clearInterval(interval)
+  }, [fetchUnreadCount])
 
   return (
     <div id="screen-app" className="active">

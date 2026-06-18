@@ -13,7 +13,7 @@ const express = require('express');
 process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 
 // Load environment variables from .env if present
-try { require('dotenv/config'); } catch (e) { /* dotenv not installed */ }
+try { require('dotenv/config'); } catch { /* dotenv not installed */ }
 
 // Import compiled Express app from dist/server/
 const app = require('./dist/server/index.js').default || require('./dist/server/index.js');
@@ -33,7 +33,7 @@ app.get(/^\/(?!api).*/, (req, res) => {
 });
 
 // ─── Error handler ────────────────────────────────────────
-app.use((err, req, res, next) => {
+app.use((err, req, res, _next) => {
   console.error('Server error:', err);
   res.status(500).json({ error: 'Internal server error' });
 });

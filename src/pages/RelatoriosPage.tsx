@@ -32,27 +32,19 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
   const isGestor = user?.role === 'GESTOR'
   const [stats, setStats] = useState<any>(null)
   const [leaderboard, setLeaderboard] = useState<any[]>([])
-  const [gamificationStats, setGamificationStats] = useState<any>(null)
   const [moduleStats, setModuleStats] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadRelatorios()
-  }, [])
-
   const loadRelatorios = async () => {
     try {
-      const [dashboardData, leaderData, gamData] = await Promise.all([
+      const [dashboardData, leaderData] = await Promise.all([
         api.getDashboard(),
         api.getDashboardLeaderboard(),
-        api.getGamificationStats(),
       ])
 
       setStats(dashboardData)
       setLeaderboard(leaderData.users || [])
-      setGamificationStats(gamData)
 
-      // Build module stats from dashboard
       const modulos = await api.getCmsModulos()
       const progress = await api.getProgresso()
 
@@ -79,6 +71,10 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
       setLoading(false)
     }
   }
+
+  useEffect(() => {
+    loadRelatorios()
+  }, [])
 
   if (loading) {
     return (

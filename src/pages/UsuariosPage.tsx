@@ -20,12 +20,10 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
   const isGestor = user?.role === 'GESTOR'
   const canValidate = isAdmin || isGestor
 
-  useEffect(() => { loadUsuarios(); loadGestores() }, [])
-
   const loadUsuarios = async () => {
     try {
       const result = await api.getUsuarios()
-      setUsuarios(result.data || result)
+      setUsuarios(result)
     } catch {
       setUsuarios([])
     } finally { setLoading(false) }
@@ -34,12 +32,13 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
   const loadGestores = async () => {
     try {
       const result = await api.getUsuarios()
-      const all = result.data || result
-      setGestores(all.filter((u: any) => u.role === 'GESTOR'))
+      setGestores(result.filter((u: any) => u.role === 'GESTOR'))
     } catch {
       setGestores([])
     }
   }
+
+  useEffect(() => { loadUsuarios(); loadGestores() }, [])
 
   const handleCreate = async () => {
     if (!newUser.nome || !newUser.email || !newUser.senha || !newUser.role) {
