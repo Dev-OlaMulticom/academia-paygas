@@ -174,7 +174,7 @@ class ApiClient {
     return this.getWithCache<any[]>('/usuarios', db.users)
   }
 
-  async createUsuario(data: { email: string; nome: string; senha: string; role: string }) {
+  async createUsuario(data: { email: string; nome: string; senha: string; role: string; gestorId?: string }) {
     return this.writeWithCache('/usuarios', 'POST', data, db.users)
   }
 
