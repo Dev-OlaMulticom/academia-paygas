@@ -100,6 +100,16 @@ ATENDENTE
 - **GESTOR**: Minha Equipe, Meu Time, CMS, Relatorios
 - **ATENDENTE**: Solo contenido de aprendizaje
 
+### Perfil de Administrador
+
+El perfil del admin (`/perfil`) incluye el bloque **Sandbox - Usuarios de Teste** que muestra los usuarios creados por el seed. Mismo estilo visual que los demas bloques del perfil (fondo blanco, borde gray-200).
+
+| Rol | Avatar BG | Badge BG | Badge Text |
+|-----|-----------|----------|------------|
+| ADMIN | var(--pg-red) | var(--pg-red-lt) | var(--pg-red) |
+| GESTOR | var(--pg-gold) | var(--pg-gold-lt) | var(--pg-gold) |
+| ATENDENTE | var(--pg-green) | var(--pg-green-lt) | var(--pg-green) |
+
 ---
 
 ## 4. Learning Agent

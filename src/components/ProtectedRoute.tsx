@@ -1,3 +1,4 @@
+import React from 'react'
 import { Navigate } from 'react-router-dom'
 import type { User } from '../hooks/useAuth'
 

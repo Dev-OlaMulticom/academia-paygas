@@ -21,6 +21,12 @@ enum CertificateStatus {
   ISSUED
 }
 
+enum AulaTipo {
+  VIDEO
+  PDF
+  TEXTO
+}
+
 model User {
   id               String    @id @default(cuid())
   email            String    @unique
@@ -51,39 +57,44 @@ model User {
 }
 
 model Modulo {
-  id          String   @id @default(cuid())
-  titulo      String
-  descricao   String
-  ordem       Int
-  videoUrl    String?
-  videoInicio Int?     // Timestamp in seconds for single video
-  videoFim    Int?     // Timestamp in seconds for single video
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id               String   @id @default(cuid())
+  titulo           String
+  descricao        String
+  ordem            Int
+  videoUrl         String?
+  videoInicio      Int?
+  videoFim         Int?
+  obrigatorio      Boolean  @default(false)
+  autoCertificado  Boolean  @default(false)
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 
   // Relations
-  aulas       Aula[]
-  progressos  Progresso[]
+  aulas        Aula[]
+  progressos   Progresso[]
   certificates Certificate[]
 }
 
 model Aula {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   moduloId    String
   titulo      String
   descricao   String
   ordem       Int
+  tipo        AulaTipo  @default(VIDEO)
   videoUrl    String?
-  videoInicio Int?     // Timestamp in seconds for single video
-  videoFim    Int?     // Timestamp in seconds for single video
+  pdfUrl      String?
+  videoInicio Int?
+  videoFim    Int?
   duracaoMin  Int?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  obrigatorio Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   // Relations
-  modulo      Modulo        @relation(fields: [moduloId], references: [id], onDelete: Cascade)
-  quiz        Quiz?
-  progressos  Progresso[]
+  modulo     Modulo     @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  quiz       Quiz?
+  progressos Progresso[]
 
   @@index([moduloId])
 }

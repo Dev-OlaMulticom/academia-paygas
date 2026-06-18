@@ -9,6 +9,7 @@ export interface User {
   email: string
   nome?: string
   xp?: number
+  gestorId?: string | null
 }
 
 

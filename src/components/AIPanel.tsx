@@ -47,7 +47,7 @@ export function AIPanel({ open, onClose }: AIPanelProps) {
 
   const role = user?.role || 'ATENDENTE'
 
-  const initAI = () => {
+  const _initAI = () => {
     if (messages.length === 0) {
       setMessages([{ text: AI_FIRST[role] || 'Olá! Como posso ajudar?', type: 'bot' }])
     }

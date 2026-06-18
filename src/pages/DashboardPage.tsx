@@ -11,11 +11,6 @@ interface DashboardPageProps {
 export function DashboardPage({ xp, user }: DashboardPageProps) {
   const navigate = useNavigate()
   const [dashData, setDashData] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    loadDashboard()
-  }, [])
 
   const loadDashboard = async () => {
     try {
@@ -23,10 +18,12 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
       setDashData(data)
     } catch {
       setDashData(null)
-    } finally {
-      setLoading(false)
     }
   }
+
+  useEffect(() => {
+    loadDashboard()
+  }, [])
 
   const level = dashData?.level || Math.floor(xp / 2000) + 1
   const currentLevelXp = (level - 1) * 2000

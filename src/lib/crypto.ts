@@ -19,7 +19,7 @@ async function fetchEncryptionKey(): Promise<string> {
       }
     }
   } catch {
-    // fallback to build-time key
+    // network error - fallback
   }
   return SECRET_KEY || ''
 }

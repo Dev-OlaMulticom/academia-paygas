@@ -1,10 +1,10 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import crypto from 'crypto'
+import _crypto from 'crypto'
 import { prisma } from '../lib/prisma'
 import { JWT_SECRET, authenticate, AuthRequest } from '../middleware/auth'
-import { sendVerificationEmail } from '../services/email'
+import { sendVerificationEmail as _sendVerificationEmail } from '../services/email'
 import { awardPoints } from '../services/gamification'
 
 const router = Router()
@@ -45,6 +45,7 @@ router.post('/login', async (req, res) => {
         nome: user.nome,
         role: user.role,
         xp: user.xp,
+        gestorId: user.gestorId,
       },
     })
   } catch (error) {
@@ -58,11 +59,11 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
   try {
     const user = await prisma.user.findUnique({
       where: { id: req.userId },
-      select: { id: true, email: true, nome: true, role: true, xp: true, createdAt: true, lastLogin: true },
+      select: { id: true, email: true, nome: true, role: true, xp: true, gestorId: true, createdAt: true, lastLogin: true },
     })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' })
     res.json(user)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro interno do servidor' })
   }
 })
@@ -102,7 +103,7 @@ router.get('/verify-email', async (req, res) => {
     })
 
     res.json({ message: 'Email verificado com sucesso!' })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao verificar email' })
   }
 })

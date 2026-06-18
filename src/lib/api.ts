@@ -54,6 +54,7 @@ class ApiClient {
       ...options,
       body,
       headers,
+      ...(import.meta.env.DEV ? { cache: 'no-store' } : {}),
     })
 
     if (!res.ok) {
@@ -75,31 +76,26 @@ class ApiClient {
     return data
   }
 
+  async clearAllCache() {
+    await db.delete()
+    window.location.reload()
+  }
+
   private async getWithCache<T>(
     path: string,
     table: any,
-    options?: { index?: string; indexValue?: any }
+    _options?: { index?: string; indexValue?: any }
   ): Promise<T> {
-    try {
-      const data = await this.request<T>(path)
+    const isDev = import.meta.env.DEV
+    const data = await this.request<T>(path)
+    if (!isDev) {
       if (Array.isArray(data)) {
         await table.bulkPut(data)
       } else {
         await table.put(data as any)
       }
-      return data
-    } catch (error) {
-      let cached: any[]
-      if (options?.index && options?.indexValue !== undefined) {
-        cached = await table.where(options.index).equals(options.indexValue).toArray()
-      } else {
-        cached = await table.toArray()
-      }
-      if (cached && cached.length > 0) {
-        return cached as T
-      }
-      throw error
     }
+    return data
   }
 
   private async writeWithCache<T>(
@@ -121,7 +117,7 @@ class ApiClient {
           }
         }
         return result
-      } catch (error) {
+      } catch {
         await queueSync(method, path, body)
         const offlineData = options?.offlineTransform ? options.offlineTransform(body) : { ...body, id: `pending-${Date.now()}`, _pending: true }
         if (table) await table.put(offlineData as any)
@@ -171,7 +167,10 @@ class ApiClient {
   // ==================== USUARIOS ====================
 
   async getUsuarios() {
-    return this.getWithCache<any[]>('/usuarios', db.users)
+    const result = await this.getWithCache<any>('/usuarios', db.users)
+    if (Array.isArray(result)) return result
+    if (result?.data && Array.isArray(result.data)) return result.data
+    return []
   }
 
   async createUsuario(data: { email: string; nome: string; senha: string; role: string; gestorId?: string }) {
@@ -190,7 +189,7 @@ class ApiClient {
         await this.request(`/usuarios/${id}`, { method: 'DELETE' })
         await db.users.delete(id)
         return
-      } catch (error) {
+      } catch {
         await queueSync('DELETE', `/usuarios/${id}`)
         await db.users.delete(id)
         return
@@ -198,6 +197,13 @@ class ApiClient {
     }
     await queueSync('DELETE', `/usuarios/${id}`)
     await db.users.delete(id)
+  }
+
+  async changePassword(currentPassword: string, newPassword: string) {
+    return this.request<{ message: string }>('/usuarios/change-password', {
+      method: 'PUT',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    })
   }
 
   // ==================== EMAIL VERIFICATION ====================
@@ -225,7 +231,10 @@ class ApiClient {
   // ==================== CMS - MODULOS ====================
 
   async getCmsModulos() {
-    return this.getWithCache<any[]>('/cms', db.modulos)
+    const result = await this.getWithCache<any>('/cms', db.modulos)
+    if (Array.isArray(result)) return result
+    if (result?.data && Array.isArray(result.data)) return result.data
+    return []
   }
 
   async createModulo(data: any) {
@@ -244,7 +253,7 @@ class ApiClient {
         await this.request(`/cms/${id}`, { method: 'DELETE' })
         await db.modulos.delete(id)
         return
-      } catch (error) {
+      } catch {
         await queueSync('DELETE', `/cms/${id}`)
         await db.modulos.delete(id)
         return
@@ -279,7 +288,7 @@ class ApiClient {
         await this.request(`/modulos/aulas/${id}`, { method: 'DELETE' })
         await db.aulas.delete(id)
         return
-      } catch (error) {
+      } catch {
         await queueSync('DELETE', `/modulos/aulas/${id}`)
         await db.aulas.delete(id)
         return
@@ -319,7 +328,7 @@ class ApiClient {
         await this.request(`/modulos/quiz/${quizId}`, { method: 'DELETE' })
         await db.quizzes.delete(quizId)
         return
-      } catch (error) {
+      } catch {
         await queueSync('DELETE', `/modulos/quiz/${quizId}`)
         await db.quizzes.delete(quizId)
         return
@@ -345,7 +354,7 @@ class ApiClient {
         await this.request(`/modulos/perguntas/${perguntaId}`, { method: 'DELETE' })
         await db.perguntas.delete(perguntaId)
         return
-      } catch (error) {
+      } catch {
         await queueSync('DELETE', `/modulos/perguntas/${perguntaId}`)
         await db.perguntas.delete(perguntaId)
         return
@@ -357,7 +366,7 @@ class ApiClient {
 
   async submitQuiz(quizId: string, respostas: Record<string, string>) {
     return this.writeWithCache(`/modulos/quiz/${quizId}/responder`, 'POST', { respostas }, db.quizResponses, {
-      offlineTransform: (body) => ({
+      offlineTransform: (_body) => ({
         id: `pending-${Date.now()}`,
         quizId,
         userId: '',
@@ -377,7 +386,7 @@ class ApiClient {
 
   async updateProgresso(moduloId: string, aulaId: string, concluido: boolean) {
     return this.writeWithCache('/progresso', 'PUT', { moduloId, aulaId, concluido }, db.progressos, {
-      offlineTransform: (body) => ({
+      offlineTransform: (_body) => ({
         id: `pending-${Date.now()}`,
         moduloId,
         aulaId,
@@ -410,12 +419,15 @@ class ApiClient {
   // ==================== CERTIFICADOS ====================
 
   async getCertificates() {
-    return this.getWithCache<any[]>('/certificates', db.certificates)
+    const result = await this.getWithCache<any>('/certificates', db.certificates)
+    if (Array.isArray(result)) return result
+    if (result?.data && Array.isArray(result.data)) return result.data
+    return []
   }
 
   async createCertificate(moduloId: string) {
     return this.writeWithCache('/certificates', 'POST', { moduloId }, db.certificates, {
-      offlineTransform: (body) => ({
+      offlineTransform: (_body) => ({
         id: `pending-${Date.now()}`,
         userId: '',
         moduloId,
@@ -427,7 +439,7 @@ class ApiClient {
 
   async approveCertificate(id: string) {
     return this.writeWithCache(`/certificates/${id}/approve`, 'PUT', {}, db.certificates, {
-      offlineTransform: (body) => ({ id, status: 'APPROVED', _pending: true }),
+      offlineTransform: (_body) => ({ id, status: 'APPROVED', _pending: true }),
     })
   }
 
@@ -438,22 +450,22 @@ class ApiClient {
   }
 
   async sendNotification(toId: string, titulo: string, mensagem: string) {
-    return this.writeWithCache('/notifications', 'POST', { toId, titulo, mensagem }, db.notifications, {
-      offlineTransform: (body) => ({
-        id: `pending-${Date.now()}`,
-        fromId: '',
-        toId,
-        titulo,
-        mensagem,
-        lida: false,
-        _pending: true,
-      }),
+    return this.request<{ success: boolean; sent: number }>('/notifications', {
+      method: 'POST',
+      body: JSON.stringify({ toId, titulo, mensagem }),
+    })
+  }
+
+  async sendNotificationBulk(params: { toId?: string; toRole?: string; toTeam?: boolean; titulo: string; mensagem: string }) {
+    return this.request<{ success: boolean; sent: number }>('/notifications', {
+      method: 'POST',
+      body: JSON.stringify(params),
     })
   }
 
   async markNotificationRead(id: string) {
     return this.writeWithCache(`/notifications/${id}/read`, 'PUT', {}, db.notifications, {
-      offlineTransform: (body) => ({ id, lida: true, _pending: true }),
+      offlineTransform: (_body) => ({ id, lida: true, _pending: true }),
     })
   }
 
@@ -503,7 +515,7 @@ class ApiClient {
   async getGamificationStats() {
     try {
       return await this.request<any>('/modulos/gamification/stats')
-    } catch (error) {
+    } catch {
       const users = await db.users.toArray()
       const totalXp = users.reduce((sum, u) => sum + (u.xp || 0), 0)
       return {

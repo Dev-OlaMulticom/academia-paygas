@@ -19,11 +19,11 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
   const isAdmin = user?.role === 'ADMIN'
   const [stats, setStats] = useState<any>(null)
   const [teamStats, setTeamStats] = useState<any>(null)
-
-  useEffect(() => {
-    loadStats()
-    if (isAdmin) loadTeamStats()
-  }, [])
+  const [currentPassword, setCurrentPassword] = useState('')
+  const [newPassword, setNewPassword] = useState('')
+  const [confirmPassword, setConfirmPassword] = useState('')
+  const [passwordLoading, setPasswordLoading] = useState(false)
+  const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
   const loadStats = async () => {
     try {
@@ -39,6 +39,41 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
       })
       if (res.ok) setTeamStats(await res.json())
     } catch { /* */ }
+  }
+
+  useEffect(() => {
+    loadStats()
+    if (isAdmin) loadTeamStats()
+  }, [])
+
+  const handleChangePassword = async () => {
+    setPasswordMsg(null)
+
+    if (!currentPassword || !newPassword) {
+      setPasswordMsg({ type: 'error', text: 'Preencha todos os campos.' })
+      return
+    }
+    if (newPassword.length < 8) {
+      setPasswordMsg({ type: 'error', text: 'Nova senha deve ter pelo menos 8 caracteres.' })
+      return
+    }
+    if (newPassword !== confirmPassword) {
+      setPasswordMsg({ type: 'error', text: 'As senhas não conferem.' })
+      return
+    }
+
+    setPasswordLoading(true)
+    try {
+      await api.changePassword(currentPassword, newPassword)
+      setPasswordMsg({ type: 'success', text: 'Senha alterada com sucesso!' })
+      setCurrentPassword('')
+      setNewPassword('')
+      setConfirmPassword('')
+    } catch (err: any) {
+      setPasswordMsg({ type: 'error', text: err.message || 'Erro ao alterar senha.' })
+    } finally {
+      setPasswordLoading(false)
+    }
   }
 
   const level = Math.floor((xp || 0) / 2000) + 1
@@ -79,14 +114,55 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
           <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '24px' }}>
             <div className="section-title">Seguranca</div>
             <div className="form-field">
+              <label className="form-label">Senha Atual</label>
+              <input
+                className="form-input"
+                type="password"
+                placeholder="Digite sua senha atual"
+                value={currentPassword}
+                onChange={(e) => setCurrentPassword(e.target.value)}
+              />
+            </div>
+            <div className="form-field">
               <label className="form-label">Nova Senha</label>
-              <input className="form-input" type="password" placeholder="Minimo 8 caracteres" />
+              <input
+                className="form-input"
+                type="password"
+                placeholder="Minimo 8 caracteres"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+              />
             </div>
             <div className="form-field">
               <label className="form-label">Confirmar Senha</label>
-              <input className="form-input" type="password" placeholder="Repita a senha" />
+              <input
+                className="form-input"
+                type="password"
+                placeholder="Repita a senha"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+              />
             </div>
-            <button className="btn-secondary" style={{ width: '100%' }}>Alterar Senha</button>
+            {passwordMsg && (
+              <div style={{
+                padding: '8px 12px',
+                borderRadius: '8px',
+                fontSize: '13px',
+                marginBottom: '12px',
+                background: passwordMsg.type === 'success' ? '#DCFCE7' : '#FEE2E2',
+                color: passwordMsg.type === 'success' ? '#166534' : '#991B1B',
+              }}>
+                {passwordMsg.text}
+              </div>
+            )}
+            <button
+              className="btn-secondary"
+              style={{ width: '100%' }}
+              onClick={handleChangePassword}
+              disabled={passwordLoading}
+            >
+              {passwordLoading ? 'Alterando...' : 'Alterar Senha'}
+            </button>
           </div>
         </div>
 
@@ -134,18 +210,12 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
           )}
 
           {isAdmin && (
-            <div style={{
-              background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)',
-              border: '1px solid #4338ca',
-              borderRadius: 'var(--radius)',
-              padding: '24px',
-              color: '#fff',
-            }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
-                <span style={{ fontSize: '18px' }}>🧪</span>
-                <span style={{ fontSize: '16px', fontWeight: 700 }}>Sandbox - Usuarios de Teste</span>
+            <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '24px' }}>
+              <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                <span>🧪</span>
+                <span>Sandbox - Usuarios de Teste</span>
               </div>
-              <div style={{ fontSize: '12px', color: '#c7d2fe', marginBottom: '16px' }}>
+              <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginBottom: '16px' }}>
                 Estes usuarios foram criados automaticamente pelo seed do sistema.
               </div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -153,31 +223,32 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
                   <div key={i} style={{
                     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                     padding: '10px 14px', borderRadius: '8px',
-                    background: 'rgba(255,255,255,0.08)',
-                    border: '1px solid rgba(255,255,255,0.1)',
+                    background: 'var(--gray-50)',
+                    border: '1px solid var(--gray-100)',
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={{
                         width: '32px', height: '32px', borderRadius: '50%',
-                        background: tu.role === 'ADMIN' ? '#ef4444' : tu.role === 'GESTOR' ? '#f59e0b' : '#8b5cf6',
+                        background: tu.role === 'ADMIN' ? 'var(--pg-red)' : tu.role === 'GESTOR' ? 'var(--pg-gold)' : 'var(--pg-green)',
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '12px', fontWeight: 700,
+                        fontSize: '12px', fontWeight: 700, color: '#fff',
                       }}>
                         {tu.nome.split(' ').map(n => n[0]).slice(0, 2).join('')}
                       </div>
                       <div>
-                        <div style={{ fontSize: '13px', fontWeight: 600 }}>{tu.nome}</div>
-                        <div style={{ fontSize: '11px', color: '#a5b4fc' }}>{tu.email}</div>
+                        <div style={{ fontSize: '13px', fontWeight: 600, color: 'var(--gray-900)' }}>{tu.nome}</div>
+                        <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>{tu.email}</div>
                       </div>
                     </div>
                     <div style={{ textAlign: 'right' }}>
                       <span style={{
                         padding: '2px 8px', borderRadius: '10px', fontSize: '10px', fontWeight: 600,
-                        background: tu.role === 'ADMIN' ? '#ef4444' : tu.role === 'GESTOR' ? '#f59e0b' : '#8b5cf6',
+                        background: tu.role === 'ADMIN' ? 'var(--pg-red-lt)' : tu.role === 'GESTOR' ? 'var(--pg-gold-lt)' : 'var(--pg-green-lt)',
+                        color: tu.role === 'ADMIN' ? 'var(--pg-red)' : tu.role === 'GESTOR' ? 'var(--pg-gold)' : 'var(--pg-green)',
                       }}>
                         {tu.role}
                       </span>
-                      <div style={{ fontSize: '10px', color: '#a5b4fc', marginTop: '2px' }}>Pass: {tu.senha}</div>
+                      <div style={{ fontSize: '10px', color: 'var(--gray-400)', marginTop: '2px' }}>Pass: {tu.senha}</div>
                     </div>
                   </div>
                 ))}

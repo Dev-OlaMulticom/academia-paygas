@@ -29,21 +29,16 @@ export function CMSPage({ user }: CMSPageProps) {
   const [showAulaModal, setShowAulaModal] = useState(false)
   const [editingMod, setEditingMod] = useState<any>(null)
   const [editingAula, setEditingAula] = useState<any>(null)
-  const [newAula, setNewAula] = useState({ titulo: '', tipo: 'video' as 'video' | 'pdf', url: '', microLessons: [] as MicroLesson[], duration: { hours: 0, minutes: 0, seconds: 0 } as VideoDuration })
+  const [newAula, setNewAula] = useState({ titulo: '', tipo: 'VIDEO' as 'VIDEO' | 'PDF', videoUrl: '', pdfUrl: '', obrigatorio: false, microLessons: [] as MicroLesson[], duration: { hours: 0, minutes: 0, seconds: 0 } as VideoDuration })
   const [modulos, setModulos] = useState<any[]>([])
   const [aulas, setAulas] = useState<any[]>([])
   const [gestores, setGestores] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
   const [editingQuiz, setEditingQuiz] = useState<any>(null)
   const [quizAula, setQuizAula] = useState<any>(null)
   const [showQuizModal, setShowQuizModal] = useState(false)
   const [newPergunta, setNewPergunta] = useState({ pergunta: '', opcaoA: '', opcaoB: '', opcaoC: '', opcaoD: '', correta: 'A' })
 
   const isAdmin = user?.role === 'ADMIN'
-
-  useEffect(() => { loadModulos() }, [])
-  useEffect(() => { if (selectedModulo) loadAulas(selectedModulo.id) }, [selectedModulo])
-  useEffect(() => { loadGestores() }, [])
 
   const loadModulos = async () => {
     try {
@@ -54,7 +49,7 @@ export function CMSPage({ user }: CMSPageProps) {
         { id: '1', titulo: 'Boas-Vindas à Academia PayGas', descricao: 'Introdução à plataforma', _count: { aulas: 3 } },
         { id: '2', titulo: 'Manual do Atendente', descricao: 'Procedimentos de atendimento', _count: { aulas: 8 } },
       ])
-    } finally { setLoading(false) }
+    }
   }
 
   const loadGestores = async () => {
@@ -75,11 +70,15 @@ export function CMSPage({ user }: CMSPageProps) {
     }
   }
 
+  useEffect(() => { loadModulos() }, [])
+  useEffect(() => { if (selectedModulo) loadAulas(selectedModulo.id) }, [selectedModulo])
+  useEffect(() => { loadGestores() }, [])
+
 
   const handleEditModulo = async () => {
     if (!editingMod) return
     try {
-      await api.updateModulo(editingMod.id, { titulo: editingMod.titulo, descricao: editingMod.descricao, obrigatorio: editingMod.obrigatorio, disponivelParaTodos: editingMod.disponivelParaTodos, disponivelParaGestores: editingMod.disponivelParaGestores, autoCertificado: editingMod.autoCertificado })
+      await api.updateModulo(editingMod.id, { titulo: editingMod.titulo, descricao: editingMod.descricao, obrigatorio: editingMod.obrigatorio, autoCertificado: editingMod.autoCertificado })
       alert('Módulo atualizado!')
       setEditingMod(null)
       loadModulos()
@@ -99,18 +98,35 @@ export function CMSPage({ user }: CMSPageProps) {
   }
 
   const handleCreateAula = async () => {
-    if (!newAula.titulo || !newAula.url) {
-      alert('Título e URL são obrigatórios!')
+    if (!newAula.titulo) {
+      alert('Título é obrigatório!')
       return
     }
-    if (newAula.tipo === 'video' && newAula.microLessons.length === 0) {
-      if (!confirm('Não há micro-leções definidas. Deseja continuar?')) return
+    if (newAula.tipo === 'VIDEO' && !newAula.videoUrl) {
+      alert('URL do vídeo é obrigatória!')
+      return
+    }
+    if (newAula.tipo === 'PDF' && !newAula.pdfUrl) {
+      alert('URL do PDF é obrigatória!')
+      return
     }
     try {
-      await api.createAula(selectedModulo.id, newAula)
+      const payload: any = {
+        titulo: newAula.titulo,
+        tipo: newAula.tipo,
+        obrigatorio: newAula.obrigatorio,
+        videoInicio: 0,
+        videoFim: 0,
+      }
+      if (newAula.tipo === 'VIDEO') {
+        payload.videoUrl = newAula.videoUrl
+      } else {
+        payload.pdfUrl = newAula.pdfUrl
+      }
+      await api.createAula(selectedModulo.id, payload)
       alert('Aula criada com sucesso!')
       setShowAulaModal(false)
-      setNewAula({ titulo: '', tipo: 'video', url: '', microLessons: [], duration: { hours: 0, minutes: 0, seconds: 0 } })
+      setNewAula({ titulo: '', tipo: 'VIDEO', videoUrl: '', pdfUrl: '', obrigatorio: false, microLessons: [], duration: { hours: 0, minutes: 0, seconds: 0 } })
       loadAulas(selectedModulo.id)
     } catch (err: any) {
       alert(err.message || 'Erro ao criar aula')
@@ -241,7 +257,7 @@ export function CMSPage({ user }: CMSPageProps) {
                     <td>{mod._count?.aulas || 0} aulas</td>
                     <td style={{ display: 'flex', gap: '6px' }}>
                       <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => { setSelectedModulo(mod); setView('aulas') }}><i className="icon-book-open icon-xs" /> Aulas</button>
-                      {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingMod({ ...mod, obrigatorio: mod.obrigatorio || false, disponivelParaTodos: mod.disponivelParaTodos !== false, disponivelParaGestores: mod.disponivelParaGestores || [], autoCertificado: mod.autoCertificado || false })}><i className="icon-pencil icon-xs" /> Editar</button>}
+                      {                       isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingMod({ ...mod, obrigatorio: mod.obrigatorio || false, autoCertificado: mod.autoCertificado || false })}><i className="icon-pencil icon-xs" /> Editar</button>}
                       {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDeleteModulo(mod.id)}><i className="icon-trash-2 icon-xs" /></button>}
                     </td>
                   </tr>
@@ -267,12 +283,19 @@ export function CMSPage({ user }: CMSPageProps) {
                 aulas.map((aula) => (
                   <tr key={aula.id}>
                     <td><b>{aula.titulo}</b></td>
-                    <td><span className={`track-badge ${aula.tipo === 'video' ? 'badge-new' : 'badge-blue'}`} style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{aula.tipo === 'video' ? <><i className="icon-video icon-xs" /> Vídeo</> : <><i className="icon-file-text icon-xs" /> PDF</>}</span></td>
-                    <td style={{ fontSize: '12px', color: 'var(--gray-500)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{aula.url}</td>
+                    <td><span className={`track-badge ${aula.tipo === 'VIDEO' ? 'badge-new' : 'badge-blue'}`} style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{aula.tipo === 'VIDEO' ? <><i className="icon-video icon-xs" /> Vídeo</> : <><i className="icon-file-text icon-xs" /> PDF</>}</span></td>
+                    <td style={{ fontSize: '12px', color: 'var(--gray-500)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{aula.videoUrl || aula.pdfUrl || '—'}</td>
                     <td>
-                      <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px', background: aula.quiz ? '#E8F5E9' : undefined, borderColor: aula.quiz ? '#4CAF50' : undefined, color: aula.quiz ? '#2E7D32' : undefined }} onClick={() => handleOpenQuiz(aula)}>
-                        <i className="icon-help-circle icon-xs" /> {aula.quiz ? `${aula.quiz.perguntas?.length || 0} perguntas` : 'Criar Quiz'}
-                      </button>
+                      {isAdmin && (
+                        <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px', background: aula.quiz ? '#E8F5E9' : undefined, borderColor: aula.quiz ? '#4CAF50' : undefined, color: aula.quiz ? '#2E7D32' : undefined }} onClick={() => handleOpenQuiz(aula)}>
+                          <i className="icon-help-circle icon-xs" /> {aula.quiz ? `${aula.quiz.perguntas?.length || 0} perguntas` : 'Criar Quiz'}
+                        </button>
+                      )}
+                      {!isAdmin && aula.quiz && (
+                        <span style={{ fontSize: '11px', color: 'var(--gray-500)' }}>
+                          {aula.quiz.perguntas?.length || 0} perguntas
+                        </span>
+                      )}
                     </td>
                     <td style={{ display: 'flex', gap: '6px' }}>
                       {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingAula({ ...aula })}><i className="icon-pencil icon-xs" /> Editar</button>}
@@ -339,40 +362,6 @@ export function CMSPage({ user }: CMSPageProps) {
                 <option value="true">Sim (Automático ao concluir)</option>
               </select>
             </div>
-            <div className="form-field">
-              <label className="form-label">Disponibilidade</label>
-              <select className="form-select" value={editingMod.disponivelParaTodos ? 'todos' : 'especificos'} onChange={e => setEditingMod({ ...editingMod, disponivelParaTodos: e.target.value === 'todos', disponivelParaGestores: [] })}>
-                <option value="todos">Todos os usuários</option>
-                <option value="especificos">Gestores específicos</option>
-              </select>
-            </div>
-            {!editingMod.disponivelParaTodos && (
-              <div className="form-field">
-                <label className="form-label">Gestores Permitidos</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '150px', overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-sm)', padding: '8px' }}>
-                  {gestores.length > 0 ? (
-                    gestores.map((gestor) => (
-                      <label key={gestor.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', cursor: 'pointer' }}>
-                        <input
-                          type="checkbox"
-                          checked={editingMod.disponivelParaGestores?.includes(gestor.id)}
-                          onChange={e => {
-                            if (e.target.checked) {
-                              setEditingMod({ ...editingMod, disponivelParaGestores: [...(editingMod.disponivelParaGestores || []), gestor.id] })
-                            } else {
-                              setEditingMod({ ...editingMod, disponivelParaGestores: (editingMod.disponivelParaGestores || []).filter((id: string) => id !== gestor.id) })
-                            }
-                          }}
-                        />
-                        <span>{gestor.nome}</span>
-                      </label>
-                    ))
-                  ) : (
-                    <span style={{ color: 'var(--gray-400)', fontSize: '13px' }}>Nenhum gestor encontrado</span>
-                  )}
-                </div>
-              </div>
-            )}
             <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
               <button className="btn-primary" onClick={handleEditModulo}>Salvar</button>
               <button className="btn-secondary" onClick={() => setEditingMod(null)}>Cancelar</button>
@@ -391,16 +380,26 @@ export function CMSPage({ user }: CMSPageProps) {
                 <div className="form-field"><label className="form-label">Título</label><input className="form-input" value={newAula.titulo} onChange={e => setNewAula({ ...newAula, titulo: e.target.value })} /></div>
                 <div className="form-field">
                   <label className="form-label">Tipo</label>
-                  <select className="form-select" value={newAula.tipo} onChange={e => setNewAula({ ...newAula, tipo: e.target.value as 'video' | 'pdf' })}>
-                    <option value="video"><i className="icon-video icon-sm" /> Vídeo (YouTube)</option>
-                    <option value="pdf"><i className="icon-file-text icon-sm" /> PDF</option>
+                  <select className="form-select" value={newAula.tipo} onChange={e => setNewAula({ ...newAula, tipo: e.target.value as 'VIDEO' | 'PDF' })}>
+                    <option value="VIDEO"><i className="icon-video icon-sm" /> Vídeo (YouTube)</option>
+                    <option value="PDF"><i className="icon-file-text icon-sm" /> PDF</option>
                   </select>
                 </div>
                 <div className="form-field">
-                  <label className="form-label">URL</label>
-                  <input className="form-input" value={newAula.url} onChange={e => setNewAula({ ...newAula, url: e.target.value })} placeholder={newAula.tipo === 'video' ? 'https://www.youtube.com/watch?v=...' : 'https://.../documento.pdf'} />
+                  <label className="form-label">{newAula.tipo === 'VIDEO' ? 'URL do Vídeo (YouTube)' : 'URL do PDF'}</label>
+                  <input className="form-input" value={newAula.tipo === 'VIDEO' ? newAula.videoUrl : newAula.pdfUrl} onChange={e => {
+                    if (newAula.tipo === 'VIDEO') setNewAula({ ...newAula, videoUrl: e.target.value })
+                    else setNewAula({ ...newAula, pdfUrl: e.target.value })
+                  }} placeholder={newAula.tipo === 'VIDEO' ? 'https://www.youtube.com/watch?v=...' : 'https://.../documento.pdf'} />
                 </div>
-                {newAula.tipo === 'video' && (
+                <div className="form-field">
+                  <label className="form-label">Obrigatório (bloquear próxima aula até concluir)</label>
+                  <select className="form-select" value={newAula.obrigatorio ? 'true' : 'false'} onChange={e => setNewAula({ ...newAula, obrigatorio: e.target.value === 'true' })}>
+                    <option value="false">Não</option>
+                    <option value="true">Sim — Usuário deve concluir antes de avançar</option>
+                  </select>
+                </div>
+                {newAula.tipo === 'VIDEO' && (
                   <div className="form-field">
                     <label className="form-label">Micro-Leções (pontos de separação)</label>
                     {newAula.microLessons.map((ml, i) => (
@@ -455,10 +454,10 @@ export function CMSPage({ user }: CMSPageProps) {
                 )}
               </div>
               <div>
-                {newAula.tipo === 'video' && (
+                {newAula.tipo === 'VIDEO' && (
                   <div className="form-field">
                     <label className="form-label">Prévia do Vídeo</label>
-                    <VideoPreview url={newAula.url} onDurationChange={(duration) => {
+                    <VideoPreview url={newAula.videoUrl} onDurationChange={(duration) => {
                       const hours = Math.floor(duration / 3600)
                       const minutes = Math.floor((duration % 3600) / 60)
                       const seconds = Math.floor(duration % 60)
@@ -466,7 +465,7 @@ export function CMSPage({ user }: CMSPageProps) {
                     }} />
                   </div>
                 )}
-                {newAula.tipo === 'pdf' && (
+                {newAula.tipo === 'PDF' && (
                   <div className="form-field">
                     <label className="form-label">Prévia do PDF</label>
                     <div style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '40px', border: '2px dashed var(--gray-200)', borderRadius: 'var(--radius)' }}>
@@ -494,16 +493,26 @@ export function CMSPage({ user }: CMSPageProps) {
                 <div className="form-field"><label className="form-label">Título</label><input className="form-input" value={editingAula.titulo} onChange={e => setEditingAula({ ...editingAula, titulo: e.target.value })} /></div>
                 <div className="form-field">
                   <label className="form-label">Tipo</label>
-                  <select className="form-select" value={editingAula.tipo} onChange={e => setEditingAula({ ...editingAula, tipo: e.target.value as 'video' | 'pdf' })}>
-                    <option value="video"><i className="icon-video icon-sm" /> Vídeo (YouTube)</option>
-                    <option value="pdf"><i className="icon-file-text icon-sm" /> PDF</option>
+                  <select className="form-select" value={editingAula.tipo} onChange={e => setEditingAula({ ...editingAula, tipo: e.target.value as 'VIDEO' | 'PDF' })}>
+                    <option value="VIDEO"><i className="icon-video icon-sm" /> Vídeo (YouTube)</option>
+                    <option value="PDF"><i className="icon-file-text icon-sm" /> PDF</option>
                   </select>
                 </div>
                 <div className="form-field">
-                  <label className="form-label">URL</label>
-                  <input className="form-input" value={editingAula.url} onChange={e => setEditingAula({ ...editingAula, url: e.target.value })} />
+                  <label className="form-label">{editingAula.tipo === 'VIDEO' ? 'URL do Vídeo' : 'URL do PDF'}</label>
+                  <input className="form-input" value={editingAula.tipo === 'VIDEO' ? editingAula.videoUrl || '' : editingAula.pdfUrl || ''} onChange={e => {
+                    if (editingAula.tipo === 'VIDEO') setEditingAula({ ...editingAula, videoUrl: e.target.value })
+                    else setEditingAula({ ...editingAula, pdfUrl: e.target.value })
+                  }} />
                 </div>
-                {editingAula.tipo === 'video' && (
+                <div className="form-field">
+                  <label className="form-label">Obrigatório</label>
+                  <select className="form-select" value={editingAula.obrigatorio ? 'true' : 'false'} onChange={e => setEditingAula({ ...editingAula, obrigatorio: e.target.value === 'true' })}>
+                    <option value="false">Não</option>
+                    <option value="true">Sim</option>
+                  </select>
+                </div>
+                {editingAula.tipo === 'VIDEO' && (
                   <div className="form-field">
                     <label className="form-label">Micro-Leções (pontos de separação)</label>
                     {(editingAula.microLessons || []).map((ml: MicroLesson, i: number) => (
@@ -578,10 +587,10 @@ export function CMSPage({ user }: CMSPageProps) {
                 )}
               </div>
               <div>
-                {editingAula.tipo === 'video' && (
+                {editingAula.tipo === 'VIDEO' && (
                   <div className="form-field">
                     <label className="form-label">Prévia do Vídeo</label>
-                    <VideoPreview url={editingAula.url} onDurationChange={(duration) => {
+                    <VideoPreview url={editingAula.videoUrl || ''} onDurationChange={(duration) => {
                       const hours = Math.floor(duration / 3600)
                       const minutes = Math.floor((duration % 3600) / 60)
                       const seconds = Math.floor(duration % 60)
@@ -589,7 +598,7 @@ export function CMSPage({ user }: CMSPageProps) {
                     }} />
                   </div>
                 )}
-                {editingAula.tipo === 'pdf' && (
+                {editingAula.tipo === 'PDF' && (
                   <div className="form-field">
                     <label className="form-label">Prévia do PDF</label>
                     <div style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '40px', border: '2px dashed var(--gray-200)', borderRadius: 'var(--radius)' }}>
@@ -654,9 +663,11 @@ export function CMSPage({ user }: CMSPageProps) {
                               A: {p.opcaoA} | B: {p.opcaoB} {p.opcaoC ? `| C: ${p.opcaoC}` : ''} {p.opcaoD ? `| D: ${p.opcaoD}` : ''} | Resposta: <b>{p.correta}</b>
                             </p>
                           </div>
-                          <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)' }} onClick={() => handleDeletePergunta(p.id)}>
-                            <i className="icon-trash-2 icon-xs" />
-                          </button>
+                          {isAdmin && (
+                            <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)' }} onClick={() => handleDeletePergunta(p.id)}>
+                              <i className="icon-trash-2 icon-xs" />
+                            </button>
+                          )}
                         </div>
                       </div>
                     ))}
@@ -664,6 +675,7 @@ export function CMSPage({ user }: CMSPageProps) {
                 )}
 
                 {/* Add new question form */}
+                {isAdmin && (
                 <div style={{ borderTop: '1px solid var(--gray-200)', paddingTop: '16px' }}>
                   <h4 style={{ marginBottom: '12px' }}>Adicionar Pergunta</h4>
                   <div className="form-field">
@@ -699,6 +711,7 @@ export function CMSPage({ user }: CMSPageProps) {
                   </div>
                   <button className="btn-primary" style={{ width: '100%', marginTop: '8px' }} onClick={handleAddPergunta}>+ Adicionar Pergunta</button>
                 </div>
+                )}
 
                 <div style={{ display: 'flex', gap: '8px', marginTop: '16px', borderTop: '1px solid var(--gray-200)', paddingTop: '16px' }}>
                   <button className="btn-secondary" onClick={() => { setShowQuizModal(false); setQuizAula(null); setEditingQuiz(null) }}>Fechar</button>

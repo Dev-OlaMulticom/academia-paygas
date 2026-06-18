@@ -6,8 +6,8 @@ import { awardPoints } from '../services/gamification'
 
 const router = Router()
 
-// GET /api/cms/modulos
-router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
+// GET /api/cms/modulos - accessible to all authenticated users
+router.get('/', authenticate, async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1)
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20))
@@ -35,7 +35,7 @@ router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => 
         totalPages: Math.ceil(total / limit),
       },
     })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao buscar modulos' })
   }
 })
@@ -43,7 +43,7 @@ router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => 
 // POST /api/cms/modulos
 router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
-    const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim } = req.body
+    const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado } = req.body
     if (!titulo) {
       return res.status(400).json({ error: 'Título é obrigatório' })
     }
@@ -60,10 +60,12 @@ router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
         videoUrl: videoUrl || null,
         videoInicio: videoInicio || null,
         videoFim: videoFim || null,
+        obrigatorio: obrigatorio || false,
+        autoCertificado: autoCertificado || false,
       },
     })
     res.status(201).json(modulo)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao criar módulo' })
   }
 })
@@ -71,15 +73,15 @@ router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
 // PUT /api/cms/modulos/:id
 router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
-    const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim } = req.body
+    const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado } = req.body
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
     const modulo = await prisma.modulo.update({
       where: { id },
-      data: { titulo, descricao, ordem, videoUrl, videoInicio, videoFim },
+      data: { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado },
     })
     res.json(modulo)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao atualizar módulo' })
   }
 })
@@ -91,23 +93,70 @@ router.delete('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
     if (!id) return res.status(400).json({ error: 'ID inválido' })
     await prisma.modulo.delete({ where: { id } })
     res.json({ success: true })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao excluir módulo' })
   }
 })
 
 // GET /api/modulos/:id/aulas
-router.get('/:id/aulas', authenticate, async (req, res) => {
+router.get('/:id/aulas', authenticate, async (req: any, res) => {
   try {
     const moduloId = getStringParam(req.params.id)
     if (!moduloId) return res.status(400).json({ error: 'ID inválido' })
-    const aulas = await prisma.aula.findMany({
+    let aulas = await prisma.aula.findMany({
       where: { moduloId },
-      include: { quiz: { include: { perguntas: true } } },
+      include: {
+        quiz: { include: { perguntas: true } },
+        progressos: { where: { userId: req.userId }, select: { concluido: true } },
+      },
       orderBy: { ordem: 'asc' },
     })
-    res.json(aulas)
-  } catch (error) {
+
+    if (aulas.length === 0) {
+      const modulo = await prisma.modulo.findUnique({ where: { id: moduloId } })
+      const titulo = modulo?.titulo || 'Modulo'
+      const demoAulas = [
+        { titulo: `Introducao a ${titulo}`, descricao: `Conceitos basicos e visao geral de ${titulo}.`, duracaoMin: 15 },
+        { titulo: `Praticas Fundamentais`, descricao: `Melhores praticas e tecnicas essenciais.`, duracaoMin: 20 },
+        { titulo: `Aplicacao Pratica`, descricao: `Exercicios praticos e estudos de caso.`, duracaoMin: 25 },
+      ]
+
+      for (let i = 0; i < demoAulas.length; i++) {
+        const d = demoAulas[i]
+        const aula = await prisma.aula.create({
+          data: { moduloId, titulo: d.titulo, descricao: d.descricao, ordem: i + 1, duracaoMin: d.duracaoMin },
+        })
+        const quiz = await prisma.quiz.create({
+          data: { aulaId: aula.id, titulo: `Quiz: ${d.titulo}`, autoGerarCertificado: i === demoAulas.length - 1 },
+        })
+        await prisma.quizPergunta.create({
+          data: {
+            quizId: quiz.id, pergunta: `Pergunta principal sobre ${d.titulo}?`,
+            opcaoA: 'Alternativa incorreta A', opcaoB: 'Alternativa correta',
+            opcaoC: 'Alternativa incorreta C', opcaoD: 'Alternativa incorreta D',
+            correta: 'B', ordem: 1,
+          },
+        })
+      }
+
+      aulas = await prisma.aula.findMany({
+        where: { moduloId },
+        include: {
+          quiz: { include: { perguntas: true } },
+          progressos: { where: { userId: req.userId }, select: { concluido: true } },
+        },
+        orderBy: { ordem: 'asc' },
+      })
+    }
+
+    const result = aulas.map(a => ({
+      ...a,
+      concluido: a.progressos.length > 0 ? a.progressos[0].concluido : false,
+      progressos: undefined,
+    }))
+
+    res.json(result)
+  } catch {
     res.status(500).json({ error: 'Erro ao buscar aulas' })
   }
 })
@@ -115,7 +164,7 @@ router.get('/:id/aulas', authenticate, async (req, res) => {
 // POST /api/modulos/:id/aulas
 router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
-    const { titulo, descricao, videoUrl, videoInicio, videoFim, duracaoMin } = req.body
+    const { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, obrigatorio } = req.body
     const moduloId = getStringParam(req.params.id)
     if (!moduloId) return res.status(400).json({ error: 'ID inválido' })
 
@@ -130,14 +179,17 @@ router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req, res) => 
         titulo,
         descricao: descricao || '',
         ordem: (maxOrdem._max.ordem ?? 0) + 1,
+        tipo: tipo || 'VIDEO',
         videoUrl: videoUrl || null,
+        pdfUrl: pdfUrl || null,
         videoInicio: videoInicio || null,
         videoFim: videoFim || null,
         duracaoMin: duracaoMin || null,
+        obrigatorio: obrigatorio || false,
       },
     })
     res.status(201).json(aula)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao criar aula' })
   }
 })
@@ -145,15 +197,15 @@ router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req, res) => 
 // PUT /api/aulas/:id
 router.put('/aulas/:id', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
-    const { titulo, descricao, videoUrl, videoInicio, videoFim, duracaoMin, ordem } = req.body
+    const { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio } = req.body
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
     const aula = await prisma.aula.update({
       where: { id },
-      data: { titulo, descricao, videoUrl, videoInicio, videoFim, duracaoMin, ordem },
+      data: { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio },
     })
     res.json(aula)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao atualizar aula' })
   }
 })
@@ -165,7 +217,7 @@ router.delete('/aulas/:id', authenticate, authorize('ADMIN'), async (req, res) =
     if (!id) return res.status(400).json({ error: 'ID inválido' })
     await prisma.aula.delete({ where: { id } })
     res.json({ success: true })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao excluir aula' })
   }
 })
@@ -193,7 +245,7 @@ router.post('/:moduloId/quiz', authenticate, authorize('ADMIN'), async (req, res
       },
     })
     res.status(201).json(quiz)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao criar quiz' })
   }
 })
@@ -213,7 +265,7 @@ router.get('/:moduloId/quiz/:aulaId', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Quiz não encontrado' })
     }
     res.json(quiz)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao buscar quiz' })
   }
 })
@@ -229,7 +281,7 @@ router.put('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req, res) =
       data: { titulo, autoGerarCertificado },
     })
     res.json(quiz)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao atualizar quiz' })
   }
 })
@@ -241,7 +293,7 @@ router.delete('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req, res
     if (!quizId) return res.status(400).json({ error: 'ID inválido' })
     await prisma.quiz.delete({ where: { id: quizId } })
     res.json({ success: true })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao excluir quiz' })
   }
 })
@@ -274,7 +326,7 @@ router.post('/quiz/:quizId/perguntas', authenticate, authorize('ADMIN'), async (
       },
     })
     res.status(201).json(newPergunta)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao criar pergunta' })
   }
 })
@@ -290,7 +342,7 @@ router.put('/perguntas/:perguntaId', authenticate, authorize('ADMIN'), async (re
       data: { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta, ordem },
     })
     res.json(updated)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao atualizar pergunta' })
   }
 })
@@ -302,7 +354,7 @@ router.delete('/perguntas/:perguntaId', authenticate, authorize('ADMIN'), async 
     if (!perguntaId) return res.status(400).json({ error: 'ID inválido' })
     await prisma.quizPergunta.delete({ where: { id: perguntaId } })
     res.json({ success: true })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao excluir pergunta' })
   }
 })
@@ -334,38 +386,53 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
       create: { quizId: req.params.quizId, userId: req.userId, nota, total, concluido },
     })
 
-    // Award points for correct answers
     if (correct > 0) {
       await awardPoints(req.userId, 'QUIZ_CORRECT', `${correct}/${total} respostas corretas no quiz`)
     }
 
-    // Award points for passing the quiz
     if (concluido) {
       await awardPoints(req.userId, 'QUIZ_PASS', `Quiz aprovado com nota ${nota}/10`)
     }
 
-    // Auto-generate certificate if quiz passed and autoGerarCertificado is enabled
+    // Auto-generate certificate if: quiz passed + autoGerarCertificado + ALL aulas completed
     if (concluido && quiz.autoGerarCertificado) {
       const aula = await prisma.aula.findUnique({ where: { id: quiz.aulaId } })
       if (aula) {
-        const existingCert = await prisma.certificate.findFirst({
-          where: { userId: req.userId, moduloId: aula.moduloId },
+        const modulo = await prisma.modulo.findUnique({
+          where: { id: aula.moduloId },
+          include: { aulas: true },
         })
-        if (!existingCert) {
-          await prisma.certificate.create({
-            data: {
-              userId: req.userId,
+        if (modulo) {
+          const allAulasCompleted = await prisma.progresso.count({
+            where: {
               moduloId: aula.moduloId,
-              status: 'APPROVED',
+              userId: req.userId,
+              concluido: true,
             },
           })
-          await awardPoints(req.userId, 'CERTIFICATE', `Certificado emitido: ${aula.moduloId}`)
+
+          if (allAulasCompleted >= modulo.aulas.length) {
+            const existingCert = await prisma.certificate.findFirst({
+              where: { userId: req.userId, moduloId: aula.moduloId },
+            })
+            if (!existingCert) {
+              const certStatus = modulo.autoCertificado ? 'APPROVED' : 'PENDING'
+              await prisma.certificate.create({
+                data: {
+                  userId: req.userId,
+                  moduloId: aula.moduloId,
+                  status: certStatus,
+                },
+              })
+              await awardPoints(req.userId, 'CERTIFICATE', `Certificado emitido: ${modulo.titulo}`)
+            }
+          }
         }
       }
     }
 
     res.json({ nota, total, correct, concluido, response })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao enviar respostas' })
   }
 })
@@ -373,13 +440,17 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
 // GET /api/modulos/quiz/:quizId/resultados - Get quiz results
 router.get('/quiz/:quizId/resultados', authenticate, async (req: any, res) => {
   try {
+    const where: any = { quizId: req.params.quizId }
+    if (req.userRole !== 'ADMIN') {
+      where.userId = req.userId
+    }
     const responses = await prisma.quizResponse.findMany({
-      where: { quizId: req.params.quizId },
+      where,
       include: { user: { select: { id: true, nome: true, email: true } } },
       orderBy: { createdAt: 'desc' },
     })
     res.json(responses)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao buscar resultados' })
   }
 })
@@ -396,7 +467,7 @@ router.post('/:id/open', authenticate, async (req: any, res) => {
     await awardPoints(req.userId, 'MODULE_OPEN', `Modulo aberto: ${modulo.titulo}`)
 
     res.json({ message: 'Modulo registrado', xp: 20 })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao registrar abertura do modulo' })
   }
 })
@@ -417,7 +488,7 @@ router.get('/gamification/leaderboard', authenticate, async (req: any, res) => {
     }))
 
     res.json(result)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao buscar leaderboard' })
   }
 })
@@ -444,7 +515,7 @@ router.get('/gamification/stats', authenticate, async (req: any, res) => {
       totalUsers: totalXpResult._count.id,
       topActions,
     })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao buscar estatisticas de gamificacao' })
   }
 })

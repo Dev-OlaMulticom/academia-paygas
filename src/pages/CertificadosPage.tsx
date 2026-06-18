@@ -1,16 +1,41 @@
+import { useState, useEffect, useCallback } from 'react'
+import { api } from '../lib/api'
 
+interface Certificate {
+  id: string
+  moduloId: string
+  moduloTitulo?: string
+  status: string
+  pdfUrl?: string
+  createdAt?: string
+}
 
 export function CertificadosPage() {
-  const handleDownloadPDF = (track: any) => {
-    alert(`Gerando PDF para ${track.label}...`)
-  }
+  const [certificates, setCertificates] = useState<Certificate[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const handleDownloadHTML = (track: any) => {
+  const loadCertificates = useCallback(async () => {
+    try {
+      const data = await api.getCertificates()
+      setCertificates(data || [])
+    } catch {
+      setCertificates([])
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    loadCertificates()
+  }, [loadCertificates])
+
+  const handleDownloadHTML = (cert: Certificate) => {
+    const titulo = cert.moduloTitulo || 'Módulo'
     const htmlContent = `
       <!DOCTYPE html>
       <html>
       <head>
-        <title>Certificado - ${track.label}</title>
+        <title>Certificado - ${titulo}</title>
         <style>
           body { font-family: Arial, sans-serif; display: flex; justify-content: center; align-items: center; min-height: 100vh; background: #f5f5f5; }
           .cert { width: 800px; padding: 40px; background: linear-gradient(135deg, #0A2E6E 0%, #1a4494 100%); color: white; border-radius: 20px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.3); }
@@ -26,10 +51,10 @@ export function CertificadosPage() {
       <body>
         <div class="cert">
           <h3>ACADEMIA PAYGAS</h3>
-          <h2>${track.label}</h2>
+          <h2>${titulo}</h2>
           <p>Certificamos que</p>
           <div class="name">Usuário</div>
-          <div class="desc">concluiu o módulo de <strong>${track.label}</strong> com êxito.</div>
+          <div class="desc">concluiu o módulo de <strong>${titulo}</strong> com êxito.</div>
           <div class="footer">
             <span>${new Date().toLocaleDateString('pt-BR')}</span>
             <div class="seal">PG</div>
@@ -42,9 +67,22 @@ export function CertificadosPage() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
     a.href = url
-    a.download = `certificado-${track.id}.html`
+    a.download = `certificado-${cert.id}.html`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  if (loading) {
+    return (
+      <div className="page active">
+        <div className="page-header">
+          <div>
+            <div className="page-title">Meus Certificados</div>
+            <div className="page-subtitle">Carregando...</div>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -56,9 +94,47 @@ export function CertificadosPage() {
         </div>
       </div>
       <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))' }}>
-        <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--gray-400)', padding: '40px' }}>
-          Nenhum certificado encontrado
-        </div>
+        {certificates.length === 0 ? (
+          <div style={{ gridColumn: '1 / -1', textAlign: 'center', color: 'var(--gray-400)', padding: '40px' }}>
+            Nenhum certificado encontrado
+          </div>
+        ) : (
+          certificates.map((cert) => (
+            <div key={cert.id} className="stat-card" style={{ padding: '20px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '12px' }}>
+                <div style={{ fontSize: '24px' }}>🏆</div>
+                <span style={{
+                  fontSize: '12px',
+                  padding: '2px 8px',
+                  borderRadius: '12px',
+                  background: cert.status === 'APPROVED' ? '#DCFCE7' : '#FEF3C7',
+                  color: cert.status === 'APPROVED' ? '#166534' : '#92400E',
+                }}>
+                  {cert.status === 'APPROVED' ? 'Aprovado' : 'Pendente'}
+                </span>
+              </div>
+              <div style={{ fontWeight: 'bold', marginBottom: '4px' }}>{cert.moduloTitulo || 'Módulo'}</div>
+              <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginBottom: '12px' }}>
+                {cert.createdAt ? new Date(cert.createdAt).toLocaleDateString('pt-BR') : ''}
+              </div>
+              <button
+                onClick={() => handleDownloadHTML(cert)}
+                style={{
+                  width: '100%',
+                  padding: '8px',
+                  background: 'var(--primary)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  fontSize: '13px',
+                }}
+              >
+                Baixar HTML
+              </button>
+            </div>
+          ))
+        )}
       </div>
     </div>
   )

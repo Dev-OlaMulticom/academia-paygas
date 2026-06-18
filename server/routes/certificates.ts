@@ -39,7 +39,7 @@ router.get('/', authenticate, async (req: any, res) => {
         totalPages: Math.ceil(total / limit),
       },
     })
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao buscar certificados' })
   }
 })
@@ -53,12 +53,26 @@ router.post('/', authenticate, async (req: any, res) => {
     })
     if (existing) return res.status(409).json({ error: 'Certificado já existe' })
 
+    const modulo = await prisma.modulo.findUnique({
+      where: { id: moduloId },
+      include: { aulas: true },
+    })
+    if (!modulo) return res.status(404).json({ error: 'Módulo não encontrado' })
+
+    const completedCount = await prisma.progresso.count({
+      where: { moduloId, userId: req.userId, concluido: true },
+    })
+    if (completedCount < modulo.aulas.length) {
+      return res.status(400).json({ error: 'Complete todas as aulas antes de solicitar o certificado' })
+    }
+
+    const certStatus = modulo.autoCertificado ? 'APPROVED' : 'PENDING'
     const cert = await prisma.certificate.create({
-      data: { userId: req.userId, moduloId, status: 'PENDING' },
+      data: { userId: req.userId, moduloId, status: certStatus },
       include: { modulo: { select: { titulo: true } } },
     })
     res.status(201).json(cert)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao criar certificado' })
   }
 })
@@ -73,7 +87,7 @@ router.put('/:id/approve', authenticate, authorize('ADMIN'), async (req: any, re
       data: { status: 'APPROVED', aprovadoPor: req.userId, aprovadoEm: new Date() },
     })
     res.json(cert)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao aprovar certificado' })
   }
 })
@@ -88,7 +102,7 @@ router.put('/:id/issue', authenticate, authorize('ADMIN'), async (req, res) => {
       data: { status: 'ISSUED' },
     })
     res.json(cert)
-  } catch (error) {
+  } catch {
     res.status(500).json({ error: 'Erro ao emitir certificado' })
   }
 })

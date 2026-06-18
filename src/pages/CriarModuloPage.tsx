@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 
@@ -6,31 +6,15 @@ interface CriarModuloPageProps {
   user: any
 }
 
-export function CriarModuloPage({ user }: CriarModuloPageProps) {
+export function CriarModuloPage(_props: CriarModuloPageProps) {
   const navigate = useNavigate()
   const [modulo, setModulo] = useState({
     titulo: '',
     descricao: '',
     obrigatorio: false,
-    disponivelParaTodos: true,
-    disponivelParaGestores: [] as string[],
     autoCertificado: false
   })
-  const [gestores, setGestores] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
-
-  useEffect(() => {
-    loadGestores()
-  }, [])
-
-  const loadGestores = async () => {
-    try {
-      const users = await api.getUsuarios()
-      setGestores(users.filter((u: any) => u.role === 'GESTOR'))
-    } catch {
-      setGestores([])
-    }
-  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -93,84 +77,24 @@ export function CriarModuloPage({ user }: CriarModuloPageProps) {
             onChange={e => setModulo({ ...modulo, obrigatorio: e.target.value === 'true' })}
           >
             <option value="false">Não</option>
-            <option value="true">Sim</option>
+            <option value="true">Sim — Usuários devem concluir este módulo</option>
           </select>
         </div>
-
-        <div className="form-field">
-          <label className="form-label">Disponibilidade</label>
-          <select
-            className="form-select"
-            value={modulo.disponivelParaTodos ? 'todos' : 'especificos'}
-            onChange={e => setModulo({ ...modulo, disponivelParaTodos: e.target.value === 'todos', disponivelParaGestores: [] })}
-          >
-            <option value="todos">Todos os usuários</option>
-            <option value="especificos">Gestores específicos</option>
-          </select>
-        </div>
-
-        {!modulo.disponivelParaTodos && (
-          <div className="form-field">
-            <label className="form-label">Gestores Permitidos</label>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '200px', overflowY: 'auto', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius-sm)', padding: '12px' }}>
-              {gestores.length > 0 ? (
-                gestores.map((gestor) => (
-                  <label key={gestor.id} style={{ display: 'flex', gap: '8px', alignItems: 'center', cursor: 'pointer' }}>
-                    <input
-                      type="checkbox"
-                      checked={modulo.disponivelParaGestores.includes(gestor.id)}
-                      onChange={e => {
-                        if (e.target.checked) {
-                          setModulo({ ...modulo, disponivelParaGestores: [...modulo.disponivelParaGestores, gestor.id] })
-                        } else {
-                          setModulo({ ...modulo, disponivelParaGestores: modulo.disponivelParaGestores.filter((id: string) => id !== gestor.id) })
-                        }
-                      }}
-                    />
-                    <span>{gestor.nome}</span>
-                  </label>
-                ))
-              ) : (
-                <span style={{ color: 'var(--gray-400)', fontSize: '13px' }}>Nenhum gestor encontrado</span>
-              )}
-            </div>
-          </div>
-        )}
 
         <div className="form-field">
           <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             Gerar Certificado Automaticamente
-            <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-              <i className="icon-info icon-sm" style={{ color: 'var(--gray-400)', cursor: 'help' }} />
-              <span style={{
-                position: 'absolute',
-                bottom: '100%',
-                left: '50%',
-                transform: 'translateX(-50%)',
-                background: 'var(--gray-800)',
-                color: '#fff',
-                padding: '8px 12px',
-                borderRadius: '6px',
-                fontSize: '12px',
-                whiteSpace: 'nowrap',
-                opacity: 0,
-                visibility: 'hidden',
-                transition: 'opacity 0.2s, visibility 0.2s',
-                marginBottom: '8px',
-                zIndex: 100
-              }} className="tooltip-content">
-                Ativado: O certificado é gerado automaticamente ao concluir a avaliação
-                <br />
-                Desativado: O gestor do posto deve aprovar antes de gerar o certificado
-              </span>
-            </span>
           </label>
+          <p style={{ fontSize: '12px', color: 'var(--gray-500)', margin: '0 0 8px' }}>
+            Ativado: O certificado é gerado automaticamente ao concluir todas as aulas e quizzes do módulo.
+            Desativado: Requer aprovação do gestor/admin para emitir o certificado.
+          </p>
           <select
             className="form-select"
             value={modulo.autoCertificado ? 'true' : 'false'}
             onChange={e => setModulo({ ...modulo, autoCertificado: e.target.value === 'true' })}
           >
-            <option value="false">Não (Requer aprovação do gestor)</option>
+            <option value="false">Não (Requer aprovação)</option>
             <option value="true">Sim (Automático ao concluir)</option>
           </select>
         </div>
@@ -184,17 +108,6 @@ export function CriarModuloPage({ user }: CriarModuloPageProps) {
           </button>
         </div>
       </form>
-
-      <style>{`
-        .tooltip-content:hover {
-          opacity: 1 !important;
-          visibility: visible !important;
-        }
-        .icon-info:hover + .tooltip-content {
-          opacity: 1 !important;
-          visibility: visible !important;
-        }
-      `}</style>
     </div>
   )
 }

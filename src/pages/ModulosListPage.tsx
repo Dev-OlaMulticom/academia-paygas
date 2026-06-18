@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
+import { useAuth } from '../hooks/useAuth'
 
 function slugify(text: string): string {
   return text
@@ -15,17 +16,35 @@ const MODULO_COLORS = ['#FEF3C7', '#DCFCE7', '#E6EEF9', '#F3E8FF', '#FCE7F3', '#
 
 export function ModulosListPage() {
   const navigate = useNavigate()
+  const { user } = useAuth()
   const [modulos, setModulos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [progressMap, setProgressMap] = useState<Record<string, number>>({})
+  const [certMap, setCertMap] = useState<Record<string, boolean>>({})
 
-  useEffect(() => {
-    loadModulos()
-  }, [])
+  const isAtendente = user?.role === 'ATENDENTE'
+  const semGestor = isAtendente && !user?.gestorId
 
   const loadModulos = async () => {
     try {
       const mods = await api.getCmsModulos()
       setModulos(mods)
+
+      const progresso = await api.getProgresso().catch(() => [])
+      const certs = await api.getCertificates().catch(() => [])
+
+      const pMap: Record<string, number> = {}
+      const cMap: Record<string, boolean> = {}
+      for (const p of progresso) {
+        const modId = p.moduloId
+        if (!pMap[modId]) pMap[modId] = 0
+        if (p.concluido) pMap[modId]++
+      }
+      for (const c of certs) {
+        cMap[c.moduloId] = true
+      }
+      setProgressMap(pMap)
+      setCertMap(cMap)
     } catch {
       setModulos([])
     } finally {
@@ -33,11 +52,35 @@ export function ModulosListPage() {
     }
   }
 
+  useEffect(() => {
+    loadModulos()
+  }, [])
+
   if (loading) {
     return (
       <div>
         <div className="page-header">
           <div className="page-title">Carregando módulos...</div>
+        </div>
+      </div>
+    )
+  }
+
+  if (semGestor) {
+    return (
+      <div>
+        <div className="page-header">
+          <div>
+            <div className="page-title">Módulos</div>
+          </div>
+        </div>
+        <div className="empty-state">
+          <div className="empty-icon">🔒</div>
+          <p style={{ fontWeight: 600, marginBottom: '8px' }}>Acesso restrito</p>
+          <p style={{ color: 'var(--gray-500)', fontSize: '14px', maxWidth: '400px' }}>
+            Você precisa ser associado a um Gestor de Posto para acessar os módulos.
+            Aguarde a aprovação do seu gestor ou entre em contato com o administrador.
+          </p>
         </div>
       </div>
     )
@@ -64,7 +107,9 @@ export function ModulosListPage() {
             const color = MODULO_COLORS[i % MODULO_COLORS.length]
             const aulasCount = mod._count?.aulas || 0
             const slug = slugify(mod.titulo || mod.title || '')
-            const pct = 0
+            const completedAulas = progressMap[mod.id] || 0
+            const pct = aulasCount > 0 ? Math.round((completedAulas / aulasCount) * 100) : 0
+            const hasCert = !!certMap[mod.id]
 
             return (
               <div
@@ -83,6 +128,12 @@ export function ModulosListPage() {
                   {mod.obrigatorio && (
                     <span className="track-badge badge-required">Obrigatório</span>
                   )}
+                  {mod.autoCertificado && (
+                    <span className="track-badge badge-new" style={{ background: '#E8F5E9', color: '#2E7D32' }}>Cert. Automático</span>
+                  )}
+                  {hasCert && (
+                    <span className="track-badge badge-new" style={{ background: '#E8F5E9', color: '#2E7D32' }}>✓ Certificado</span>
+                  )}
                   <span className="track-badge badge-new">{aulasCount} aulas</span>
                 </div>
                 <div className="track-prog-bar">
@@ -90,7 +141,7 @@ export function ModulosListPage() {
                 </div>
                 <div className="track-meta">
                   <span>{pct}% concluído</span>
-                  <span className="track-badge badge-new">Iniciar</span>
+                  <span className="track-badge badge-new">{pct === 100 ? 'Concluído' : 'Iniciar'}</span>
                 </div>
               </div>
             )

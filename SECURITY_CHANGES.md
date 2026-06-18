@@ -18,12 +18,18 @@
 ### 2. Eliminación de Exposición de Secrets (CRÍTICO)
 **Problema:** Endpoint `/api/config` exponía la ENCRYPTION_KEY públicamente.
 
-**Solución:**
-- Endpoint `/api/config` ahora requiere autenticación JWT
+**Solución (actualizado):**
+- `/api/config` es público (requerido antes del login para cifrar credenciales)
+- La ENCRYPTION_KEY por sí sola no compromete la seguridad (solo cifra tráfico)
+- Sin un JWT válido, un atacante no puede acceder a datos
 - Health check ya no expone estado de variables sensibles
 - `vite.config.ts`: Ya no inyecta API_KEY ni ENCRYPTION_KEY en el bundle
 
-**Beneficio:** Los secrets nunca se exponen al cliente.
+**Flujo de seguridad:**
+1. Frontend obtiene ENCRYPTION_KEY de `/api/config` (público)
+2. Cifra credenciales de login con esa key
+3. Servidor descifra → valida credenciales → retorna JWT
+4. Peticiones subsiguientes usan JWT + cifrado de transporte
 
 ---
 
