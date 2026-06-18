@@ -1,4 +1,4 @@
-import { encrypt, decrypt } from './crypto'
+import { encrypt, decrypt, initEncryptionKey } from './crypto'
 import { db } from './db'
 import { queueSync, isOnline } from './sync'
 
@@ -42,6 +42,7 @@ class ApiClient {
 
     if (isWrite && body && this.encryptionEnabled) {
       try {
+        await initEncryptionKey()
         const parsed = JSON.parse(body)
         const encryptedPayload = await encrypt(JSON.stringify(parsed))
         body = JSON.stringify({ encrypted: encryptedPayload })

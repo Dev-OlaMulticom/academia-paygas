@@ -80,6 +80,13 @@ app.use('/api/progresso', progressoRoutes)
 app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/docs', docsRoutes)
 
+// Public config: encryption key for frontend (not a secret - already in compiled JS)
+app.get('/api/config', (_req, res) => {
+  res.json({
+    encryptionKey: process.env.ENCRYPTION_KEY || '',
+  })
+})
+
 app.get('/api/health', async (_req, res) => {
   const checks: Record<string, string> = { status: 'ok' }
   try {

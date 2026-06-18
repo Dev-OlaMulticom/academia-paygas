@@ -2,17 +2,48 @@ const ALGORITHM = 'AES-GCM'
 const KEY_LENGTH = 256
 const IV_LENGTH = 16
 const ITERATIONS = 100000
+const SALT_LENGTH = 64
 
-const SECRET_KEY = import.meta.env.VITE_ENCRYPTION_KEY || ''
-if (!SECRET_KEY) {
-  console.warn('VITE_ENCRYPTION_KEY no esta configurada. Encriptacion deshabilitada.')
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
+
+let SECRET_KEY = import.meta.env.VITE_ENCRYPTION_KEY || ''
+
+let keyPromise: Promise<string> | null = null
+
+async function fetchEncryptionKey(): Promise<string> {
+  try {
+    const res = await fetch(`${API_BASE}/config`)
+    if (res.ok) {
+      const data = await res.json()
+      if (data.encryptionKey) {
+        return data.encryptionKey
+      }
+    }
+  } catch {
+    // fallback to build-time key
+  }
+  return SECRET_KEY
+}
+
+export function initEncryptionKey(): Promise<string> {
+  if (!keyPromise) {
+    keyPromise = fetchEncryptionKey().then((key) => {
+      SECRET_KEY = key
+      return key
+    })
+  }
+  return keyPromise
+}
+
+function getSecretKey(): string {
+  return SECRET_KEY
 }
 
 async function deriveKey(salt: Uint8Array): Promise<CryptoKey> {
   const encoder = new TextEncoder()
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
-    encoder.encode(SECRET_KEY),
+    encoder.encode(getSecretKey()),
     { name: 'PBKDF2' },
     false,
     ['deriveKey']
@@ -34,7 +65,7 @@ async function deriveKey(salt: Uint8Array): Promise<CryptoKey> {
 
 export async function encrypt(text: string): Promise<string> {
   const encoder = new TextEncoder()
-  const salt = crypto.getRandomValues(new Uint8Array(64))
+  const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH))
   const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH))
   const key = await deriveKey(salt)
 
@@ -59,9 +90,9 @@ export async function decrypt(encryptedData: string): Promise<string> {
     atob(encryptedData).split('').map(c => c.charCodeAt(0))
   )
 
-  const salt = combined.slice(0, 64)
-  const iv = combined.slice(64, 64 + IV_LENGTH)
-  const data = combined.slice(64 + IV_LENGTH)
+  const salt = combined.slice(0, SALT_LENGTH)
+  const iv = combined.slice(SALT_LENGTH, SALT_LENGTH + IV_LENGTH)
+  const data = combined.slice(SALT_LENGTH + IV_LENGTH)
 
   const key = await deriveKey(salt)
 
