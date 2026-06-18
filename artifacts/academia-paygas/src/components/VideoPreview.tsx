@@ -96,6 +96,7 @@ export function VideoPreview({ url, onDurationChange }: VideoPreviewProps) {
         playerRef.current = null
       }
     }
+    return undefined
   }, [url, onDurationChange])
 
   const formatDuration = (seconds: number) => {
