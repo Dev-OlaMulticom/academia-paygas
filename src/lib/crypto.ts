@@ -11,17 +11,7 @@ let keyPromise: Promise<string> | null = null
 
 async function fetchEncryptionKey(): Promise<string> {
   try {
-    const token = localStorage.getItem('token')
-    if (!token) {
-      // No token available, use build-time fallback (will fail encryption)
-      return SECRET_KEY || ''
-    }
-
-    const res = await fetch(`${API_BASE}/config`, {
-      headers: {
-        'Authorization': `Bearer ${token}`,
-      },
-    })
+    const res = await fetch(`${API_BASE}/config`)
     if (res.ok) {
       const data = await res.json()
       if (data.encryptionKey) {
