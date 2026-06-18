@@ -6,7 +6,7 @@
     "dev": "concurrently \"pnpm dev:server\" \"pnpm dev:client\"",
     "dev:client": "vite",
     "dev:server": "tsx watch server/index.ts",
-    "build": "npx prisma generate && npx tsc --project tsconfig.server.json && npx vite build",
+    "build": "npx prisma generate && npx vite build && npx tsc --project tsconfig.server.json",
     "build:server": "npx prisma generate && npx tsc --project tsconfig.server.json",
     "build:client": "npx vite build",
     "preview": "vite preview",
@@ -18,7 +18,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force && pnpm db:seed",
     "db:push": "prisma db push",
-    "cpanel:build": "npx prisma generate && npx tsc --project tsconfig.server.json && npx vite build"
+    "cpanel:build": "npx prisma generate && npx vite build && npx tsc --project tsconfig.server.json"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

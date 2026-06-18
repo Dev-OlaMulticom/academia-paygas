@@ -27,13 +27,9 @@ app.use(express.static(distPath, {
 }));
 
 // ─── SPA fallback ─────────────────────────────────────────
-// Serve index.html for all non-API routes (React Router handles client routing)
-app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(distPath, 'index.html'));
-  } else {
-    res.status(404).json({ error: 'API endpoint not found' });
-  }
+// Express 5 syntax: use {0,} or regex instead of * for catch-all
+app.get(/^\/(?!api).*/, (req, res) => {
+  res.sendFile(path.join(distPath, 'index.html'));
 });
 
 // ─── Error handler ────────────────────────────────────────

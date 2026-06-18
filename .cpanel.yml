@@ -31,6 +31,7 @@ deployment:
     - /bin/cp prisma.config.ts $DEPLOYPATH/
     - /bin/cp index.html $DEPLOYPATH/
     - /bin/cp app.js $DEPLOYPATH/
+    - /bin/cp .htaccess $DEPLOYPATH/
 
     # Source code
     - /bin/cp -r src $DEPLOYPATH/
@@ -51,32 +52,32 @@ deployment:
     # ─── 7. Run Database Migrations ────────────────────────
     - cd $DEPLOYPATH && npx prisma migrate deploy
 
-    # ─── 8. Compile Server (TypeScript → JavaScript) ───────
-    - cd $DEPLOYPATH && npx tsc --project tsconfig.server.json
-
-    # ─── 9. Build Frontend (Vite + React) ──────────────────
+    # ─── 8. Build Frontend (Vite + React) ──────────────────
+    # Vite cleans dist/ and outputs frontend files
     - cd $DEPLOYPATH && npx vite build
 
-    # ─── 10. Fix Compiled Server Module Format ──────────────
-    # Ensure dist/server/index.js uses require() correctly
-    - cd $DEPLOYPATH && sed -i 's/require("\.\/routes/require(".\/routes/g' dist/server/index.js 2>/dev/null || true
+    # ─── 9. Compile Server (TypeScript → JavaScript) ───────
+    # Run AFTER vite build so tsc output lands in dist/server/
+    - cd $DEPLOYPATH && npx tsc --project tsconfig.server.json
 
-    # ─── 11. Set Permissions ───────────────────────────────
+    # ─── 10. Set Permissions ───────────────────────────────
     - /bin/chmod 755 $DEPLOYPATH/app.js
     - /bin/chmod 644 $DEPLOYPATH/.cpanel.yml
+    - /bin/chmod 644 $DEPLOYPATH/.htaccess
     - /bin/chmod -R 755 $DEPLOYPATH/server/certs 2>/dev/null || true
     - /bin/chmod -R 755 $DEPLOYPATH/dist 2>/dev/null || true
 
-    # ─── 12. Restart Passenger ─────────────────────────────
+    # ─── 11. Restart Passenger ─────────────────────────────
     - /bin/touch $DEPLOYPATH/tmp/restart.txt
 
-    # ─── 13. Verify Build ──────────────────────────────────
-    - test -f $DEPLOYPATH/dist/server/index.js && echo "✅ Server compiled" || echo "❌ Server compilation failed"
-    - test -d $DEPLOYPATH/dist/assets && echo "✅ Frontend built" || echo "❌ Frontend build failed"
-    - test -f $DEPLOYPATH/node_modules/.prisma/client/index.js && echo "✅ Prisma generated" || echo "❌ Prisma generation failed"
-    - test -f $DEPLOYPATH/dist/index.html && echo "✅ SPA entry exists" || echo "❌ SPA entry missing"
+    # ─── 12. Verify Build ──────────────────────────────────
+    - test -f $DEPLOYPATH/dist/server/index.js && echo "OK: Server compiled to dist/server/" || echo "FAIL: dist/server/index.js missing"
+    - test -f $DEPLOYPATH/dist/index.html && echo "OK: SPA entry exists" || echo "FAIL: dist/index.html missing"
+    - test -d $DEPLOYPATH/dist/assets && echo "OK: Frontend assets built" || echo "FAIL: dist/assets/ missing"
+    - test -f $DEPLOYPATH/node_modules/.prisma/client/index.js && echo "OK: Prisma generated" || echo "FAIL: Prisma not generated"
 
-    # ─── 14. Cleanup ───────────────────────────────────────
+    # ─── 13. Cleanup ───────────────────────────────────────
     - /bin/rm -rf $DEPLOYPATH/.git 2>/dev/null || true
     - /bin/rm -rf $DEPLOYPATH/node_modules/.cache 2>/dev/null || true
     - /bin/rm -rf $DEPLOYPATH/.next 2>/dev/null || true
+    - /bin/rm -rf $DEPLOYPATH/server-build 2>/dev/null || true
