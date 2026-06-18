@@ -230,9 +230,8 @@ La aplicación Node.js correrá en HTTP interno ( puerto 3001), y Apache/Nginx h
 |----------|-------------|-----------|
 | `DATABASE_URL` | URL de conexión PostgreSQL | Nunca exponer |
 | `JWT_SECRET` | Secreto para tokens JWT | Generar con `crypto.randomBytes(32)` |
-| `ENCRYPTION_KEY` | Clave AES-256-GCM | Generar con `crypto.randomBytes(32)` |
+| `ENCRYPTION_KEY` | Clave AES-256-GCM (opcional, se genera dinámica) | Generar con `crypto.randomBytes(32)` |
 | `SMTP_PASS` | Contraseña del email | Nunca exponer |
-| `VITE_API_KEY` | API key de WordPress | Solo visible en cliente si VITE_ |
 
 ---
 

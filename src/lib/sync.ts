@@ -1,7 +1,6 @@
 import { db } from './db'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
-const API_KEY = import.meta.env.VITE_API_KEY || ''
 const MAX_RETRIES = 5
 
 export function isOnline(): boolean {
@@ -34,7 +33,6 @@ export async function processSyncQueue(): Promise<{ sent: number; failed: number
       const headers: Record<string, string> = {
         'Content-Type': 'application/json',
       }
-      if (API_KEY) headers['X-API-Key'] = API_KEY
       if (token) headers['Authorization'] = `Bearer ${token}`
 
       const res = await fetch(`${API_BASE}${item.path}`, {
