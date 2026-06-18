@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import type { User } from '../hooks/useAuth'
@@ -13,12 +13,33 @@ interface AppLayoutProps {
 
 export function AppLayout({ user, xp, onLogout, children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const location = useLocation()
   const navigate = useNavigate()
   const persona = PERSONAS[user.role as keyof typeof PERSONAS]
   const isAdmin = user?.role === 'ADMIN'
   const isGestor = user?.role === 'GESTOR'
   const currentPath = location.pathname
+
+  useEffect(() => {
+    fetchUnreadCount()
+    const interval = setInterval(fetchUnreadCount, 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  const fetchUnreadCount = async () => {
+    try {
+      const token = localStorage.getItem('token')
+      if (!token) return
+      const res = await fetch('/api/notifications/unread-count', {
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        const data = await res.json()
+        setUnreadCount(data.count || 0)
+      }
+    } catch { /* */ }
+  }
 
   return (
     <div id="screen-app" className="active">
@@ -36,7 +57,7 @@ export function AppLayout({ user, xp, onLogout, children }: AppLayoutProps) {
         <div className="header-right">
           <Button id="btn-notif" variant="ghost" size="icon" className="header-notif" onClick={() => navigate('/notif')} title="Notificações">
             <i className="icon-bell icon-md" />
-            <span className="notif-dot"></span>
+            {unreadCount > 0 && <span className="notif-dot"></span>}
           </Button>
         </div>
       </header>
