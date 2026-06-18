@@ -10,7 +10,7 @@ source .env
 set +a
 
 echo "=== Instalando dependencias ==="
-npm install --production=false
+pnpm install --no-frozen-lockfile
 
 echo "=== Generando Prisma ==="
 npx prisma generate
