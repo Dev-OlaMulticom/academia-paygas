@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npx prisma generate && npx vite build && npx tsc --project tsconfig.server.json --noCheck",
+  "buildCommand": "npx prisma generate && npx vite build && npx tsc --project tsconfig.server.json",
   "outputDirectory": "dist",
   "framework": null,
   "installCommand": "pnpm install",

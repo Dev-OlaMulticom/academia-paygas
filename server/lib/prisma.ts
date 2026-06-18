@@ -4,12 +4,6 @@ const globalForPrisma = globalThis as unknown as { prisma: PrismaClient }
 
 function createPrismaClient() {
   return new PrismaClient({
-    datasources: {
-      db: {
-        url: process.env.DATABASE_URL,
-      },
-    },
-    errorFormat: 'pretty',
     log: process.env.NODE_ENV === 'development' ? ['warn', 'error'] : ['error'],
   })
 }
