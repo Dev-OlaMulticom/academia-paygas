@@ -592,16 +592,16 @@ a {
 
 .menu-toggle {
   flex-shrink: 0;
-  background: var(--pg-orange);
-  color: #fff;
+  background: transparent;
+  color: var(--pg-orange);
   border: none;
   padding: 8px;
   border-radius: var(--radius-sm);
 }
 
 .menu-toggle:hover {
-  background: var(--pg-orange-dk);
-  color: #fff;
+  background: rgba(249, 115, 22, 0.1);
+  color: var(--pg-orange-dk);
 }
 
 .header-logo {
@@ -683,16 +683,16 @@ a {
 
 .header-notif {
   position: relative;
-  background: var(--pg-orange);
-  color: #fff;
+  background: transparent;
+  color: var(--pg-orange);
   border: none;
   padding: 8px;
   border-radius: var(--radius-sm);
 }
 
 .header-notif:hover {
-  background: var(--pg-orange-dk);
-  color: #fff;
+  background: rgba(249, 115, 22, 0.1);
+  color: var(--pg-orange-dk);
 }
 
 .notif-dot {

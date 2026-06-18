@@ -2,435 +2,252 @@
 
 ## Descripcion General
 
-Academia PayGas utiliza una arquitectura modular de agentes para gestionar la interaccion entre usuarios y las funcionalidades de la plataforma. Cada agente es responsable de un aspecto especifico del sistema y se comunica con otros agentes a traves de eventos, API REST y estado compartido.
+Academia PayGas es una plataforma de aprendizaje corporativo para empleados de estaciones de gasolina PayGas. Utiliza una arquitectura modular con agentes que gestionan autenticacion, navegacion, aprendizaje, gamificacion, encriptacion y soporte offline.
 
 ---
 
 ## 1. Authentication Agent
 
-**Responsable de:** Autenticacion, gestion de sesiones y validacion de permisos.
+**Responsable de:** Autenticacion, sesiones, verificacion de email y control de roles.
 
 | Propiedad | Valor |
 |-----------|-------|
-| **Tipo** | Primario |
-| **Alcance** | Global |
-| **Archivo Principal** | `src/hooks/useAuth.ts` |
-| **Backend** | `server/routes/auth.ts`, `server/middleware/auth.ts` |
-| **Dependencias** | Ninguna |
-| **API Endpoints** | `POST /api/auth/login`, `GET /api/auth/me`, `GET /api/auth/verify-email` |
+| **Archivos** | `src/hooks/useAuth.ts`, `server/routes/auth.ts`, `server/middleware/auth.ts` |
+| **API** | `POST /api/auth/login`, `GET /api/auth/me`, `GET /api/auth/verify-email` |
 
-### Funcionalidades
+### Seguridad
 
-- Login con email y contrasena
-- Validacion de token JWT (expira en 24h)
-- Gestion de sesiones en localStorage
-- Control de roles y permisos (ADMIN, GESTOR, ATENDENTE)
-- Verificacion de email con tokens
-- Logout y limpieza de sesion
+- **JWT_SECRET:** Generado dinamicamente si es debil (min 32 chars)
+- **Rate limiting:** 10 intentos/15min en login
+- **Bcrypt:** Salt rounds 12
+- **Tokens de verificacion:** Expiran en 24 horas (`tokenExpiry`)
 
-### Seguridad Implementada
+### Roles
 
-- **Rate limiting:** 10 intentos maximo en 15 minutos para login
-- **JWT_SECRET:** Obligatorio via variable de entorno (sin fallback)
-- **Bcrypt salt rounds:** 12 (hardcoded, no configurable)
-- **Sin refresh tokens:** JWT unico con expiracion de 24h
-
-### Flujo de Autenticacion
-
-```
-1. Usuario accede a /login
-2. Completa formulario (email + contrasena)
-3. POST /api/auth/login → backend valida credenciales
-4. Backend retorna token JWT + usuario
-5. Frontend almacena en localStorage (key: "user")
-6. useAuth() hook proporciona contexto global
-7. Redirige a /dashboard (pagina protegida)
-```
-
-### Roles y Permisos
-
-| Rol | Permisos | XP Inicial |
-|-----|----------|-----------|
-| **ADMIN** | Crear/editar modulos, gestionar usuarios, CMS completo | 8500 |
-| **GESTOR** | Editar modulos de su gestoria, ver reportes, gestionar equipo | 4100 |
-| **ATENDENTE** | Ver modulos, completar aulas, hacer quizzes, ver certificados | 2400 |
+| Rol | Permisos |
+|-----|----------|
+| **ADMIN** | CRUD completo, gestionar todos los usuarios y equipos |
+| **GESTOR** | CRUD de su equipo (atendentes), gestionar contenido |
+| **ATENDENTE** | Ver modulos, completar aulas, quizzes, certificados |
 
 ---
 
-## 2. Navigation Agent
+## 2. Team Management Agent
 
-**Responsable de:** Enrutamiento, control de acceso y navegacion entre paginas.
+**Responsable de:** Gestion de equipos (gestor + atendentes), restriccion de acceso por equipo.
 
 | Propiedad | Valor |
 |-----------|-------|
-| **Tipo** | Primario |
-| **Alcance** | Global |
-| **Archivo Principal** | `src/App.tsx` (React Router v7) |
-| **Dependencias** | Authentication Agent |
-| **Middleware** | ProtectedRoute, RoleRoute |
+| **Archivos** | `server/routes/usuarios.ts`, `src/pages/UsuariosPage.tsx`, `src/pages/EquipePage.tsx` |
+| **API** | `GET/POST/PUT/DELETE /api/usuarios`, `GET /api/usuarios/equipe`, `GET /api/usuarios/equipe/stats` |
+
+### Reglas de Equipo
+
+```
+ADMIN
+  ├── Ve TODAS las equipes (agrupadas por gestor)
+  ├── Puede crear gestores, atendentes y admins
+  ├── Puede asignar/desasignar gestor a atendentes
+  └── Puede editar/eliminar cualquier usuario
+
+GESTOR
+  ├── Ve SOLO sus atendentes (gestorId = su id)
+  ├── Solo puede crear ATENDENTE (se auto-asocia)
+  ├── Solo puede editar/eliminar sus propios atendentes
+  └── Puede validar cuentas y reenviar verificacion de sus atendentes
+
+ATENDENTE
+  ├── Ve solo su perfil y progreso
+  └── No tiene acceso a gestion de usuarios
+```
+
+### Endpoints de Equipo
+
+| Metodo | Ruta | Descripcion | Rol |
+|--------|------|-------------|-----|
+| GET | `/api/usuarios/equipe` | Gestor: sus miembros. Admin: todas las equipes | Admin/Gestor |
+| GET | `/api/usuarios/equipe/stats` | Estadisticas de equipes | Admin |
+
+---
+
+## 3. Navigation Agent
+
+**Responsable de:** Enrutamiento y control de acceso por rol.
+
+| Propiedad | Valor |
+|-----------|-------|
+| **Archivos** | `src/App.tsx`, `src/layouts/AppLayout.tsx` |
 
 ### Mapa de Rutas
 
-| Ruta | Componente | Acceso | Descripcion |
-|------|-----------|--------|-------------|
-| `/login` | LoginPage | Publico | Pagina de login |
-| `/verificar-email` | VerificarEmailPage | Publico | Verificacion de email |
-| `/` | DashboardPage | Autenticado | Panel principal |
-| `/modulos` | ModulosListPage | Autenticado | Lista de modulos |
-| `/modulo/:moduloNombre` | ModulosPage | Autenticado | Aulas y contenido |
-| `/certificados` | CertificadosPage | Autenticado | Certificados emitidos |
-| `/equipe` | EquipePage | Gestor/Admin | Gestion de equipo |
-| `/relatorios` | RelatoriosPage | Gestor/Admin | Reportes y estadisticas |
-| `/cms` | CMSPage | Admin | Gestion de contenido |
-| `/cms/criar-modulo` | CriarModuloPage | Admin | Crear nuevo modulo |
-| `/usuarios` | UsuariosPage | Admin | Gestion de usuarios |
-| `/notif` | NotifPage | Autenticado | Notificaciones |
-| `/perfil` | PerfilPage | Autenticado | Perfil del usuario |
+| Ruta | Componente | Acceso |
+|------|-----------|--------|
+| `/` | DashboardPage | Autenticado |
+| `/modulos` | ModulosListPage | Autenticado |
+| `/modulo/:nombre` | ModulosPage | Autenticado |
+| `/certificados` | CertificadosPage | Autenticado |
+| `/equipe` | EquipePage | Gestor/Admin |
+| `/usuarios` | UsuariosPage | Gestor/Admin |
+| `/cms` | CMSPage | Gestor/Admin |
+| `/cms/criar-modulo` | CriarModuloPage | Admin |
+| `/relatorios` | RelatoriosPage | Gestor/Admin |
+| `/notif` | NotifPage | Autenticado |
+| `/perfil` | PerfilPage | Autenticado |
 
-### Flujo de Navegacion
+### Sidebar Adaptada por Rol
 
-```
-Acceso a ruta
-  ↓
-¿Token valido? → No → Redirige a /login
-  ↓ Si
-¿Ruta requiere rol especifico? → No → Carga componente
-  ↓ Si
-¿Usuario tiene rol? → No → Redirige a /
-  ↓ Si
-Carga componente con acceso
-```
+- **ADMIN**: Equipes, Usuarios, CMS, Relatorios
+- **GESTOR**: Minha Equipe, Meu Time, CMS, Relatorios
+- **ATENDENTE**: Solo contenido de aprendizaje
 
 ---
 
-## 3. Learning Agent
+## 4. Learning Agent
 
-**Responsable de:** Gestion de modulos, aulas y progreso del estudiante.
+**Responsable de:** Modulos, aulas, progreso y certificados.
 
 | Propiedad | Valor |
 |-----------|-------|
-| **Tipo** | Sub-agente |
-| **Alcance** | Por usuario |
-| **Archivos Principales** | `src/pages/ModulosListPage.tsx`, `src/pages/ModulosPage.tsx` |
-| **Backend** | `server/routes/cms.ts`, `server/routes/progresso.ts` |
-| **Dependencias** | Navigation Agent, Quiz Agent |
-| **API Endpoints** | `/api/cms/*`, `/api/modulos/*`, `/api/progresso/*` |
+| **Archivos** | `src/pages/ModulosListPage.tsx`, `src/pages/ModulosPage.tsx`, `server/routes/cms.ts`, `server/routes/progresso.ts` |
+| **API** | `/api/cms/*`, `/api/modulos/*`, `/api/progresso/*`, `/api/certificates/*` |
 
 ### Jerarquia de Contenido
 
 ```
-Modulo (Categoria de aprendizaje)
-  ├── Aula #1 (Video YouTube o PDF)
-  │    └── Quiz? (Opcional, 1:1 con aula)
-  │         └── Pregunta de opcion multiple
+Modulo
+  ├── Aula #1 (Video YouTube)
+  │    └── Quiz (Opcional, 1:1)
   ├── Aula #2
-  │    └── Quiz?
+  │    └── Quiz
   └── Aula #N
 ```
 
-### Flujo de Aprendizaje (Estudiante)
+### Flujo de Aprendizaje
 
-```
-1. Ver Modulos (GET /api/modulos)
-   ↓
-2. Seleccionar Modulo → Ver Aulas (GET /api/modulos/:id/aulas)
-   ↓
-3. Para cada Aula:
-   - Mostrar contenido (video/PDF)
-   - Boton "Siguiente Aula" o "Concluir"
-   - Actualizar progreso (PUT /api/progresso)
-   ↓
-4. En ultima aula del modulo → Mostrar Quiz (si existe)
-   ↓
-5. Quiz completado:
-   - Si nota >= 7: Aprobado
-   - Si autoGerarCertificado: Emitir automaticamente
-   - Si nota < 7: Permitir reintentar
-   ↓
-6. Ver Certificado (GET /api/certificates)
-```
-
-### Offline Support (Dexie.js)
-
-El sistema soporta funcionamiento offline mediante IndexedDB:
-
-- **Cache local:** Modulos, aulas, quizzes, progreso, certificados
-- **Cola de sincronizacion:** Operaciones pendientes cuando no hay conexion
-- **Auto-sync:** Sincronizacion automatica cada 30 segundos cuando hay conexion
-- **Conflictos:** Ultima escritura gana (sin merge de conflictos)
+1. Ver modulos disponibles
+2. Seleccionar modulo → Ver aulas
+3. Completar aula → Actualizar progreso
+4. En ultima aula → Quiz (si existe)
+5. Quiz aprobado (nota >= 7) → Certificado automatico
+6. Ver certificado emitido
 
 ---
 
-## 4. Gamification Agent
+## 5. Gamification Agent
 
-**Responsable de:** Sistema de puntos (XP), niveles y logros.
+**Responsable de:** Sistema de XP, niveles y leaderboard.
 
 | Propiedad | Valor |
 |-----------|-------|
-| **Tipo** | Sub-agente |
-| **Alcance** | Por usuario |
-| **Backend** | `server/services/gamification.ts` |
-| **Dependencias** | Learning Agent, Quiz Agent |
-| **Metrica** | XP (Experience Points) |
+| **Archivos** | `server/services/gamification.ts` |
+| **API** | `/api/modulos/gamification/*`, `/api/dashboard/leaderboard` |
 
 ### Sistema de XP
 
-| Accion | XP Ganado | Notas |
-|--------|----------|-------|
-| Login diario | +10 XP | Una vez por dia |
-| Abrir modulo | +20 XP | Por modulo |
-| Completar aula | +50 XP | Sin quiz |
-| Completar modulo | +150 XP | Todas las aulas |
-| Respuesta correcta quiz | +30 XP | Por pregunta correcta |
-| Aprobar quiz (nota >= 7) | +100 XP | Una vez por quiz |
-| Obtener certificado | +500 XP | Una sola vez por modulo |
+| Accion | XP |
+|--------|-----|
+| Login | +10 |
+| Abrir modulo | +20 |
+| Completar aula | +50 |
+| Completar modulo | +150 |
+| Respuesta correcta | +30 |
+| Aprobar quiz | +100 |
+| Obtener certificado | +500 |
+| Crear usuario (gestor) | +20 |
+| Validar cuenta (gestor) | +50 |
 
-### Calculo de Nivel
-
-```javascript
-// Nivel = Math.floor(xpTotal / 2000) + 1
-// Nivel 1: 0-1999 XP
-// Nivel 2: 2000-3999 XP
-// Nivel 3: 4000-5999 XP
-// ...
-// Nivel N: (N-1)*2000 XP
-```
-
-### Endpoints de Gamificacion
-
-| Metodo | Ruta | Descripcion |
-|--------|------|-------------|
-| POST | `/api/modulos/:id/open` | Registrar apertura de modulo |
-| GET | `/api/modulos/gamification/leaderboard` | Top 20 usuarios |
-| GET | `/api/modulos/gamification/stats` | Estadisticas globales |
-| GET | `/api/dashboard/leaderboard` | Leaderboard del equipo |
+**Nivel** = `Math.floor(xp / 2000) + 1`
 
 ---
 
-## 5. Quiz Agent
+## 6. Quiz Agent
 
-**Responsable de:** Creacion, gestion y correccion de cuestionarios.
-
-| Propiedad | Valor |
-|-----------|-------|
-| **Tipo** | Sub-agente |
-| **Alcance** | Por aula/modulo |
-| **Archivos Principales** | `src/pages/ModulosPage.tsx` (respuesta), `src/pages/CMSPage.tsx` (gestion) |
-| **Backend** | `server/routes/cms.ts` |
-| **API Endpoints** | `/api/modulos/quiz/*`, `/api/modulos/perguntas/*` |
-| **Dependencias** | Learning Agent |
-
-### Endpoints de Quiz
-
-| Metodo | Ruta | Descripcion | Rol |
-|--------|------|-----------|-----|
-| POST | `/api/modulos/:moduloId/quiz` | Crear quiz | Admin |
-| GET | `/api/modulos/:moduloId/quiz/:aulaId` | Obtener quiz | Cualquiera |
-| PUT | `/api/modulos/quiz/:quizId` | Actualizar quiz | Admin |
-| DELETE | `/api/modulos/quiz/:quizId` | Eliminar quiz | Admin |
-| POST | `/api/modulos/quiz/:quizId/perguntas` | Anadir pregunta | Admin |
-| PUT | `/api/modulos/perguntas/:perguntaId` | Actualizar pregunta | Admin |
-| DELETE | `/api/modulos/perguntas/:perguntaId` | Eliminar pregunta | Admin |
-| POST | `/api/modulos/quiz/:quizId/responder` | Enviar respuestas | Estudiante |
-| GET | `/api/modulos/quiz/:quizId/resultados` | Ver resultados | Estudiante |
-
-### Flujo de Quiz
-
-```
-Estudiante abre ultima aula del modulo
-  ↓
-¿Existe quiz? → No → Mostrar "Modulo completado"
-  ↓ Si
-Mostrar formulario de quiz
-  ↓
-Estudiante selecciona respuestas (A/B/C/D)
-  ↓
-Clica "Enviar Respuestas" → POST /api/modulos/quiz/:quizId/responder
-  ↓
-Backend calcula nota (0-10)
-  ↓
-nota >= 7?
-  ├─ Si → Mostrar "Aprobado"
-  │        ↓
-  │        autoGerarCertificado?
-  │        ├─ Si → POST /api/certificates (auto-emitir)
-  │        └─ No → Notificar al administrador
-  │
-  └─ No → Mostrar "Reprobado"
-           ↓
-           ¿Intentos restantes? → Si → Permitir reintentar
-```
-
----
-
-## 6. Notification Agent
-
-**Responsable de:** Creacion, almacenamiento y entrega de notificaciones.
+**Responsable de:** Cuestionarios y evaluacion automatica.
 
 | Propiedad | Valor |
 |-----------|-------|
-| **Tipo** | Sub-agente |
-| **Alcance** | Por usuario |
-| **Archivo Principal** | `src/pages/NotifPage.tsx` |
-| **Backend** | `server/routes/notifications.ts` |
-| **API Endpoints** | `/api/notifications/*` |
-| **Dependencias** | Authentication Agent, Learning Agent |
+| **Archivos** | `server/routes/cms.ts` (endpoints), `src/pages/ModulosPage.tsx` (respuesta) |
+| **API** | `/api/modulos/quiz/*`, `/api/modulos/perguntas/*` |
 
-### Tipos de Notificacion
+### Flujo
 
-| Tipo | Evento Disparador | Contenido |
-|------|------------------|----------|
-| Nuevo Modulo | Admin publica modulo | "Nueva aula disponible: {nombre}" |
-| Subida de Nivel | Usuario alcanza nivel X | "¡Subiste a nivel {nivel}!" |
-| Certificado | Quiz aprobado | "Certificado emitido: {modulo}" |
-
-### Endpoints Completos
-
-| Metodo | Ruta | Descripcion | Rol |
-|--------|------|-----------|-----|
-| GET | `/api/notifications` | Listar notificaciones | Autenticado |
-| POST | `/api/notifications` | Crear notificacion | Admin/Gestor |
-| PUT | `/api/notifications/:id/read` | Marcar como leida | Autenticado (propietario) |
-| PUT | `/api/notifications/read-all` | Marcar todas como leidas | Autenticado |
-
-### Seguridad
-
-- Solo el destinatario puede marcar una notificacion como leida
-- Solo ADMIN/GESTOR pueden crear notificaciones
+```
+Quiz → Preguntas (A/B/C/D) → Calificacion automatica (0-10)
+  ├── nota >= 7 → Aprobado → Certificado (si autoGerarCertificado)
+  └── nota < 7 → Reprobado → Reintentar
+```
 
 ---
 
 ## 7. Encryption Agent
 
-**Responsable de:** Encriptacion de payloads entre cliente y servidor.
+**Responsable de:** Encriptacion AES-256-GCM de payloads cliente-servidor.
 
 | Propiedad | Valor |
 |-----------|-------|
-| **Tipo** | Infraestructura |
-| **Alcance** | Global |
 | **Cliente** | `src/lib/crypto.ts` (Web Crypto API) |
-| **Servidor** | `server/middleware/encryption.ts`, `server/lib/crypto.ts` |
-| **Algoritmo** | AES-256-GCM con PBKDF2 |
+| **Servidor** | `server/middleware/encryption.ts` |
+| **Key** | Dinamica en runtime (generada o desde `ENCRYPTION_KEY`) |
 
-### Flujo de Encriptacion
+### Flujo
 
 ```
-Cliente (Frontend)
+Frontend: encrypt(body) → base64 → { encrypted: "..." }
   ↓
-encrypt(JSON.stringify(body)) → base64
-  ↓
-{ encrypted: "base64string" }
-  ↓
-Servidor (Express middleware)
-  ↓
-decrypt(base64) → JSON.parse(body)
-  ↓
-Request procesado con body desencriptado
+Backend: decrypt(base64) → JSON.parse(body)
 ```
 
-### Configuracion
-
-- **Clave:** `ENCRYPTION_KEY` (variable de entorno, sin fallback)
-- **Cliente:** `VITE_ENCRYPTION_KEY` (inyectada via vite.config.ts)
-- **Iteraciones PBKDF2:** 100,000
-- **Salt:** 64 bytes aleatorios por operacion
-- **IV:** 16 bytes aleatorios por operacion
-
-### Endpoints Encriptados
-
-Todos los requests POST/PUT/PATCH son encriptados automaticamente:
-- `encryptedPayload` middleware en `server/index.ts`
-- `ApiClient.request()` en `src/lib/api.ts`
+- **Endpoint publico:** `GET /api/config` retorna la encryption key
+- **Cliente obtiene key antes de login** (necesaria para encriptar credenciales)
+- **PBKDF2:** 100,000 iteraciones, salt 64 bytes, IV 16 bytes
 
 ---
 
 ## 8. Offline Sync Agent
 
-**Responsable de:** Gestion de la cola de sincronizacion offline.
+**Responsable de:** Cola de sincronizacion offline con IndexedDB.
 
 | Propiedad | Valor |
 |-----------|-------|
-| **Tipo** | Infraestructura |
-| **Alcance** | Cliente |
-| **Archivo Principal** | `src/lib/sync.ts`, `src/lib/db.ts` |
-| **Backend** | Ninguno (solo cola local) |
-| **Max Reintentos** | 5 por item |
-
-### Funcionalidades
-
-- **Deteccion de conexion:** `navigator.onLine`
-- **Cola persistente:** Dexie.js (IndexedDB)
-- **Auto-sync:** Cada 30 segundos cuando hay conexion
-- **Max reintentos:** 5 por item antes de descartar
-
-### Estructura de la Cola
-
-```typescript
-interface SyncQueueItem {
-  id?: number
-  method: string    // GET, POST, PUT, DELETE
-  path: string      // /api/usuarios
-  body: string      // JSON stringified
-  createdAt: string // ISO timestamp
-  retryCount: number
-}
-```
-
-### Flujo
-
-```
-Operacion offline
-  ↓
-queueSync(method, path, body) → Dexie IndexedDB
-  ↓
- Cuando vuelve la conexion:
-  ↓
-processSyncQueue()
-  ↓
-Para cada item en la cola:
-  ├─ retryCount < 5? → Intentar enviar
-  │   ├─ Exito → Eliminar de la cola
-  │   └─ Error → Incrementar retryCount
-  └─ retryCount >= 5 → Descartar item
-```
+| **Archivos** | `src/lib/sync.ts`, `src/lib/db.ts` (Dexie.js) |
+| **Max reintentos** | 5 por item |
+| **Auto-sync** | Cada 30 segundos |
 
 ---
 
-## Flujo de Datos General
+## 9. Notification Agent
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        USUARIO (Frontend)                            │
-└─────────────┬───────────────────────────────────────────────────────┘
-              │
-              ├─→ Authentication Agent (Login/Logout/Permisos)
-              │
-              ├─→ Navigation Agent (Rutas protegidas)
-              │
-              ├─→ Learning Agent (Ver modulos/aulas)
-              │
-              ├─→ Quiz Agent (Responder cuestionarios)
-              │
-              ├─→ Gamification Agent (Ganar XP, logros)
-              │
-              ├─→ Encryption Agent (Encriptar payloads)
-              │
-              ├─→ Offline Sync Agent (Cola de sincronizacion)
-              │
-              └─→ Notification Agent (Recibir alertas)
-                      │
-                      ↓
-              ┌──────────────────┐
-              │  Express Server  │
-              │  (API REST)      │
-              └────────┬─────────┘
-                      │
-        ┌──────────────┼──────────────┐
-        │              │              │
-        ↓              ↓              ↓
-   PostgreSQL    Nodemailer       Storage
-   (Datos)     (Email/SMTP)      (Archivos)
-```
+**Responsable de:** Notificaciones in-app y por email.
+
+| Propiedad | Valor |
+|-----------|-------|
+| **Archivos** | `server/routes/notifications.ts`, `server/services/email.ts`, `src/pages/NotifPage.tsx` |
+| **API** | `/api/notifications/*` |
+
+---
+
+## 10. Activity Log Agent
+
+**Responsable de:** Registro de todas las actividades del sistema.
+
+| Propiedad | Valor |
+|-----------|-------|
+| **Modelo** | `ActivityLog` en `prisma/schema.prisma` |
+| **Captura** | CRUD de usuarios, login, progreso, quizzes, certificados |
+
+### Actividades Registradas
+
+| Actividad | Descripcion |
+|-----------|-------------|
+| Login | Acceso a la plataforma |
+| Criar Usuario | GESTOR/ADMIN crea usuario |
+| Editar Usuario | Cambios en perfil de usuario |
+| Excluir Usuario | Eliminacion de usuario |
+| Validar Conta | GESTOR valida email de atendente |
+| Reenviar Verificacao | Reenvio de email de verificacion |
+| Modulo Aberto | Apertura de modulo de aprendizaje |
+| Aula Concluida | Completar una aula |
+| Quiz Aprovado | Quiz con nota >= 7 |
 
 ---
 
@@ -444,196 +261,159 @@ Para cada item en la cola:
 | CORS whitelist | ✅ | `server/index.ts` |
 | Rate limiting global (200/15min) | ✅ | `server/index.ts` |
 | Rate limiting auth (10/15min) | ✅ | `server/index.ts` |
-| JWT sin fallback hardcoded | ✅ | `server/middleware/auth.ts` |
-| ENCRYPTION_KEY sin fallback | ✅ | `server/middleware/encryption.ts` |
-| Bcrypt salt 12 | ✅ | `server/routes/usuarios.ts` |
-| Validacion de destinatario (notifications) | ✅ | `server/routes/notifications.ts` |
-| Paginacion en endpoints | ✅ | `usuarios.ts`, `cms.ts`, `certificates.ts` |
-| Queries paralelas (dashboard) | ✅ | `server/routes/dashboard.ts` |
-| Sin error details al cliente | ✅ | `server/routes/auth.ts` |
+| Rate limiting registro (5/hora) | ✅ | `server/index.ts` |
+| JWT secret dinamico si debil | ✅ | `server/middleware/auth.ts` |
+| Encryption key dinamica en runtime | ✅ | `server/middleware/encryption.ts` |
+| Tokens de verificacion con expiracion | ✅ | `prisma/schema.prisma` |
+| GESTOR restringido a su equipo | ✅ | `server/routes/usuarios.ts` |
+| Validacion de roles en creacion | ✅ | `server/routes/usuarios.ts` |
+| Health check sin expone errores DB | ✅ | `server/index.ts` |
+| .htaccess: bloquea archivos sensibles | ✅ | `.htaccess` |
+| .env eliminado del historial git | ✅ | BFG Repo Cleaner |
 
-### Variables de Entorno Requeridas
+### Variables de Entorno
 
 | Variable | Obligatoria | Descripcion |
 |----------|-------------|-------------|
-| `DATABASE_URL` | Si | Conexion PostgreSQL |
-| `JWT_SECRET` | Si | Firma de tokens JWT |
-| `ENCRYPTION_KEY` | Si | Encriptacion AES-256-GCM |
-| `VITE_ENCRYPTION_KEY` | Si | Clave encriptacion frontend |
-| `ALLOWED_ORIGINS` | Si | Dominios permitidos CORS |
-| `SMTP_HOST` | No | Servidor de correo |
-| `SMTP_PORT` | No | Puerto SMTP |
-| `SMTP_USER` | No | Usuario SMTP |
-| `SMTP_PASS` | No | Contrasena SMTP |
-| `SMTP_FROM` | No | Remitente de correos |
-| `SMTP_SECURE` | No | TLS habilitado |
+| `DATABASE_URL` | Si | Conexion PostgreSQL (con `?sslmode=require` para Nhost) |
+| `JWT_SECRET` | No* | Se genera dinamico si es debil o no existe |
+| `ENCRYPTION_KEY` | No* | Se genera dinamica si no existe |
+| `ALLOWED_ORIGINS` | Si | Dominios CORS |
+| `SMTP_*` | No | Configuracion email |
 | `APP_URL` | No | URL de la aplicacion |
-| `PORT` | No | Puerto del servidor (default: 3001) |
 
 ---
 
-## Persistencia de Datos
+## Deployment en cPanel
 
-| Datos | Ubicacion | Metodo | Agente Responsable |
-|-------|-----------|--------|-------------------|
-| Sesion de usuario | localStorage | Key: "user" | Authentication |
-| Cache offline | IndexedDB (Dexie) | Tablas multiples | Offline Sync |
-| Progreso del estudiante | PostgreSQL (Progresso) | API REST | Learning |
-| Quizzes y respuestas | PostgreSQL (Quiz, QuizResponse) | API REST | Quiz |
-| XP y niveles | PostgreSQL (User, PointsTransaction) | API REST | Gamification |
-| Notificaciones | PostgreSQL (Notification) | API REST | Notification |
-| Certificados | PostgreSQL (Certificate) | API REST | Learning |
-| Activity logs | PostgreSQL (ActivityLog) | API REST | Learning |
+### Estructura
+
+```
+/home/usuario/public_html/academia-paygas/
+├── app.js                    # Entry point Passenger
+├── dist/                     # Frontend build + Backend compilado
+├── prisma/                   # Schema y migraciones
+├── server/                   # Source TypeScript
+├── node_modules/
+├── .env                      # Variables de entorno
+├── .htaccess                 # Seguridad Apache
+└── deploy.sh                 # Script de deploy
+```
+
+### Deploy
+
+```bash
+# Automatico (detecta ruta)
+./deploy.sh
+
+# Manual
+git pull
+npx prisma generate
+npx prisma migrate deploy
+npx vite build
+npx tsc --project tsconfig.server.json
+killall -9 node
+PORT=3001 nohup node dist/server/index.js > logs/app.log 2>&1 &
+```
+
+### Notas Importantes
+
+- **Passenger** ejecuta `app.js` como entry point
+- `app.js` importa `dist/server/index.js` (Express compilado)
+- `deploy.sh` mata TODOS los procesos Node viejos antes de iniciar
+- Apache maneja SSL, Node escucha en HTTP interno (puerto 3001)
+- **ModPagespeed Off** en `.htaccess` para evitar problemas con JS/CSS
 
 ---
 
-## Integracion SMTP
-
-Las notificaciones criticas son enviadas por email mediante **Nodemailer**:
+## Flujo de Datos General
 
 ```
-Quiz Aprobado → Quiz Agent notifica
-                     ↓
-              Notification Agent (crea registro)
-                     ↓
-              Email Service (Nodemailer)
-                     ↓
-              SMTP (Credenciales en .env)
-                     ↓
-              Email al usuario
-```
-
-### Variables SMTP (.env)
-
-```env
-SMTP_HOST=mail.midominio.com
-SMTP_PORT=587
-SMTP_USER=notificaciones@midominio.com
-SMTP_PASS=contrasena_segura
-SMTP_FROM=Academia PayGas <notificaciones@midominio.com>
-SMTP_SECURE=true
-APP_URL=https://academia.paygas.com.br
+┌─────────────────────────────────────────┐
+│           USUARIO (Frontend)             │
+└──────────────┬──────────────────────────┘
+               │
+    ┌──────────┼──────────┐
+    │          │          │
+    ▼          ▼          ▼
+ Auth      Learning    Team
+ Agent     Agent       Agent
+    │          │          │
+    └──────────┼──────────┘
+               │
+    ┌──────────┼──────────┐
+    │          │          │
+    ▼          ▼          ▼
+Encryption  Gamification  Offline
+ Agent      Agent        Sync Agent
+    │          │          │
+    └──────────┼──────────┘
+               │
+               ▼
+        ┌──────────────┐
+        │ Express API  │
+        │ (REST)       │
+        └──────┬───────┘
+               │
+    ┌──────────┼──────────┐
+    │          │          │
+    ▼          ▼          ▼
+PostgreSQL  Nodemailer  ActivityLog
+ (Datos)    (Email)     (Auditoria)
 ```
 
 ---
 
-## Desarrollo e Integracion
-
-### Agregar un Nuevo Agente
-
-1. Crear archivo en `src/hooks/useNewAgent.ts` o `src/services/NewAgent.ts`
-2. Implementar interfaz y metodos principales
-3. Conectar con componentes en `src/pages/`
-4. Crear endpoints en `server/routes/newagent.ts`
-5. Documentar en este archivo (agents.md)
-
-### Comandos Utiles
+## Comandos Utiles
 
 ```bash
 # Desarrollo
-pnpm dev                    # Iniciar servidor + cliente
+pnpm dev                    # Servidor + cliente
 pnpm dev:server             # Solo servidor
 pnpm dev:client             # Solo cliente
 
 # Build
 pnpm build                  # Build completo
-pnpm build:server           # Solo servidor
-pnpm build:client           # Solo cliente
+npx vite build              # Solo frontend
+npx tsc --project tsconfig.server.json  # Solo servidor
 
 # Base de datos
-pnpm db:generate            # Generar cliente Prisma
-pnpm db:migrate             # Ejecutar migraciones
-pnpm db:seed                # Poblar base de datos
-pnpm db:reset               # Reset + seed
+npx prisma generate         # Generar cliente
+npx prisma migrate deploy   # Ejecutar migraciones
+npx prisma db seed          # Poblar datos de prueba
 
 # Produccion
-pnpm start:prod             # Iniciar en produccion
+./deploy.sh                 # Deploy completo en cPanel
 ```
+
+### Usuarios de Prueba (Seed)
+
+| Email | Rol | Password |
+|-------|-----|----------|
+| admin@paygas.com.br | ADMIN | 123456 |
+| gestor@paygas.com.br | GESTOR | 123456 |
+| atendente@paygas.com.br | ATENDENTE | 123456 |
+| joao@paygas.com.br | ATENDENTE | 123456 |
+| maria@paygas.com.br | ATENDENTE | 123456 |
 
 ---
 
 ## Flujo de Trabajo Git
 
-### Regla Obligatoria: Commit despues de cada cambio
+### Reglas
 
-**Despues de implementar cualquier cambio en los archivos del repositorio, el agente DEBE:**
+1. Despues de cada cambio, crear commit coherente
+2. Formato: `tipo: descripcion` (feat, fix, security, docs, chore, deploy)
+3. No commitear archivos sensibles (.env, .pem)
+4. Push solo cuando el working tree esta limpio
 
-1. **Verificar el estado de git:**
-   ```bash
-   git status
-   git diff --stat
-   ```
+### Seguridad Git
 
-2. **Crear un commit coherente** con mensaje descriptivo:
-   ```bash
-   git add -A
-   git commit -m "tipo: descripcion clara del cambio"
-   ```
-
-3. **Resolver cualquier conflicto de merge** si existe:
-   ```bash
-   # Si hay conflictos, resolverlos manteniendo la version correcta
-   git checkout --ours <archivo>  # o --theirs segun corresponda
-   git add <archivo>
-   git commit -m "merge: resolver conflicto en <archivo>"
-   ```
-
-4. **No dejar el working tree sucio** - el usuario solo debe ejecutar `git push`
-
-### Formato de Mensajes de Commit
-
-```
-tipo: descripcion corta (max 50 caracteres)
-
-[opcional] Cuerpo con detalles adicionales
-```
-
-**Tipos permitidos:**
-
-| Tipo | Uso | Ejemplo |
-|------|-----|---------|
-| `feat` | Nueva funcionalidad | `feat: agregar paginacion a endpoints` |
-| `fix` | Correccion de bug | `fix: corregir autorizacion en notificaciones` |
-| `security` | Mejora de seguridad | `security: remover credenciales hardcodeadas` |
-| `refactor` | Refactorizacion sin cambio de behavior | `refactor: extraer logica de validacion` |
-| `docs` | Documentacion | `docs: actualizar agents.md` |
-| `chore` | Tareas de mantenimiento | `chore: actualizar dependencias` |
-| `merge` | Resolucion de conflictos | `merge: resolver conflictos con main` |
-| `deploy` | Cambios de deployment | `deploy: configurar cPanel build` |
-
-### Ejemplo de Flujo Completo
-
-```bash
-# 1. El agente implementa cambios en archivos
-# (edit, write, etc.)
-
-# 2. Verifica estado
-git status
-
-# 3. Crea commit
-git add -A
-git commit -m "fix: corregir CORS para incluir dominios de produccion"
-
-# 4. Si hay conflictos de merge
-git pull origin main  # o merge
-# Resolver conflictos...
-git add -A
-git commit -m "merge: resolver conflictos - mantener correcciones de seguridad"
-
-# 5. El usuario solo ejecuta
-git push origin main
-```
-
-### Que NO hacer
-
-- ❌ Dejar archivos modificados sin commit
-- ❌ Hacer commits con mensajes como "fix", "update", "otro fix"
-- ❌ Commitear archivos sensibles (.env, .pem, .key)
-- ❌ Push sin verificar que el working tree esta limpio
-- ❌ Resolver conflictos sin entender los cambios de ambos lados
+- `.env` esta en `.gitignore`
+- Historial limpiado con BFG Repo Cleaner
+- Credenciales rotadas despues de cualquier exposicion
 
 ---
 
 *Ultima actualizacion: 2026-06-18*
-*Version de Documentacion: 3.1*
-*Auditado por: Ingeniero de Software especialista*
+*Version: 4.0*
