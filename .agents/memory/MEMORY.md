@@ -1,1 +1,2 @@
-- [Prisma v7 schema rules](prisma-v7-schema.md) — no `url` in datasource; connection via adapter in prisma.config.ts and PrismaClient constructor
+- [JWT/Encryption Key Persistence](jwt-encryption-keys.md) — Both secrets must be set as env vars or they regenerate each restart, breaking all tokens and encryption.
+- [ModulosPage Error States](modulos-error-states.md) — Distinguish network errors from "module not found" to avoid misleading UX on transient 502s.

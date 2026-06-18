@@ -28,11 +28,20 @@ export function ModulosListPage() {
   const loadModulos = async () => {
     try {
       const mods = await api.getCmsModulos()
-      setModulos(mods)
+      setModulos(Array.isArray(mods) ? mods : [])
+    } catch (err) {
+      console.error('[ModulosListPage] Erro ao carregar módulos:', err)
+      setModulos([])
+    } finally {
+      setLoading(false)
+    }
 
-      const progresso = await api.getProgresso().catch(() => [])
-      const certs = await api.getCertificates().catch(() => [])
-
+    // Load progress and certs independently (non-blocking)
+    try {
+      const [progresso, certs] = await Promise.all([
+        api.getProgresso().catch(() => [] as any[]),
+        api.getCertificates().catch(() => [] as any[]),
+      ])
       const pMap: Record<string, number> = {}
       const cMap: Record<string, boolean> = {}
       for (const p of progresso) {
@@ -46,9 +55,7 @@ export function ModulosListPage() {
       setProgressMap(pMap)
       setCertMap(cMap)
     } catch {
-      setModulos([])
-    } finally {
-      setLoading(false)
+      // progress/cert errors are non-fatal
     }
   }
 

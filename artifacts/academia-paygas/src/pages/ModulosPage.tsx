@@ -22,6 +22,7 @@ export function ModulosPage() {
   const [lessons, setLessons] = useState<any[]>([])
   const [modulo, setModulo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [loadError, setLoadError] = useState<string | null>(null)
   const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({})
   const [quizSubmitted, setQuizSubmitted] = useState(false)
   const [quizResult, setQuizResult] = useState<any>(null)
@@ -29,6 +30,7 @@ export function ModulosPage() {
 
   const loadModulo = async () => {
     if (!moduloNombre) return
+    setLoadError(null)
     try {
       const allMods = await api.getCmsModulos()
       const foundModulo = allMods.find((m: any) => slugify(m.titulo || m.title || '') === moduloNombre)
@@ -41,8 +43,9 @@ export function ModulosPage() {
         setModulo(null)
         setLessons([])
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro ao carregar módulo:', err)
+      setLoadError(err?.message || 'Erro ao carregar módulo')
       setLessons([])
     } finally {
       setLoading(false)
@@ -191,7 +194,13 @@ export function ModulosPage() {
         <div className="page-header">
           <div>
             <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }} onClick={() => navigate('/modulos')}><i className="icon-arrow-left icon-sm" /> Voltar</button>
-            <div className="page-title">Módulo não encontrado</div>
+            <div className="page-title">{loadError ? 'Erro ao carregar módulo' : 'Módulo não encontrado'}</div>
+            {loadError && (
+              <div style={{ marginTop: '12px', display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <span style={{ color: '#6B7280', fontSize: '14px' }}>{loadError}</span>
+                <button className="btn-primary" style={{ fontSize: '13px', padding: '6px 16px' }} onClick={() => { setLoading(true); loadModulo() }}>Tentar novamente</button>
+              </div>
+            )}
           </div>
         </div>
       </div>
