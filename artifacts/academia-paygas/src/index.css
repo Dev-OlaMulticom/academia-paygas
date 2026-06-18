@@ -2328,3 +2328,202 @@ tr:hover td {
   color: var(--gray-500);
   margin-top: 2px;
 }
+
+/* ============================================================
+   DESIGN.MD COMPLIANCE — Override all rules to match design.md spec
+   These override earlier rules via cascade order.
+   ============================================================ */
+
+/* ---- 2.2 HEADER: #fff background, border-bottom ---- */
+.app-header {
+  background: #fff !important;
+  border-bottom: 1px solid var(--gray-200) !important;
+  border-bottom-width: 1px !important;
+}
+.menu-toggle {
+  color: var(--gray-600) !important;
+  background: none !important;
+  border: none !important;
+}
+.menu-toggle:hover {
+  background: var(--gray-100) !important;
+  color: var(--gray-900) !important;
+}
+.header-logo-icon {
+  background: var(--pg-orange) !important;
+  color: #fff !important;
+}
+.header-logo-name {
+  color: var(--gray-900) !important;
+}
+.header-logo-ver {
+  color: var(--gray-400) !important;
+}
+.header-notif {
+  color: var(--gray-600) !important;
+  background: none !important;
+  border: none !important;
+}
+.header-notif:hover {
+  background: var(--gray-100) !important;
+  color: var(--gray-900) !important;
+}
+
+/* ---- 2.3 SIDEBAR: #fff background, border-right ---- */
+.sidebar {
+  background: #fff !important;
+  border-right: 1px solid var(--gray-200) !important;
+}
+
+/* Logo inside white sidebar */
+.sidebar-logo {
+  border-bottom: 1px solid var(--gray-200) !important;
+}
+.sidebar-logo-text b {
+  color: var(--gray-900) !important;
+}
+.sidebar-logo-text span {
+  color: var(--gray-400) !important;
+}
+
+/* Section labels */
+.sidebar-section-title,
+.sidebar-section-label {
+  color: var(--gray-400) !important;
+}
+
+/* Nav items — dark text on white background */
+.sidebar-item,
+.nav-item {
+  color: var(--gray-700) !important;
+  background: none !important;
+  border: none !important;
+}
+.sidebar-item:hover,
+.nav-item:hover {
+  background: var(--gray-50) !important;
+  color: var(--gray-900) !important;
+}
+.sidebar-item.active,
+.nav-item.active {
+  background: var(--pg-orange-lt) !important;
+  color: var(--pg-orange) !important;
+}
+.sidebar-item.active::before,
+.nav-item.active::before {
+  background: var(--pg-orange) !important;
+}
+
+/* Sidebar badge */
+.sidebar-badge {
+  background: var(--pg-orange) !important;
+  color: #fff !important;
+}
+
+/* Sidebar footer on white */
+.sidebar-bottom,
+.sidebar-footer {
+  border-top: 1px solid var(--gray-200) !important;
+}
+.sidebar-user:hover {
+  background: var(--gray-50) !important;
+}
+
+/* User info dark text on white */
+.user-info b {
+  color: var(--gray-900) !important;
+}
+.user-info span {
+  color: var(--gray-500) !important;
+}
+
+/* XP badge on white sidebar */
+.xp-badge {
+  background: var(--pg-orange-lt) !important;
+  color: var(--pg-orange) !important;
+}
+
+/* Nav icon — remove opacity dim, use inherited color */
+.nav-icon {
+  opacity: 1 !important;
+}
+
+/* Logout button on white sidebar */
+.btn-logout-sidebar {
+  background: var(--gray-100) !important;
+  color: var(--gray-600) !important;
+  border: 1px solid var(--gray-200) !important;
+}
+.btn-logout-sidebar:hover {
+  background: var(--gray-200) !important;
+  color: var(--gray-900) !important;
+}
+
+/* ---- 3.3 BADGES — exact design.md table ---- */
+.badge-new      { background: var(--pg-blue-lt) !important; color: var(--pg-blue) !important; }
+.badge-progress { background: var(--pg-gold-lt) !important; color: var(--pg-gold) !important; }
+.badge-done     { background: var(--pg-green-lt) !important; color: var(--pg-green) !important; }
+.badge-locked   { background: var(--gray-100) !important;    color: var(--gray-400) !important; }
+.badge-required { background: var(--pg-red-lt) !important;   color: var(--pg-red) !important; }
+.badge-blue     { background: var(--pg-blue-lt) !important;  color: var(--pg-blue) !important; }
+
+/* ---- 3.7 PROGRESS BAR — 6px, gradient fill ---- */
+.track-prog-bar {
+  height: 6px !important;
+  background: var(--gray-100) !important;
+  border-radius: 3px !important;
+}
+.track-prog-fill {
+  height: 100% !important;
+  border-radius: 3px !important;
+  background: linear-gradient(90deg, var(--pg-orange), var(--pg-gold)) !important;
+  transition: width .6s !important;
+}
+
+/* ---- 3.1 TRACK CARD hover — box-shadow glow, no translateY ---- */
+.track-card:hover {
+  border-color: var(--pg-orange) !important;
+  box-shadow: 0 0 0 3px var(--pg-orange-lt), var(--shadow) !important;
+  transform: none !important;
+}
+
+/* ---- 1.2 TYPOGRAPHY corrections per design.md ---- */
+
+/* page-title: 20px / 700 */
+.page-title {
+  font-size: 20px !important;
+  font-weight: 700 !important;
+  color: var(--gray-900) !important;
+}
+
+/* section-title: 14px / 700 / var(--gray-900) — no uppercase */
+.section-title {
+  font-size: 14px !important;
+  font-weight: 700 !important;
+  color: var(--gray-900) !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  margin-bottom: 12px;
+}
+
+/* ---- 3.10 GAMIFICATION: trophy card ---- */
+.trophy-card.earned {
+  border-color: var(--pg-gold) !important;
+  background: var(--pg-gold-lt) !important;
+}
+.trophy-card.locked { opacity: .4 !important; }
+
+/* ---- Mobile: sidebar hidden on small screens (reset open) ---- */
+@media (max-width: 768px) {
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important; bottom: 0 !important; left: -280px !important;
+    z-index: 300 !important;
+    transition: left .25s !important;
+    box-shadow: none !important;
+  }
+  .sidebar.open {
+    left: 0 !important;
+    box-shadow: 4px 0 20px rgba(0,0,0,.12) !important;
+  }
+}
