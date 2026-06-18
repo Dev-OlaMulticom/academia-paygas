@@ -1,41 +1,49 @@
+# See https://docs.github.com/en/get-started/getting-started-with-git/ignoring-files for more about ignoring files.
+
+# compiled output
+dist
+tmp
+out-tsc
+*.tsbuildinfo
+.expo
+.expo-shared
+
+# dependencies
 node_modules
-.next
-/src/generated/prisma
 
-# SSL certificates (never commit)
-server/certs/
+# IDEs and editors
+/.idea
+.project
+.classpath
+.c9/
+*.launch
+.settings/
+*.sublime-workspace
 
-# Database files
-*.db
-*.db-journal
+# IDE - VSCode
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
 
-# Environment variables (CRITICAL - never commit)
-.env
-.env.local
-.env.development
-.env.production
-.env.staging
-*.zip
+# misc
+/.sass-cache
+/connect.lock
+/coverage
+/libpeerconnection.log
+npm-debug.log
+yarn-error.log
+testem.log
+/typings
 
-# Build output
-dist/
-server-build/
-.output/
-
-# Example files
-example-academia-paygas-v26.html
-www/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
+# System Files
 .DS_Store
 Thumbs.db
 
-# TypeScript cache
-*.tsbuildinfo
+.cursor/rules/nx-rules.mdc
+.github/instructions/nx.instructions.md
+
+# Replit
+.cache/
+.local/

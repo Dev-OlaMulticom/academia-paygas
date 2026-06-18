@@ -1,0 +1,41 @@
+node_modules
+.next
+/src/generated/prisma
+
+# SSL certificates (never commit)
+server/certs/
+
+# Database files
+*.db
+*.db-journal
+
+# Environment variables (CRITICAL - never commit)
+.env
+.env.local
+.env.development
+.env.production
+.env.staging
+*.zip
+
+# Build output
+dist/
+server-build/
+.output/
+
+# Example files
+example-academia-paygas-v26.html
+www/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# TypeScript cache
+*.tsbuildinfo
