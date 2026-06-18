@@ -1,4 +1,8 @@
 # Academia PayGas - Security
+# Desactivar mod_pagespeed
+<IfModule mod_pagespeed.c>
+    Pagespeed Off
+</IfModule>
 
 # Block access to sensitive files
 <FilesMatch "^(\.env|\.git|\.htaccess|\.htpasswd)$">
