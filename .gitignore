@@ -17,6 +17,7 @@ server/certs/
 
 # Build output
 dist/
+server-build/
 .output/
 
 # Example files
