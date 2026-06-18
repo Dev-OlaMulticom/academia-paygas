@@ -6,7 +6,8 @@ import rateLimit from 'express-rate-limit'
 import https from 'https'
 import fs from 'fs'
 import path from 'path'
-import { encryptedPayload } from './middleware/encryption'
+import { encryptedPayload, getServerEncryptionKey } from './middleware/encryption'
+import { authenticate, AuthRequest } from './middleware/auth'
 import authRoutes from './routes/auth'
 import usuariosRoutes from './routes/usuarios'
 import cmsRoutes from './routes/cms'
@@ -61,6 +62,16 @@ const authLimiter = rateLimit({
 })
 app.use('/api/auth/login', authLimiter)
 
+// Rate limiting para registro de usuarios
+const registerLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000, // 1 hour
+  max: 5, // 5 registrations per hour
+  message: { error: 'Demasiados registros. Intenta de nuevo en 1 hora.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+app.use('/api/usuarios', registerLimiter)
+
 // Global encryption middleware for all POST/PUT/PATCH
 app.use((req, res, next) => {
   if (req.method === 'POST' || req.method === 'PUT' || req.method === 'PATCH') {
@@ -80,10 +91,11 @@ app.use('/api/progresso', progressoRoutes)
 app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/docs', docsRoutes)
 
-// Public config: encryption key for frontend (not a secret - already in compiled JS)
-app.get('/api/config', (_req, res) => {
+// Config endpoint: requires authentication to get encryption key
+app.get('/api/config', authenticate, (req: AuthRequest, res) => {
+  // Only provide encryption key to authenticated users
   res.json({
-    encryptionKey: process.env.ENCRYPTION_KEY || '',
+    encryptionKey: getServerEncryptionKey(),
   })
 })
 
@@ -97,9 +109,6 @@ app.get('/api/health', async (_req, res) => {
     checks.database = 'disconnected'
     checks.dbError = String(e?.message || e)
   }
-  checks.hasJwtSecret = String(!!process.env.JWT_SECRET)
-  checks.hasEncryptionKey = String(!!process.env.ENCRYPTION_KEY)
-  checks.hasDatabaseUrl = String(!!process.env.DATABASE_URL)
   checks.nodeEnv = process.env.NODE_ENV || 'undefined'
   checks.timestamp = new Date().toISOString()
   res.json(checks)

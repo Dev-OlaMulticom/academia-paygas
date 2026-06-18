@@ -1,10 +1,27 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
+import crypto from 'crypto'
 
-const JWT_SECRET = process.env.JWT_SECRET
-if (!JWT_SECRET) {
-  console.error('FATAL: JWT_SECRET no esta definido en las variables de entorno')
-  process.exit(1)
+// Generate a secure JWT secret if not provided or if it's weak
+function getJWTSecret(): string {
+  const envSecret = process.env.JWT_SECRET
+  
+  // Check if secret exists and is strong enough (at least 32 chars, not a common pattern)
+  if (envSecret && envSecret.length >= 32 && !envSecret.includes('academia-paygas')) {
+    return envSecret
+  }
+  
+  // If weak or missing, generate a random secret
+  if (envSecret) {
+    console.warn('⚠️  JWT_SECRET is weak. Generating a stronger secret for this session.')
+  }
+  
+  return crypto.randomBytes(64).toString('hex')
+}
+
+const JWT_SECRET = getJWTSecret()
+if (!process.env.JWT_SECRET) {
+  console.log('🔑 Generated dynamic JWT secret for this session')
 }
 
 export interface AuthRequest extends Request {

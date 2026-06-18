@@ -8,14 +8,30 @@ const KEY_LENGTH = 32
 const SALT_LENGTH = 64
 const AUTH_TAG_LENGTH = 16
 
-const SECRET_KEY = process.env.ENCRYPTION_KEY
-if (!SECRET_KEY) {
-  console.error('FATAL: ENCRYPTION_KEY no esta definido en las variables de entorno')
-  process.exit(1)
+// Dynamic encryption key - generated at runtime if not provided
+let DYNAMIC_ENCRYPTION_KEY: string
+
+function getEncryptionKey(): string {
+  if (!DYNAMIC_ENCRYPTION_KEY) {
+    // Use env var if provided, otherwise generate a random key
+    if (process.env.ENCRYPTION_KEY) {
+      DYNAMIC_ENCRYPTION_KEY = process.env.ENCRYPTION_KEY
+    } else {
+      // Generate a random key for this server instance
+      DYNAMIC_ENCRYPTION_KEY = crypto.randomBytes(32).toString('hex')
+      console.log('🔑 Generated dynamic encryption key for this session')
+    }
+  }
+  return DYNAMIC_ENCRYPTION_KEY
+}
+
+// Export getter for auth route to provide to authenticated clients
+export function getServerEncryptionKey(): string {
+  return getEncryptionKey()
 }
 
 function deriveKey(salt: Buffer): Buffer {
-  return crypto.pbkdf2Sync(SECRET_KEY, salt, ITERATIONS, KEY_LENGTH, 'sha512')
+  return crypto.pbkdf2Sync(getEncryptionKey(), salt, ITERATIONS, KEY_LENGTH, 'sha512')
 }
 
 function decryptSync(encryptedData: string): string {
