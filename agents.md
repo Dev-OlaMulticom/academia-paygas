@@ -506,5 +506,90 @@ npx ts-node scripts/test-crud.ts
 
 ---
 
-*Última actualización: 2024*
-*Versión de Documentación: 2.0*
+## Deployment en Vercel - Errores y Soluciones
+
+### Problema 1: GET `/login` devuelve 404
+
+**Causa:** `vercel.json` no tenía rewrite para rutas SPA. Solo existía rewrite para `/api/:path*`.
+
+**Solución:** Agregar catch-all rewrite para servir `index.html`:
+```json
+{
+  "source": "/((?!api/).*)",
+  "destination": "/index.html"
+}
+```
+
+### Problema 2: POST `/api/auth/login` devuelve 500 (TypeScript)
+
+**Causa:** Vercel compilaba `api/index.ts` usando el `tsconfig.json` raíz (`strict: true`, `module: "esnext"`). Esto causaba ~80 errores: tipos Express v5 incompatibles (`body`/`status` no existen en `Request`/`Response`), Prisma v7 (`PrismaClient`/`Role`/`PointsAction` no exportados), y `noImplicitAny`.
+
+**Solución (3 partes):**
+1. Excluir `server/` del `tsconfig.json` raíz para que Vercel no intente tipar los archivos del server
+2. Compilar el server por separado con `tsconfig.server.json` (`strict: false`)
+3. `api/index.js` (CommonJS) importa el JS compilado desde `server-build/`
+
+### Problema 3: `SyntaxError: Cannot use import statement outside a module`
+
+**Causa:** Vercel compilaba `api/index.ts` a ESM (por `module: "esnext"` del tsconfig raíz), pero el runtime carga `.js` como CommonJS (no hay `"type": "module"` en package.json).
+
+**Solución:** Cambiar `api/index.ts` a `api/index.js` con sintaxis CommonJS pura:
+```javascript
+const app = require('../server-build/index').default;
+module.exports = async function handler(req, res) {
+  return app(req, res);
+};
+```
+
+### Problema 4: `FUNCTION_INVOCATION_FAILED` (server crash)
+
+**Causa:** `tsc --noCheck` no existe en TypeScript 5.7.3. El build command fallaba silenciosamente y `server-build/` nunca se creaba. Al no existir, el `require()` en `api/index.js` crasheaba al inicio.
+
+**Solución:** Quitar `--noCheck` del build command y relajar `tsconfig.server.json` (`strict: false`) para que compile sin errores.
+
+### Problema 5: `PrismaClientConstructorValidationError: Using engine type "client" requires adapter`
+
+**Causa:** Prisma v7 con engine `"client"` (el default) **requiere** un adapter. Se había eliminado `PrismaPg` al intentar arreglar los errores de compilación.
+
+**Solución:** Restaurar el adapter `PrismaPg` en `server/lib/prisma.ts`:
+```typescript
+import { PrismaClient } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
+
+const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL })
+const prisma = new PrismaClient({ adapter })
+```
+
+### Arquitectura de Build Final (Vercel)
+
+```
+Build Command:
+  prisma generate → vite build → tsc --project tsconfig.server.json
+
+  vite build:  frontend → dist/  (outputDirectory)
+  tsc:         server   → server-build/  (compilado CJS, strict:false)
+
+Runtime:
+  api/index.js (CJS) → require('../server-build/index') → Express app
+  dist/index.html     → servido para todas las rutas no-API (SPA)
+```
+
+### Variables de Entorno Requeridas en Vercel
+
+| Variable | Propósito |
+|----------|-----------|
+| `DATABASE_URL` | Conexión PostgreSQL (Nhost) |
+| `JWT_SECRET` | Firma de tokens JWT |
+| `ENCRYPTION_KEY` | Cifrado de payloads AES-256-GCM |
+| `SMTP_HOST` | Servidor de correo |
+| `SMTP_PORT` | Puerto SMTP |
+| `SMTP_USER` | Usuario SMTP |
+| `SMTP_PASS` | Contraseña SMTP |
+| `SMTP_FROM` | Remitente de correos |
+| `SMTP_SECURE` | TLS habilitado (`true`) |
+| `APP_URL` | URL de la aplicación |
+
+---
+
+*Última actualización: 2026-06-17*
+*Versión de Documentación: 2.1*
