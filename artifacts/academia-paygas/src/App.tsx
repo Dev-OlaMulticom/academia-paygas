@@ -17,6 +17,12 @@ import { CriarModuloPage } from './pages/CriarModuloPage'
 import { UsuariosPage } from './pages/UsuariosPage'
 import { NotifPage } from './pages/NotifPage'
 import { PerfilPage } from './pages/PerfilPage'
+import { NacionalPage } from './pages/NacionalPage'
+import { AnaliticaPage } from './pages/AnaliticaPage'
+import { MapaPage } from './pages/MapaPage'
+import { ForumPage } from './pages/ForumPage'
+import { RankingPage } from './pages/RankingPage'
+import { ConquistasPage } from './pages/ConquistasPage'
 import './index.css'
 
 const queryClient = new QueryClient()
@@ -54,6 +60,9 @@ function AppRoutes() {
                   <Route path="/modulos" element={<ModulosListPage />} />
                   <Route path="/modulo/:moduloNombre" element={<ModulosPage />} />
                   <Route path="/certificados" element={<CertificadosPage />} />
+                  <Route path="/conquistas" element={<ConquistasPage />} />
+                  <Route path="/ranking" element={<RankingPage />} />
+                  <Route path="/forum" element={<ForumPage />} />
                   <Route path="/equipe" element={
                     <RoleRoute user={user} allowedRoles={['ADMIN', 'GESTOR']}>
                       <EquipePage user={user!} />
@@ -62,6 +71,21 @@ function AppRoutes() {
                   <Route path="/relatorios" element={
                     <RoleRoute user={user} allowedRoles={['ADMIN', 'GESTOR']}>
                       <RelatoriosPage user={user!} />
+                    </RoleRoute>
+                  } />
+                  <Route path="/nacional" element={
+                    <RoleRoute user={user} allowedRoles={['ADMIN']}>
+                      <NacionalPage />
+                    </RoleRoute>
+                  } />
+                  <Route path="/analitica" element={
+                    <RoleRoute user={user} allowedRoles={['ADMIN']}>
+                      <AnaliticaPage />
+                    </RoleRoute>
+                  } />
+                  <Route path="/mapa" element={
+                    <RoleRoute user={user} allowedRoles={['ADMIN']}>
+                      <MapaPage />
                     </RoleRoute>
                   } />
                   <Route path="/cms" element={<CMSPage user={user!} />} />

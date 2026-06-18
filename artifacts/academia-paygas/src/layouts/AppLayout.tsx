@@ -75,6 +75,15 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
             <button id="nav-certificados" className={`nav-item ${currentPath === '/certificados' ? 'active' : ''}`} onClick={() => navigate('/certificados')}>
               <i className="icon-trophy nav-icon" /> Certificados
             </button>
+            <button id="nav-conquistas" className={`nav-item ${currentPath === '/conquistas' ? 'active' : ''}`} onClick={() => navigate('/conquistas')}>
+              <i className="icon-star nav-icon" /> Conquistas
+            </button>
+            <button id="nav-ranking" className={`nav-item ${currentPath === '/ranking' ? 'active' : ''}`} onClick={() => navigate('/ranking')}>
+              <i className="icon-award nav-icon" /> Ranking
+            </button>
+            <button id="nav-forum" className={`nav-item ${currentPath === '/forum' ? 'active' : ''}`} onClick={() => navigate('/forum')}>
+              <i className="icon-message-circle nav-icon" /> Fórum
+            </button>
           </div>
           {(isAdmin || isGestor) && (
             <div className="sidebar-section">
@@ -90,6 +99,20 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
               </button>
               <button id="nav-relatorios" className={`nav-item ${currentPath === '/relatorios' ? 'active' : ''}`} onClick={() => navigate('/relatorios')}>
                 <i className="icon-bar-chart-3 nav-icon" /> Relatórios
+              </button>
+            </div>
+          )}
+          {isAdmin && (
+            <div className="sidebar-section">
+              <div className="sidebar-section-label">Admin</div>
+              <button id="nav-nacional" className={`nav-item ${currentPath === '/nacional' ? 'active' : ''}`} onClick={() => navigate('/nacional')}>
+                <i className="icon-globe nav-icon" /> Painel Nacional
+              </button>
+              <button id="nav-analitica" className={`nav-item ${currentPath === '/analitica' ? 'active' : ''}`} onClick={() => navigate('/analitica')}>
+                <i className="icon-trending-up nav-icon" /> Analytics
+              </button>
+              <button id="nav-mapa" className={`nav-item ${currentPath === '/mapa' ? 'active' : ''}`} onClick={() => navigate('/mapa')}>
+                <i className="icon-map-pin nav-icon" /> Mapa Nacional
               </button>
             </div>
           )}

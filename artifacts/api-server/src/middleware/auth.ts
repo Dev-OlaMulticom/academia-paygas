@@ -1,27 +1,17 @@
 import { Request, Response, NextFunction } from 'express'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
-import fs from 'fs'
-
-const JWT_SECRET_FALLBACK_FILE = '.jwt-secret'
 
 function getJWTSecret(): string {
   const envSecret = process.env.JWT_SECRET
-  if (envSecret && envSecret.length >= 32 && !envSecret.includes('academia-paygas')) {
+  if (envSecret && envSecret.length >= 32) {
     return envSecret
   }
-  try {
-    if (fs.existsSync(JWT_SECRET_FALLBACK_FILE)) {
-      const persisted = fs.readFileSync(JWT_SECRET_FALLBACK_FILE, 'utf8').trim()
-      if (persisted && persisted.length >= 32) return persisted
-    }
-  } catch { /* */ }
-  const newSecret = crypto.randomBytes(64).toString('hex')
-  try {
-    fs.writeFileSync(JWT_SECRET_FALLBACK_FILE, newSecret, { mode: 0o600 })
-  } catch { /* */ }
-  return newSecret
+  // In-memory fallback: consistent within a process lifetime, never written to disk or repo
+  return _runtimeSecret
 }
+
+const _runtimeSecret = crypto.randomBytes(64).toString('hex')
 
 export const JWT_SECRET = getJWTSecret()
 
