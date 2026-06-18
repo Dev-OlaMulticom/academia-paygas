@@ -67,7 +67,7 @@ export default function App() {
                     </RoleRoute>
                   } />
                   <Route path="/usuarios" element={
-                    <RoleRoute user={user} allowedRoles={['ADMIN']}>
+                    <RoleRoute user={user} allowedRoles={['ADMIN', 'GESTOR']}>
                       <UsuariosPage user={user!} />
                     </RoleRoute>
                   } />

@@ -62,18 +62,13 @@ export function AppLayout({ user, xp, onLogout, children }: AppLayoutProps) {
                 <i className="icon-file-edit nav-icon" /> Gestão de Conteúdo
               </button>
               <button id="nav-equipe" className={`nav-item ${currentPath === '/equipe' ? 'active' : ''}`} onClick={() => navigate('/equipe')}>
-                <i className="icon-users nav-icon" /> Equipe
+                <i className="icon-users nav-icon" /> {isAdmin ? 'Equipes' : 'Minha Equipe'}
+              </button>
+              <button id="nav-usuarios" className={`nav-item ${currentPath === '/usuarios' ? 'active' : ''}`} onClick={() => navigate('/usuarios')}>
+                <i className="icon-user-cog nav-icon" /> {isAdmin ? 'Usuários' : 'Meu Time'}
               </button>
               <button id="nav-relatorios" className={`nav-item ${currentPath === '/relatorios' ? 'active' : ''}`} onClick={() => navigate('/relatorios')}>
                 <i className="icon-bar-chart-3 nav-icon" /> Relatórios
-              </button>
-            </div>
-          )}
-          {isAdmin && (
-            <div className="sidebar-section">
-              <div className="sidebar-section-label">Administração</div>
-              <button id="nav-usuarios" className={`nav-item ${currentPath === '/usuarios' ? 'active' : ''}`} onClick={() => navigate('/usuarios')}>
-                <i className="icon-user-cog nav-icon" /> Usuários
               </button>
             </div>
           )}
