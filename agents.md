@@ -552,6 +552,88 @@ pnpm start:prod             # Iniciar en produccion
 
 ---
 
+## Flujo de Trabajo Git
+
+### Regla Obligatoria: Commit despues de cada cambio
+
+**Despues de implementar cualquier cambio en los archivos del repositorio, el agente DEBE:**
+
+1. **Verificar el estado de git:**
+   ```bash
+   git status
+   git diff --stat
+   ```
+
+2. **Crear un commit coherente** con mensaje descriptivo:
+   ```bash
+   git add -A
+   git commit -m "tipo: descripcion clara del cambio"
+   ```
+
+3. **Resolver cualquier conflicto de merge** si existe:
+   ```bash
+   # Si hay conflictos, resolverlos manteniendo la version correcta
+   git checkout --ours <archivo>  # o --theirs segun corresponda
+   git add <archivo>
+   git commit -m "merge: resolver conflicto en <archivo>"
+   ```
+
+4. **No dejar el working tree sucio** - el usuario solo debe ejecutar `git push`
+
+### Formato de Mensajes de Commit
+
+```
+tipo: descripcion corta (max 50 caracteres)
+
+[opcional] Cuerpo con detalles adicionales
+```
+
+**Tipos permitidos:**
+
+| Tipo | Uso | Ejemplo |
+|------|-----|---------|
+| `feat` | Nueva funcionalidad | `feat: agregar paginacion a endpoints` |
+| `fix` | Correccion de bug | `fix: corregir autorizacion en notificaciones` |
+| `security` | Mejora de seguridad | `security: remover credenciales hardcodeadas` |
+| `refactor` | Refactorizacion sin cambio de behavior | `refactor: extraer logica de validacion` |
+| `docs` | Documentacion | `docs: actualizar agents.md` |
+| `chore` | Tareas de mantenimiento | `chore: actualizar dependencias` |
+| `merge` | Resolucion de conflictos | `merge: resolver conflictos con main` |
+| `deploy` | Cambios de deployment | `deploy: configurar cPanel build` |
+
+### Ejemplo de Flujo Completo
+
+```bash
+# 1. El agente implementa cambios en archivos
+# (edit, write, etc.)
+
+# 2. Verifica estado
+git status
+
+# 3. Crea commit
+git add -A
+git commit -m "fix: corregir CORS para incluir dominios de produccion"
+
+# 4. Si hay conflictos de merge
+git pull origin main  # o merge
+# Resolver conflictos...
+git add -A
+git commit -m "merge: resolver conflictos - mantener correcciones de seguridad"
+
+# 5. El usuario solo ejecuta
+git push origin main
+```
+
+### Que NO hacer
+
+- ❌ Dejar archivos modificados sin commit
+- ❌ Hacer commits con mensajes como "fix", "update", "otro fix"
+- ❌ Commitear archivos sensibles (.env, .pem, .key)
+- ❌ Push sin verificar que el working tree esta limpio
+- ❌ Resolver conflictos sin entender los cambios de ambos lados
+
+---
+
 *Ultima actualizacion: 2026-06-18*
-*Version de Documentacion: 3.0*
+*Version de Documentacion: 3.1*
 *Auditado por: Ingeniero de Software especialista*
