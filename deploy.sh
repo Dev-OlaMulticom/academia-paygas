@@ -35,6 +35,15 @@ nohup node dist/server/index.js > logs/app.log 2>&1 &
 echo $! > logs/app.pid
 
 echo "=== Deploy completado (PID: $(cat logs/app.pid)) ==="
+echo "=== Limpiando cache Apache/nginx ==="
+# Forzar a Apache a releer archivos
+touch dist/index.html 2>/dev/null || true
+
+# Invalidar cache de mod_pagespeed
+if command -v pagespeed &> /dev/null; then
+    pagespeed flush 'academia.paygas.com.br' 2>/dev/null || true
+fi
+
 echo "=== Verificando... ==="
 sleep 2
 curl -s http://127.0.0.1:3001/api/health
