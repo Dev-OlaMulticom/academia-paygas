@@ -1,8 +1,7 @@
 #!/bin/bash
 set -e
 
-DEPLOY_DIR="/home/olamulticomcom/academia-paygas"
-DEPLOY_DIR_LEGACY="/home/olamulticomcom/public_html/academia-paygas"
+DEPLOY_DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DEPLOY_DIR"
 
 echo "=== Cargando variables de entorno ==="
@@ -21,11 +20,6 @@ fi
 # Kill ALL node processes running this app (any path)
 pkill -9 -f "node.*dist/server/index.js" 2>/dev/null || true
 sleep 1
-
-# Kill legacy process in public_html if exists
-if [ -d "$DEPLOY_DIR_LEGACY" ]; then
-    pkill -9 -f "node.*$DEPLOY_DIR_LEGACY.*dist/server" 2>/dev/null || true
-fi
 
 echo "=== Limpiando cache y build anterior ==="
 rm -rf dist/server
