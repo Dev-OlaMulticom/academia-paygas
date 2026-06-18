@@ -35,7 +35,7 @@ const corsOptions: cors.CorsOptions = {
   },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Encrypted'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Encrypted'],
 }
 app.use(cors(corsOptions))
 
@@ -62,7 +62,7 @@ const authLimiter = rateLimit({
 })
 app.use('/api/auth/login', authLimiter)
 
-// Rate limiting para registro de usuarios
+// Rate limiting para registro de usuarios (solo POST)
 const registerLimiter = rateLimit({
   windowMs: 60 * 60 * 1000, // 1 hour
   max: 5, // 5 registrations per hour
@@ -70,7 +70,13 @@ const registerLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 })
-app.use('/api/usuarios', registerLimiter)
+app.use('/api/usuarios', (req, res, next) => {
+  if (req.method === 'POST') {
+    registerLimiter(req, res, next)
+  } else {
+    next()
+  }
+})
 
 // Global encryption middleware for all POST/PUT/PATCH
 app.use((req, res, next) => {
@@ -105,9 +111,8 @@ app.get('/api/health', async (_req, res) => {
     const { prisma } = await import('./lib/prisma')
     await prisma.$queryRaw`SELECT 1`
     checks.database = 'connected'
-  } catch (e: any) {
+  } catch {
     checks.database = 'disconnected'
-    checks.dbError = String(e?.message || e)
   }
   checks.nodeEnv = process.env.NODE_ENV || 'undefined'
   checks.timestamp = new Date().toISOString()
