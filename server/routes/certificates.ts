@@ -8,19 +8,37 @@ const router = Router()
 // GET /api/certificates
 router.get('/', authenticate, async (req: any, res) => {
   try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1)
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20))
+    const skip = (page - 1) * limit
+
     const where = req.userRole === 'ADMIN'
       ? {}
       : { userId: req.userId }
 
-    const certs = await prisma.certificate.findMany({
-      where,
-      include: {
-        modulo: { select: { titulo: true, descricao: true } },
-        user: { select: { nome: true, email: true } },
+    const [certs, total] = await Promise.all([
+      prisma.certificate.findMany({
+        where,
+        include: {
+          modulo: { select: { titulo: true, descricao: true } },
+          user: { select: { nome: true, email: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.certificate.count({ where }),
+    ])
+
+    res.json({
+      data: certs,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: { createdAt: 'desc' },
     })
-    res.json(certs)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar certificados' })
   }

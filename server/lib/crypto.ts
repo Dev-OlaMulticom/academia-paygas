@@ -7,7 +7,11 @@ const SALT_LENGTH = 64
 const KEY_LENGTH = 32
 const ITERATIONS = 100000
 
-const SECRET_KEY = process.env.ENCRYPTION_KEY || 'academia-paygas-encryption-key-2026-production'
+const SECRET_KEY = process.env.ENCRYPTION_KEY
+if (!SECRET_KEY) {
+  console.error('FATAL: ENCRYPTION_KEY no esta definido en las variables de entorno')
+  process.exit(1)
+}
 
 function deriveKey(salt: Buffer): Buffer {
   return crypto.pbkdf2Sync(SECRET_KEY, salt, ITERATIONS, KEY_LENGTH, 'sha512')

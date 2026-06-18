@@ -49,7 +49,7 @@ router.post('/login', async (req, res) => {
     })
   } catch (error) {
     console.error('[AUTH LOGIN ERROR]', error)
-    res.status(500).json({ error: 'Erro interno do servidor', detail: String(error) })
+    res.status(500).json({ error: 'Erro interno do servidor' })
   }
 })
 

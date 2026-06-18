@@ -1,6 +1,8 @@
 import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
+import helmet from 'helmet'
+import rateLimit from 'express-rate-limit'
 import https from 'https'
 import fs from 'fs'
 import path from 'path'
@@ -17,8 +19,47 @@ import docsRoutes from './routes/docs'
 const app = express()
 const PORT = process.env.PORT || 3001
 
-app.use(cors())
+// Security headers
+app.use(helmet())
+
+// CORS configuration
+const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean)
+const corsOptions: cors.CorsOptions = {
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+      callback(null, true)
+    } else {
+      callback(new Error('No permitido por CORS'))
+    }
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-API-Key', 'X-Encrypted'],
+}
+app.use(cors(corsOptions))
+
+// Body parsing
 app.use(express.json({ limit: '10mb' }))
+
+// Rate limiting global
+const globalLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 200,
+  message: { error: 'Demasiadas peticiones. Intenta de nuevo en 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+app.use('/api/', globalLimiter)
+
+// Rate limiting estricto para auth
+const authLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 10,
+  message: { error: 'Demasiados intentos de login. Intenta de nuevo en 15 minutos.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+})
+app.use('/api/auth/login', authLimiter)
 
 // Global encryption middleware for all POST/PUT/PATCH
 app.use((req, res, next) => {

@@ -3,7 +3,10 @@ const KEY_LENGTH = 256
 const IV_LENGTH = 16
 const ITERATIONS = 100000
 
-const SECRET_KEY = 'academia-paygas-encryption-key-2026-production'
+const SECRET_KEY = import.meta.env.VITE_ENCRYPTION_KEY || ''
+if (!SECRET_KEY) {
+  console.warn('VITE_ENCRYPTION_KEY no esta configurada. Encriptacion deshabilitada.')
+}
 
 async function deriveKey(salt: Uint8Array): Promise<CryptoKey> {
   const encoder = new TextEncoder()

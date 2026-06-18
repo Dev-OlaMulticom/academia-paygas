@@ -12,17 +12,26 @@ const router = Router()
 // GET /api/usuarios
 router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
   try {
+    const page = Math.max(1, parseInt(req.query.page as string) || 1)
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20))
+    const skip = (page - 1) * limit
+
     const where = req.userRole === 'GESTOR'
       ? { gestorId: req.userId }
       : {}
 
-    const users = await prisma.user.findMany({
-      where,
-      include: {
-        _count: { select: { progressos: true, certificates: true } },
-      },
-      orderBy: { nome: 'asc' },
-    })
+    const [users, total] = await Promise.all([
+      prisma.user.findMany({
+        where,
+        include: {
+          _count: { select: { progressos: true, certificates: true } },
+        },
+        orderBy: { nome: 'asc' },
+        skip,
+        take: limit,
+      }),
+      prisma.user.count({ where }),
+    ])
 
     const usersWithXp = users.map(u => ({
       id: u.id,
@@ -38,9 +47,17 @@ router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequ
       certCount: u._count.certificates,
     }))
 
-    res.json(usersWithXp)
+    res.json({
+      data: usersWithXp,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+      },
+    })
   } catch (error) {
-    res.status(500).json({ error: 'Erro ao buscar usuários' })
+    res.status(500).json({ error: 'Erro ao buscar usuarios' })
   }
 })
 
@@ -60,7 +77,7 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
       return res.status(403).json({ error: 'Gestores não podem criar usuários ADMIN' })
     }
 
-    const hashedPassword = await bcrypt.hash(senha, 10)
+    const hashedPassword = await bcrypt.hash(senha, 12)
     const verificationToken = crypto.randomBytes(32).toString('hex')
 
     const user = await prisma.user.create({
