@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "Academia Paygas"
+version = "1.0.0"
+id = "artifacts/academia-paygas"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 24320
+
+[services.development]
+run = "pnpm --filter @workspace/academia-paygas run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/academia-paygas", "run", "build" ]
+publicDir = "artifacts/academia-paygas/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "24320"
+BASE_PATH = "/"

@@ -1,0 +1,1 @@
+- [Prisma v7 schema rules](prisma-v7-schema.md) — no `url` in datasource; connection via adapter in prisma.config.ts and PrismaClient constructor
