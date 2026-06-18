@@ -2,7 +2,8 @@
 
 # Disable mod_pagespeed
 <IfModule mod_pagespeed.c>
-    Pagespeed Off
+    ModPagespeed Off
+    ModPagespeedUnplugged true
 </IfModule>
 
 # ─── Block access to sensitive files ────────────────────────
