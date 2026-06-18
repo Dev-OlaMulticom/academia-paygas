@@ -38,15 +38,20 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: any, re
 })
 
 // PUT /api/notifications/:id/read
-router.put('/:id/read', authenticate, async (req, res) => {
+router.put('/:id/read', authenticate, async (req: any, res) => {
   try {
     const id = getStringParam(req.params.id)
-    if (!id) return res.status(400).json({ error: 'ID inválido' })
-    const notif = await prisma.notification.update({
+    if (!id) return res.status(400).json({ error: 'ID invalido' })
+
+    const notif = await prisma.notification.findUnique({ where: { id } })
+    if (!notif) return res.status(404).json({ error: 'Notificacion no encontrada' })
+    if (notif.toId !== req.userId) return res.status(403).json({ error: 'Sem permissao' })
+
+    const updated = await prisma.notification.update({
       where: { id },
       data: { lida: true },
     })
-    res.json(notif)
+    res.json(updated)
   } catch (error) {
     res.status(500).json({ error: 'Erro ao marcar como lida' })
   }

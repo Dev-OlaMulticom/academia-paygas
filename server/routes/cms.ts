@@ -9,16 +9,34 @@ const router = Router()
 // GET /api/cms/modulos
 router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req, res) => {
   try {
-    const modulos = await prisma.modulo.findMany({
-      include: {
-        aulas: { select: { id: true } },
-        _count: { select: { aulas: true, progressos: true } },
+    const page = Math.max(1, parseInt(req.query.page as string) || 1)
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20))
+    const skip = (page - 1) * limit
+
+    const [modulos, total] = await Promise.all([
+      prisma.modulo.findMany({
+        include: {
+          aulas: { select: { id: true } },
+          _count: { select: { aulas: true, progressos: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      prisma.modulo.count(),
+    ])
+
+    res.json({
+      data: modulos,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
       },
-      orderBy: { createdAt: 'desc' },
     })
-    res.json(modulos)
   } catch (error) {
-    res.status(500).json({ error: 'Erro ao buscar módulos' })
+    res.status(500).json({ error: 'Erro ao buscar modulos' })
   }
 })
 

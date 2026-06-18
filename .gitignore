@@ -9,10 +9,12 @@ server/certs/
 *.db
 *.db-journal
 
-# Environment variables
+# Environment variables (CRITICAL - never commit)
 .env
 .env.local
+.env.development
 .env.production
+.env.staging
 *.zip
 
 # Build output
@@ -47,3 +49,6 @@ pnpm-debug.log*
 
 # cPanel deployment (keep .cpanel.yml but ignore local deployment artifacts)
 tmp/
+
+# Prisma
+prisma/migrations/

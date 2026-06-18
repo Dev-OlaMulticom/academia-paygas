@@ -10,35 +10,40 @@ router.get('/', authenticate, async (req: any, res) => {
   try {
     const userId = req.userId
 
-    const totalModulos = await prisma.modulo.count()
-
-    const modulosComProgresso = await prisma.progresso.groupBy({
-      by: ['moduloId'],
-      where: { userId, concluido: true },
-    })
+    const [
+      totalModulos,
+      modulosComProgresso,
+      totalCertificados,
+      totalAulas,
+      aulasConcluidas,
+      totalQuizzes,
+      recentActivity,
+      userPoints,
+    ] = await Promise.all([
+      prisma.modulo.count(),
+      prisma.progresso.groupBy({
+        by: ['moduloId'],
+        where: { userId, concluido: true },
+      }),
+      prisma.certificate.count({
+        where: { userId, status: 'ISSUED' },
+      }),
+      prisma.aula.count(),
+      prisma.progresso.count({
+        where: { userId, concluido: true },
+      }),
+      prisma.quizResponse.count({
+        where: { userId, concluido: true },
+      }),
+      prisma.activityLog.findMany({
+        where: { userId },
+        take: 5,
+        orderBy: { createdAt: 'desc' },
+      }),
+      getUserPoints(userId),
+    ])
 
     const modulosConcluidos = modulosComProgresso.length
-
-    const totalCertificados = await prisma.certificate.count({
-      where: { userId, status: 'ISSUED' },
-    })
-
-    const totalAulas = await prisma.aula.count()
-    const aulasConcluidas = await prisma.progresso.count({
-      where: { userId, concluido: true },
-    })
-
-    const totalQuizzes = await prisma.quizResponse.count({
-      where: { userId, concluido: true },
-    })
-
-    const recentActivity = await prisma.activityLog.findMany({
-      where: { userId },
-      take: 5,
-      orderBy: { createdAt: 'desc' },
-    })
-
-    const userPoints = await getUserPoints(userId)
 
     res.json({
       totalModulos,

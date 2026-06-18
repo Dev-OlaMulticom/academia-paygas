@@ -1,4 +1,4 @@
-# 🎓 Academia PayGas - Sistema de Aprendizaje Empresarial
+# Academia PayGas - Sistema de Aprendizaje Empresarial
 
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7.3-blue)](https://www.typescriptlang.org/)
 [![React](https://img.shields.io/badge/React-19-61dafb)](https://react.dev/)
@@ -6,79 +6,93 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Nhost-336791)](https://nhost.io/)
 [![Prisma](https://img.shields.io/badge/Prisma-7.8-2D3748)](https://www.prisma.io/)
 
-## 📋 Índice
+## Indice
 
-- [Visión General](#visión-general)
-- [Stack Tecnológico](#stack-tecnológico)
-- [Comenzar Rápidamente](#comenzar-rápidamente)
+- [Vision General](#vision-general)
+- [Stack Tecnologico](#stack-tecnologico)
+- [Comenzar Rapidamente](#comenzar-rapidamente)
 - [Estructura del Proyecto](#estructura-del-proyecto)
-- [Configuración](#configuración)
+- [Configuracion](#configuracion)
+- [Seguridad](#seguridad)
 - [API Endpoints](#api-endpoints)
 - [Funcionalidades](#funcionalidades)
 - [Desarrollo](#desarrollo)
-- [Testing](#testing)
 - [Deployment](#deployment)
 
 ---
 
-## 🎯 Visión General
+## Vision General
 
-Academia PayGas es una plataforma **de aprendizaje corporativo** para educación y desarrollo de equipo. Ofrece un sistema completo de rutas de aprendizaje, módulos, lecciones con vídeos, cuestionarios interactivos, certificación y gamificación.
+Academia PayGas es una plataforma de aprendizaje corporativo para educacion y desarrollo de equipo. Ofrece un sistema completo de modulos, lecciones con videos, cuestionarios interactivos, certificacion y gamification.
 
-**Público objetivo**: Empleados de estaciones de gasolina PayGas que necesitan entrenamiento continuo en excelencia de servicio, operación de terminales, seguridad de datos, gestión financiera y liderazgo.
+**Publico objetivo**: Empleados de estaciones de gasolina PayGas que necesitan entrenamiento continuo en excelencia de servicio, operacion de terminales, seguridad de datos, gestion financiera y liderazgo.
 
-### Características Principales
+### Caracteristicas Principales
 
-✅ **Rutas de Aprendizaje** - 8 rutas estructuradas  
-✅ **Contenido Multimedia** - Vídeos, PDFs, documentación  
-✅ **Cuestionarios Interactivos** - Evaluación automática con certificación  
-✅ **Gamificación** - XP, niveles, logros y ranking  
-✅ **Autenticación** - JWT + control de acceso por perfil  
-✅ **Email** - Notificaciones y certificados por SMTP  
-✅ **Dashboard** - Progreso, estadísticas e informes  
-✅ **Mobile Ready** - Interfaz responsiva con Tailwind CSS  
+- Modulos de aprendizaje estructurados
+- Contenido multimedia (videos YouTube, PDFs)
+- Cuestionarios interactivos con evaluacion automatica
+- Gamificacion (XP, niveles, leaderboard)
+- Autenticacion JWT con control de acceso por roles
+- Encriptacion AES-256-GCM para payloads
+- Soporte offline con Dexie.js (IndexedDB)
+- Dashboard con estadisticas y progreso
+- Interfaz responsiva con Tailwind CSS
 
 ---
 
-## 🛠️ Stack Tecnológico
+## Stack Tecnologico
 
 ### Frontend
-- **React 19** - UI library
-- **TypeScript 5.7** - Type safety
-- **Vite** - Build tool  
-- **TailwindCSS 4** - Styling
-- **Radix UI** - Componentes accesibles
-- **React Router 7** - Enrutamiento del lado del cliente
-- **Zustand** - Gestión de estado
-- **React Query** - Obtención de datos y caché
+
+| Tecnologia | Version | Proposito |
+|------------|---------|-----------|
+| React | 19 | UI library |
+| TypeScript | 5.7 | Type safety |
+| Vite | 6.x | Build tool |
+| TailwindCSS | 4.x | Styling |
+| Radix UI | - | Componentes accesibles |
+| React Router | 7.x | Enrutamiento |
+| Zustand | 5.x | Gestion de estado |
+| TanStack Query | 5.x | Data fetching y cache |
+| Dexie.js | 4.x | IndexedDB (offline) |
 
 ### Backend
-- **Express.js 5** - Marco web
-- **Node.js 24** - Runtime
-- **TypeScript** - Backend seguro de tipos
-- **Prisma 7** - ORM
-- **PostgreSQL (Nhost)** - Base de datos
-- **JWT** - Autenticación
-- **bcryptjs** - Hash de contraseñas
-- **Nodemailer** - Servicio de correo
-- **Zod** - Validación de esquemas
+
+| Tecnologia | Version | Proposito |
+|------------|---------|-----------|
+| Express.js | 5.x | Framework web |
+| Node.js | 22+ | Runtime |
+| TypeScript | 5.7 | Backend seguro de tipos |
+| Prisma | 7.x | ORM |
+| PostgreSQL | - | Base de datos |
+| JWT | - | Autenticacion |
+| bcryptjs | 3.x | Hash de contrasenas |
+| Nodemailer | 9.x | Servicio de correo |
+| Helmet | 8.x | Security headers |
+| express-rate-limit | 8.x | Rate limiting |
 
 ### DevTools
-- **ESLint** - Linting de código
-- **TypeScript** - Type checking
-- **tsx** - Ejecutor de TypeScript
-- **Concurrently** - Ejecutar múltiples procesos
+
+| Herramienta | Proposito |
+|-------------|-----------|
+| ESLint | Linting de codigo |
+| TypeScript | Type checking |
+| tsx | Ejecucion de TypeScript |
+| Concurrently | Ejecutar multiples procesos |
 
 ---
 
-## 🚀 Comenzar Rápidamente
+## Comenzar Rapidamente
 
 ### Requisitos Previos
-- Node.js 22+ 
+
+- Node.js 22+
 - pnpm (o npm/yarn)
 - Git
+- PostgreSQL (local o Nhost)
 
-### Instalación
+### Instalacion
 
 ```bash
 # Clone el repositorio
@@ -89,391 +103,501 @@ cd academia-paygas
 pnpm install
 
 # Configure variables de entorno
-cp .env.example .env
-# Edite .env con sus credenciales
+cp .env.production.example .env
+# Edite .env con sus credenciales (ver seccion Configuracion)
 
 # Prepare la base de datos
+npx prisma generate
 npx prisma migrate deploy
-npx prisma db seed  # (opcional)
+npx prisma db seed  # (opcional - datos de prueba)
 
 # Inicie el servidor
 pnpm dev
 ```
 
-Navegue a:
-- 🔧 **Frontend**: http://localhost:5173
-- ⚙️ **Backend**: http://localhost:3001
-- 📚 **API Docs**: http://localhost:3001/api/docs
+### URLs de Desarrollo
+
+| Servicio | URL |
+|----------|-----|
+| Frontend | http://localhost:5173 |
+| Backend | http://localhost:3001 |
+| API Docs | http://localhost:3001/api/docs |
+| Health Check | http://localhost:3001/api/health |
 
 ---
 
-## 📁 Estructura del Proyecto
+## Estructura del Proyecto
 
 ```
 academia-paygas/
 ├── server/                    # Backend Express
-│   ├── index.ts              # Servidor principal
+│   ├── index.ts              # Servidor principal (Express + Helmet + CORS + Rate Limiting)
 │   ├── lib/
-│   │   ├── prisma.ts        # Cliente Prisma singleton
-│   │   └── auth.ts          # Utilitarios de autenticación
+│   │   ├── prisma.ts         # Cliente Prisma singleton
+│   │   └── crypto.ts         # Utilitarios de encriptacion (servidor)
 │   ├── middleware/
-│   │   ├── auth.ts          # JWT y autorización
-│   │   ├── encryption.ts    # Payloads cifrados
-│   │   └── errorHandler.ts  # Manejo de errores
+│   │   ├── auth.ts           # JWT y autorizacion
+│   │   └── encryption.ts     # Encriptacion de payloads AES-256-GCM
 │   ├── routes/
-│   │   ├── auth.ts          # Login/logout
-│   │   ├── usuarios.ts      # Gestionar usuarios
-│   │   ├── trilhas.ts       # Rutas de aprendizaje
-│   │   ├── cms.ts           # Módulos, lecciones, cuestionarios
-│   │   ├── progreso.ts      # Seguimiento de progreso
-│   │   ├── certificates.ts  # Certificados
-│   │   ├── dashboard.ts     # Estadísticas
-│   │   └── notifications.ts # Notificaciones
+│   │   ├── auth.ts           # Login, verificacion de email
+│   │   ├── usuarios.ts       # CRUD usuarios (con paginacion)
+│   │   ├── cms.ts            # Modulos, aulas, quizzes (con paginacion)
+│   │   ├── certificates.ts   # Certificados (con paginacion)
+│   │   ├── notifications.ts  # Notificaciones
+│   │   ├── progresso.ts      # Progreso de aprendizaje
+│   │   ├── dashboard.ts      # Dashboard y estadisticas
+│   │   └── docs.ts           # Documentacion API
 │   ├── services/
-│   │   └── email.ts         # Envío de correos SMTP
+│   │   ├── email.ts          # Envio de correos SMTP
+│   │   └── gamification.ts   # Sistema de XP y niveles
 │   └── utils/
-│       └── queryParams.ts   # Utilitarios de parámetros
+│       └── queryParams.ts    # Utilitarios de parametros
 │
 ├── src/                      # Frontend React
 │   ├── App.tsx              # Router principal
-│   ├── pages/
+│   ├── main.tsx             # Entry point
+│   ├── index.css            # Estilos globales
+│   ├── pages/               # Paginas de la aplicacion
 │   │   ├── LoginPage.tsx
 │   │   ├── DashboardPage.tsx
-│   │   ├── TrilhasPage.tsx
+│   │   ├── ModulosListPage.tsx
 │   │   ├── ModulosPage.tsx
 │   │   ├── CertificadosPage.tsx
-│   │   └── ...
-│   ├── components/          # Componentes React
+│   │   ├── EquipePage.tsx
+│   │   ├── RelatoriosPage.tsx
+│   │   ├── CMSPage.tsx
+│   │   ├── CriarModuloPage.tsx
+│   │   ├── UsuariosPage.tsx
+│   │   ├── NotifPage.tsx
+│   │   ├── PerfilPage.tsx
+│   │   └── VerificarEmailPage.tsx
+│   ├── components/
+│   │   ├── ProtectedRoute.tsx
+│   │   ├── VideoPlayer.tsx
+│   │   ├── VideoPreview.tsx
+│   │   ├── PDFViewer.tsx
+│   │   ├── AIPanel.tsx
+│   │   └── ui/              # Componentes UI (shadcn/ui)
 │   ├── hooks/
-│   │   └── useAuth.ts      # Hook personalizado de autenticación
-│   └── types/              # Interfaces TypeScript
+│   │   ├── useAuth.ts       # Hook de autenticacion
+│   │   ├── useSync.ts       # Hook de sincronizacion
+│   │   └── use-toast.ts     # Hook de notificaciones
+│   ├── lib/
+│   │   ├── api.ts           # Cliente API con cache offline
+│   │   ├── db.ts            # Dexie.js (IndexedDB)
+│   │   ├── sync.ts          # Cola de sincronizacion offline
+│   │   ├── crypto.ts        # Encriptacion (cliente - Web Crypto)
+│   │   └── utils.ts         # Utilitarios
+│   ├── layouts/
+│   │   └── AppLayout.tsx    # Layout principal
+│   └── data/
+│       └── constants.ts     # Constantes (roles, personas)
 │
 ├── prisma/
-│   ├── schema.prisma       # Definición del esquema
-│   ├── migrations/         # Migraciones de bases de datos
-│   └── seed.ts            # Script de inicialización
+│   ├── schema.prisma        # Definicion del esquema
+│   ├── migrations/          # Migraciones de base de datos
+│   ├── seed.ts              # Script de inicializacion
+│   └── prisma.config.ts     # Configuracion de Prisma
 │
-├── scripts/
-│   └── test-crud.ts       # Pruebas CRUD
-│
-├── public/                # Activos estáticos
-├── styles/                # CSS global
-└── package.json
+├── public/                  # Activos estaticos
+├── styles/                  # CSS global
+├── .env                     # Variables de entorno (NO commitear)
+├── .env.production.example  # Ejemplo de variables para produccion
+├── .gitignore               # Archivos ignorados por git
+├── .htaccess                # Seguridad Apache (cPanel)
+├── vite.config.ts           # Configuracion Vite
+├── tsconfig.json            # TypeScript config (frontend)
+├── tsconfig.server.json     # TypeScript config (backend)
+├── package.json             # Dependencias
+└── pnpm-lock.yaml           # Lock file
 ```
 
 ---
 
-## ⚙️ Configuración
+## Configuracion
 
 ### Variables de Entorno
 
-```bash
-# Base de datos
-DATABASE_URL="postgres://user:pass@host:5432/dbname"
+Cree un archivo `.env` basado en `.env.production.example`:
 
-# Email (SMTP)
+```bash
+# ═══════════════════════════════════════════════════════════
+# Base de datos (PostgreSQL)
+# ═══════════════════════════════════════════════════════════
+DATABASE_URL="postgres://user:password@host:5432/dbname"
+
+# ═══════════════════════════════════════════════════════════
+# Seguridad (OBLIGATORIO - sin fallbacks)
+# ═══════════════════════════════════════════════════════════
+# Generar claves fuertes:
+#   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+JWT_SECRET="tu-clave-jwt-secreta"
+ENCRYPTION_KEY="tu-clave-encriptacion"
+
+# ═══════════════════════════════════════════════════════════
+# CORS (dominios permitidos, separados por coma)
+# ═══════════════════════════════════════════════════════════
+ALLOWED_ORIGINS="https://academia.paygas.com.br,http://localhost:5173"
+
+# ═══════════════════════════════════════════════════════════
+# Frontend (inyectadas via Vite)
+# ═══════════════════════════════════════════════════════════
+VITE_API_BASE_URL="/api"
+VITE_API_KEY="tu-api-key"
+VITE_ENCRYPTION_KEY="misma-que-ENCRYPTION_KEY"
+
+# ═══════════════════════════════════════════════════════════
+# Email (SMTP) - opcional
+# ═══════════════════════════════════════════════════════════
 SMTP_HOST="smtp.example.com"
 SMTP_PORT="465"
 SMTP_USER="user@example.com"
 SMTP_PASS="password"
-SMTP_FROM="noreply@example.com"
+SMTP_FROM="Academia PayGas <noreply@example.com>"
 SMTP_SECURE="true"
 
-# Autenticación
-JWT_SECRET="your-secret-key"
-ENCRYPTION_KEY="your-encryption-key"
+# ═══════════════════════════════════════════════════════════
+# Aplicacion
+# ═══════════════════════════════════════════════════════════
+APP_URL="https://academia.paygas.com.br"
+PORT=3001
+```
 
-# API
-API_BASE_URL="https://api.example.com"
-API_KEY="your-api-key"
+### Generar Claves Seguras
 
-# Frontend
-VITE_API_BASE_URL="https://api.example.com"
-VITE_API_KEY="your-api-key"
+```bash
+# Generar JWT_SECRET
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+
+# Generar ENCRYPTION_KEY
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 ```
 
 ### Configurar Base de Datos
 
 ```bash
-# Crear tablas desde el esquema
+# Generar cliente Prisma
+npx prisma generate
+
+# Ejecutar migraciones
 npx prisma migrate deploy
 
 # Ver datos con Prisma Studio
 npx prisma studio
 
 # Reset y seed (solo desarrollo)
-npm run db:reset
+pnpm db:reset
 ```
 
 ---
 
-## 🔌 API Endpoints
+## Seguridad
 
-### Autenticación
-```
-POST   /api/auth/login       # Login
-GET    /api/auth/me          # Usuario actual
-```
+### Medidas Implementadas
+
+| Medida | Estado | Descripcion |
+|--------|--------|-------------|
+| Helmet | ✅ | Headers de seguridad HTTP |
+| CORS | ✅ | Whitelist de dominios configurada |
+| Rate Limiting | ✅ | 200 req/15min global, 10 req/15min auth |
+| JWT | ✅ | Sin fallback hardcoded, expira 24h |
+| Encriptacion | ✅ | AES-256-GCM con PBKDF2 (100k iteraciones) |
+| Bcrypt | ✅ | Salt rounds: 12 |
+| SQL Injection | ✅ | Prisma ORM (parametros automaticos) |
+| Error Handling | ✅ | Sin detalles de error al cliente |
+| Paginacion | ✅ | Endpoints de listado limitados |
+
+### Seguridad en Produccion
+
+1. **NUNCA** commitee el archivo `.env`
+2. Use claves generadas con `crypto.randomBytes(32)`
+3. Configure `ALLOWED_ORIGINS` solo con dominios de produccion
+4. Habilitar HTTPS obligatorio
+5. Configurar `SMTP_SECURE="true"` para TLS
+
+---
+
+## API Endpoints
+
+### Autenticacion
+
+| Metodo | Ruta | Descripcion | Rol |
+|--------|------|-------------|-----|
+| POST | `/api/auth/login` | Iniciar sesion | Publico |
+| GET | `/api/auth/me` | Obtener usuario actual | Autenticado |
+| GET | `/api/auth/verify-email?token=xxx` | Verificar email | Publico |
 
 ### Usuarios
-```
-GET    /api/usuarios                    # Listar usuarios
-POST   /api/usuarios                    # Crear usuario
-PUT    /api/usuarios/:id                # Actualizar usuario
-DELETE /api/usuarios/:id                # Eliminar usuario
-GET    /api/usuarios/equipe             # Miembros del equipo
-```
 
-### Rutas de Aprendizaje
-```
-GET    /api/trilhas                     # Listar rutas
-POST   /api/trilhas                     # Crear ruta
-PUT    /api/trilhas/:id                 # Actualizar ruta
-DELETE /api/trilhas/:id                 # Eliminar ruta
-GET    /api/trilhas/:id/modulos         # Módulos de una ruta
-```
+| Metodo | Ruta | Descripcion | Rol |
+|--------|------|-------------|-----|
+| GET | `/api/usuarios` | Listar usuarios (paginado) | Admin/Gestor |
+| POST | `/api/usuarios` | Crear usuario | Admin/Gestor |
+| PUT | `/api/usuarios/:id` | Actualizar usuario | Admin |
+| DELETE | `/api/usuarios/:id` | Eliminar usuario | Admin |
+| GET | `/api/usuarios/equipe` | Obtener equipo | Admin/Gestor |
+| POST | `/api/usuarios/:id/validate-account` | Validar cuenta | Admin/Gestor |
+| POST | `/api/usuarios/:id/resend-verification` | Reenviar verificacion | Admin/Gestor |
 
-### Módulos y Lecciones
-```
-POST   /api/cms                         # Crear módulo
-PUT    /api/cms/:id                     # Actualizar módulo
-DELETE /api/cms/:id                     # Eliminar módulo
-GET    /api/cms/:id/aulas               # Lecciones de un módulo
-POST   /api/cms/:id/aulas               # Crear lección
-PUT    /api/cms/aulas/:id               # Actualizar lección
-DELETE /api/cms/aulas/:id               # Eliminar lección
-```
+### Modulos y Aulas
 
-### Cuestionarios
-```
-POST   /api/cms/:moduloId/quiz          # Crear cuestionario
-GET    /api/cms/:moduloId/quiz/:aulaId  # Obtener cuestionario
-PUT    /api/cms/quiz/:quizId            # Actualizar cuestionario
-DELETE /api/cms/quiz/:quizId            # Eliminar cuestionario
-POST   /api/cms/quiz/:quizId/perguntas  # Agregar pregunta
-PUT    /api/cms/perguntas/:id           # Actualizar pregunta
-POST   /api/cms/quiz/:quizId/responder  # Enviar respuestas
-```
+| Metodo | Ruta | Descripcion | Rol |
+|--------|------|-------------|-----|
+| GET | `/api/cms` | Listar modulos (paginado) | Admin/Gestor |
+| POST | `/api/cms` | Crear modulo | Admin |
+| PUT | `/api/cms/:id` | Actualizar modulo | Admin |
+| DELETE | `/api/cms/:id` | Eliminar modulo | Admin |
+| GET | `/api/modulos/:id/aulas` | Obtener aulas | Autenticado |
+| POST | `/api/modulos/:id/aulas` | Crear aula | Admin |
+| PUT | `/api/modulos/aulas/:id` | Actualizar aula | Admin |
+| DELETE | `/api/modulos/aulas/:id` | Eliminar aula | Admin |
+
+### Quizzes
+
+| Metodo | Ruta | Descripcion | Rol |
+|--------|------|-------------|-----|
+| POST | `/api/modulos/:moduloId/quiz` | Crear quiz | Admin |
+| GET | `/api/modulos/:moduloId/quiz/:aulaId` | Obtener quiz | Autenticado |
+| PUT | `/api/modulos/quiz/:quizId` | Actualizar quiz | Admin |
+| DELETE | `/api/modulos/quiz/:quizId` | Eliminar quiz | Admin |
+| POST | `/api/modulos/quiz/:quizId/perguntas` | Agregar pregunta | Admin |
+| PUT | `/api/modulos/perguntas/:perguntaId` | Actualizar pregunta | Admin |
+| DELETE | `/api/modulos/perguntas/:perguntaId` | Eliminar pregunta | Admin |
+| POST | `/api/modulos/quiz/:quizId/responder` | Enviar respuestas | Autenticado |
+| GET | `/api/modulos/quiz/:quizId/resultados` | Ver resultados | Autenticado |
 
 ### Progreso
-```
-GET    /api/progreso                    # Progreso del usuario
-PUT    /api/progreso                    # Actualizar progreso
-GET    /api/progreso/stats              # Estadísticas
-```
+
+| Metodo | Ruta | Descripcion | Rol |
+|--------|------|-------------|-----|
+| GET | `/api/progresso` | Obtener progreso | Autenticado |
+| PUT | `/api/progresso` | Actualizar progreso | Autenticado |
+| GET | `/api/progresso/stats` | Estadisticas | Autenticado |
 
 ### Certificados
+
+| Metodo | Ruta | Descripcion | Rol |
+|--------|------|-------------|-----|
+| GET | `/api/certificates` | Listar certificados (paginado) | Autenticado |
+| POST | `/api/certificates` | Solicitar certificado | Autenticado |
+| PUT | `/api/certificates/:id/approve` | Aprobar certificado | Admin |
+| PUT | `/api/certificates/:id/issue` | Emitir certificado | Admin |
+
+### Notificaciones
+
+| Metodo | Ruta | Descripcion | Rol |
+|--------|------|-------------|-----|
+| GET | `/api/notifications` | Listar notificaciones | Autenticado |
+| POST | `/api/notifications` | Crear notificacion | Admin/Gestor |
+| PUT | `/api/notifications/:id/read` | Marcar como leida | Autenticado (propietario) |
+| PUT | `/api/notifications/read-all` | Marcar todas como leidas | Autenticado |
+
+### Dashboard y Gamificacion
+
+| Metodo | Ruta | Descripcion | Rol |
+|--------|------|-------------|-----|
+| GET | `/api/dashboard` | Datos del dashboard | Autenticado |
+| GET | `/api/dashboard/leaderboard` | Leaderboard del equipo | Autenticado |
+| POST | `/api/modulos/:id/open` | Registrar apertura | Autenticado |
+| GET | `/api/modulos/gamification/leaderboard` | Top 20 usuarios | Autenticado |
+| GET | `/api/modulos/gamification/stats` | Estadisticas globales | Autenticado |
+
+### Sistema
+
+| Metodo | Ruta | Descripcion | Rol |
+|--------|------|-------------|-----|
+| GET | `/api/health` | Health check | Publico |
+| GET | `/api/docs` | Documentacion JSON | Publico |
+| GET | `/api/docs/json` | Spec OpenAPI | Publico |
+| GET | `/api/docs/html` | Documentacion HTML | Publico |
+
+### Paginacion
+
+Los endpoints de listado soportan paginacion via query params:
+
 ```
-GET    /api/certificates                # Listar certificados
-POST   /api/certificates                # Solicitar certificado
-PUT    /api/certificates/:id/approve    # Aprobar certificado
-PUT    /api/certificates/:id/issue      # Emitir certificado
+GET /api/usuarios?page=1&limit=20
+GET /api/cms?page=2&limit=10
+GET /api/certificates?page=1&limit=50
 ```
 
-### Dashboard e Informes
-```
-GET    /api/dashboard                   # Estadísticas del dashboard
-GET    /api/notifications               # Notificaciones
+Respuesta:
+```json
+{
+  "data": [...],
+  "pagination": {
+    "page": 1,
+    "limit": 20,
+    "total": 100,
+    "totalPages": 5
+  }
+}
 ```
 
 ---
 
-## ✨ Funcionalidades Principales
+## Funcionalidades Principales
 
-### 1. Sistema de Rutas (Learning Paths)
+### 1. Sistema de Modulos
 
-**8 Rutas Disponibles:**
-1. **Excelencia en el Servicio al Cliente** ✅ Obligatoria
-2. **Sistema Cashback PayGas** ✅ Obligatoria
-3. **Operación del Terminal** ✅ Obligatoria
-4. **Integración vía API** ✅ Obligatoria
-5. **LGPD y Seguridad de Datos** ✅ Obligatoria
-6. **Gestión y KPIs de la Estación** 
-7. **Liderazgo y Desarrollo del Equipo**
-8. **Gestión Financiera de la Estación**
+Estructura jerarquica de contenido:
 
-Cada ruta contiene múltiples módulos, y cada módulo contiene múltiples lecciones.
+```
+Modulo
+  ├── Aula #1 (Video YouTube con marcas de tiempo)
+  │    └── Quiz (Opcional)
+  ├── Aula #2
+  │    └── Quiz
+  └── Aula #N
+```
 
 ### 2. Contenido Multimedia
-- **Vídeos YouTube** - Embeds con marcas de tiempo
-- **PDFs** - Documentos para descargar
+
+- **Videos YouTube** - Embeds con marcas de tiempo (inicio/fin)
+- **PDFs** - Documentos para visualizar
 - **Textos** - Contenido formateado
-- **Marcas de tiempo** - Inicio y fin de vídeos
 
-### 3. Cuestionarios y Certificación
-- **Preguntas de opción múltiple** (A, B, C, D)
-- **Calificaciones automáticas** (0-10)
-- **Puntuación mínima**: 7.0 para aprobación
-- **Certificación automática** (opcional)
-- **Emisión de diplomas** en PDF/HTML
+### 3. Cuestionarios y Certificacion
 
-### 4. Gamificación
-```
-Cálculo de XP del Usuario:
-  Base = 150 XP por lección completada
-       + 500 XP por certificado
-```
+- Preguntas de opcion multiple (A, B, C, D)
+- Calificacion automatica (0-10)
+- Puntuacion minima: 7 para aprobacion
+- Certificacion automatica (configurable por quiz)
+- Estados: PENDING → APPROVED → ISSUED
 
-| Perfil | XP Inicial |
-|--------|-----------|
-| Admin  | 8.500 |
-| Gestor | 4.100 |
-| Atendente | 2.400 |
+### 4. Gamificacion
 
-**Logros Desbloqueables:**
-- 🏆 Primera Lección
-- 🔥 Maratonista (5 lecciones en 1 día)
-- 📜 Certificador (1 certificado)
-- 🌟 Trilhero (3 rutas)
-- 🎯 Experto (10 en 3 cuestionarios)
-- 👑 Ranker (Top 10 nacional)
+| Accion | XP |
+|--------|-----|
+| Login diario | +10 |
+| Abrir modulo | +20 |
+| Completar aula | +50 |
+| Completar modulo | +150 |
+| Respuesta correcta | +30 |
+| Aprobar quiz | +100 |
+| Obtener certificado | +500 |
 
-### 5. Autenticación y Autorización
+Nivel = `Math.floor(xp / 2000) + 1`
 
-**Roles:**
-- **ADMIN** - Acceso total (gestión de usuarios, contenido, informes)
-- **GESTOR** - Gestiona su equipo de atendentes (gestión de equipo, informes)
-- **ATENDENTE** - Estudia rutas (acceso al aprendizaje)
+### 5. Soporte Offline
 
-**Middleware JWT:**
-```typescript
-authenticate() - Valida token JWT
-authorize('ADMIN', 'GESTOR') - Verifica permisos
-```
+- Cache local con Dexie.js (IndexedDB)
+- Cola de sincronizacion para operaciones offline
+- Auto-sync cada 30 segundos cuando hay conexion
+- Maximo 5 reintentos por item
 
-### 6. Email y Notificaciones
+### 6. Autenticacion y Autorizacion
 
-**Eventos que disparan correos:**
-- ✉️ Bienvenida (nuevo usuario)
-- 🎓 Certificado emitido
-- 📬 Notificaciones personalizadas
-
-Implementado con **Nodemailer** + SMTP corporativo.
+| Rol | Permisos |
+|-----|----------|
+| ADMIN | Acceso total (CRUD usuarios, contenido, CMS) |
+| GESTOR | Gestionar equipo, ver reportes |
+| ATENDENTE | Ver modulos, completar aulas, quizzes |
 
 ---
 
-## 💻 Desarrollo
+## Desarrollo
 
 ### Comandos Principales
 
 ```bash
-# Iniciar en modo desarrollo
-pnpm dev
+# Desarrollo
+pnpm dev                    # Servidor + cliente
+pnpm dev:server             # Solo servidor
+pnpm dev:client             # Solo cliente
 
-# Solo servidor backend
-pnpm dev:server
+# Build
+pnpm build                  # Build completo
+pnpm build:server           # Solo servidor
+pnpm build:client           # Solo cliente
 
-# Solo cliente frontend
-pnpm dev:client
+# Base de datos
+pnpm db:generate            # Generar cliente Prisma
+pnpm db:migrate             # Ejecutar migraciones
+pnpm db:seed                # Poblar base de datos
+pnpm db:reset               # Reset + seed
+pnpm db:push                # Push schema sin migracion
 
-# Build para producción
-pnpm build
+# Codigo
+pnpm lint                   # Ejecutar ESLint
+npx tsc --noEmit            # Type checking
 
-# Linting
-pnpm lint
+# Produccion
+pnpm start                  # Iniciar servidor
+pnpm start:prod             # Iniciar con NODE_ENV=production
 
-# Type checking
-npx tsc --noEmit
-
-# Pruebas CRUD
-npx tsx scripts/test-crud.ts
+# cPanel
+pnpm cpanel:build           # Build para cPanel
 ```
 
-### Estructura de Código
+### Estructura de Codigo
 
 **Patrones:**
-- ✅ TypeScript strict mode
-- ✅ Componentes funcionales React con hooks
-- ✅ Manejo explícito de errores
-- ✅ Validación con Zod
-- ✅ Respuestas JSON estandarizadas
+- TypeScript strict mode (frontend)
+- Componentes funcionales React con hooks
+- Manejo explicito de errores
+- Respuestas JSON estandarizadas
+- Encriptacion de payloads sensibles
 
 ---
 
-## 🧪 Testing
+## Deployment
 
-### Ejecutar Pruebas CRUD
-
-```bash
-npx tsx scripts/test-crud.ts
-```
-
-**Lo que se prueba:**
-✅ CREATE - Crear usuarios, rutas, módulos, lecciones, cuestionarios  
-✅ READ - Buscar registros en la base de datos  
-✅ UPDATE - Actualizar datos  
-✅ DELETE - Eliminar registros  
-✅ RELATIONSHIPS - Relaciones entre tablas  
-
----
-
-## 📊 Esquema de Datos
-
-### Modelos Principales
-
-```prisma
-User (Usuario)
-Trilha (Ruta de Aprendizaje)
-Modulo (Módulo)
-Aula (Lección)
-Quiz (Cuestionario)
-QuizPergunta (Pregunta del Cuestionario)
-QuizResponse (Respuesta del Usuario)
-Progresso (Progreso)
-Certificate (Certificado)
-Notification (Notificación)
-ActivityLog (Registro de Actividad)
-```
-
-Total de **13 modelos** relacionados para gestionar todo el sistema de aprendizaje corporativo.
-
----
-
-## 🚀 Deployment
-
-### Producción
+### Produccion (cPanel)
 
 ```bash
 # Build
-pnpm build
+pnpm cpanel:build
 
-# Iniciar servidor
-node dist/server.js
+# Subir archivos via FTP/SFTP
+# - dist/ (frontend)
+# - server-build/ (backend compilado)
+# - node_modules/
+# - package.json
+# - .htaccess
+# - .env (con credenciales de produccion)
+
+# En cPanel:
+# 1. Configurar Node.js App (version 22+)
+# 2. Entry point: server-build/index.js
+# 3. Variables de entorno en el panel
 ```
 
-### Variables de Entorno (Producción)
+### Produccion (Vercel)
 
 ```bash
-NODE_ENV=production
-DATABASE_URL=...
-JWT_SECRET=... (use generadores fuertes)
-ENCRYPTION_KEY=... (use AES-256-GCM)
-SMTP_* = ... (sus datos SMTP)
+# Configurar variables de entorno en Vercel Dashboard
+# El deploy es automatico via git push
 ```
 
-### Consideraciones de Seguridad
+### Variables de Entorno (Produccion)
 
-✅ HTTPS obligatorio  
-✅ JWT con expiración  
-✅ Contraseñas con bcrypt (10+ rounds)  
-✅ Payloads cifrados en tránsito  
-✅ CORS configurado  
-✅ Protección contra inyección SQL (Prisma)  
-
----
-
-## 📚 Documentación Adicional
-
-- **[Agents](./agents.md)** - Sistema de agentes
-- **[Changelog](./CHANGELOG.md)** - Historial de cambios
+| Variable | Obligatoria | Descripcion |
+|----------|-------------|-------------|
+| `DATABASE_URL` | Si | Conexion PostgreSQL |
+| `JWT_SECRET` | Si | Clave JWT (generar con crypto) |
+| `ENCRYPTION_KEY` | Si | Clave encriptacion (generar con crypto) |
+| `VITE_ENCRYPTION_KEY` | Si | Misma que ENCRYPTION_KEY |
+| `ALLOWED_ORIGINS` | Si | Dominios CORS |
+| `SMTP_*` | No | Configuracion email |
+| `APP_URL` | No | URL de la aplicacion |
+| `PORT` | No | Puerto (default: 3001) |
 
 ---
 
-## 🤝 Soporte y Contribución
+## Documentacion Adicional
+
+- **[Agents](./agents.md)** - Arquitectura de agentes y diagramas de flujo
+- **[Design](./design.md)** - Documento de diseno
+- **[Deploy](./DEPLOY-CPANEL.md)** - Guia de deploy en cPanel
+
+---
+
+## Soporte y Contribucion
 
 **Reportar Problemas**: [GitHub Issues](https://github.com/Dev-OlaMulticom/academia-paygas/issues)
 
-**Pull Requests**: ¡Bienvenidos! Por favor:
+**Pull Requests**: Bienvenidos!
 1. Cree rama feature (`git checkout -b feature/AmazingFeature`)
 2. Commit sus cambios (`git commit -m 'Add AmazingFeature'`)
 3. Push a la rama (`git push origin feature/AmazingFeature`)
@@ -481,20 +605,20 @@ SMTP_* = ... (sus datos SMTP)
 
 ---
 
-## 📝 Licencia
+## Licencia
 
-Propiedad de OlaMulticom. Solo para uso interno.
-
----
-
-## 📞 Contacto
-
-**Email Admin**: 24hwww@gmail.com  
-**Proyecto**: Academia PayGas  
-**Estado**: 🟢 En Producción  
+Propiedad de PayGas. Solo para uso interno.
 
 ---
 
-**Última actualización**: 2026-06-16  
-**Versión**: 0.1.0  
-**Mantenido por**: OlaMulticom & Copilot
+## Contacto
+
+**Email Admin**: 24hwww@gmail.com
+**Proyecto**: Academia PayGas
+**Estado**: En Produccion
+
+---
+
+**Ultima actualizacion**: 2026-06-18
+**Version**: 0.1.0
+**Auditado por**: Ingeniero de Software especialista
