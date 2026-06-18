@@ -24,8 +24,8 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 
   const loadUsuarios = async () => {
     try {
-      const data = await api.getUsuarios()
-      setUsuarios(data)
+      const result = await api.getUsuarios()
+      setUsuarios(result.data || result)
     } catch {
       setUsuarios([])
     } finally { setLoading(false) }
@@ -33,8 +33,9 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 
   const loadGestores = async () => {
     try {
-      const data = await api.getUsuarios()
-      setGestores(data.filter((u: any) => u.role === 'GESTOR'))
+      const result = await api.getUsuarios()
+      const all = result.data || result
+      setGestores(all.filter((u: any) => u.role === 'GESTOR'))
     } catch {
       setGestores([])
     }
@@ -45,7 +46,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
       alert('Preencha todos os campos!')
       return
     }
-    if (newUser.role === 'ATENDENTE' && !newUser.gestorId) {
+    if (newUser.role === 'ATENDENTE' && !isGestor && !newUser.gestorId) {
       alert('Selecione um Gestor de Posto para o atendente!')
       return
     }
@@ -54,8 +55,8 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
         nome: newUser.nome,
         email: newUser.email,
         senha: newUser.senha,
-        role: newUser.role,
-        gestorId: newUser.role === 'ATENDENTE' ? newUser.gestorId : undefined,
+        role: isGestor ? 'ATENDENTE' : newUser.role,
+        gestorId: isGestor ? user.id : (newUser.role === 'ATENDENTE' ? newUser.gestorId : undefined),
       })
       alert('Usuario criado com sucesso! Email de verificacao enviado.')
       setShowCreateModal(false)
@@ -84,9 +85,10 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Excluir este usuario?')) return
+    if (!confirm('Excluir este usuario? Todos os dados serao removidos.')) return
     try {
       await api.deleteUsuario(id)
+      alert('Usuario excluido!')
       loadUsuarios()
     } catch (err: any) {
       alert(err.message || 'Erro ao excluir')
@@ -115,8 +117,9 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
   }
 
   const getGestorName = (gestorId: string) => {
+    if (!gestorId) return '—'
     const gestor = gestores.find(g => g.id === gestorId)
-    return gestor?.nome || '—'
+    return gestor?.nome || 'Sem gestor'
   }
 
   const getPersonaIcon = (role: string) => {
@@ -131,7 +134,10 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
   return (
     <div className="page active">
       <div className="page-header">
-        <div className="page-title">Usuarios da Plataforma</div>
+        <div>
+          <div className="page-title">{isGestor ? 'Minha Equipe' : 'Usuarios da Plataforma'}</div>
+          <div className="page-subtitle">{isGestor ? 'Gerencie os atendentes da sua equipe' : 'Gerencie todos os usuarios do sistema'}</div>
+        </div>
         <button className="btn-primary" onClick={() => setShowCreateModal(true)}>+ Novo Usuario</button>
       </div>
       <div className="cards-grid">
@@ -202,20 +208,22 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
       {showCreateModal && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '24px', width: '400px', maxWidth: '90%' }}>
-            <h3 style={{ marginBottom: '16px' }}>Novo Usuario</h3>
+            <h3 style={{ marginBottom: '16px' }}>{isGestor ? 'Novo Atendente' : 'Novo Usuario'}</h3>
             <div className="form-field"><label className="form-label">Nome Completo</label><input className="form-input" value={newUser.nome} onChange={e => setNewUser({ ...newUser, nome: e.target.value })} /></div>
             <div className="form-field"><label className="form-label">E-mail</label><input className="form-input" type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} /></div>
             <div className="form-field"><label className="form-label">Senha</label><input className="form-input" type="password" value={newUser.senha} onChange={e => setNewUser({ ...newUser, senha: e.target.value })} /></div>
-            <div className="form-field">
-              <label className="form-label">Perfil</label>
-              <select className="form-select" value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value, gestorId: e.target.value !== 'ATENDENTE' ? '' : newUser.gestorId })}>
-                <option value="">— Selecione —</option>
-                {isAdmin && <option value="ADMIN">Administrador</option>}
-                <option value="GESTOR">Gestor de Posto</option>
-                <option value="ATENDENTE">Atendente/Frentista</option>
-              </select>
-            </div>
-            {newUser.role === 'ATENDENTE' && (
+            {!isGestor && (
+              <div className="form-field">
+                <label className="form-label">Perfil</label>
+                <select className="form-select" value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value, gestorId: e.target.value !== 'ATENDENTE' ? '' : newUser.gestorId })}>
+                  <option value="">— Selecione —</option>
+                  {isAdmin && <option value="ADMIN">Administrador</option>}
+                  <option value="GESTOR">Gestor de Posto</option>
+                  <option value="ATENDENTE">Atendente/Frentista</option>
+                </select>
+              </div>
+            )}
+            {(newUser.role === 'ATENDENTE' || isGestor) && !isGestor && (
               <div className="form-field">
                 <label className="form-label">Gestor de Posto</label>
                 <select className="form-select" value={newUser.gestorId} onChange={e => setNewUser({ ...newUser, gestorId: e.target.value })}>
@@ -224,6 +232,11 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
                     <option key={g.id} value={g.id}>{g.nome}</option>
                   ))}
                 </select>
+              </div>
+            )}
+            {isGestor && (
+              <div style={{ padding: '10px 12px', borderRadius: 'var(--radius)', background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: '13px', color: '#166534', marginBottom: '8px' }}>
+                O atendente sera automaticamente associado a sua equipe.
               </div>
             )}
             <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>

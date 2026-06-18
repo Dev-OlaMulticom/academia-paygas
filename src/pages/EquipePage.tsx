@@ -11,30 +11,24 @@ interface EquipePageProps {
 export function EquipePage({ user }: EquipePageProps) {
   const isAdmin = user?.role === 'ADMIN'
   const isGestor = user?.role === 'GESTOR'
-  const [teamData, setTeamData] = useState<any[]>([])
+  const [teamData, setTeamData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    loadEquipe()
-  }, [])
+  useEffect(() => { loadEquipe() }, [])
 
   const loadEquipe = async () => {
     try {
       const data = await api.getEquipe()
       setTeamData(data)
     } catch {
-      setTeamData([])
-    } finally {
-      setLoading(false)
-    }
+      setTeamData(isAdmin ? [] : [])
+    } finally { setLoading(false) }
   }
 
   if (loading) {
     return (
       <div className="page active">
-        <div className="page-header">
-          <div className="page-title">Carregando...</div>
-        </div>
+        <div className="page-header"><div className="page-title">Carregando...</div></div>
       </div>
     )
   }
@@ -46,7 +40,7 @@ export function EquipePage({ user }: EquipePageProps) {
       <tr key={i}>
         <td>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div className="user-avatar" style={{ width: '32px', height: '32px', fontSize: '11px', background: PERSONAS.ATENDENTE.color }}>
+            <div className="user-avatar" style={{ width: '32px', height: '32px', fontSize: '11px', background: PERSONAS.ATENDENTE?.color || '#8b5cf6' }}>
               {member.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
             </div>
             <div>
@@ -93,97 +87,90 @@ export function EquipePage({ user }: EquipePageProps) {
     </thead>
   )
 
+  // GESTOR view: flat array of members
   if (isGestor) {
+    const members = Array.isArray(teamData) ? teamData : []
     return (
       <div className="page active">
         <div className="page-header">
           <div>
             <div className="page-title">Minha Equipe</div>
-            <div className="page-subtitle">{teamData.length} atendente(s) atribuído(s)</div>
+            <div className="page-subtitle">{members.length} atendente(s) atribuido(s)</div>
           </div>
-          <button className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}><i className="icon-download icon-sm" /> Exportar CSV</button>
         </div>
-        {teamData.length > 0 ? (
+        {members.length > 0 ? (
           <div className="table-wrap">
             <table>
               {tableHeaders}
-              <tbody>{teamData.map(renderAtendenteRow)}</tbody>
+              <tbody>{members.map(renderAtendenteRow)}</tbody>
             </table>
           </div>
         ) : (
           <div className="empty-state">
             <div className="empty-icon">👥</div>
-            <p>Nenhum atendente atribuído a sua equipe.</p>
+            <p>Nenhum atendente atribuido a sua equipe.</p>
           </div>
         )}
       </div>
     )
   }
 
-  const gestoresMap = new Map<string, any>()
-  teamData.forEach((m: any) => {
-    if (m.role === 'GESTOR') gestoresMap.set(m.id, m)
-  })
-  const gestores = Array.from(gestoresMap.values())
-  const atendentesSemGestor = teamData.filter((m: any) => m.role === 'ATENDENTE' && !m.gestorId)
+  // ADMIN view: grouped by gestor
+  const teams = Array.isArray(teamData) ? teamData : []
+  const totalMembros = teams.reduce((sum: number, t: any) => sum + (t.totalMembros || 0), 0)
 
   return (
     <div className="page active">
       <div className="page-header">
         <div>
-          <div className="page-title">Minha Equipe</div>
-          <div className="page-subtitle">Acompanhe o progresso de cada colaborador</div>
+          <div className="page-title">Equipes</div>
+          <div className="page-subtitle">{teams.length} gestor(es) • {totalMembros} atendente(s) no total</div>
         </div>
-        <button className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }}><i className="icon-download icon-sm" /> Exportar CSV</button>
       </div>
 
-      {gestores.length === 0 && atendentesSemGestor.length === 0 ? (
+      {teams.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">👥</div>
-          <p>Nenhum membro na equipe.</p>
+          <p>Nenhuma equipe criada ainda.</p>
         </div>
       ) : (
-        <>
-          {gestores.map((gestor) => {
-            const atendentes = teamData.filter((m: any) => m.role === 'ATENDENTE' && m.gestorId === gestor.id)
-            if (atendentes.length === 0) return null
-            return (
-              <div key={gestor.id} style={{ marginBottom: '24px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                  <div className="user-avatar" style={{ background: PERSONAS.GESTOR.color }}>
-                    {gestor.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
-                  </div>
-                  <div>
-                    <b style={{ fontSize: '15px' }}>{gestor.nome}</b>
-                    <div style={{ fontSize: '12px', color: 'var(--gray-400)' }}>{gestor.email}</div>
-                  </div>
-                  <span className="track-badge badge-progress" style={{ fontSize: '11px' }}>{atendentes.length} atendentes</span>
-                </div>
-                <div className="table-wrap">
-                  <table>
-                    {tableHeaders}
-                    <tbody>{atendentes.map(renderAtendenteRow)}</tbody>
-                  </table>
-                </div>
+        teams.map((team: any, idx: number) => (
+          <div key={team.gestor.id} style={{ marginBottom: '32px' }}>
+            <div style={{
+              display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px',
+              padding: '12px 16px', borderRadius: 'var(--radius)',
+              background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+              border: '1px solid #f59e0b',
+            }}>
+              <div className="user-avatar" style={{ background: PERSONAS.GESTOR?.color || '#f59e0b', width: '36px', height: '36px', fontSize: '12px' }}>
+                {team.gestor.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
               </div>
-            )
-          })}
-
-          {atendentesSemGestor.length > 0 && (
-            <div style={{ marginBottom: '24px' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
-                <span style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gray-500)' }}>Sem Gestor Atribuído</span>
-                <span className="track-badge badge-gray" style={{ fontSize: '11px' }}>{atendentesSemGestor.length} atendentes</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: '15px' }}>{team.gestor.nome}</div>
+                <div style={{ fontSize: '12px', color: '#92400e' }}>{team.gestor.email}</div>
               </div>
+              <span style={{
+                padding: '4px 12px', borderRadius: '16px',
+                background: '#f59e0b', color: '#fff',
+                fontSize: '12px', fontWeight: 700,
+              }}>
+                {team.totalMembros} atendente(s)
+              </span>
+            </div>
+            {team.membros.length > 0 ? (
               <div className="table-wrap">
                 <table>
                   {tableHeaders}
-                  <tbody>{atendentesSemGestor.map(renderAtendenteRow)}</tbody>
+                  <tbody>{team.membros.map(renderAtendenteRow)}</tbody>
                 </table>
               </div>
-            </div>
-          )}
-        </>
+            ) : (
+              <div style={{ padding: '16px', color: 'var(--gray-400)', fontSize: '13px', textAlign: 'center' }}>
+                Nenhum atendente nesta equipe
+              </div>
+            )}
+          </div>
+        ))
       )}
     </div>
   )
