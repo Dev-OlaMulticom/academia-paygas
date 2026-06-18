@@ -39,8 +39,22 @@ app.use('/api/progresso', progressoRoutes)
 app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/docs', docsRoutes)
 
-app.get('/api/health', (_req, res) => {
-  res.json({ status: 'ok', encrypted: true, timestamp: new Date().toISOString() })
+app.get('/api/health', async (_req, res) => {
+  const checks: Record<string, string> = { status: 'ok' }
+  try {
+    const { prisma } = await import('./lib/prisma')
+    await prisma.$queryRaw`SELECT 1`
+    checks.database = 'connected'
+  } catch (e: any) {
+    checks.database = 'disconnected'
+    checks.dbError = String(e?.message || e)
+  }
+  checks.hasJwtSecret = String(!!process.env.JWT_SECRET)
+  checks.hasEncryptionKey = String(!!process.env.ENCRYPTION_KEY)
+  checks.hasDatabaseUrl = String(!!process.env.DATABASE_URL)
+  checks.nodeEnv = process.env.NODE_ENV || 'undefined'
+  checks.timestamp = new Date().toISOString()
+  res.json(checks)
 })
 
 // Only start listening when run directly (not when imported by Passenger or test)
