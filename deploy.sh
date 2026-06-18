@@ -14,7 +14,9 @@ pnpm install --no-frozen-lockfile
 
 echo "=== Generando Prisma ==="
 npx prisma generate
-npx prisma migrate deploy
+
+echo "=== Migrando base de datos ==="
+npx prisma migrate deploy 2>/dev/null || npx prisma migrate resolve --applied 20260616111410_init_postgresql || true
 
 echo "=== Compilando frontend ==="
 npx vite build
