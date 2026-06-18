@@ -25,6 +25,7 @@ router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequ
         where,
         include: {
           _count: { select: { progressos: true, certificates: true } },
+          gestor: { select: { id: true, nome: true } },
         },
         orderBy: { nome: 'asc' },
         skip,
@@ -42,6 +43,7 @@ router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequ
       createdAt: u.createdAt,
       lastLogin: u.lastLogin,
       gestorId: u.gestorId,
+      gestorNome: u.gestor?.nome || null,
       xp: u._count.progressos * 150 + u._count.certificates * 500,
       progressCount: u._count.progressos,
       certCount: u._count.certificates,
@@ -64,7 +66,7 @@ router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequ
 // POST /api/usuarios
 router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
   try {
-    const { email, nome, senha, role } = req.body
+    const { email, nome, senha, role, gestorId } = req.body
     if (!email || !nome || !senha || !role) {
       return res.status(400).json({ error: 'Todos os campos são obrigatórios' })
     }
@@ -88,6 +90,16 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
       return res.status(400).json({ error: 'Senha deve ter pelo menos 8 caracteres' })
     }
 
+    // Determine gestorId: GESTOR auto-assigns themselves, ADMIN can specify
+    let finalGestorId: string | undefined
+    if (role === 'ATENDENTE') {
+      if (req.userRole === 'GESTOR') {
+        finalGestorId = req.userId
+      } else if (gestorId) {
+        finalGestorId = gestorId
+      }
+    }
+
     const hashedPassword = await bcrypt.hash(senha, 12)
     const verificationToken = crypto.randomBytes(32).toString('hex')
     const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
@@ -98,7 +110,7 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
         nome,
         senha: hashedPassword,
         role: role as Role,
-        gestorId: req.userRole === 'GESTOR' ? req.userId : undefined,
+        gestorId: finalGestorId,
         tokenVerificacao: verificationToken,
         tokenExpiry: tokenExpiry,
       },
@@ -127,12 +139,12 @@ router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
     if (nome) updateData.nome = nome
     if (email) updateData.email = email
     if (role) updateData.role = role as Role
-    if (gestorId) updateData.gestorId = gestorId
+    if (gestorId !== undefined) updateData.gestorId = gestorId || null
     
     const user = await prisma.user.update({
       where: { id },
       data: updateData,
-      select: { id: true, email: true, nome: true, role: true },
+      select: { id: true, email: true, nome: true, role: true, gestorId: true },
     })
     res.json(user)
   } catch (error) {

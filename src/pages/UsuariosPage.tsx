@@ -11,15 +11,16 @@ interface UsuariosPageProps {
 export function UsuariosPage({ user }: UsuariosPageProps) {
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
-  const [newUser, setNewUser] = useState({ nome: '', email: '', senha: '', role: '' })
+  const [newUser, setNewUser] = useState({ nome: '', email: '', senha: '', role: '', gestorId: '' })
   const [usuarios, setUsuarios] = useState<any[]>([])
+  const [gestores, setGestores] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
 
   const isAdmin = user?.role === 'ADMIN'
   const isGestor = user?.role === 'GESTOR'
   const canValidate = isAdmin || isGestor
 
-  useEffect(() => { loadUsuarios() }, [])
+  useEffect(() => { loadUsuarios(); loadGestores() }, [])
 
   const loadUsuarios = async () => {
     try {
@@ -30,16 +31,35 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
     } finally { setLoading(false) }
   }
 
+  const loadGestores = async () => {
+    try {
+      const data = await api.getUsuarios()
+      setGestores(data.filter((u: any) => u.role === 'GESTOR'))
+    } catch {
+      setGestores([])
+    }
+  }
+
   const handleCreate = async () => {
     if (!newUser.nome || !newUser.email || !newUser.senha || !newUser.role) {
       alert('Preencha todos os campos!')
       return
     }
+    if (newUser.role === 'ATENDENTE' && !newUser.gestorId) {
+      alert('Selecione um Gestor de Posto para o atendente!')
+      return
+    }
     try {
-      await api.createUsuario(newUser)
+      await api.createUsuario({
+        nome: newUser.nome,
+        email: newUser.email,
+        senha: newUser.senha,
+        role: newUser.role,
+        gestorId: newUser.role === 'ATENDENTE' ? newUser.gestorId : undefined,
+      })
       alert('Usuario criado com sucesso! Email de verificacao enviado.')
       setShowCreateModal(false)
-      setNewUser({ nome: '', email: '', senha: '', role: '' })
+      setNewUser({ nome: '', email: '', senha: '', role: '', gestorId: '' })
       loadUsuarios()
     } catch (err: any) {
       alert(err.message || 'Erro ao criar usuario')
@@ -49,7 +69,12 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
   const handleEdit = async () => {
     if (!editingUser) return
     try {
-      await api.updateUsuario(editingUser.id, { nome: editingUser.nome, email: editingUser.email, role: editingUser.role })
+      await api.updateUsuario(editingUser.id, {
+        nome: editingUser.nome,
+        email: editingUser.email,
+        role: editingUser.role,
+        gestorId: editingUser.role === 'ATENDENTE' ? editingUser.gestorId : null,
+      })
       alert('Usuario atualizado!')
       setEditingUser(null)
       loadUsuarios()
@@ -89,6 +114,11 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
     }
   }
 
+  const getGestorName = (gestorId: string) => {
+    const gestor = gestores.find(g => g.id === gestorId)
+    return gestor?.nome || '—'
+  }
+
   const getPersonaIcon = (role: string) => {
     switch (role) {
       case 'ADMIN': return <i className="icon-globe icon-sm" />
@@ -113,7 +143,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
         <table>
           <thead>
             <tr>
-              <th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th>XP</th><th>Ultimo Acesso</th><th>Acoes</th>
+              <th>Nome</th><th>E-mail</th><th>Perfil</th><th>Gestor</th><th>Status</th><th>XP</th><th>Ultimo Acesso</th><th>Acoes</th>
             </tr>
           </thead>
           <tbody>
@@ -130,6 +160,9 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
                   </td>
                   <td style={{ color: 'var(--gray-500)' }}>{u.email}</td>
                   <td><span className="track-badge badge-new" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{getPersonaIcon(u.role)} {PERSONAS[u.role as keyof typeof PERSONAS]?.label}</span></td>
+                  <td style={{ color: 'var(--gray-500)', fontSize: '12px' }}>
+                    {u.role === 'ATENDENTE' ? (u.gestorNome || getGestorName(u.gestorId)) : '—'}
+                  </td>
                   <td>
                     {u.emailVerificado ? (
                       <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#16a34a', fontSize: '12px', fontWeight: 600 }}>
@@ -157,7 +190,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
               ))
             ) : (
               <tr>
-                <td colSpan={7} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '40px' }}>
+                <td colSpan={8} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '40px' }}>
                   {loading ? 'Carregando...' : 'Dados nao carregados'}
                 </td>
               </tr>
@@ -175,13 +208,24 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
             <div className="form-field"><label className="form-label">Senha</label><input className="form-input" type="password" value={newUser.senha} onChange={e => setNewUser({ ...newUser, senha: e.target.value })} /></div>
             <div className="form-field">
               <label className="form-label">Perfil</label>
-              <select className="form-select" value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value })}>
+              <select className="form-select" value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value, gestorId: e.target.value !== 'ATENDENTE' ? '' : newUser.gestorId })}>
                 <option value="">— Selecione —</option>
                 {isAdmin && <option value="ADMIN">Administrador</option>}
                 <option value="GESTOR">Gestor de Posto</option>
                 <option value="ATENDENTE">Atendente/Frentista</option>
               </select>
             </div>
+            {newUser.role === 'ATENDENTE' && (
+              <div className="form-field">
+                <label className="form-label">Gestor de Posto</label>
+                <select className="form-select" value={newUser.gestorId} onChange={e => setNewUser({ ...newUser, gestorId: e.target.value })}>
+                  <option value="">— Selecione o Gestor —</option>
+                  {gestores.map(g => (
+                    <option key={g.id} value={g.id}>{g.nome}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
               Um email de verificacao sera enviado para o usuario ativar a conta.
             </p>
@@ -201,12 +245,23 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
             <div className="form-field"><label className="form-label">E-mail</label><input className="form-input" type="email" value={editingUser.email} onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} /></div>
             <div className="form-field">
               <label className="form-label">Perfil</label>
-              <select className="form-select" value={editingUser.role} onChange={e => setEditingUser({ ...editingUser, role: e.target.value })}>
+              <select className="form-select" value={editingUser.role} onChange={e => setEditingUser({ ...editingUser, role: e.target.value, gestorId: e.target.value !== 'ATENDENTE' ? null : (editingUser.gestorId || '') })}>
                 <option value="ADMIN">Administrador</option>
                 <option value="GESTOR">Gestor de Posto</option>
                 <option value="ATENDENTE">Atendente</option>
               </select>
             </div>
+            {editingUser.role === 'ATENDENTE' && (
+              <div className="form-field">
+                <label className="form-label">Gestor de Posto</label>
+                <select className="form-select" value={editingUser.gestorId || ''} onChange={e => setEditingUser({ ...editingUser, gestorId: e.target.value })}>
+                  <option value="">— Selecione o Gestor —</option>
+                  {gestores.map(g => (
+                    <option key={g.id} value={g.id}>{g.nome}</option>
+                  ))}
+                </select>
+              </div>
+            )}
             <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
               <button className="btn-primary" onClick={handleEdit}>Salvar</button>
               <button className="btn-secondary" onClick={() => setEditingUser(null)}>Cancelar</button>
