@@ -5,6 +5,18 @@ import { getStringParam } from '../utils/queryParams'
 
 const router = Router()
 
+// GET /api/notifications/unread-count
+router.get('/unread-count', authenticate, async (req: any, res) => {
+  try {
+    const count = await prisma.notification.count({
+      where: { toId: req.userId, lida: false },
+    })
+    res.json({ count })
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao contar notificações' })
+  }
+})
+
 // GET /api/notifications
 router.get('/', authenticate, async (req: any, res) => {
   try {
