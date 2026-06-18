@@ -3,7 +3,6 @@ import { db } from './db'
 import { queueSync, isOnline } from './sync'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
-const API_KEY = import.meta.env.VITE_API_KEY || ''
 
 class ApiClient {
   private token: string | null = null
@@ -28,10 +27,6 @@ class ApiClient {
 
     const headers: Record<string, string> = {
       ...((options.headers as Record<string, string>) || {}),
-    }
-
-    if (API_KEY) {
-      headers['X-API-Key'] = API_KEY
     }
 
     if (this.token) {

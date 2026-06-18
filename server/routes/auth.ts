@@ -83,6 +83,11 @@ router.get('/verify-email', async (req, res) => {
       return res.status(404).json({ error: 'Token invalido ou expirado' })
     }
 
+    // Check if token has expired
+    if (user.tokenExpiry && new Date() > user.tokenExpiry) {
+      return res.status(400).json({ error: 'Token expirado. Solicite um novo.' })
+    }
+
     if (user.emailVerificado) {
       return res.json({ message: 'Email ja verificado', alreadyVerified: true })
     }
@@ -92,6 +97,7 @@ router.get('/verify-email', async (req, res) => {
       data: {
         emailVerificado: true,
         tokenVerificacao: null,
+        tokenExpiry: null,
       },
     })
 

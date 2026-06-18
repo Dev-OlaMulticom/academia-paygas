@@ -30,6 +30,7 @@ model User {
   xp               Int       @default(0)
   emailVerificado  Boolean   @default(false)
   tokenVerificacao String?
+  tokenExpiry      DateTime?
   gestorId         String?
   gestor           User?     @relation("GestorAtendentes", fields: [gestorId], references: [id])
   atendentes       User[]    @relation("GestorAtendentes")

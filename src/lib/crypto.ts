@@ -6,13 +6,22 @@ const SALT_LENGTH = 64
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
-let SECRET_KEY = import.meta.env.VITE_ENCRYPTION_KEY || ''
-
+let SECRET_KEY = ''
 let keyPromise: Promise<string> | null = null
 
 async function fetchEncryptionKey(): Promise<string> {
   try {
-    const res = await fetch(`${API_BASE}/config`)
+    const token = localStorage.getItem('token')
+    if (!token) {
+      // No token available, use build-time fallback (will fail encryption)
+      return SECRET_KEY || ''
+    }
+
+    const res = await fetch(`${API_BASE}/config`, {
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+    })
     if (res.ok) {
       const data = await res.json()
       if (data.encryptionKey) {
@@ -22,7 +31,7 @@ async function fetchEncryptionKey(): Promise<string> {
   } catch {
     // fallback to build-time key
   }
-  return SECRET_KEY
+  return SECRET_KEY || ''
 }
 
 export function initEncryptionKey(): Promise<string> {
@@ -33,6 +42,12 @@ export function initEncryptionKey(): Promise<string> {
     })
   }
   return keyPromise
+}
+
+// Force re-fetch encryption key (call after login)
+export function resetEncryptionKey(): void {
+  keyPromise = null
+  SECRET_KEY = ''
 }
 
 function getSecretKey(): string {

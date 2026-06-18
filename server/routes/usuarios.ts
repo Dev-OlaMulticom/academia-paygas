@@ -69,16 +69,28 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
       return res.status(400).json({ error: 'Todos os campos são obrigatórios' })
     }
 
+    // Validate role
+    const validRoles = ['ADMIN', 'GESTOR', 'ATENDENTE']
+    if (!validRoles.includes(role)) {
+      return res.status(400).json({ error: 'Role inválido' })
+    }
+
     const exists = await prisma.user.findUnique({ where: { email } })
     if (exists) return res.status(409).json({ error: 'Email já cadastrado' })
 
-    // GESTOR cannot create ADMIN users
-    if (req.userRole === 'GESTOR' && role === 'ADMIN') {
-      return res.status(403).json({ error: 'Gestores não podem criar usuários ADMIN' })
+    // GESTOR can only create ATENDENTE users
+    if (req.userRole === 'GESTOR' && role !== 'ATENDENTE') {
+      return res.status(403).json({ error: 'Gestores só podem criar usuários ATENDENTE' })
+    }
+
+    // Validate password strength
+    if (senha.length < 8) {
+      return res.status(400).json({ error: 'Senha deve ter pelo menos 8 caracteres' })
     }
 
     const hashedPassword = await bcrypt.hash(senha, 12)
     const verificationToken = crypto.randomBytes(32).toString('hex')
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
     const user = await prisma.user.create({
       data: {
@@ -88,6 +100,7 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
         role: role as Role,
         gestorId: req.userRole === 'GESTOR' ? req.userId : undefined,
         tokenVerificacao: verificationToken,
+        tokenExpiry: tokenExpiry,
       },
       select: { id: true, email: true, nome: true, role: true, emailVerificado: true, createdAt: true },
     })
@@ -188,6 +201,7 @@ router.post('/:id/validate-account', authenticate, authorize('ADMIN', 'GESTOR'),
       data: {
         emailVerificado: true,
         tokenVerificacao: null,
+        tokenExpiry: null,
       },
     })
 
@@ -216,10 +230,14 @@ router.post('/:id/resend-verification', authenticate, authorize('ADMIN', 'GESTOR
     }
 
     const verificationToken = crypto.randomBytes(32).toString('hex')
+    const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000) // 24 hours
 
     await prisma.user.update({
       where: { id },
-      data: { tokenVerificacao: verificationToken },
+      data: { 
+        tokenVerificacao: verificationToken,
+        tokenExpiry: tokenExpiry,
+      },
     })
 
     await sendVerificationEmail(user.email, user.nome, verificationToken)
