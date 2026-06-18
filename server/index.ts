@@ -97,9 +97,9 @@ app.use('/api/progresso', progressoRoutes)
 app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/docs', docsRoutes)
 
-// Config endpoint: requires authentication to get encryption key
-app.get('/api/config', authenticate, (req: AuthRequest, res) => {
-  // Only provide encryption key to authenticated users
+// Config endpoint: provides encryption key for frontend
+// Public endpoint - client needs this key BEFORE authentication
+app.get('/api/config', (_req, res) => {
   res.json({
     encryptionKey: getServerEncryptionKey(),
   })
