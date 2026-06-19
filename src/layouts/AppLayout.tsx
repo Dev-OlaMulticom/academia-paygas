@@ -129,6 +129,11 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
                   <i className="icon-clipboard nav-icon" /> Logs de Atividade
                 </button>
               )}
+              {isAdmin && (
+                <button id="nav-xp-config" className={`nav-item ${currentPath === '/xp-config' ? 'active' : ''}`} onClick={() => navigate('/xp-config')}>
+                  <i className="icon-zap nav-icon" /> Configuração de XP
+                </button>
+              )}
             </div>
           )}
           <div className="sidebar-section">

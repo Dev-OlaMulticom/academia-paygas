@@ -543,6 +543,10 @@ class ApiClient {
     return this.writeWithCache(`/modulos/${moduloId}/open`, 'POST', {}, null)
   }
 
+  async trackLessonView(aulaId: string) {
+    return this.request<any>(`/modulos/aula/${aulaId}/view`, { method: 'POST' })
+  }
+
   async getLeaderboard() {
     return this.getWithCache<any[]>('/modulos/gamification/leaderboard', db.users)
   }
@@ -699,6 +703,26 @@ class ApiClient {
     if (params?.endDate) query.set('endDate', params.endDate)
     const qs = query.toString()
     return this.request<any>(`/logs/stats${qs ? `?${qs}` : ''}`)
+  }
+
+  // ==================== XP CONFIG ====================
+
+  async getXPConfig() {
+    return this.request<any[]>('/xp-config')
+  }
+
+  async updateXPConfig(action: string, data: { points: number; label?: string; description?: string }) {
+    return this.request<any>(`/xp-config/${action}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async createXPConfig(data: { action: string; label: string; points: number; description?: string }) {
+    return this.request<any>('/xp-config', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
   }
 }
 

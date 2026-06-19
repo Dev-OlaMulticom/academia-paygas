@@ -1,14 +1,45 @@
 import { prisma } from '../lib/prisma'
 import { PointsAction } from '@prisma/client'
 
-const POINTS_MAP: Record<PointsAction, number> = {
-  LOGIN: 10,
-  MODULE_OPEN: 20,
-  LESSON_COMPLETE: 50,
-  MODULE_COMPLETE: 150,
-  QUIZ_CORRECT: 30,
-  QUIZ_PASS: 100,
-  CERTIFICATE: 500,
+// Default XP values — used as fallback if DB config is not available
+const DEFAULT_POINTS: Record<string, number> = {
+  LOGIN: 0.05,
+  MODULE_OPEN: 0.05,
+  LESSON_VIEW: 0.1,
+  LESSON_COMPLETE: 1.0,
+  MODULE_COMPLETE: 5.0,
+  QUIZ_CORRECT: 0.5,
+  QUIZ_PASS: 2.0,
+  CERTIFICATE: 10.0,
+}
+
+// In-memory cache of XP config from DB
+let xpConfigCache: Record<string, number> | null = null
+let xpConfigCacheTime = 0
+const CACHE_TTL = 60000 // 1 minute
+
+async function getXPConfig(): Promise<Record<string, number>> {
+  const now = Date.now()
+  if (xpConfigCache && now - xpConfigCacheTime < CACHE_TTL) {
+    return xpConfigCache
+  }
+
+  try {
+    const configs = await prisma.xPConfig.findMany()
+    xpConfigCache = {}
+    for (const c of configs) {
+      xpConfigCache[c.action] = c.points
+    }
+    xpConfigCacheTime = now
+    return xpConfigCache
+  } catch {
+    return DEFAULT_POINTS
+  }
+}
+
+async function getPointsForAction(action: string): Promise<number> {
+  const config = await getXPConfig()
+  return config[action] ?? DEFAULT_POINTS[action] ?? 0
 }
 
 export async function awardPoints(
@@ -16,7 +47,9 @@ export async function awardPoints(
   action: PointsAction,
   details?: string
 ): Promise<number> {
-  const points = POINTS_MAP[action]
+  const points = await getPointsForAction(action)
+
+  if (points === 0) return 0
 
   await prisma.$transaction([
     prisma.pointsTransaction.create({
@@ -28,7 +61,55 @@ export async function awardPoints(
     }),
   ])
 
+  // Recalculate and persist level
+  const updated = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { xp: true },
+  })
+  if (updated) {
+    const newLevel = Math.floor(updated.xp / 2000) + 1
+    await prisma.user.update({
+      where: { id: userId },
+      data: { level: newLevel },
+    })
+  }
+
   return points
+}
+
+/**
+ * Award points only if no prior transaction exists with the same (userId, action, details).
+ * The `dedupKey` is stored in the `details` field and used as the uniqueness check.
+ * Returns 0 if already awarded, otherwise the points awarded.
+ */
+export async function awardPointsIfNotAwarded(
+  userId: string,
+  action: PointsAction,
+  dedupKey: string
+): Promise<number> {
+  const existing = await prisma.pointsTransaction.findFirst({
+    where: { userId, action, details: dedupKey },
+  })
+  if (existing) return 0
+  return awardPoints(userId, action, dedupKey)
+}
+
+/**
+ * Award LOGIN points at most once per calendar day per user.
+ */
+export async function awardLoginPointsDaily(userId: string): Promise<number> {
+  const startOfDay = new Date()
+  startOfDay.setHours(0, 0, 0, 0)
+
+  const existing = await prisma.pointsTransaction.findFirst({
+    where: {
+      userId,
+      action: 'LOGIN',
+      createdAt: { gte: startOfDay },
+    },
+  })
+  if (existing) return 0
+  return awardPoints(userId, 'LOGIN', `LOGIN:${startOfDay.toISOString().split('T')[0]}`)
 }
 
 export async function getUserPoints(userId: string) {

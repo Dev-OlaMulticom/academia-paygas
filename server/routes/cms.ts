@@ -599,10 +599,30 @@ router.post('/:id/open', authenticate, async (req: any, res) => {
     await awardPointsIfNotAwarded(req.userId, 'MODULE_OPEN', `MODULE_OPEN:modulo:${id}`)
     await logActivity(req.userId, 'Modulo Aberto', `Modulo: ${modulo.titulo}`)
 
-    res.json({ message: 'Modulo registrado', xp: 20 })
+    res.json({ message: 'Modulo registrado' })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao registrar abertura do modulo' })
+  }
+})
+
+// POST /api/modulos/aula/:aulaId/view - Track lesson view (XP for viewing a lesson)
+router.post('/aula/:aulaId/view', authenticate, async (req: any, res) => {
+  try {
+    const aulaId = getStringParam(req.params.aulaId)
+    if (!aulaId) return res.status(400).json({ error: 'ID invalido' })
+
+    const aula = await prisma.aula.findUnique({ where: { id: aulaId }, select: { id: true, titulo: true } })
+    if (!aula) return res.status(404).json({ error: 'Aula nao encontrada' })
+
+    // Award LESSON_VIEW points (dedup per aula per user — once per view session is enough)
+    await awardPointsIfNotAwarded(req.userId, 'LESSON_VIEW', `LESSON_VIEW:aula:${aulaId}`)
+    await logActivity(req.userId, 'Licao Visualizada', `Aula: ${aula.titulo}`)
+
+    res.json({ message: 'Visualização registrada' })
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao registrar visualização' })
   }
 })
 

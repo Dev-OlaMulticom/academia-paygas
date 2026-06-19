@@ -33,7 +33,7 @@ model User {
   nome             String
   senha            String
   role             Role
-  xp               Int       @default(0)
+  xp               Float     @default(0)
   level            Int       @default(1)
   avatarUrl        String?
   state            String?
@@ -253,6 +253,7 @@ model ActivityLog {
 enum PointsAction {
   LOGIN
   MODULE_OPEN
+  LESSON_VIEW
   LESSON_COMPLETE
   MODULE_COMPLETE
   QUIZ_CORRECT
@@ -264,7 +265,7 @@ model PointsTransaction {
   id        String        @id @default(cuid())
   userId    String
   action    PointsAction
-  points    Int
+  points    Float
   details   String?
   createdAt DateTime      @default(now())
 
@@ -299,6 +300,16 @@ model ModuleConfig {
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model XPConfig {
+  id          String   @id @default(cuid())
+  action      String   @unique // 'LOGIN', 'MODULE_OPEN', 'LESSON_VIEW', 'LESSON_COMPLETE'
+  label       String   // Display name
+  points      Float    @default(0) // XP points awarded
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model Conquista {

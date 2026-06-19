@@ -20,6 +20,7 @@ import { NotifPage } from './pages/NotifPage'
 import { PerfilPage } from './pages/PerfilPage'
 import { ConquistasPage } from './pages/ConquistasPage'
 import { LogsPage } from './pages/LogsPage'
+import { XPConfigPage } from './pages/XPConfigPage'
 import { TermosPage } from './pages/TermosPage'
 import { PrivacidadePage } from './pages/PrivacidadePage'
 import './index.css'
@@ -101,6 +102,11 @@ export default function App() {
                   <Route path="/logs" element={
                     <RoleRoute user={user} allowedRoles={['ADMIN']}>
                       <LogsPage user={user!} />
+                    </RoleRoute>
+                  } />
+                  <Route path="/xp-config" element={
+                    <RoleRoute user={user} allowedRoles={['ADMIN']}>
+                      <XPConfigPage user={user!} />
                     </RoleRoute>
                   } />
                   <Route path="/perfil" element={<PerfilPage user={user!} xp={xp} />} />
