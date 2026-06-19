@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
+import { pluralize } from '../lib/utils'
 import { VideoPreview } from '../components/VideoPreview'
 import { useToast, useConfirm } from '../components/Toast'
 
@@ -101,7 +102,7 @@ export function CMSPage({ user }: CMSPageProps) {
           totalLicoes += licoes.length
         }
         if (totalLicoes > 0) {
-          message += `\n${totalLicoes} lição(ões) serão removidas também.`
+          message += `\n${totalLicoes} ${pluralize(totalLicoes, 'lição')} ${totalLicoes === 1 ? 'será removida' : 'serão removidas'} também.`
         }
       } catch {}
       message += `\n\nEsta ação não pode ser desfeita.`
@@ -304,7 +305,7 @@ export function CMSPage({ user }: CMSPageProps) {
                   <tr key={mod.id}>
                     <td><b>{mod.titulo}</b></td>
                     <td style={{ color: 'var(--gray-500)', fontSize: '13px' }}>{mod.descricao || '—'}</td>
-                    <td>{mod._count?.aulas || 0} aulas</td>
+                    <td>{mod._count?.aulas || 0} {pluralize(mod._count?.aulas || 0, 'aula')}</td>
                     <td style={{ display: 'flex', gap: '6px' }}>
                       <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => { setSelectedModulo(mod); setView('aulas') }}><i className="icon-book-open icon-xs" /> Aulas</button>
                       {                       isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingMod({ ...mod, obrigatorio: mod.obrigatorio || false, autoCertificado: mod.autoCertificado || false })}><i className="icon-pencil icon-xs" /> Editar</button>}
@@ -338,12 +339,12 @@ export function CMSPage({ user }: CMSPageProps) {
                     <td>
                       {isAdmin && (
                         <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px', background: aula.quiz ? '#E8F5E9' : undefined, borderColor: aula.quiz ? '#4CAF50' : undefined, color: aula.quiz ? '#2E7D32' : undefined }} onClick={() => handleOpenQuiz(aula)}>
-                          <i className="icon-help-circle icon-xs" /> {aula.quiz ? `${aula.quiz.perguntas?.length || 0} perguntas` : 'Criar Quiz'}
+                          <i className="icon-help-circle icon-xs" /> {aula.quiz ? `${aula.quiz.perguntas?.length || 0} ${pluralize(aula.quiz.perguntas?.length || 0, 'pergunta')}` : 'Criar Quiz'}
                         </button>
                       )}
                       {!isAdmin && aula.quiz && (
                         <span style={{ fontSize: '11px', color: 'var(--gray-500)' }}>
-                          {aula.quiz.perguntas?.length || 0} perguntas
+                          {aula.quiz.perguntas?.length || 0} {pluralize(aula.quiz.perguntas?.length || 0, 'pergunta')}
                         </span>
                       )}
                     </td>
@@ -701,7 +702,7 @@ export function CMSPage({ user }: CMSPageProps) {
             ) : (
               <div>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                  <span style={{ color: 'var(--gray-500)' }}>{editingQuiz.perguntas?.length || 0} pergunta(s)</span>
+                  <span style={{ color: 'var(--gray-500)' }}>{editingQuiz.perguntas?.length || 0} {pluralize(editingQuiz.perguntas?.length || 0, 'pergunta')}</span>
                   <span className={`track-badge ${editingQuiz.autoGerarCertificado ? 'badge-done' : 'badge-new'}`}>
                     {editingQuiz.autoGerarCertificado ? 'Certificado Automático' : 'Sem Certificado Auto'}
                   </span>

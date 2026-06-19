@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
+import { pluralize } from '../lib/utils'
 import { useAuth } from '../hooks/useAuth'
 
 function slugify(text: string): string {
@@ -134,7 +135,7 @@ export function ModulosListPage() {
                   {hasCert && (
                     <span className="track-badge badge-new" style={{ background: '#E8F5E9', color: '#2E7D32' }}>✓ Certificado</span>
                   )}
-                  <span className="track-badge badge-new">{aulasCount} aulas</span>
+                  <span className="track-badge badge-new">{aulasCount} {pluralize(aulasCount, 'aula')}</span>
                 </div>
                 <div className="track-prog-bar">
                   <div className="track-prog-fill" style={{ width: `${pct}%` }}></div>

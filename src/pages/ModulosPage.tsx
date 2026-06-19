@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
+import { pluralize } from '../lib/utils'
 import { useAuth } from '../hooks/useAuth'
 import { VideoPlayer } from '../components/VideoPlayer'
 import { PDFViewer } from '../components/PDFViewer'
@@ -205,7 +206,7 @@ export function ModulosPage() {
         <div>
           <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }} onClick={() => navigate(-1)}><i className="icon-arrow-left icon-sm" /> Voltar</button>
           <div className="page-title">{modulo.titulo}</div>
-          <div className="page-subtitle">{lessons.length} aulas{modulo.autoCertificado ? ' · Certificado automático' : ''}</div>
+          <div className="page-subtitle">{lessons.length} {pluralize(lessons.length, 'aula')}{modulo.autoCertificado ? ' · Certificado automático' : ''}</div>
         </div>
       </div>
       <div className="lesson-layout">
@@ -242,7 +243,7 @@ export function ModulosPage() {
                   <b>{lesson.titulo}</b>
                   <span>
                     {lesson.tipo === 'PDF' ? 'PDF' : lesson.tipo === 'TEXTO' ? 'Texto' : lesson.videoUrl ? 'Vídeo' : 'Conteúdo'}
-                    {lesson.licoes && lesson.licoes.length > 0 ? ` · ${lesson.licoes.length} ${lesson.licoes.length === 1 ? 'lição' : 'lições'}` : ''}
+                    {lesson.licoes && lesson.licoes.length > 0 ? ` · ${lesson.licoes.length} ${pluralize(lesson.licoes.length, 'lição')}` : ''}
                     {!lesson.licoes || lesson.licoes.length === 0 ? (
                       lesson.videoInicio || lesson.videoFim ? ` · ${lesson.videoInicio || 0}s-${lesson.videoFim || 'fim'}s` : ''
                     ) : ''}
@@ -308,7 +309,7 @@ export function ModulosPage() {
                     {current?.tipo === 'PDF' ? 'PDF' : current?.videoUrl ? 'Vídeo' : 'Conteúdo'}
                   </span>
                   {current?.licoes && current.licoes.length > 0 && (
-                    <span className="lesson-tag">{current.licoes.length} {current.licoes.length === 1 ? 'lição' : 'lições'}</span>
+                    <span className="lesson-tag">{current.licoes.length} {pluralize(current.licoes.length, 'lição')}</span>
                   )}
                   {current?.videoInicio || current?.videoFim ? (
                     <span className="lesson-tag">⏱ {current.videoInicio || 0}s – {current.videoFim || 'fim'}s</span>
