@@ -384,6 +384,16 @@ else
     log_warn ".htaccess no encontrado"
 fi
 
+# Fix 3: eliminar archivos .pagespeed.* fantasma de dist/
+SPEED_FILES=$(find "$DEPLOY_DIR/dist" -name "*.pagespeed.*" -type f 2>/dev/null || true)
+if [ -n "$SPEED_FILES" ]; then
+    echo "$SPEED_FILES" | xargs rm -f
+    COUNT=$(echo "$SPEED_FILES" | wc -l)
+    log_fix "$COUNT archivos .pagespeed.* eliminados de dist/"
+else
+    log_ok "No hay archivos .pagespeed.* en dist/"
+fi
+
 echo ""
 
 # ─── 7. Prisma: generate + migrate ───────────────────────
