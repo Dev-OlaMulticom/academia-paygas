@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { PERSONAS } from '../data/constants'
 import { api } from '../lib/api'
 import { resetEncryptionKey } from '../lib/crypto'
+import { db } from '../lib/db'
 
 export interface User {
   id?: string
@@ -71,8 +72,9 @@ export function useAuth() {
     setUser(null)
     localStorage.removeItem('user')
     api.logout()
-    // Clear encryption key on logout
     resetEncryptionKey()
+    // Clear IndexedDB to prevent cross-user data leaks on shared devices
+    db.delete().catch(() => {})
   }
 
   const persona = user ? PERSONAS[user.role as keyof typeof PERSONAS] : null

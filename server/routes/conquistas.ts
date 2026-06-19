@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { authenticate, authorize, AuthRequest } from '../middleware/auth'
+import { getStringParam } from '../utils/queryParams'
 
 const router = Router()
 
@@ -77,8 +78,9 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
 // PUT /api/conquistas/:id — update conquista (ADMIN, GESTOR)
 router.put('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
   try {
-    const { id } = req.params
     const { titulo, descricao, icone, cor, pontosMinimos, xpRecompensa, ativo, ordem } = req.body
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
     const conquista = await prisma.conquista.update({
       where: { id },
       data: {
@@ -102,7 +104,8 @@ router.put('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthR
 // DELETE /api/conquistas/:id — delete conquista (ADMIN only)
 router.delete('/:id', authenticate, authorize('ADMIN'), async (req: AuthRequest, res) => {
   try {
-    const { id } = req.params
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
     await prisma.userConquista.deleteMany({ where: { conquistaId: id } })
     await prisma.conquista.delete({ where: { id } })
     res.json({ success: true })
