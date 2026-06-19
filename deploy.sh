@@ -210,8 +210,8 @@ echo ""
 # ─── 6. Limpiar y reinstalar dependencias ────────────────
 echo "=== [6/10] Instalando dependencias ==="
 
-# Limpiar caches
-rm -rf dist/server dist/assets dist/index.html 2>/dev/null || true
+# Limpiar caches y dist/
+rm -rf dist 2>/dev/null || true
 rm -rf node_modules/.vite .vite 2>/dev/null || true
 
 # Reintentar instalacion
