@@ -336,13 +336,23 @@ NGINX_EOF
     echo ""
 fi
 
-# ─── 6d. Fix .htaccess: PageSpeed Off + no-cache + anti-phantom ──
+# ─── 6d. Fix .htaccess: PageSpeed Off + anti-phantom ──────────
 echo "=== [6d/10] Corrigiendo .htaccess ==="
 
 HTACCESS_FILE="$DEPLOY_DIR/.htaccess"
 DIST_HTACCESS="$DEPLOY_DIR/dist/.htaccess"
 
-# Reconstruir .htaccess desde cero
+# Safety: eliminar PageSpeed Off de cualquier .htaccess existente
+for f in "$HTACCESS_FILE" "$DIST_HTACCESS"; do
+    if [ -f "$f" ]; then
+        if grep -q "^PageSpeed Off\|^ModPagespeed" "$f"; then
+            sed -i '/^PageSpeed Off$/d; /^ModPagespeed Off$/d; /^ModPagespeedUnplugged true$/d; /^ModPagespeedDisallow /d' "$f"
+            log_fix "PageSpeed Off eliminado de $(basename $f) (causa 500 en Apache)"
+        fi
+    fi
+done
+
+# Reconstruir .htaccess desde cero (SIN PageSpeed Off — causa 500 en Apache)
 cat > "$HTACCESS_FILE" << 'HTACCESS_EOF'
 # Academia PayGas - Security Rules for Apache
 
@@ -432,10 +442,22 @@ cat > "$HTACCESS_FILE" << 'HTACCESS_EOF'
 </IfModule>
 HTACCESS_EOF
 
-log_ok ".htaccess reconstruido con PageSpeed Off + no-cache"
+log_ok ".htaccess reconstruido (sin PageSpeed Off)"
 
-# Copiar .htaccess a dist/
-cp "$HTACCESS_FILE" "$DIST_HTACCESS" 2>/dev/null && log_ok ".htaccess copiado a dist/" || true
+# Escribir dist/.htaccess con SPA fallback + anti-pagespeed
+cat > "$DIST_HTACCESS" << 'DIST_HTACCESS_EOF'
+# SPA fallback
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ /index.html [L]
+
+# Bloquear archivos Pagespeed fantasma
+RewriteCond %{REQUEST_URI} \.pagespeed\.
+RewriteRule ^ - [R=404,L]
+DIST_HTACCESS_EOF
+
+log_ok "dist/.htaccess creado con SPA fallback"
 
 # Recargar Apache si esta corriendo
 if systemctl is-active --quiet httpd 2>/dev/null; then
@@ -547,8 +569,19 @@ if [ ! -f dist/server/index.js ]; then
     log_fail "dist/server/index.js no existe despues del build"
 fi
 
-# Copiar .htaccess a dist/ despues del build (vite no lo incluye)
-cp "$DEPLOY_DIR/.htaccess" dist/.htaccess 2>/dev/null && log_ok ".htaccess copiado a dist/" || log_warn "No se pudo copiar .htaccess a dist/"
+# Crear dist/.htaccess con SPA fallback despues del build (vite no lo incluye)
+cat > dist/.htaccess << 'DIST_HTACCESS_EOF'
+# SPA fallback
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ /index.html [L]
+
+# Bloquear archivos Pagespeed fantasma
+RewriteCond %{REQUEST_URI} \.pagespeed\.
+RewriteRule ^ - [R=404,L]
+DIST_HTACCESS_EOF
+log_ok "dist/.htaccess creado con SPA fallback"
 
 # Abortar si AMBOS builds fallaron
 if [ "$BUILD_FE_OK" = false ] && [ "$BUILD_BE_OK" = false ]; then
