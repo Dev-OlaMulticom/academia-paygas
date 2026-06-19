@@ -2,7 +2,7 @@
 
 ## Requisitos Previos
 
-- cPanel con **Node.js** habilitado (Phusion Passenger)
+- cPanel con **Node.js** habilitado (Phusion Passenger o nginx)
 - Node.js 20+ instalado en cPanel
 - Acceso SSH (opcional, para debug)
 - Git instalado en cPanel (para auto-deploy)
@@ -154,7 +154,7 @@ bash scripts/deploy-cpanel.sh
 
 ```
 /home/tu-usuario/academia-paygas/
-├── app.js                    # Entry point para Passenger
+├── app.js                    # Entry point (usado por cPanel Node.js App)
 ├── package.json              # Dependencias
 ├── .env                      # Variables de entorno (NO commitear)
 ├── prisma/
@@ -168,8 +168,14 @@ bash scripts/deploy-cpanel.sh
 │   └── server/
 │       └── index.js          # Servidor compilado
 ├── node_modules/             # Dependencias
+├── deploy.sh                 # Script de deploy con auto-reparacion
+├── setup-nginx.sh            # Configurar nginx para Node.js
 └── tmp/
-    └── restart.txt           # Para reiniciar Passenger
+    └── restart.txt           # Para reiniciar (touch tmp/restart.txt)
+
+# Config nginx snippet (en servidor):
+/etc/nginx/conf.d/users/olamulticomcom/academia.paygas.com.br.olamulticom.com.br/
+└── nodejs-app.conf           # Proxy /api/ → Node.js + SPA fallback
 ```
 
 ---
@@ -207,54 +213,68 @@ npx prisma migrate deploy
 ### Frontend no carga (404)
 1. Verificar que `dist/index.html` existe
 2. Verificar que `dist/assets/` tiene archivos
-3. Revisar configuración de `.htaccess`
+3. Verificar config nginx: `nginx -t`
+4. Verificar snippet existe: `ls /etc/nginx/conf.d/users/olamulticomcom/academia.paygas.com.br.olamulticom.com.br/`
 
 ---
 
 ## SSL/HTTPS
 
-cPanel maneja SSL a nivel de Apache/Nginx. No necesitas configurar SSL en la aplicación Node.js.
+cPanel maneja SSL a nivel de nginx. No necesitas configurar SSL en la aplicación Node.js.
 
 Para habilitar SSL:
 1. En cPanel → **SSL/TLS**
 2. Instalar certificado (Let's Encrypt gratis)
 3. Asignar al dominio/subdominio
 
-La aplicación Node.js correrá en HTTP interno ( puerto 3001), y Apache/Nginx hará proxy reverso con SSL.
+La aplicación Node.js correrá en HTTP interno ( puerto 3001), y nginx hará proxy reverso con SSL.
 
 ---
 
-## Proxy Reverso (OBLIGATORIO)
+## Proxy Reverso en nginx (OBLIGATORIO)
 
-Para que las llamadas a la API funcionen a traves del dominio (ej: `https://academia.paygas.com.br/api/health`), Apache debe hacer proxy reverso de `/api/*` al puerto 3001.
+Para que las llamadas a la API funcionen a traves del dominio (ej: `https://academia.paygas.com.br/api/health`), nginx debe hacer proxy reverso de `/api/*` al puerto 3001.
 
-### Configuracion en .htaccess
+### Configuracion automatica
 
-El archivo `.htaccess` raiz debe contener:
-
-```apache
-# ─── Reverse Proxy: /api/* → Node.js backend (port 3001) ───
-<IfModule mod_proxy.c>
-    <IfModule mod_proxy_http.c>
-        RewriteEngine On
-        RewriteCond %{REQUEST_URI} ^/api/
-        RewriteRule ^api/(.*) http://127.0.0.1:3001/api/$1 [P,L]
-    </IfModule>
-</IfModule>
+`deploy.sh` crea automaticamente un snippet de nginx en:
+```
+/etc/nginx/conf.d/users/olamulticomcom/academia.paygas.com.br.olamulticom.com.br/nodejs-app.conf
 ```
 
-### Requisitos del servidor
+O ejecutar manualmente:
+```bash
+sudo bash setup-nginx.sh
+```
 
-- `mod_proxy` habilitado en Apache
-- `mod_proxy_http` habilitado en Apache
-- En cPanel → "Select Apache Version" → seleccionar "Proxy" o contactar al hosting
+### Configuracion manual
+
+El snippet de nginx debe contener:
+
+```nginx
+location /api/ {
+    proxy_pass http://127.0.0.1:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 30s;
+    proxy_connect_timeout 10s;
+}
+
+location / {
+    root "/home/olamulticomcom/public_html/academia-paygas/dist";
+    try_files $uri $uri/ /index.html;
+}
+```
 
 ### Sin proxy reverso (problema comun)
 
 Si no hay proxy configurado:
 1. Browser pide `https://academia.paygas.com.br/api/health`
-2. Apache no encuentra archivo fisico `/api/health`
-3. `dist/.htaccess`SPA fallback lo redirige a `index.html`
+2. nginx no encuentra la ruta → proxy a Apache backend
+3. Apache devuelve error 500 o HTML del frontend
 4. Se devuelve HTML del frontend en vez de JSON de la API
 
 ### Verificacion
