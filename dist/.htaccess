@@ -1,0 +1,9 @@
+# SPA fallback
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^ /index.html [L]
+
+# Bloquear archivos Pagespeed fantasma
+RewriteCond %{REQUEST_URI} \.pagespeed\.
+RewriteRule ^ - [R=404,L]
