@@ -254,21 +254,21 @@ else
     if echo "$MIGRATE_OUTPUT" | grep -q "P3009\|P3018\|failed migrations\|A migration failed"; then
         log_warn "Migracion fallida detectada, intentando auto-reparacion..."
 
-        # Extract failed migration name from error output
-        FAILED_MIGRATION=$(echo "$MIGRATE_OUTPUT" | grep -oP 'Migration name: \K.*' | head -1)
+        # Extract failed migration name from error output (portable - no grep -P)
+        FAILED_MIGRATION=$(echo "$MIGRATE_OUTPUT" | sed -n 's/.*Migration name: *//p' | head -1 | tr -d '[:space:]')
 
         if [ -n "$FAILED_MIGRATION" ]; then
             log_fix "Migracion fallida: $FAILED_MIGRATION"
 
-            # Step 1: Mark as rolled back
+            # Step 1: Mark as rolled back (with timeout)
             log_fix "Marcando migracion como rolled-back..."
-            npx prisma migrate resolve --rolled-back "$FAILED_MIGRATION" 2>&1 && \
+            timeout 30 npx prisma migrate resolve --rolled-back "$FAILED_MIGRATION" 2>&1 && \
                 log_ok "Migracion marcada como rolled-back" || \
                 log_warn "No se pudo marcar como rolled-back"
 
-            # Step 2: Sync schema with db push (creates missing tables/columns)
+            # Step 2: Sync schema with db push (with timeout)
             log_fix "Sincronizando schema con db push..."
-            npx prisma db push --accept-data-loss 2>&1 && \
+            timeout 60 npx prisma db push --accept-data-loss 2>&1 && \
                 log_ok "Schema sincronizado con db push" || \
                 log_warn "db push tuvo problemas (no critico)"
 
@@ -276,7 +276,7 @@ else
             npx prisma generate 2>&1 && log_ok "Prisma client regenerado" || true
 
             # Step 4: Retry migrate deploy
-            if npx prisma migrate deploy 2>&1; then
+            if timeout 30 npx prisma migrate deploy 2>&1; then
                 log_ok "Migraciones aplicadas despues de reparacion"
             else
                 log_warn "Migraciones pendientes (schema ya sincronizado via db push)"
