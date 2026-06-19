@@ -72,33 +72,57 @@ ATENDENTE
 
 ## 3. Navigation Agent
 
-**Responsable de:** Enrutamiento y control de acceso por rol.
+**Responsable de:** Enrutamiento, control de acceso por rol y activacion/desactivacion de modulos.
 
 | Propiedad | Valor |
 |-----------|-------|
-| **Archivos** | `src/App.tsx`, `src/layouts/AppLayout.tsx` |
+| **Archivos** | `src/App.tsx`, `src/layouts/AppLayout.tsx`, `server/routes/modules.ts` |
+| **API** | `GET/PUT /api/admin/modules` |
 
 ### Mapa de Rutas
 
-| Ruta | Componente | Acceso |
-|------|-----------|--------|
-| `/` | DashboardPage | Autenticado |
-| `/modulos` | ModulosListPage | Autenticado |
-| `/modulo/:nombre` | ModulosPage | Autenticado |
-| `/certificados` | CertificadosPage | Autenticado |
-| `/equipe` | EquipePage | Gestor/Admin |
-| `/usuarios` | UsuariosPage | Gestor/Admin |
-| `/cms` | CMSPage | Gestor/Admin |
-| `/cms/criar-modulo` | CriarModuloPage | Admin |
-| `/relatorios` | RelatoriosPage | Gestor/Admin |
-| `/notif` | NotifPage | Autenticado |
-| `/perfil` | PerfilPage | Autenticado |
+| Ruta | Componente | Acceso | Modulo |
+|------|-----------|--------|--------|
+| `/` | DashboardPage | Autenticado | dashboard |
+| `/modulos` | ModulosListPage | Autenticado | trilhas |
+| `/modulo/:nombre` | ModulosPage | Autenticado | trilhas |
+| `/certificados` | CertificadosPage | Autenticado | certificados |
+| `/equipe` | EquipePage | Gestor/Admin | equipe |
+| `/usuarios` | UsuariosPage | Gestor/Admin | usuarios |
+| `/cms` | CMSPage | Gestor/Admin | cms |
+| `/cms/criar-modulo` | CriarModuloPage | Admin | cms |
+| `/relatorios` | RelatoriosPage | Gestor/Admin | relatorios |
+| `/notif` | NotifPage | Autenticado | notificacoes |
+| `/perfil` | PerfilPage | Autenticado | perfil |
+| `/analytics` | AnaliticaPage | Admin | analytics |
+| `/ranking` | RankingPage | Autenticado | ranking |
+| `/forum` | ForumPage | Autenticado | forum |
+| `/mapa` | MapaPage | Admin | mapa |
+| `/nacional` | NacionalPage | Admin | nacional |
+| `/conquistas` | ConquistasPage | Autenticado | conquistas |
 
-### Sidebar Adaptada por Rol
+### Modulos Activables/Desactivables
 
-- **ADMIN**: Equipes, Usuarios, CMS, Relatorios
-- **GESTOR**: Minha Equipe, Meu Time, CMS, Relatorios
-- **ATENDENTE**: Solo contenido de aprendizaje
+El administrador puede activar o desactivar modulos de navegacion desde la API:
+
+| Modulo | Descripcion | Default |
+|--------|-------------|---------|
+| `dashboard` | Pagina principal | true (no desactivable) |
+| `trilhas` | Cursos y aprendizaje | true (no desactivable) |
+| `certificados` | Certificados del usuario | true |
+| `forum` | Foro comunitario | true |
+| `analytics` | Estadisticas (solo admin) | true |
+| `ranking` | Ranking nacional | true |
+| `mapa` | Mapa de distribucion | true |
+| `nacional` | Panel nacional | true |
+| `conquistas` | Trofeos y logros | true |
+| `equipe` | Gestion de equipos | true |
+| `usuarios` | Gestion de usuarios | true |
+| `relatorios` | Reportes | true |
+| `notificacoes` | Notificaciones | true (no desactivable) |
+| `perfil` | Perfil de usuario | true (no desactivable) |
+
+**Config store:** `ModuleConfig` model en Prisma. La API retorna que modulos estan activos. El frontend oculta/muestra elementos del sidebar y las rutas.
 
 ### Perfil de Administrador
 
@@ -114,32 +138,56 @@ El perfil del admin (`/perfil`) incluye el bloque **Sandbox - Usuarios de Teste*
 
 ## 4. Learning Agent
 
-**Responsable de:** Modulos, aulas, progreso y certificados.
+**Responsable de:** Cursos, aulas, licoes, progreso y certificados.
 
 | Propiedad | Valor |
 |-----------|-------|
 | **Archivos** | `src/pages/ModulosListPage.tsx`, `src/pages/ModulosPage.tsx`, `server/routes/cms.ts`, `server/routes/progresso.ts` |
 | **API** | `/api/cms/*`, `/api/modulos/*`, `/api/progresso/*`, `/api/certificates/*` |
 
-### Jerarquia de Contenido
+### Terminologia LMS
+
+> **IMPORTANTE:** En esta plataforma existen dos conceptos distintos de "modulo":
+>
+> 1. **Modulo de navegacion (frontend):** Son las secciones/paginas del sidebar: Dashboard, Trilhas de Aprendizado, Certificados, Gestao de Conteudo, Equipes, Usuarios, Relatorios, Notificacoes, Meu Perfil. El administrador puede activar/desactivar algunos (Forum, Analytics, etc.)
+>
+> 2. **Curso (en Gestao de Conteudo):** Lo que antes se llamaba "modulo" en el CMS ahora se llama **Curso**. Un Curso contiene Aulas, y cada Aula contiene Licoes.
+
+### Jerarquia de Contenido LMS
 
 ```
-Modulo
-  ├── Aula #1 (Video YouTube)
-  │    └── Quiz (Opcional, 1:1)
+Curso (antes: "Modulo" en CMS)
+  ├── Aula #1
+  │    ├── Licao #1.1 (video, texto, o PDF)
+  │    ├── Licao #1.2
+  │    └── Quiz (Opcional, 1:1 con Aula)
   ├── Aula #2
+  │    ├── Licao #2.1
   │    └── Quiz
   └── Aula #N
+       └── Licao #N.1
 ```
 
 ### Flujo de Aprendizaje
 
-1. Ver modulos disponibles
-2. Seleccionar modulo → Ver aulas
-3. Completar aula → Actualizar progreso
-4. En ultima aula → Quiz (si existe)
-5. Quiz aprobado (nota >= 7) → Certificado automatico
-6. Ver certificado emitido
+1. Ver cursos disponibles en "Trilhas de Aprendizado"
+2. Seleccionar curso → Ver aulas del curso
+3. Seleccionar aula → Ver licoes de la aula
+4. Completar licoes → Actualizar progreso
+5. En ultima aula → Quiz (si existe)
+6. Quiz aprobado (nota >= 7) → Certificado automatico
+7. Ver certificado emitido
+
+### Mapeo de Nombres
+
+| Antes (Backend DB) | Ahora (Frontend/Usuario) | Notas |
+|---------------------|--------------------------|-------|
+| `Modulo` (prisma) | **Curso** | En CMS y Trilhas de Aprendizado |
+| `Aula` (prisma) | **Aula** | Sin cambio |
+| (nuevo) `Licao` | **Licao** | Contenido dentro de una aula |
+| `moduloId` (FK) | `cursoId` | Solo en contexto CMS/frontend |
+
+**NOTA:** En la base de datos, la tabla sigue siendo `Modulo` por backward compatibility. El renombramiento es solo en la capa de presentacion (frontend) y en los comentarios/docs.
 
 ---
 

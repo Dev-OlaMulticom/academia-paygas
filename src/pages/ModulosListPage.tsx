@@ -60,7 +60,7 @@ export function ModulosListPage() {
     return (
       <div>
         <div className="page-header">
-          <div className="page-title">Carregando módulos...</div>
+          <div className="page-title">Carregando cursos...</div>
         </div>
       </div>
     )
@@ -71,14 +71,14 @@ export function ModulosListPage() {
       <div>
         <div className="page-header">
           <div>
-            <div className="page-title">Módulos</div>
+            <div className="page-title">Cursos</div>
           </div>
         </div>
         <div className="empty-state">
           <div className="empty-icon">🔒</div>
           <p style={{ fontWeight: 600, marginBottom: '8px' }}>Acesso restrito</p>
           <p style={{ color: 'var(--gray-500)', fontSize: '14px', maxWidth: '400px' }}>
-            Você precisa ser associado a um Gestor de Posto para acessar os módulos.
+            Você precisa ser associado a um Gestor de Posto para acessar os cursos.
             Aguarde a aprovação do seu gestor ou entre em contato com o administrador.
           </p>
         </div>
@@ -90,15 +90,15 @@ export function ModulosListPage() {
     <div>
       <div className="page-header">
         <div>
-          <div className="page-title">Módulos</div>
-          <div className="page-subtitle">{modulos.length} módulos disponíveis</div>
+          <div className="page-title">Trilhas de Aprendizado</div>
+          <div className="page-subtitle">{modulos.length} curso(s) disponível(is)</div>
         </div>
       </div>
 
       {modulos.length === 0 ? (
         <div className="empty-state">
           <div className="empty-icon">📚</div>
-          <p>Nenhum módulo disponível no momento.</p>
+          <p>Nenhum curso disponível no momento.</p>
         </div>
       ) : (
         <div className="track-grid">
@@ -121,7 +121,7 @@ export function ModulosListPage() {
                   <div className="track-icon" style={{ background: color }}>{icon}</div>
                   <div className="track-card-info">
                     <h3>{mod.titulo}</h3>
-                    <p>{mod.descricao || 'Módulo de aprendizado'}</p>
+                    <p>{mod.descricao || 'Curso de aprendizado'}</p>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>

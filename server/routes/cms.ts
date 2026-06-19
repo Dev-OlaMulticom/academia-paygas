@@ -115,6 +115,7 @@ router.get('/:id/aulas', authenticate, async (req: any, res) => {
       where: { moduloId },
       include: {
         quiz: { include: { perguntas: true } },
+        licoes: { orderBy: { ordem: 'asc' } },
         progressos: { where: { userId: req.userId }, select: { concluido: true } },
       },
       orderBy: { ordem: 'asc' },
@@ -151,6 +152,7 @@ router.get('/:id/aulas', authenticate, async (req: any, res) => {
         where: { moduloId },
         include: {
           quiz: { include: { perguntas: true } },
+          licoes: { orderBy: { ordem: 'asc' } },
           progressos: { where: { userId: req.userId }, select: { concluido: true } },
         },
         orderBy: { ordem: 'asc' },
@@ -231,6 +233,87 @@ router.delete('/aulas/:id', authenticate, authorize('ADMIN'), async (req, res) =
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao excluir aula' })
+  }
+})
+
+// ==================== LICAO ENDPOINTS ====================
+
+// GET /api/cms/aulas/:aulaId/licoes
+router.get('/aulas/:aulaId/licoes', authenticate, async (req, res) => {
+  try {
+    const aulaId = getStringParam(req.params.aulaId)
+    if (!aulaId) return res.status(400).json({ error: 'ID inválido' })
+
+    const licoes = await prisma.licao.findMany({
+      where: { aulaId },
+      orderBy: { ordem: 'asc' },
+    })
+    res.json(licoes)
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao buscar lições' })
+  }
+})
+
+// POST /api/cms/aulas/:aulaId/licoes
+router.post('/aulas/:aulaId/licoes', authenticate, authorize('ADMIN'), async (req, res) => {
+  try {
+    const aulaId = getStringParam(req.params.aulaId)
+    if (!aulaId) return res.status(400).json({ error: 'ID inválido' })
+
+    const { titulo, conteudo, tipo, duracaoMin } = req.body
+    if (!titulo) return res.status(400).json({ error: 'Título é obrigatório' })
+
+    const maxOrdem = await prisma.licao.aggregate({
+      where: { aulaId },
+      _max: { ordem: true },
+    })
+
+    const licao = await prisma.licao.create({
+      data: {
+        aulaId,
+        titulo,
+        conteudo: conteudo || null,
+        tipo: tipo || 'TEXTO',
+        duracaoMin: duracaoMin || null,
+        ordem: (maxOrdem._max.ordem ?? 0) + 1,
+      },
+    })
+    res.status(201).json(licao)
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao criar lição' })
+  }
+})
+
+// PUT /api/cms/licoes/:id
+router.put('/licoes/:id', authenticate, authorize('ADMIN'), async (req, res) => {
+  try {
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
+
+    const { titulo, conteudo, tipo, ordem, duracaoMin } = req.body
+    const licao = await prisma.licao.update({
+      where: { id },
+      data: { titulo, conteudo, tipo, ordem, duracaoMin },
+    })
+    res.json(licao)
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao atualizar lição' })
+  }
+})
+
+// DELETE /api/cms/licoes/:id
+router.delete('/licoes/:id', authenticate, authorize('ADMIN'), async (req, res) => {
+  try {
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
+    await prisma.licao.delete({ where: { id } })
+    res.json({ success: true })
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao excluir lição' })
   }
 })
 

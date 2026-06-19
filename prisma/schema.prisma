@@ -99,8 +99,26 @@ model Aula {
   modulo     Modulo     @relation(fields: [moduloId], references: [id], onDelete: Cascade)
   quiz       Quiz?
   progressos Progresso[]
+  licoes     Licao[]
 
   @@index([moduloId])
+}
+
+model Licao {
+  id        String    @id @default(cuid())
+  aulaId    String
+  titulo    String
+  conteudo  String?   // Texto ou URL do conteudo
+  tipo      AulaTipo  @default(TEXTO)
+  ordem     Int
+  duracaoMin Int?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  aula      Aula      @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+
+  @@index([aulaId])
 }
 
 model Quiz {
@@ -268,4 +286,13 @@ model ForumPost {
   autor User @relation(fields: [autorId], references: [id], onDelete: Cascade)
 
   @@index([autorId])
+}
+
+model ModuleConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique // e.g. 'forum', 'analytics', 'ranking'
+  label     String   // Display name
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

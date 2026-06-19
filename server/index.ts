@@ -20,6 +20,7 @@ import analyticsRoutes from './routes/analytics'
 import forumRoutes from './routes/forum'
 import gamificationRoutes from './routes/gamification'
 import publicRoutes from './routes/public'
+import modulesRoutes from './routes/modules'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -104,6 +105,7 @@ app.use('/api/analytics', analyticsRoutes)
 app.use('/api/forum', forumRoutes)
 app.use('/api/gamification', gamificationRoutes)
 app.use('/api/public', publicRoutes)
+app.use('/api/admin/modules', modulesRoutes)
 
 // Config endpoint: provides encryption key for frontend (public - needed before login)
 app.get('/api/config', (_req, res) => {

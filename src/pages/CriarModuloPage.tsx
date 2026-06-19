@@ -25,10 +25,10 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
     setLoading(true)
     try {
       await api.createModulo(modulo)
-      alert('Módulo criado com sucesso!')
+      alert('Curso criado com sucesso!')
       navigate('/cms')
     } catch (err: any) {
-      alert(err.message || 'Erro ao criar módulo')
+      alert(err.message || 'Erro ao criar curso')
     } finally {
       setLoading(false)
     }
@@ -41,8 +41,8 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
           <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }} onClick={() => navigate('/cms')}>
             <i className="icon-arrow-left icon-sm" /> Voltar
           </button>
-          <div className="page-title">Criar Novo Módulo</div>
-          <div className="page-subtitle">Configure as informações do módulo de aprendizado</div>
+          <div className="page-title">Criar Novo Curso</div>
+          <div className="page-subtitle">Configure as informações do curso</div>
         </div>
       </div>
 
@@ -53,7 +53,7 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
             className="form-input"
             value={modulo.titulo}
             onChange={e => setModulo({ ...modulo, titulo: e.target.value })}
-            placeholder="Nome do módulo"
+            placeholder="Nome do curso"
             required
           />
         </div>
@@ -64,7 +64,7 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
             className="form-input"
             value={modulo.descricao}
             onChange={e => setModulo({ ...modulo, descricao: e.target.value })}
-            placeholder="Descrição do módulo"
+            placeholder="Descrição do curso"
             rows={4}
           />
         </div>
@@ -86,7 +86,7 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
             Gerar Certificado Automaticamente
           </label>
           <p style={{ fontSize: '12px', color: 'var(--gray-500)', margin: '0 0 8px' }}>
-            Ativado: O certificado é gerado automaticamente ao concluir todas as aulas e quizzes do módulo.
+            Ativado: O certificado é gerado automaticamente ao concluir todas as aulas e quizzes do curso.
             Desativado: Requer aprovação do gestor/admin para emitir o certificado.
           </p>
           <select
@@ -101,7 +101,7 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
 
         <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
           <button type="submit" className="btn-primary" disabled={loading}>
-            {loading ? 'Criando...' : 'Criar Módulo'}
+            {loading ? 'Criando...' : 'Criar Curso'}
           </button>
           <button type="button" className="btn-secondary" onClick={() => navigate('/cms')}>
             Cancelar

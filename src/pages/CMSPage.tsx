@@ -76,7 +76,7 @@ export function CMSPage({ user }: CMSPageProps) {
     if (!editingMod) return
     try {
       await api.updateModulo(editingMod.id, { titulo: editingMod.titulo, descricao: editingMod.descricao, obrigatorio: editingMod.obrigatorio, autoCertificado: editingMod.autoCertificado })
-      alert('Módulo atualizado!')
+      alert('Curso atualizado!')
       setEditingMod(null)
       loadModulos()
     } catch (err: any) {
@@ -85,7 +85,7 @@ export function CMSPage({ user }: CMSPageProps) {
   }
 
   const handleDeleteModulo = async (id: string) => {
-    if (!confirm('Excluir este módulo? Todas as aulas serão removidas.')) return
+    if (!confirm('Excluir este curso? Todas as aulas serão removidas.')) return
     try {
       await api.deleteModulo(id)
       loadModulos()
@@ -226,14 +226,14 @@ export function CMSPage({ user }: CMSPageProps) {
         <div>
           <div className="page-title">Gestão de Conteúdo</div>
           <div className="page-subtitle">
-            {view === 'modulos' ? 'Gerencie seus módulos (categorias)' : selectedModulo?.titulo || 'Aulas'}
+            {view === 'modulos' ? 'Gerencie seus cursos' : selectedModulo?.titulo || 'Aulas'}
           </div>
         </div>
         {view === 'modulos' ? (
-          isAdmin && <button className="btn-primary" onClick={() => navigate('/cms/criar-modulo')}>+ Novo Módulo</button>
+          isAdmin && <button className="btn-primary" onClick={() => navigate('/cms/criar-modulo')}>+ Novo Curso</button>
         ) : (
           <>
-            <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => setView('modulos')}><i className="icon-arrow-left icon-sm" /> Voltar aos Módulos</button>
+            <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => setView('modulos')}><i className="icon-arrow-left icon-sm" /> Voltar aos Cursos</button>
             {isAdmin && <button className="btn-primary" onClick={() => setShowAulaModal(true)}>+ Nova Aula</button>}
           </>
         )}
@@ -312,11 +312,11 @@ export function CMSPage({ user }: CMSPageProps) {
         </div>
       )}
 
-      {/* Modal Editar Módulo */}
+      {/* Modal Editar Curso */}
       {editingMod && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
           <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '24px', width: '400px', maxWidth: '90%' }}>
-            <h3 style={{ marginBottom: '16px' }}>Editar Módulo</h3>
+            <h3 style={{ marginBottom: '16px' }}>Editar Curso</h3>
             <div className="form-field"><label className="form-label">Título</label><input className="form-input" value={editingMod.titulo} onChange={e => setEditingMod({ ...editingMod, titulo: e.target.value })} /></div>
             <div className="form-field"><label className="form-label">Descrição</label><textarea className="form-input" value={editingMod.descricao || ''} onChange={e => setEditingMod({ ...editingMod, descricao: e.target.value })} /></div>
             <div className="form-field">

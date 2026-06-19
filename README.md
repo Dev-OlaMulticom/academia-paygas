@@ -21,11 +21,23 @@
 
 ## Vision General
 
-Plataforma de aprendizaje corporativo para empleados de estaciones de gasolina PayGas. Ofrece modulos de entrenamiento, videos, cuestionarios, certificacion y gamificacion.
+Plataforma de aprendizaje corporativo (LMS) para empleados de estaciones de gasolina PayGas. Ofrece cursos de entrenamiento, aulas, licoes, cuestionarios, certificacion y gamificacion.
+
+### Estructura LMS
+
+```
+Cursos (antes: "Modulos" en el CMS)
+  └─ Aulas
+      └─ Licoes (video, texto, o PDF)
+```
+
+- **Curso:** Un tema de aprendizaje completo (ej: "Excelencia en el Atendimento")
+- **Aula:** Seccion dentro de un curso (ej: "Resolucion de Conflictos")
+- **Licao:** Contenido individual dentro de una aula (ej: video de 5 min, texto, PDF)
 
 ### Caracteristicas
 
-- Modulos de aprendizaje con videos YouTube
+- Cursos con aulas y licoes
 - Cuestionarios interactivos con evaluacion automatica
 - Sistema de equipos (Gestor + Atendentes)
 - Gamificacion (XP, niveles, leaderboard)
@@ -33,6 +45,7 @@ Plataforma de aprendizaje corporativo para empleados de estaciones de gasolina P
 - Soporte offline con IndexedDB
 - Activity logs para auditoria
 - Deploy en cPanel con nginx
+- Modulos de navegacion activables/desactivables por admin
 
 ---
 
@@ -151,16 +164,26 @@ SMTP_PASS="password"
 
 *\*GESTOR solo puede editar/eliminar usuarios de su equipo*
 
-### Modulos y Aulas
+### Cursos y Aulas (antes: Modulos)
 
 | Metodo | Ruta | Descripcion | Rol |
 |--------|------|-------------|-----|
-| GET | `/api/cms` | Listar modulos | Admin/Gestor |
-| POST | `/api/cms` | Crear modulo | Admin |
-| PUT | `/api/cms/:id` | Editar modulo | Admin |
-| DELETE | `/api/cms/:id` | Eliminar modulo | Admin |
-| GET | `/api/modulos/:id/aulas` | Obtener aulas | Autenticado |
-| POST | `/api/modulos/:id/aulas` | Crear aula | Admin |
+| GET | `/api/cms` | Listar cursos | Admin/Gestor |
+| POST | `/api/cms` | Crear curso | Admin |
+| PUT | `/api/cms/:id` | Editar curso | Admin |
+| DELETE | `/api/cms/:id` | Eliminar curso | Admin |
+| GET | `/api/modulos/:id/aulas` | Obtener aulas de un curso | Autenticado |
+| POST | `/api/modulos/:id/aulas` | Crear aula en curso | Admin |
+| POST | `/api/modulos/:id/aulas/:aulaId/licoes` | Crear licao en aula | Admin |
+| PUT | `/api/modulos/licoes/:licaoId` | Editar licao | Admin |
+| DELETE | `/api/modulos/licoes/:licaoId` | Eliminar licao | Admin |
+
+### Modulos de Navegacion (Activacion/Desactivacion)
+
+| Metodo | Ruta | Descripcion | Rol |
+|--------|------|-------------|-----|
+| GET | `/api/admin/modules` | Obtener estado de modulos | Autenticado |
+| PUT | `/api/admin/modules/:key` | Activar/desactivar modulo | Admin |
 
 ### Quizzes
 

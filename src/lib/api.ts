@@ -304,6 +304,24 @@ class ApiClient {
     await db.aulas.delete(id)
   }
 
+  // ==================== LICAO ====================
+
+  async getLicoes(aulaId: string) {
+    return this.request<any[]>(`/cms/aulas/${aulaId}/licoes`)
+  }
+
+  async createLicao(aulaId: string, data: any) {
+    return this.request<any>(`/cms/aulas/${aulaId}/licoes`, { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateLicao(id: string, data: any) {
+    return this.request<any>(`/cms/licoes/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async deleteLicao(id: string) {
+    return this.request<any>(`/cms/licoes/${id}`, { method: 'DELETE' })
+  }
+
   // ==================== QUIZ ====================
 
   async createQuiz(moduloId: string, data: { aulaId: string; titulo: string; autoGerarCertificado?: boolean }) {
@@ -605,6 +623,23 @@ class ApiClient {
 
   async getPublicConfig() {
     return this.request<any>('/public/config')
+  }
+
+  // ==================== ADMIN MODULES ====================
+
+  async getModules() {
+    return this.request<any[]>('/admin/modules')
+  }
+
+  async getEnabledModules() {
+    return this.request<string[]>('/admin/modules/enabled')
+  }
+
+  async toggleModule(key: string, enabled: boolean) {
+    return this.request<any>(`/admin/modules/${key}`, {
+      method: 'PUT',
+      body: JSON.stringify({ enabled }),
+    })
   }
 }
 

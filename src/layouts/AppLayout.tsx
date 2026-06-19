@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button'
 import type { User } from '../hooks/useAuth'
 import { PERSONAS } from '../data/constants'
 import { APP_VERSION } from '../lib/constants'
+import { api } from '../lib/api'
 
 interface AppLayoutProps {
   user: User
@@ -15,12 +16,18 @@ interface AppLayoutProps {
 export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [enabledModules, setEnabledModules] = useState<string[]>([])
   const location = useLocation()
   const navigate = useNavigate()
   const persona = PERSONAS[user.role as keyof typeof PERSONAS]
   const isAdmin = user?.role === 'ADMIN'
   const isGestor = user?.role === 'GESTOR'
   const currentPath = location.pathname
+
+  const isModuleEnabled = useCallback((key: string) => {
+    if (enabledModules.length === 0) return true // Fallback: show all if not loaded yet
+    return enabledModules.includes(key)
+  }, [enabledModules])
 
   const fetchUnreadCount = useCallback(async () => {
     try {
@@ -41,6 +48,10 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
     const interval = setInterval(fetchUnreadCount, 30000)
     return () => clearInterval(interval)
   }, [fetchUnreadCount])
+
+  useEffect(() => {
+    api.getEnabledModules().then(setEnabledModules).catch(() => {})
+  }, [])
 
   return (
     <div id="screen-app" className="active">
@@ -67,41 +78,59 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
         <nav className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
           <div className="sidebar-section">
             <div className="sidebar-section-label">Principal</div>
-            <button id="nav-dashboard" className={`nav-item ${currentPath === '/' ? 'active' : ''}`} onClick={() => navigate('/')}>
-              <i className="icon-home nav-icon" /> Dashboard
-            </button>
-            <button id="nav-trilhas" className={`nav-item ${currentPath === '/modulos' || currentPath.startsWith('/modulo/') ? 'active' : ''}`} onClick={() => navigate('/modulos')}>
-              <i className="icon-book-open nav-icon" /> Trilhas de Aprendizado
-            </button>
-            <button id="nav-certificados" className={`nav-item ${currentPath === '/certificados' ? 'active' : ''}`} onClick={() => navigate('/certificados')}>
-              <i className="icon-trophy nav-icon" /> Certificados
-            </button>
+            {isModuleEnabled('dashboard') && (
+              <button id="nav-dashboard" className={`nav-item ${currentPath === '/' ? 'active' : ''}`} onClick={() => navigate('/')}>
+                <i className="icon-home nav-icon" /> Dashboard
+              </button>
+            )}
+            {isModuleEnabled('trilhas') && (
+              <button id="nav-trilhas" className={`nav-item ${currentPath === '/modulos' || currentPath.startsWith('/modulo/') ? 'active' : ''}`} onClick={() => navigate('/modulos')}>
+                <i className="icon-book-open nav-icon" /> Trilhas de Aprendizado
+              </button>
+            )}
+            {isModuleEnabled('certificados') && (
+              <button id="nav-certificados" className={`nav-item ${currentPath === '/certificados' ? 'active' : ''}`} onClick={() => navigate('/certificados')}>
+                <i className="icon-trophy nav-icon" /> Certificados
+              </button>
+            )}
           </div>
           {(isAdmin || isGestor) && (
             <div className="sidebar-section">
               <div className="sidebar-section-label">Gestão</div>
-              <button id="nav-cms" className={`nav-item ${currentPath === '/cms' ? 'active' : ''}`} onClick={() => navigate('/cms')}>
-                <i className="icon-file-edit nav-icon" /> Gestão de Conteúdo
-              </button>
-              <button id="nav-equipe" className={`nav-item ${currentPath === '/equipe' ? 'active' : ''}`} onClick={() => navigate('/equipe')}>
-                <i className="icon-users nav-icon" /> {isAdmin ? 'Equipes' : 'Minha Equipe'}
-              </button>
-              <button id="nav-usuarios" className={`nav-item ${currentPath === '/usuarios' ? 'active' : ''}`} onClick={() => navigate('/usuarios')}>
-                <i className="icon-user-cog nav-icon" /> {isAdmin ? 'Usuários' : 'Meu Time'}
-              </button>
-              <button id="nav-relatorios" className={`nav-item ${currentPath === '/relatorios' ? 'active' : ''}`} onClick={() => navigate('/relatorios')}>
-                <i className="icon-bar-chart-3 nav-icon" /> Relatórios
-              </button>
+              {isModuleEnabled('cms') && (
+                <button id="nav-cms" className={`nav-item ${currentPath === '/cms' ? 'active' : ''}`} onClick={() => navigate('/cms')}>
+                  <i className="icon-file-edit nav-icon" /> Gestão de Conteúdo
+                </button>
+              )}
+              {isModuleEnabled('equipe') && (
+                <button id="nav-equipe" className={`nav-item ${currentPath === '/equipe' ? 'active' : ''}`} onClick={() => navigate('/equipe')}>
+                  <i className="icon-users nav-icon" /> {isAdmin ? 'Equipes' : 'Minha Equipe'}
+                </button>
+              )}
+              {isModuleEnabled('usuarios') && (
+                <button id="nav-usuarios" className={`nav-item ${currentPath === '/usuarios' ? 'active' : ''}`} onClick={() => navigate('/usuarios')}>
+                  <i className="icon-user-cog nav-icon" /> {isAdmin ? 'Usuários' : 'Meu Time'}
+                </button>
+              )}
+              {isModuleEnabled('relatorios') && (
+                <button id="nav-relatorios" className={`nav-item ${currentPath === '/relatorios' ? 'active' : ''}`} onClick={() => navigate('/relatorios')}>
+                  <i className="icon-bar-chart-3 nav-icon" /> Relatórios
+                </button>
+              )}
             </div>
           )}
           <div className="sidebar-section">
             <div className="sidebar-section-label">Suporte</div>
-            <button id="nav-notif" className={`nav-item ${currentPath === '/notif' ? 'active' : ''}`} onClick={() => navigate('/notif')}>
-              <i className="icon-bell nav-icon" /> Notificações
-            </button>
-            <button id="nav-perfil" className={`nav-item ${currentPath === '/perfil' ? 'active' : ''}`} onClick={() => navigate('/perfil')}>
-              <i className="icon-user nav-icon" /> Meu Perfil
-            </button>
+            {isModuleEnabled('notificacoes') && (
+              <button id="nav-notif" className={`nav-item ${currentPath === '/notif' ? 'active' : ''}`} onClick={() => navigate('/notif')}>
+                <i className="icon-bell nav-icon" /> Notificações
+              </button>
+            )}
+            {isModuleEnabled('perfil') && (
+              <button id="nav-perfil" className={`nav-item ${currentPath === '/perfil' ? 'active' : ''}`} onClick={() => navigate('/perfil')}>
+                <i className="icon-user nav-icon" /> Meu Perfil
+              </button>
+            )}
           </div>
           <div className="sidebar-footer">
             <div className="sidebar-user">
