@@ -1,4 +1,5 @@
-import { useRef } from 'react'
+import { useRef, useCallback } from 'react'
+import YouTube, { YouTubeEvent, YouTubePlayer } from 'react-youtube'
 
 interface VideoPlayerProps {
   url: string
@@ -22,8 +23,10 @@ function extractYouTubeId(url: string): string | null {
   return null
 }
 
-export function VideoPlayer({ url, startAt = 0, endAt, onReady, microLessons }: VideoPlayerProps) {
-  const containerRef = useRef<HTMLDivElement>(null)
+export function VideoPlayer({ url, startAt = 0, endAt, onReady, onTimeUpdate, microLessons }: VideoPlayerProps) {
+  const playerRef = useRef<YouTubePlayer | null>(null)
+  const endAtRef = useRef(endAt)
+  endAtRef.current = endAt
 
   const videoId = extractYouTubeId(url)
   if (!videoId) {
@@ -34,10 +37,58 @@ export function VideoPlayer({ url, startAt = 0, endAt, onReady, microLessons }: 
     )
   }
 
-  let src = `https://www.youtube.com/embed/${videoId}?iv_load_policy=3&modestbranding=1&playsinline=1&showinfo=0&rel=0&enablejsapi=1&autoplay=1&playlist=${videoId}`
-  if (startAt !== undefined && startAt > 0) src += `&start=${startAt}`
-  if (endAt && endAt > startAt) src += `&end=${endAt}`
-  src += '&origin=' + window.location.origin
+  const handleReady = useCallback((event: YouTubeEvent) => {
+    playerRef.current = event.target
+    if (startAt > 0) {
+      event.target.seekTo(startAt, true)
+      event.target.playVideo()
+    }
+    onReady?.()
+  }, [startAt, onReady])
+
+  const handleStateChange = useCallback((event: YouTubeEvent) => {
+    const YT = (window as any).YT
+    if (!YT) return
+
+    if (event.data === YT.PlayerState.PLAYING) {
+      const player = event.target
+      const pollInterval = setInterval(() => {
+        try {
+          const currentTime = player.getCurrentTime()
+          onTimeUpdate?.(currentTime)
+          const limit = endAtRef.current
+          if (limit && limit > 0 && currentTime >= limit) {
+            player.pauseVideo()
+            clearInterval(pollInterval)
+          }
+        } catch {
+          clearInterval(pollInterval)
+        }
+      }, 500)
+    }
+  }, [onTimeUpdate])
+
+  const handleMicroLessonClick = useCallback((totalSeconds: number) => {
+    const player = playerRef.current
+    if (!player) return
+    player.seekTo(totalSeconds, true)
+    player.playVideo()
+  }, [])
+
+  const opts = {
+    playerVars: {
+      autoplay: 1,
+      start: startAt || 0,
+      end: endAt && endAt > 0 ? endAt : undefined,
+      iv_load_policy: 3,
+      modestbranding: 1,
+      playsinline: 1,
+      rel: 0,
+      showinfo: 0,
+      fs: 1,
+      cc_load_policy: 0,
+    },
+  }
 
   return (
     <div className="video-player-wrapper">
@@ -45,47 +96,36 @@ export function VideoPlayer({ url, startAt = 0, endAt, onReady, microLessons }: 
         <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {microLessons.map((ml, i) => {
             const totalSeconds = ml.hours * 3600 + ml.minutes * 60 + ml.seconds
-            const startUrl = `https://www.youtube.com/embed/${videoId}?iv_load_policy=3&modestbranding=1&playsinline=1&showinfo=0&rel=0&enablejsapi=1&autoplay=1&playlist=${videoId}&start=${totalSeconds}&origin=${window.location.origin}`
             return (
-              <a
+              <button
                 key={i}
-                href={startUrl}
-                target="_blank"
-                rel="noopener noreferrer"
                 className="btn-secondary"
-                style={{ padding: '4px 8px', fontSize: '11px', textDecoration: 'none' }}
+                style={{ padding: '4px 8px', fontSize: '11px' }}
+                onClick={() => handleMicroLessonClick(totalSeconds)}
               >
                 {ml.hours > 0 ? `${ml.hours}h ` : ''}{ml.minutes}m {ml.seconds}s - {ml.titulo}
-              </a>
+              </button>
             )
           })}
         </div>
       )}
-      <div
-        ref={containerRef}
-        style={{
-          position: 'relative',
-          paddingBottom: '56.25%',
-          height: 0,
-          overflow: 'hidden',
-          borderRadius: 'var(--radius)',
-          background: '#000',
-        }}
-      >
-        <iframe
-          src={src}
-          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-          allowFullScreen
-          onLoad={() => onReady?.()}
-          style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            width: '100%',
-            height: '100%',
-            border: 0,
-          }}
-        />
+      <div style={{
+        position: 'relative',
+        paddingBottom: '56.25%',
+        height: 0,
+        overflow: 'hidden',
+        borderRadius: 'var(--radius)',
+        background: '#000',
+      }}>
+        <div style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }}>
+          <YouTube
+            videoId={videoId}
+            opts={opts}
+            onReady={handleReady}
+            onStateChange={handleStateChange}
+            style={{ width: '100%', height: '100%' }}
+          />
+        </div>
       </div>
     </div>
   )
