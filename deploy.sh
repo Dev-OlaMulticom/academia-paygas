@@ -296,6 +296,8 @@ if [ "$WEB_SERVER" = "nginx" ]; then
 
         cat > "$NGINX_SNIPPET" << 'NGINX_EOF'
 # ─── Node.js API proxy ────────────────────────────────────
+# Proxy /api/* requests to Node.js backend on port 3001.
+# "location /api/" es mas especifico que "location /" del config principal.
 location /api/ {
     proxy_pass http://127.0.0.1:3001;
     proxy_http_version 1.1;
@@ -308,18 +310,6 @@ location /api/ {
     proxy_read_timeout 30s;
     proxy_send_timeout 30s;
     proxy_connect_timeout 10s;
-}
-
-# ─── Frontend static files (SPA) ─────────────────────────
-location / {
-    root "/home/olamulticomcom/public_html/academia-paygas/dist";
-    try_files $uri $uri/ /index.html;
-
-    # Cache static assets
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
 }
 NGINX_EOF
         log_ok "Snippet nginx creado: $NGINX_SNIPPET"

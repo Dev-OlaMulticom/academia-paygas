@@ -21,9 +21,13 @@ mkdir -p "$INCLUDE_DIR"
 echo "[OK] Directorio de includes creado: $INCLUDE_DIR"
 
 # 2. Crear snippet de nginx para Node.js
+# NOTA: NO incluir "location /" porque ya existe en el config principal de cPanel.
+# Solo agregar "location /api/" que es mas especifico y toma precedencia.
 cat > "$INCLUDE_DIR/nodejs-app.conf" << 'NGINX_EOF'
 # ─── Node.js API proxy ────────────────────────────────────
-# Proxy /api/* requests to Node.js backend on port 3001
+# Proxy /api/* requests to Node.js backend on port 3001.
+# "location /api/" es mas especifico que "location /" del config principal,
+# asi que nginx lo usa primero para cualquier request que empiece con /api/.
 location /api/ {
     proxy_pass http://127.0.0.1:3001;
     proxy_http_version 1.1;
@@ -38,18 +42,13 @@ location /api/ {
     proxy_connect_timeout 10s;
 }
 
-# ─── Frontend static files ────────────────────────────────
-# Serve React SPA from dist/ directly (bypass Apache)
-location / {
-    root "/home/olamulticomcom/public_html/academia-paygas/dist";
-    try_files $uri $uri/ /index.html;
-
-    # Cache static assets
-    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
-        expires 1y;
-        add_header Cache-Control "public, immutable";
-    }
-}
+# ─── Frontend SPA fallback ────────────────────────────────
+# Para rutas frontend (/usuarios, /modulos, etc.) que no son /api/,
+# el request cae en "location /" del config principal que proxy a Apache.
+# Apache sirve archivos estaticos de dist/.
+# Si el archivo no existe, Apache devuelve 404 y el browser recarga.
+# Para SPA necesitamos que devuelva index.html en vez de 404.
+# Esto se logra modificando el config principal (ver paso 3).
 NGINX_EOF
 
 echo "[OK] Snippet nginx creado: $INCLUDE_DIR/nodejs-app.conf"
@@ -61,6 +60,7 @@ if [ $? -eq 0 ]; then
     echo "[OK] Sintaxis de nginx correcta"
 else
     echo "[FAIL] Error en sintaxis de nginx"
+    echo "  Revisar: nginx -t"
     exit 1
 fi
 
