@@ -34,7 +34,7 @@ export function VideoPlayer({ url, startAt = 0, endAt, onReady, microLessons }: 
     )
   }
 
-  let src = `https://www.youtube.com/embed/${videoId}?iv_load_policy=3&modestbranding=1&playsinline=1&showinfo=0&rel=0&enablejsapi=1&autoplay=1&mute=1`
+  let src = `https://www.youtube.com/embed/${videoId}?iv_load_policy=3&modestbranding=1&playsinline=1&showinfo=0&rel=0&enablejsapi=1&autoplay=1&playlist=${videoId}`
   if (startAt !== undefined && startAt > 0) src += `&start=${startAt}`
   if (endAt && endAt > startAt) src += `&end=${endAt}`
   src += '&origin=' + window.location.origin
@@ -45,7 +45,7 @@ export function VideoPlayer({ url, startAt = 0, endAt, onReady, microLessons }: 
         <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
           {microLessons.map((ml, i) => {
             const totalSeconds = ml.hours * 3600 + ml.minutes * 60 + ml.seconds
-            const startUrl = `${src}&start=${totalSeconds}`
+            const startUrl = `https://www.youtube.com/embed/${videoId}?iv_load_policy=3&modestbranding=1&playsinline=1&showinfo=0&rel=0&enablejsapi=1&autoplay=1&playlist=${videoId}&start=${totalSeconds}&origin=${window.location.origin}`
             return (
               <a
                 key={i}
