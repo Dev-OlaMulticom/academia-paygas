@@ -56,6 +56,7 @@ model User {
   activityLogs      ActivityLog[]
   pointsTransactions PointsTransaction[]
   forumPosts        ForumPost[]
+  conquistas        UserConquista[]
 
   @@index([gestorId])
 }
@@ -298,4 +299,37 @@ model ModuleConfig {
   enabled   Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model Conquista {
+  id              String   @id @default(cuid())
+  titulo          String
+  descricao       String
+  icone           String   @default("🏆")
+  cor             String   @default("#F47C20")
+  pontosMinimos   Int      @default(0)
+  xpRecompensa    Int      @default(0)
+  ativo           Boolean  @default(true)
+  ordem           Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  conquistas UserConquista[]
+
+  @@index([ativo])
+  @@index([pontosMinimos])
+}
+
+model UserConquista {
+  id          String   @id @default(cuid())
+  userId      String
+  conquistaId String
+  dataConquista DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conquista Conquista @relation(fields: [conquistaId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conquistaId])
+  @@index([userId])
+  @@index([conquistaId])
 }

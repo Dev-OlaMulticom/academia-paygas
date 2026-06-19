@@ -18,6 +18,7 @@ import { CriarModuloPage } from './pages/CriarModuloPage'
 import { UsuariosPage } from './pages/UsuariosPage'
 import { NotifPage } from './pages/NotifPage'
 import { PerfilPage } from './pages/PerfilPage'
+import { ConquistasPage } from './pages/ConquistasPage'
 import './index.css'
 
 function RoleRoute({ user, allowedRoles, children }: { user: any; allowedRoles: string[]; children: React.ReactNode }) {
@@ -85,6 +86,7 @@ export default function App() {
                     </RoleRoute>
                   } />
                   <Route path="/notif" element={<NotifPage user={user!} />} />
+                  <Route path="/conquistas" element={<ConquistasPage user={user!} />} />
                   <Route path="/perfil" element={<PerfilPage user={user!} xp={xp} />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

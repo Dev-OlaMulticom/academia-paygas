@@ -615,6 +615,28 @@ class ApiClient {
     return this.request<any>('/gamification/stats')
   }
 
+  // ==================== CONQUISTAS ====================
+
+  async getConquistas() {
+    return this.request<any[]>('/conquistas')
+  }
+
+  async getMyConquistas() {
+    return this.request<any[]>('/conquistas/my')
+  }
+
+  async createConquista(data: { titulo: string; descricao: string; icone?: string; cor?: string; pontosMinimos?: number; xpRecompensa?: number; ativo?: boolean; ordem?: number }) {
+    return this.request<any>('/conquistas', { method: 'POST', body: JSON.stringify(data) })
+  }
+
+  async updateConquista(id: string, data: any) {
+    return this.request<any>(`/conquistas/${id}`, { method: 'PUT', body: JSON.stringify(data) })
+  }
+
+  async deleteConquista(id: string) {
+    return this.request<any>(`/conquistas/${id}`, { method: 'DELETE' })
+  }
+
   // ==================== PUBLIC ====================
 
   async getPublicStats() {

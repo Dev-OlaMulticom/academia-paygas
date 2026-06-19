@@ -93,6 +93,9 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
                 <i className="icon-trophy nav-icon" /> Certificados
               </button>
             )}
+            <button id="nav-conquistas" className={`nav-item ${currentPath === '/conquistas' ? 'active' : ''}`} onClick={() => navigate('/conquistas')}>
+              <i className="icon-star nav-icon" /> Conquistas
+            </button>
           </div>
           {(isAdmin || isGestor) && (
             <div className="sidebar-section">

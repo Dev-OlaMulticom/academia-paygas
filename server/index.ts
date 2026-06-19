@@ -21,6 +21,7 @@ import forumRoutes from './routes/forum'
 import gamificationRoutes from './routes/gamification'
 import publicRoutes from './routes/public'
 import modulesRoutes from './routes/modules'
+import conquistasRoutes from './routes/conquistas'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -104,6 +105,7 @@ app.use('/api/docs', docsRoutes)
 app.use('/api/analytics', analyticsRoutes)
 app.use('/api/forum', forumRoutes)
 app.use('/api/gamification', gamificationRoutes)
+app.use('/api/conquistas', conquistasRoutes)
 app.use('/api/public', publicRoutes)
 app.use('/api/admin/modules', modulesRoutes)
 
