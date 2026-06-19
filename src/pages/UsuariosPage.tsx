@@ -18,6 +18,8 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
   const [usuarios, setUsuarios] = useState<any[]>([])
   const [gestores, setGestores] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [equipeDetalhe, setEquipeDetalhe] = useState<any[]>([])
+  const [expandedUser, setExpandedUser] = useState<string | null>(null)
 
   const isAdmin = user?.role === 'ADMIN'
   const isGestor = user?.role === 'GESTOR'
@@ -41,7 +43,16 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
     }
   }
 
-  useEffect(() => { loadUsuarios(); loadGestores() }, [])
+  const loadEquipeDetalhe = async () => {
+    try {
+      const data = await api.getEquipeDetalhe()
+      setEquipeDetalhe(data)
+    } catch {
+      setEquipeDetalhe([])
+    }
+  }
+
+  useEffect(() => { loadUsuarios(); loadGestores(); loadEquipeDetalhe() }, [])
 
   const handleCreate = async () => {
     if (!newUser.nome || !newUser.email || !newUser.senha || !newUser.role) {
@@ -153,8 +164,8 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
     <div className="page active">
       <div className="page-header">
         <div>
-          <div className="page-title">{isGestor ? 'Minha Equipe' : 'Usuarios da Plataforma'}</div>
-          <div className="page-subtitle">{isGestor ? 'Gerencie os atendentes da sua equipe' : 'Gerencie todos os usuarios do sistema'}</div>
+          <div className="page-title">{isGestor ? 'Meu Time' : 'Usuários da Plataforma'}</div>
+          <div className="page-subtitle">{isGestor ? 'Acompanhe o progresso dos seus atendentes' : 'Gerencie todos os usuários do sistema'}</div>
         </div>
         <button className="btn-primary" onClick={() => setShowCreateModal(true)}>+ Novo Usuario</button>
       </div>
@@ -222,6 +233,73 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
           </tbody>
         </table>
       </div>
+
+      {isGestor && equipeDetalhe.length > 0 && (
+        <div style={{ marginTop: '24px' }}>
+          <div className="section-title" style={{ marginBottom: '14px' }}>Progresso Detalhado da Equipe</div>
+          {equipeDetalhe.map((member) => (
+            <div key={member.id} style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', marginBottom: '12px', overflow: 'hidden' }}>
+              <div
+                style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', userSelect: 'none' }}
+                onClick={() => setExpandedUser(expandedUser === member.id ? null : member.id)}
+              >
+                <div className="user-avatar" style={{ width: '36px', height: '36px', fontSize: '13px', flexShrink: 0, background: 'var(--pg-gold)', color: '#fff' }}>
+                  {member.nome?.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <b style={{ fontSize: '14px', color: 'var(--gray-900)' }}>{member.nome}</b>
+                  <div style={{ fontSize: '12px', color: 'var(--gray-400)' }}>{member.email}</div>
+                </div>
+                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--pg-orange)' }}>{member.xp || 0}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--gray-400)' }}>XP</div>
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--pg-green)' }}>
+                      {member.modulos?.filter((m: any) => m.aulasConcluidas === m.totalAulas && m.totalAulas > 0).length || 0}
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--gray-400)' }}>Concluídos</div>
+                  </div>
+                  <i className={expandedUser === member.id ? 'icon-chevron-up icon-sm' : 'icon-chevron-down icon-sm'} style={{ color: 'var(--gray-400)' }} />
+                </div>
+              </div>
+
+              {expandedUser === member.id && (
+                <div style={{ borderTop: '1px solid var(--gray-100)', padding: '20px' }}>
+                  {member.modulos?.map((mod: any) => {
+                    const percentual = mod.totalAulas > 0 ? Math.round((mod.aulasConcluidas / mod.totalAulas) * 100) : 0
+                    return (
+                      <div key={mod.id} style={{ marginBottom: '16px' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                          <b style={{ fontSize: '13px', color: 'var(--gray-700)' }}>{mod.titulo}</b>
+                          <span style={{ fontSize: '12px', color: percentual === 100 ? 'var(--pg-green)' : 'var(--gray-500)', fontWeight: 600 }}>
+                            {mod.aulasConcluidas}/{mod.totalAulas} aulas ({percentual}%)
+                          </span>
+                        </div>
+                        <div className="track-prog-bar" style={{ marginBottom: '10px' }}>
+                          <div className={`track-prog-fill ${percentual === 100 ? 'done' : ''}`} style={{ width: `${percentual}%` }} />
+                        </div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '12px' }}>
+                          {mod.aulas?.map((aula: any) => (
+                            <div key={aula.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                              <i className={aula.concluido ? 'icon-check-circle icon-xs' : 'icon-circle icon-xs'} style={{ color: aula.concluido ? 'var(--pg-green)' : 'var(--gray-300)' }} />
+                              <span style={{ color: aula.concluido ? 'var(--gray-700)' : 'var(--gray-400)' }}>{aula.titulo}</span>
+                              {aula.licoes?.length > 0 && (
+                                <span style={{ fontSize: '10px', color: 'var(--gray-300)' }}>({aula.licoes.length} lições)</span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
 
       {showCreateModal && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>

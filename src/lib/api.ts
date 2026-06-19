@@ -241,6 +241,10 @@ class ApiClient {
     return this.getWithCache<any[]>('/usuarios/equipe', db.users)
   }
 
+  async getEquipeDetalhe() {
+    return this.request<any[]>('/usuarios/equipe/detalhe')
+  }
+
   // ==================== CMS - MODULOS ====================
 
   async getCmsModulos() {

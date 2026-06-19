@@ -109,9 +109,9 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
                   <i className="icon-file-edit nav-icon" /> Gestão de Conteúdo
                 </button>
               )}
-              {isModuleEnabled('equipe') && (
+              {isModuleEnabled('equipe') && isAdmin && (
                 <button id="nav-equipe" className={`nav-item ${currentPath === '/equipe' ? 'active' : ''}`} onClick={() => navigate('/equipe')}>
-                  <i className="icon-users nav-icon" /> {isAdmin ? 'Equipes' : 'Minha Equipe'}
+                  <i className="icon-users nav-icon" /> Equipes
                 </button>
               )}
               {isModuleEnabled('usuarios') && (
@@ -124,9 +124,11 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
                   <i className="icon-bar-chart-3 nav-icon" /> Relatórios
                 </button>
               )}
-              <button id="nav-logs" className={`nav-item ${currentPath === '/logs' ? 'active' : ''}`} onClick={() => navigate('/logs')}>
-                <i className="icon-clipboard nav-icon" /> Logs de Atividade
-              </button>
+              {isAdmin && (
+                <button id="nav-logs" className={`nav-item ${currentPath === '/logs' ? 'active' : ''}`} onClick={() => navigate('/logs')}>
+                  <i className="icon-clipboard nav-icon" /> Logs de Atividade
+                </button>
+              )}
             </div>
           )}
           <div className="sidebar-section">

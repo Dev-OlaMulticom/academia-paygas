@@ -295,6 +295,150 @@ router.get('/equipe', authenticate, authorize('ADMIN', 'GESTOR'), async (req: Au
   }
 })
 
+// GET /api/usuarios/equipe/detalhe - Detailed team progress for GESTOR
+router.get('/equipe/detalhe', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
+  try {
+    if (req.userRole === 'GESTOR') {
+      const members = await prisma.user.findMany({
+        where: { gestorId: req.userId },
+        select: {
+          id: true,
+          nome: true,
+          email: true,
+          role: true,
+          xp: true,
+          lastLogin: true,
+          progressos: {
+            include: {
+              modulo: { select: { id: true, titulo: true } },
+              aula: { select: { id: true, titulo: true, moduloId: true } },
+            },
+          },
+        },
+      })
+
+      const modulos = await prisma.modulo.findMany({
+        select: {
+          id: true,
+          titulo: true,
+          aulas: { select: { id: true, titulo: true, licoes: { select: { id: true, titulo: true } } } },
+        },
+      })
+
+      const result = members.map((m) => {
+        const progressoByModulo = new Map<string, { total: number; concluidas: number; aulas: any[] }>()
+
+        for (const mod of modulos) {
+          const aulaProgress = mod.aulas.map((a) => {
+            const prog = m.progressos.find((p) => p.aulaId === a.id)
+            return {
+              id: a.id,
+              titulo: a.titulo,
+              concluido: prog?.concluido || false,
+              licoes: a.licoes.map((l) => ({
+                id: l.id,
+                titulo: l.titulo,
+              })),
+            }
+          })
+          const concluidas = aulaProgress.filter((a) => a.concluido).length
+          progressoByModulo.set(mod.id, {
+            total: mod.aulas.length,
+            concluidas,
+            aulas: aulaProgress,
+          })
+        }
+
+        return {
+          id: m.id,
+          nome: m.nome,
+          email: m.email,
+          role: m.role,
+          xp: m.xp,
+          lastLogin: m.lastLogin,
+          modulos: modulos.map((mod) => ({
+            id: mod.id,
+            titulo: mod.titulo,
+            totalAulas: progressoByModulo.get(mod.id)?.total || 0,
+            aulasConcluidas: progressoByModulo.get(mod.id)?.concluidas || 0,
+            aulas: progressoByModulo.get(mod.id)?.aulas || [],
+          })),
+        }
+      })
+
+      return res.json(result)
+    }
+
+    // ADMIN: return all users with progress
+    const allUsers = await prisma.user.findMany({
+      where: { role: 'ATENDENTE' },
+      select: {
+        id: true,
+        nome: true,
+        email: true,
+        role: true,
+        xp: true,
+        lastLogin: true,
+        gestorId: true,
+        progressos: {
+          include: {
+            modulo: { select: { id: true, titulo: true } },
+            aula: { select: { id: true, titulo: true, moduloId: true } },
+          },
+        },
+      },
+    })
+
+    const modulos = await prisma.modulo.findMany({
+      select: {
+        id: true,
+        titulo: true,
+        aulas: { select: { id: true, titulo: true, licoes: { select: { id: true, titulo: true } } } },
+      },
+    })
+
+    const result = allUsers.map((m) => {
+      const progressoByModulo = new Map<string, { total: number; concluidas: number; aulas: any[] }>()
+
+      for (const mod of modulos) {
+        const aulaProgress = mod.aulas.map((a) => {
+          const prog = m.progressos.find((p) => p.aulaId === a.id)
+          return {
+            id: a.id,
+            titulo: a.titulo,
+            concluido: prog?.concluido || false,
+            licoes: a.licoes.map((l) => ({ id: l.id, titulo: l.titulo })),
+          }
+        })
+        const concluidas = aulaProgress.filter((a) => a.concluido).length
+        progressoByModulo.set(mod.id, { total: mod.aulas.length, concluidas, aulas: aulaProgress })
+      }
+
+      return {
+        id: m.id,
+        nome: m.nome,
+        email: m.email,
+        role: m.role,
+        xp: m.xp,
+        lastLogin: m.lastLogin,
+        gestorId: m.gestorId,
+        modulos: modulos.map((mod) => ({
+          id: mod.id,
+          titulo: mod.titulo,
+          totalAulas: progressoByModulo.get(mod.id)?.total || 0,
+          aulasConcluidas: progressoByModulo.get(mod.id)?.concluidas || 0,
+          aulas: progressoByModulo.get(mod.id)?.aulas || [],
+        })),
+      }
+    })
+
+    res.json(result)
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao buscar detalhe da equipe' })
+  }
+})
+
 // GET /api/usuarios/equipe/stats - Team stats for admin
 router.get('/equipe/stats', authenticate, authorize('ADMIN'), async (req: AuthRequest, res) => {
   try {
