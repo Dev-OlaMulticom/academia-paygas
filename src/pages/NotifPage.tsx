@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
+import { useToast } from '../components/Toast'
 
 
 interface NotifPageProps {
@@ -8,6 +9,7 @@ interface NotifPageProps {
 }
 
 export function NotifPage({ user }: NotifPageProps) {
+  const { toast } = useToast()
   const [showSendModal, setShowSendModal] = useState(false)
   const [sendTarget, setSendTarget] = useState<'user' | 'all' | 'role' | 'team'>('user')
   const [newNotif, setNewNotif] = useState({ titulo: '', mensagem: '', toUserId: '', toRole: '' })
@@ -43,7 +45,7 @@ export function NotifPage({ user }: NotifPageProps) {
 
   const handleSend = async () => {
     if (!newNotif.titulo || !newNotif.mensagem) {
-      alert('Preencha título e mensagem!')
+      toast('Preencha título e mensagem!', 'info')
       return
     }
 
@@ -57,15 +59,15 @@ export function NotifPage({ user }: NotifPageProps) {
       } else if (sendTarget === 'user' && newNotif.toUserId) {
         await api.sendNotification(newNotif.toUserId, newNotif.titulo, newNotif.mensagem)
       } else {
-        alert('Selecione um destinatário válido!')
+        toast('Selecione um destinatário válido!', 'info')
         return
       }
-      alert('Notificação enviada!')
+      toast('Notificação enviada!', 'success')
       setShowSendModal(false)
       setNewNotif({ titulo: '', mensagem: '', toUserId: '', toRole: '' })
       setSendTarget('user')
     } catch (err: any) {
-      alert(err.message || 'Erro ao enviar')
+      toast(err.message || 'Erro ao enviar', 'error')
     }
   }
 

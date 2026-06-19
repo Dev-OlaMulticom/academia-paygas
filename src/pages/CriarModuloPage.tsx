@@ -1,6 +1,7 @@
 import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
+import { useToast } from '../components/Toast'
 
 interface CriarModuloPageProps {
   user: any
@@ -8,6 +9,7 @@ interface CriarModuloPageProps {
 
 export function CriarModuloPage(_props: CriarModuloPageProps) {
   const navigate = useNavigate()
+  const { toast } = useToast()
   const [modulo, setModulo] = useState({
     titulo: '',
     descricao: '',
@@ -19,16 +21,16 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!modulo.titulo) {
-      alert('Título é obrigatório!')
+      toast('Título é obrigatório!', 'info')
       return
     }
     setLoading(true)
     try {
       await api.createModulo(modulo)
-      alert('Curso criado com sucesso!')
+      toast('Curso criado com sucesso!', 'success')
       navigate('/cms')
     } catch (err: any) {
-      alert(err.message || 'Erro ao criar curso')
+      toast(err.message || 'Erro ao criar curso', 'error')
     } finally {
       setLoading(false)
     }

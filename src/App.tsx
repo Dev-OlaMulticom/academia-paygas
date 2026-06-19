@@ -3,6 +3,8 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './hooks/useAuth'
 import { AppLayout } from './layouts/AppLayout'
 import { ProtectedRoute } from './components/ProtectedRoute'
+import { ToastProvider } from './components/Toast'
+import { ConfirmProvider } from './components/Toast'
 import { LoginPage } from './pages/LoginPage'
 import { VerificarEmailPage } from './pages/VerificarEmailPage'
 import { DashboardPage } from './pages/DashboardPage'
@@ -37,7 +39,9 @@ export default function App() {
   }
 
   return (
-    <BrowserRouter>
+    <ToastProvider>
+      <ConfirmProvider>
+        <BrowserRouter>
       <Routes>
         <Route
           path="/login"
@@ -89,6 +93,8 @@ export default function App() {
           }
         />
       </Routes>
-    </BrowserRouter>
+      </BrowserRouter>
+      </ConfirmProvider>
+    </ToastProvider>
   )
 }

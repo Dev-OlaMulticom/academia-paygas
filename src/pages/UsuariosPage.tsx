@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { User } from '../hooks/useAuth'
 import { PERSONAS } from '../data/constants'
 import { api } from '../lib/api'
+import { useToast, useConfirm } from '../components/Toast'
 
 
 interface UsuariosPageProps {
@@ -9,6 +10,8 @@ interface UsuariosPageProps {
 }
 
 export function UsuariosPage({ user }: UsuariosPageProps) {
+  const { toast } = useToast()
+  const { confirm } = useConfirm()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
   const [newUser, setNewUser] = useState({ nome: '', email: '', senha: '', role: '', gestorId: '' })
@@ -42,11 +45,11 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 
   const handleCreate = async () => {
     if (!newUser.nome || !newUser.email || !newUser.senha || !newUser.role) {
-      alert('Preencha todos os campos!')
+      toast('Preencha todos os campos!', 'info')
       return
     }
     if (newUser.role === 'ATENDENTE' && !isGestor && !newUser.gestorId) {
-      alert('Selecione um Gestor de Posto para o atendente!')
+      toast('Selecione um Gestor de Posto para o atendente!', 'info')
       return
     }
     try {
@@ -57,12 +60,12 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
         role: isGestor ? 'ATENDENTE' : newUser.role,
         gestorId: isGestor ? user.id : (newUser.role === 'ATENDENTE' ? newUser.gestorId : undefined),
       })
-      alert('Usuario criado com sucesso! Email de verificacao enviado.')
+      toast('Usuario criado com sucesso! Email de verificacao enviado.', 'success')
       setShowCreateModal(false)
       setNewUser({ nome: '', email: '', senha: '', role: '', gestorId: '' })
       loadUsuarios()
     } catch (err: any) {
-      alert(err.message || 'Erro ao criar usuario')
+      toast(err.message || 'Erro ao criar usuario', 'error')
     }
   }
 
@@ -75,43 +78,59 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
         role: editingUser.role,
         gestorId: editingUser.role === 'ATENDENTE' ? editingUser.gestorId : null,
       })
-      alert('Usuario atualizado!')
+      toast('Usuario atualizado!', 'success')
       setEditingUser(null)
       loadUsuarios()
     } catch (err: any) {
-      alert(err.message || 'Erro ao atualizar')
+      toast(err.message || 'Erro ao atualizar', 'error')
     }
   }
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Excluir este usuario? Todos os dados serao removidos.')) return
+    const ok = await confirm({
+      title: 'Excluir usuario',
+      message: 'Excluir este usuario? Todos os dados serao removidos.',
+      confirmLabel: 'Excluir',
+      danger: true,
+    })
+    if (!ok) return
     try {
       await api.deleteUsuario(id)
-      alert('Usuario excluido!')
+      toast('Usuario excluido!', 'success')
       loadUsuarios()
     } catch (err: any) {
-      alert(err.message || 'Erro ao excluir')
+      toast(err.message || 'Erro ao excluir', 'error')
     }
   }
 
   const handleValidateAccount = async (id: string, nome: string) => {
-    if (!confirm(`Validar a conta de ${nome}? O usuario tera acesso imediato.`)) return
+    const ok = await confirm({
+      title: 'Validar conta',
+      message: `Validar a conta de ${nome}? O usuario tera acesso imediato.`,
+      confirmLabel: 'Validar',
+    })
+    if (!ok) return
     try {
       await api.validateAccount(id)
-      alert('Conta validada com sucesso!')
+      toast('Conta validada com sucesso!', 'success')
       loadUsuarios()
     } catch (err: any) {
-      alert(err.message || 'Erro ao validar conta')
+      toast(err.message || 'Erro ao validar conta', 'error')
     }
   }
 
   const handleResendVerification = async (id: string, nome: string) => {
-    if (!confirm(`Reenviar email de verificacao para ${nome}?`)) return
+    const ok = await confirm({
+      title: 'Reenviar verificacao',
+      message: `Reenviar email de verificacao para ${nome}?`,
+      confirmLabel: 'Reenviar',
+    })
+    if (!ok) return
     try {
       await api.resendVerification(id)
-      alert('Email de verificacao reenviado!')
+      toast('Email de verificacao reenviado!', 'success')
     } catch (err: any) {
-      alert(err.message || 'Erro ao reenviar verificacao')
+      toast(err.message || 'Erro ao reenviar verificacao', 'error')
     }
   }
 

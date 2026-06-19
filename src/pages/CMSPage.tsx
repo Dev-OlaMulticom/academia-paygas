@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
 import { VideoPreview } from '../components/VideoPreview'
+import { useToast, useConfirm } from '../components/Toast'
 
 
 interface CMSPageProps {
@@ -24,6 +25,8 @@ interface VideoDuration {
 
 export function CMSPage({ user }: CMSPageProps) {
   const navigate = useNavigate()
+  const { toast } = useToast()
+  const { confirm } = useConfirm()
   const [view, setView] = useState<'modulos' | 'aulas'>('modulos')
   const [selectedModulo, setSelectedModulo] = useState<any>(null)
   const [showAulaModal, setShowAulaModal] = useState(false)
@@ -76,35 +79,62 @@ export function CMSPage({ user }: CMSPageProps) {
     if (!editingMod) return
     try {
       await api.updateModulo(editingMod.id, { titulo: editingMod.titulo, descricao: editingMod.descricao, obrigatorio: editingMod.obrigatorio, autoCertificado: editingMod.autoCertificado })
-      alert('Curso atualizado!')
+      toast('Curso atualizado!', 'success')
       setEditingMod(null)
       loadModulos()
     } catch (err: any) {
-      alert(err.message || 'Erro ao atualizar')
+      toast(err.message || 'Erro ao atualizar', 'error')
     }
   }
 
   const handleDeleteModulo = async (id: string) => {
-    if (!confirm('Excluir este curso? Todas as aulas serão removidas.')) return
+    const mod = modulos.find(m => m.id === id)
+    const aulaCount = mod?._count?.aulas || 0
+
+    let message = `Deseja excluir o curso "${mod?.titulo}"?`
+    if (aulaCount > 0) {
+      message += `\n\nEste curso contém ${aulaCount} aula(s).`
+      try {
+        let totalLicoes = 0
+        for (const aula of (mod.aulas || [])) {
+          const licoes = await api.getLicoes(aula.id).catch(() => [])
+          totalLicoes += licoes.length
+        }
+        if (totalLicoes > 0) {
+          message += `\n${totalLicoes} lição(ões) serão removidas também.`
+        }
+      } catch {}
+      message += `\n\nEsta ação não pode ser desfeita.`
+    }
+
+    const ok = await confirm({
+      title: 'Excluir Curso',
+      message,
+      confirmLabel: 'Excluir',
+      danger: true,
+    })
+    if (!ok) return
+
     try {
       await api.deleteModulo(id)
+      toast('Curso excluído!', 'success')
       loadModulos()
     } catch (err: any) {
-      alert(err.message || 'Erro ao excluir')
+      toast(err.message || 'Erro ao excluir', 'error')
     }
   }
 
   const handleCreateAula = async () => {
     if (!newAula.titulo) {
-      alert('Título é obrigatório!')
+      toast('Título é obrigatório!', 'info')
       return
     }
     if (newAula.tipo === 'VIDEO' && !newAula.videoUrl) {
-      alert('URL do vídeo é obrigatória!')
+      toast('URL do vídeo é obrigatória!', 'info')
       return
     }
     if (newAula.tipo === 'PDF' && !newAula.pdfUrl) {
-      alert('URL do PDF é obrigatória!')
+      toast('URL do PDF é obrigatória!', 'info')
       return
     }
     try {
@@ -121,12 +151,12 @@ export function CMSPage({ user }: CMSPageProps) {
         payload.pdfUrl = newAula.pdfUrl
       }
       await api.createAula(selectedModulo.id, payload)
-      alert('Aula criada com sucesso!')
+      toast('Aula criada com sucesso!', 'success')
       setShowAulaModal(false)
       setNewAula({ titulo: '', tipo: 'VIDEO', videoUrl: '', pdfUrl: '', obrigatorio: false, microLessons: [], duration: { hours: 0, minutes: 0, seconds: 0 } })
       loadAulas(selectedModulo.id)
     } catch (err: any) {
-      alert(err.message || 'Erro ao criar aula')
+      toast(err.message || 'Erro ao criar aula', 'error')
     }
   }
 
@@ -134,21 +164,27 @@ export function CMSPage({ user }: CMSPageProps) {
     if (!editingAula) return
     try {
       await api.updateAula(editingAula.id, editingAula)
-      alert('Aula atualizada!')
+      toast('Aula atualizada!', 'success')
       setEditingAula(null)
       loadAulas(selectedModulo.id)
     } catch (err: any) {
-      alert(err.message || 'Erro ao atualizar')
+      toast(err.message || 'Erro ao atualizar', 'error')
     }
   }
 
   const handleDeleteAula = async (id: string) => {
-    if (!confirm('Excluir esta aula?')) return
+    const ok = await confirm({
+      title: 'Excluir aula',
+      message: 'Tem certeza?',
+      confirmLabel: 'Excluir',
+      danger: true,
+    })
+    if (!ok) return
     try {
       await api.deleteAula(id)
       loadAulas(selectedModulo.id)
     } catch (err: any) {
-      alert(err.message || 'Erro ao excluir')
+      toast(err.message || 'Erro ao excluir', 'error')
     }
   }
 
@@ -170,40 +206,46 @@ export function CMSPage({ user }: CMSPageProps) {
         titulo: editingQuiz.titulo || `Quiz: ${quizAula.titulo}`,
         autoGerarCertificado: editingQuiz.autoGerarCertificado || false,
       })
-      alert('Quiz criado com sucesso!')
+      toast('Quiz criado com sucesso!', 'success')
       loadAulas(selectedModulo.id)
       setShowQuizModal(false)
     } catch (err: any) {
-      alert(err.message || 'Erro ao criar quiz')
+      toast(err.message || 'Erro ao criar quiz', 'error')
     }
   }
 
   const handleAddPergunta = async () => {
     if (!editingQuiz || !newPergunta.pergunta || !newPergunta.opcaoA || !newPergunta.opcaoB) {
-      alert('Pergunta e opções A e B são obrigatórias!')
+      toast('Pergunta e opções A e B são obrigatórias!', 'info')
       return
     }
     try {
       await api.addPergunta(editingQuiz.id, newPergunta)
-      alert('Pergunta adicionada!')
+      toast('Pergunta adicionada!', 'success')
       setNewPergunta({ pergunta: '', opcaoA: '', opcaoB: '', opcaoC: '', opcaoD: '', correta: 'A' })
       const updatedQuiz = await api.getQuiz(selectedModulo.id, quizAula.id)
       setEditingQuiz(updatedQuiz)
       if (selectedModulo) loadAulas(selectedModulo.id)
     } catch (err: any) {
-      alert(err.message || 'Erro ao adicionar pergunta')
+      toast(err.message || 'Erro ao adicionar pergunta', 'error')
     }
   }
 
   const handleDeletePergunta = async (perguntaId: string) => {
-    if (!confirm('Excluir esta pergunta?')) return
+    const ok = await confirm({
+      title: 'Excluir pergunta',
+      message: 'Tem certeza?',
+      confirmLabel: 'Excluir',
+      danger: true,
+    })
+    if (!ok) return
     try {
       await api.deletePergunta(perguntaId)
       const updatedQuiz = await api.getQuiz(selectedModulo.id, quizAula.id)
       setEditingQuiz(updatedQuiz)
       if (selectedModulo) loadAulas(selectedModulo.id)
     } catch (err: any) {
-      alert(err.message || 'Erro ao excluir pergunta')
+      toast(err.message || 'Erro ao excluir pergunta', 'error')
     }
   }
 
