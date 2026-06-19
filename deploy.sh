@@ -336,15 +336,43 @@ NGINX_EOF
     echo ""
 fi
 
-# ─── 6d. Fix .htaccess: eliminar ProxyTimeout que causa 500 ──
+# ─── 6d. Fix .htaccess: ProxyTimeout + PageSpeed ───────────
 echo "=== [6d/10] Corrigiendo .htaccess ==="
 
 HTACCESS_FILE="$DEPLOY_DIR/.htaccess"
 if [ -f "$HTACCESS_FILE" ]; then
+    CHANGED=false
+
+    # Fix 1: eliminar ProxyTimeout que causa 500
     if grep -q "ProxyTimeout" "$HTACCESS_FILE"; then
         sed -i '/ProxyTimeout /d' "$HTACCESS_FILE"
         sed -i '/Timeout 30/d' "$HTACCESS_FILE"
         log_fix "ProxyTimeout/Timeout eliminados del .htaccess (causaba 500 en Apache)"
+        CHANGED=true
+    fi
+
+    # Fix 2: desactivar PageSpeed y bloquear archivos .pagespeed.*
+    if ! grep -q "ModPagespeedDisallow" "$HTACCESS_FILE"; then
+        sed -i '/ModPagespeedUnplugged true/a\    ModPagespeedDisallow "*.pagespeed.*"' "$HTACCESS_FILE"
+        log_fix "ModPagespeedDisallow agregado al .htaccess"
+        CHANGED=true
+    fi
+
+    if ! grep -q "\.pagespeed\\\." "$HTACCESS_FILE"; then
+        cat >> "$HTACCESS_FILE" << 'HTACCESS_EOF'
+
+# Bloquear archivos Pagespeed fantasma (.pagespeed.*)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} \.pagespeed\.
+    RewriteRule ^ - [R=404,L]
+</IfModule>
+HTACCESS_EOF
+        log_fix "RewriteRule para bloquear .pagespeed.* agregado"
+        CHANGED=true
+    fi
+
+    if [ "$CHANGED" = true ]; then
         # Recargar Apache si esta corriendo
         if systemctl is-active --quiet httpd 2>/dev/null; then
             systemctl reload httpd 2>/dev/null && log_ok "Apache recargado" || true

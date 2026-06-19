@@ -6,6 +6,14 @@
 <IfModule mod_pagespeed.c>
     ModPagespeed Off
     ModPagespeedUnplugged true
+    ModPagespeedDisallow "*.pagespeed.*"
+</IfModule>
+
+# Bloquear archivos Pagespeed fantasma (.pagespeed.*)
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} \.pagespeed\.
+    RewriteRule ^ - [R=404,L]
 </IfModule>
 
 # ─── Block access to sensitive files ────────────────────────
