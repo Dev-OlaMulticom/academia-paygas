@@ -40,7 +40,6 @@ export function VideoPreview({ url, onDurationChange }: VideoPreviewProps) {
       return
     }
 
-    // Initialize Plyr to get duration
     if (containerRef.current) {
       containerRef.current.innerHTML = ''
 
@@ -78,14 +77,29 @@ export function VideoPreview({ url, onDurationChange }: VideoPreviewProps) {
 
         playerRef.current.on('ready', () => {
           setLoaded(true)
-          // Try to get duration after ready
-          setTimeout(() => {
-            const videoDuration = playerRef.current?.duration || 0
-            if (videoDuration > 0) {
-              setDuration(videoDuration)
-              onDurationChange?.(videoDuration)
+          let attempts = 0
+          const maxAttempts = 20
+          const pollDuration = () => {
+            attempts++
+            const d = playerRef.current?.duration
+            if (d && d > 0) {
+              setDuration(d)
+              onDurationChange?.(d)
+              return
             }
-          }, 1000)
+            if (attempts < maxAttempts) {
+              setTimeout(pollDuration, 500)
+            }
+          }
+          pollDuration()
+        })
+
+        playerRef.current.on('loadeddata', () => {
+          const d = playerRef.current?.duration
+          if (d && d > 0) {
+            setDuration(d)
+            onDurationChange?.(d)
+          }
         })
       } catch (e) {
         console.warn('Plyr initialization note:', e)
@@ -165,6 +179,11 @@ export function VideoPreview({ url, onDurationChange }: VideoPreviewProps) {
               />
             </div>
           </div>
+        </div>
+      )}
+      {loaded && duration === 0 && (
+        <div style={{ padding: '12px', background: 'var(--gray-50)', borderRadius: 'var(--radius)', fontSize: '13px', color: 'var(--gray-500)' }}>
+          Carregando duração do vídeo...
         </div>
       )}
     </div>
