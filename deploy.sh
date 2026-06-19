@@ -489,6 +489,9 @@ if [ ! -f dist/server/index.js ]; then
     log_fail "dist/server/index.js no existe despues del build"
 fi
 
+# Copiar .htaccess a dist/ despues del build (vite no lo incluye)
+cp "$DEPLOY_DIR/.htaccess" dist/.htaccess 2>/dev/null && log_ok ".htaccess copiado a dist/" || log_warn "No se pudo copiar .htaccess a dist/"
+
 # Abortar si AMBOS builds fallaron
 if [ "$BUILD_FE_OK" = false ] && [ "$BUILD_BE_OK" = false ]; then
     log_fail "Ambos builds fallaron. Abortando deploy."
