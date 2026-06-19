@@ -74,19 +74,39 @@ if [ ! -f "${NGINX_MAIN}.bak-academia" ]; then
     echo "[OK] Backup creado: ${NGINX_MAIN}.bak-academia"
 fi
 
-# Usar perl para reemplazar el location / dentro del bloque server de academia
-# Busca: desde "server_name ... academia.paygas.com.br" hasta el "}" de ese server block
-# Reemplaza SOLO el "location /" que esta dentro de ese bloque
-perl -i -0pe '
-    # Solo reemplazar dentro del bloque server de academia.paygas.com.br
-    s/(server\s*\{[^}]*server_name[^"]*academia\.paygas\.com\.br[^}]*\{.*?)(location\s*/\s*\{\s*\n\s*include\s+conf\.d\/includes-optional\/cpanel-proxy\.conf;\s*\n\s*proxy_pass\s+\$CPANEL_APACHE_PROXY_PASS;\s*\n\s*\})/$1location \/ {\n        root "\/home\/olamulticomcom\/public_html\/academia-paygas\/dist";\n        try_files \$uri \$uri\/ \/index.html;\n\n        include conf.d\/includes-optional\/cpanel-proxy.conf;\n        proxy_pass \$CPANEL_APACHE_PROXY_PASS;\n    }/
-' "$NGINX_MAIN" 2>/dev/null
+# Usar sed para reemplazar el location / del bloque de academia.paygas.com.br
+# El location / esta entre el server_name de academia y los includes
+# Buscamos el patron especifico y lo reemplazamos
+FOUND=false
 
-# Verificar si perl hizo el cambio
-if grep -q 'academia-paygas/dist' "$NGINX_MAIN"; then
-    echo "[OK] Config principal modificado: location / ahora sirve desde dist/"
-else
-    echo "[WARN] No se pudo modificar el config con perl"
+# Buscar la linea del "location /" que esta en el bloque de academia
+# (despues de server_name academia.paygas.com.br y antes de los includes)
+LINE_NUM=$(awk '
+    /server_name.*academia\.paygas\.com\.br/ { in_academia=1 }
+    in_academia && /^    location \/ \{/ { print NR; exit }
+' "$NGINX_MAIN" 2>/dev/null)
+
+if [ -n "$LINE_NUM" ]; then
+    # Encontrar la linea de cierre del location / (la linea con solo "}")
+    END_LINE=$(awk -v start="$LINE_NUM" 'NR > start && /^    \}$/ { print NR; exit }' "$NGINX_MAIN" 2>/dev/null)
+
+    if [ -n "$END_LINE" ]; then
+        # Reemplazar el bloque location / desde LINE_NUM hasta END_LINE
+        sed -i "${LINE_NUM},${END_LINE}c\\
+    location / {\\
+        root \"/home/olamulticomcom/public_html/academia-paygas/dist\";\\
+        try_files \\\$uri \\\$uri/ /index.html;\\
+\\
+        include conf.d/includes-optional/cpanel-proxy.conf;\\
+        proxy_pass \\\$CPANEL_APACHE_PROXY_PASS;\\
+    }" "$NGINX_MAIN"
+        FOUND=true
+        echo "[OK] Config principal modificado: location / en linea $LINE_NUM"
+    fi
+fi
+
+if [ "$FOUND" = false ]; then
+    echo "[WARN] No se encontro el location / del bloque de academia"
     echo "  Se usara solo el snippet (API + assets estaticos)"
 fi
 
