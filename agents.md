@@ -6,6 +6,54 @@ Academia PayGas es una plataforma de aprendizaje corporativo para empleados de e
 
 ---
 
+## Scope del Sistema
+
+### Frontend (React SPA)
+
+| Capa | Componentes | Descripcion |
+|------|-------------|-------------|
+| **Layout** | `AppLayout.tsx` | Sidebar condicional segun modulos activos + rol |
+| **Auth** | `LoginPage.tsx`, `useAuth.ts` | Login con encriptacion, verificacion email |
+| **Dashboard** | `DashboardPage.tsx` | Vista resumen (stats, leaderboard, progreso) |
+| **Cursos** | `ModulosListPage.tsx`, `ModulosPage.tsx` | Lista de cursos, vista de aulas/licoes |
+| **CMS** | `CMSPage.tsx`, `CriarModuloPage.tsx` | Gestion de cursos, aulas, licoes, quizzes |
+| **Equipo** | `EquipePage.tsx`, `UsuariosPage.tsx` | Gestion de gestores y atendentes |
+| **Quizzes** | En `ModulosPage.tsx` | Responder quizzes, ver resultados |
+| **Certificados** | `CertificadosPage.tsx` | Ver certificados, solicitar emision |
+| **Ranking** | `RankingPage.tsx` | Leaderboard nacional |
+| **Conquistas** | `ConquistasPage.tsx` | Trofeos y logros desbloqueados |
+| **Foro** | `ForumPage.tsx` | Publicar, comentar, likes |
+| **Analitica** | `AnaliticaPage.tsx` | Stats por modulo, personas, regiones |
+| **Mapa** | `MapaPage.tsx` | Mapa de distribucion por estado/municipio |
+| **Nacional** | `NacionalPage.tsx` | Panel nacional (NPS, metricas globales) |
+| **Notificaciones** | `NotifPage.tsx` | Bandeja de notificaciones |
+| **Perfil** | `PerfilPage.tsx` | Ver/editar perfil, subir avatar |
+| **Relatorios** | `RelatoriosPage.tsx` | Reportes para gestores/admin |
+
+### Backend (Express API)
+
+| Modulo | Rutas | Descripcion |
+|--------|-------|-------------|
+| **Auth** | `/api/auth/*` | Login, JWT, verificacion email |
+| **Usuarios** | `/api/usuarios/*` | CRUD usuarios, equipos |
+| **CMS** | `/api/cms/*`, `/api/modulos/*` | CRUD cursos, aulas, licoes, quizzes |
+| **Progreso** | `/api/progresso/*` | Registro de progreso por aula |
+| **Certificados** | `/api/certificates/*` | Emision y aprobacion de certificados |
+| **Dashboard** | `/api/dashboard/*` | Datos del dashboard |
+| **Gamificacion** | `/api/modulos/gamification/*` | XP, leaderboard, stats |
+| **Foro** | `/api/forum/*` | CRUD posts, likes, replies |
+| **Analytics** | `/api/analytics/*` | Estadisticas agregadas |
+| **Modulos** | `/api/admin/modules/*` | Activar/desactivar modulos del sidebar |
+| **Notificaciones** | `/api/notifications/*` | CRUD notificaciones |
+| **Public** | `/api/public/*` | Stats publicas (login page) |
+| **Health** | `/api/health` | Health check |
+
+### Base de Datos (Prisma + PostgreSQL)
+
+Ver [Schema de Base de Datos](./README.md#schema-de-base-de-datos) para el diagrama completo de modelos y relaciones.
+
+---
+
 ## 1. Authentication Agent
 
 **Responsable de:** Autenticacion, sesiones, verificacion de email y control de roles.
@@ -511,6 +559,70 @@ Encryption  Gamification  Offline
 PostgreSQL  Nodemailer  ActivityLog
  (Datos)    (Email)     (Auditoria)
 ```
+
+---
+
+## Schema de Base de Datos
+
+### Modelos Principales
+
+| Modelo | Descripcion | Relaciones clave |
+|--------|-------------|------------------|
+| `User` | Usuarios del sistema (ADMIN/GESTOR/ATENDENTE) | gestorId (self), progressos, certificates, forumPosts |
+| `Modulo` | Curso de aprendizaje | aulas[], progressos[], certificates[] |
+| `Aula` | Seccion dentro de un curso | moduloId, quiz (1:1), licoes[], progressos[] |
+| `Licao` | Contenido individual (video/texto/PDF) | aulaId |
+| `Quiz` | Cuestionario de una aula | aulaId (unique), perguntas[], responses[] |
+| `QuizPergunta` | Pregunta del quiz (A/B/C/D) | quizId |
+| `QuizResponse` | Respuesta de un usuario a un quiz | quizId, userId |
+| `Progresso` | Registro de progreso por aula | moduloId, aulaId, userId |
+| `Certificate` | Certificado emitido | userId, moduloId, status (PENDING/APPROVED/ISSUED) |
+| `Notification` | Notificacion in-app | fromId, toId |
+| `ActivityLog` | Log de auditoria | userId, acao |
+| `PointsTransaction` | Transaccion de XP | userId, action (LOGIN/LESSON_COMPLETE/etc) |
+| `ForumPost` | Publicacion del foro | autorId |
+| `ModuleConfig` | Config de modulos del sidebar | key (unique), enabled |
+
+### Enums
+
+| Enum | Valores |
+|------|---------|
+| `Role` | ADMIN, GESTOR, ATENDENTE |
+| `CertificateStatus` | PENDING, APPROVED, ISSUED |
+| `AulaTipo` | VIDEO, PDF, TEXTO |
+| `PointsAction` | LOGIN, MODULE_OPEN, LESSON_COMPLETE, MODULE_COMPLETE, QUIZ_CORRECT, QUIZ_PASS, CERTIFICATE |
+
+### Jerarquia de Contenido
+
+```
+Curso (Modulo)
+  └── Aula
+        ├── Licao (video/texto/PDF)
+        └── Quiz (opcional, 1:1)
+              └── QuizPergunta (A/B/C/D)
+```
+
+### Indices
+
+- `User`: `gestorId`
+- `Aula`: `moduloId`
+- `Licao`: `aulaId`
+- `Quiz`: `aulaId`
+- `QuizPergunta`: `quizId`
+- `QuizResponse`: `quizId`, `userId`, `@@unique([quizId, userId])`
+- `Progresso`: `moduloId`, `aulaId`, `userId`, `@@unique([moduloId, aulaId, userId])`
+- `Certificate`: `userId`, `moduloId`
+- `Notification`: `fromId`, `toId`
+- `ActivityLog`: `userId`, `createdAt`
+- `PointsTransaction`: `userId`, `createdAt`, `action`
+- `ForumPost`: `autorId`
+
+### Eliminacion en Cascada
+
+- `Modulo` → elimina `Aula`, `Progresso`, `Certificate`
+- `Aula` → elimina `Quiz`, `Progresso`, `Licao`
+- `Quiz` → elimina `QuizPergunta`, `QuizResponse`
+- `User` → elimina `Progresso`, `QuizResponse`, `Certificate`, `Notification`, `ActivityLog`, `PointsTransaction`, `ForumPost`
 
 ---
 

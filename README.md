@@ -10,6 +10,8 @@
 
 - [Vision General](#vision-general)
 - [Stack Tecnologico](#stack-tecnologico)
+- [Alcance (Scope)](#alcance-scope)
+- [Schema de Base de Datos](#schema-de-base-de-datos)
 - [Comenzar Rapidamente](#comenzar-rapidamente)
 - [Seguridad](#seguridad)
 - [API Endpoints](#api-endpoints)
@@ -26,9 +28,9 @@ Plataforma de aprendizaje corporativo (LMS) para empleados de estaciones de gaso
 ### Estructura LMS
 
 ```
-Cursos (antes: "Modulos" en el CMS)
-  └─ Aulas
-      └─ Licoes (video, texto, o PDF)
+Curso (antes: "Modulos" en el CMS)
+  └─ Aula
+       └─ Licao (video, texto, o PDF)
 ```
 
 - **Curso:** Un tema de aprendizaje completo (ej: "Excelencia en el Atendimento")
@@ -46,6 +48,317 @@ Cursos (antes: "Modulos" en el CMS)
 - Activity logs para auditoria
 - Deploy en cPanel con nginx
 - Modulos de navegacion activables/desactivables por admin
+
+---
+
+## Alcance (Scope)
+
+### Que cubre el sistema
+
+| Area | Funcionalidad | Estado |
+|------|--------------|--------|
+| **Autenticacion** | Login, JWT, verificacion email, roles (ADMIN/GESTOR/ATENDENTE) | Activo |
+| **Gestion de Usuarios** | CRUD usuarios, equipos, validacion de cuentas | Activo |
+| **Cursos (LMS)** | Crear/editar cursos, aulas, licoes via CMS | Activo |
+| **Aprendizaje** | Ver cursos, completar aulas, ver licoes | Activo |
+| **Cuestionarios** | Quizzes con evaluacion automatica, reintentos | Activo |
+| **Certificados** | Auto-generacion o aprobacion manual por gestor | Activo |
+| **Gamificacion** | XP, niveles, leaderboard, conquistas | Activo |
+| **Foro** | Publicar, comentar, likes | Activo |
+| **Analitica** | Estadisticas de usuarios, modulos, personas, mapa | Activo |
+| **Notificaciones** | In-app y email (Nodemailer) | Activo |
+| **Dashboard** | Vista resumen para admin y gestores | Activo |
+| **Activacion de Modulos** | Admin activa/desactiva secciones del sidebar | Activo |
+| **Encriptacion** | AES-256-GCM para payloads cliente-servidor | Activo |
+| **Offline Sync** | Cola de sincronizacion con IndexedDB | Activo |
+| **Activity Logs** | Auditoria de acciones del sistema | Activo |
+
+### Fuera de alcance
+
+- Pagos o integracion con pasarela de pago
+- Video hosting (usa URLs externas)
+- Chat en tiempo real
+- App movil nativa
+- Multi-idioma (actualmente solo portugues)
+
+---
+
+## Schema de Base de Datos
+
+### Diagrama de Relaciones
+
+```
+User ──┬── progressos ──── Progresso ──── Modulo ──── Aula ──── Licao
+       ├── quizResponses ─ QuizResponse ─ Quiz ──── QuizPergunta
+       ├── certificates ── Certificate ── Modulo
+       ├── pointsTransactions (XP)
+       ├── activityLogs
+       ├── forumPosts ──── ForumPost
+       └── notifications ── Notification
+
+ModuleConfig (configuracion de modulos del sidebar)
+```
+
+### Modelos
+
+#### User
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `id` | String (cuid) | ID unico |
+| `email` | String (unique) | Email del usuario |
+| `nome` | String | Nombre completo |
+| `senha` | String | Password hasheada (bcrypt) |
+| `role` | Role enum | ADMIN, GESTOR, ATENDENTE |
+| `xp` | Int | Puntos de experiencia acumulados |
+| `level` | Int | Nivel actual (calculado de xp) |
+| `avatarUrl` | String? | URL del avatar |
+| `state` | String? | Estado/region del usuario |
+| `emailVerificado` | Boolean | Si verifico su email |
+| `tokenVerificacao` | String? | Token para verificacion |
+| `tokenExpiry` | DateTime? | Expiracion del token |
+| `gestorId` | String? | FK al gestor que lo creo |
+| `lastLogin` | DateTime? | Ultimo acceso |
+
+**Relaciones:** `gestor` (self), `atendentes` (self), `progressos`, `quizResponses`, `certificates`, `sentNotifications`, `receivedNotifications`, `activityLogs`, `pointsTransactions`, `forumPosts`
+
+**Indices:** `gestorId`
+
+---
+
+#### Modulo (Curso)
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `id` | String (cuid) | ID unico |
+| `titulo` | String | Nombre del curso |
+| `descricao` | String | Descripcion del curso |
+| `ordem` | Int | Orden de visualizacion |
+| `videoUrl` | String? | URL video introductorio |
+| `videoInicio` | Int? | Segundo inicio del video |
+| `videoFim` | Int? | Segundo fin del video |
+| `obrigatorio` | Boolean | Si es obligatorio |
+| `autoCertificado` | Boolean | Certificado automatico al aprobar |
+
+**Relaciones:** `aulas`, `progressos`, `certificates`
+
+---
+
+#### Aula
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `id` | String (cuid) | ID unico |
+| `moduloId` | String | FK al curso padre |
+| `titulo` | String | Nombre del aula |
+| `descricao` | String | Descripcion |
+| `ordem` | Int | Orden dentro del curso |
+| `tipo` | AulaTipo enum | VIDEO, PDF, TEXTO |
+| `videoUrl` | String? | URL del video |
+| `pdfUrl` | String? | URL del PDF |
+| `videoInicio` | Int? | Segundo inicio |
+| `videoFim` | Int? | Segundo fin |
+| `duracaoMin` | Int? | Duracion estimada (minutos) |
+| `obrigatorio` | Boolean | Si es obligatoria |
+
+**Relaciones:** `modulo`, `quiz` (1:1), `progressos`, `licoes`
+
+**Indices:** `moduloId`
+
+---
+
+#### Licao
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `id` | String (cuid) | ID unico |
+| `aulaId` | String | FK al aula padre |
+| `titulo` | String | Nombre de la licao |
+| `conteudo` | String? | Texto o URL del contenido |
+| `tipo` | AulaTipo enum | VIDEO, PDF, TEXTO |
+| `ordem` | Int | Orden dentro del aula |
+| `duracaoMin` | Int? | Duracion estimada |
+
+**Relaciones:** `aula`
+
+**Indices:** `aulaId`
+
+---
+
+#### Quiz
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `id` | String (cuid) | ID unico |
+| `aulaId` | String (unique) | FK al aula (1 quiz por aula) |
+| `titulo` | String | Nombre del quiz |
+| `autoGerarCertificado` | Boolean | Generar certificado al aprobar |
+
+**Relaciones:** `aula`, `perguntas`, `responses`
+
+**Indices:** `aulaId`
+
+---
+
+#### QuizPergunta
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `id` | String (cuid) | ID unico |
+| `quizId` | String | FK al quiz |
+| `pergunta` | String | Texto de la pregunta |
+| `opcaoA` | String | Opcion A |
+| `opcaoB` | String | Opcion B |
+| `opcaoC` | String? | Opcion C (opcional) |
+| `opcaoD` | String? | Opcion D (opcional) |
+| `correta` | String | Respuesta correcta ('A','B','C','D') |
+| `ordem` | Int | Orden en el quiz |
+
+**Relaciones:** `quiz`
+
+**Indices:** `quizId`
+
+---
+
+#### QuizResponse
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `id` | String (cuid) | ID unico |
+| `quizId` | String | FK al quiz |
+| `userId` | String | FK al usuario |
+| `nota` | Int | Calificacion (0-10) |
+| `total` | Int | Total de preguntas |
+| `concluido` | Boolean | Si aprobo (nota >= 7) |
+
+**Relaciones:** `quiz`, `user`
+
+**Indices:** `quizId`, `userId`, `@@unique([quizId, userId])`
+
+---
+
+#### Progresso
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `id` | String (cuid) | ID unico |
+| `moduloId` | String | FK al curso |
+| `aulaId` | String | FK al aula |
+| `userId` | String | FK al usuario |
+| `concluido` | Boolean | Si completo la aula |
+
+**Relaciones:** `modulo`, `aula`, `user`
+
+**Indices:** `moduloId`, `aulaId`, `userId`, `@@unique([moduloId, aulaId, userId])`
+
+---
+
+#### Certificate
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `id` | String (cuid) | ID unico |
+| `userId` | String | FK al usuario |
+| `moduloId` | String | FK al curso |
+| `status` | CertificateStatus enum | PENDING, APPROVED, ISSUED |
+| `pdfUrl` | String? | URL del PDF generado |
+| `htmlContent` | String? | HTML del certificado |
+| `aprovadoPor` | String? | Quien aprobo |
+| `aprovadoEm` | DateTime? | Fecha de aprobacion |
+
+**Relaciones:** `user`, `modulo`
+
+**Indices:** `userId`, `moduloId`
+
+---
+
+#### Notification
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `id` | String (cuid) | ID unico |
+| `fromId` | String | FK emisor |
+| `toId` | String | FK receptor |
+| `titulo` | String | Titulo de la notificacion |
+| `mensagem` | String | Mensaje |
+| `lida` | Boolean | Si fue leida |
+
+**Relaciones:** `from` (User), `to` (User)
+
+**Indices:** `fromId`, `toId`
+
+---
+
+#### ActivityLog
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `id` | String (cuid) | ID unico |
+| `userId` | String | FK al usuario |
+| `acao` | String | Tipo de accion |
+| `detalhes` | String? | Detalles adicionales |
+
+**Relaciones:** `user`
+
+**Indices:** `userId`, `createdAt`
+
+---
+
+#### PointsTransaction
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `id` | String (cuid) | ID unico |
+| `userId` | String | FK al usuario |
+| `action` | PointsAction enum | LOGIN, MODULE_OPEN, LESSON_COMPLETE, MODULE_COMPLETE, QUIZ_CORRECT, QUIZ_PASS, CERTIFICATE |
+| `points` | Int | Puntos otorgados |
+| `details` | String? | Detalles |
+
+**Relaciones:** `user`
+
+**Indices:** `userId`, `createdAt`, `action`
+
+---
+
+#### ForumPost
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `id` | String (cuid) | ID unico |
+| `titulo` | String | Titulo del post |
+| `conteudo` | String | Contenido |
+| `tags` | String? | Tags separados por coma |
+| `likes` | Int | Conteo de likes |
+| `replies` | Int | Conteo de respuestas |
+| `autorId` | String | FK al autor |
+
+**Relaciones:** `autor` (User)
+
+**Indices:** `autorId`
+
+---
+
+#### ModuleConfig
+
+| Campo | Tipo | Descripcion |
+|-------|------|-------------|
+| `id` | String (cuid) | ID unico |
+| `key` | String (unique) | Clave del modulo (ej: 'forum', 'analytics') |
+| `label` | String | Nombre para mostrar |
+| `enabled` | Boolean | Si esta activo |
+
+**Uso:** Controla que secciones del sidebar estan visibles. El admin puede activar/desactivar modulos via `PUT /api/admin/modules/:key`.
+
+---
+
+### Enums
+
+| Enum | Valores |
+|------|---------|
+| `Role` | ADMIN, GESTOR, ATENDENTE |
+| `CertificateStatus` | PENDING, APPROVED, ISSUED |
+| `AulaTipo` | VIDEO, PDF, TEXTO |
+| `PointsAction` | LOGIN, MODULE_OPEN, LESSON_COMPLETE, MODULE_COMPLETE, QUIZ_CORRECT, QUIZ_PASS, CERTIFICATE |
 
 ---
 
