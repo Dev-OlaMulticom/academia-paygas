@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { APP_VERSION } from '../lib/constants'
 
@@ -11,6 +11,8 @@ const isProd = import.meta.env.PROD
 
 export function LoginPage({ onLogin }: LoginPageProps) {
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
+  const redirectTo = searchParams.get('redirect') || '/'
   const [email, setEmail] = useState(isProd ? '' : 'admin@paygas.com.br')
   const [password, setPassword] = useState(isProd ? '' : '123456')
   const [loading, setLoading] = useState(false)
@@ -37,7 +39,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
     try {
       const data = await api.login(email, password)
       onLogin(data.user, data.token)
-      navigate('/')
+      navigate(redirectTo)
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login')
     } finally {

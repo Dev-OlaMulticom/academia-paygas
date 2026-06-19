@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { PERSONAS } from '../data/constants'
 import { api } from '../lib/api'
 import { resetEncryptionKey } from '../lib/crypto'
@@ -32,6 +32,31 @@ export function useAuth() {
     const u = getStoredUser()
     return u?.xp || 0
   })
+  const [checking, setChecking] = useState(true)
+
+  useEffect(() => {
+    const stored = localStorage.getItem('token')
+    if (!stored) {
+      setChecking(false)
+      return
+    }
+    api.getMe()
+      .then((userData: any) => {
+        if (userData) {
+          setUser(userData)
+          setXp(userData.xp || 0)
+          localStorage.setItem('user', JSON.stringify(userData))
+        }
+      })
+      .catch(() => {
+        setUser(null)
+        setXp(0)
+        localStorage.removeItem('user')
+        localStorage.removeItem('token')
+        api.logout()
+      })
+      .finally(() => setChecking(false))
+  }, [])
 
   const handleLogin = (userData: User, token: string) => {
     setUser(userData)
@@ -57,7 +82,8 @@ export function useAuth() {
     user,
     persona,
     xp,
-    isAuthenticated,
+    isAuthenticated: !!user,
+    checking,
     handleLogin,
     handleLogout,
   }

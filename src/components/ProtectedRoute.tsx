@@ -1,5 +1,5 @@
 import React from 'react'
-import { Navigate } from 'react-router-dom'
+import { Navigate, useLocation } from 'react-router-dom'
 import type { User } from '../hooks/useAuth'
 
 interface ProtectedRouteProps {
@@ -8,8 +8,10 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ user, children }: ProtectedRouteProps) {
+  const location = useLocation()
+
   if (!user) {
-    return <Navigate to="/login" replace />
+    return <Navigate to={`/login?redirect=${encodeURIComponent(location.pathname)}`} replace />
   }
   return <>{children}</>
 }

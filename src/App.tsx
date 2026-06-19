@@ -26,7 +26,15 @@ function RoleRoute({ user, allowedRoles, children }: { user: any; allowedRoles: 
 }
 
 export default function App() {
-  const { user, xp, isAuthenticated, handleLogin, handleLogout } = useAuth()
+  const { user, xp, isAuthenticated, checking, handleLogin, handleLogout } = useAuth()
+
+  if (checking) {
+    return (
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: 'var(--gray-500)' }}>
+        Carregando...
+      </div>
+    )
+  }
 
   return (
     <BrowserRouter>
