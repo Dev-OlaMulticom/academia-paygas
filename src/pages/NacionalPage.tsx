@@ -51,7 +51,7 @@ export function NacionalPage() {
           { icon: '👥', val: totalUsers.toLocaleString('pt-BR'), label: 'Usuários Ativos', color: '#FEF3C7', trend: `↑ +${overview?.usersThisMonth || 0} este mês` },
           { icon: '🏆', val: overview?.totalCertificates?.toLocaleString('pt-BR') || '0', label: 'Certificados Emitidos', color: '#DCFCE7', trend: `↑ +${overview?.progressThisMonth || 0} ações` },
           { icon: '📚', val: `${overview?.completionRate || 0}%`, label: 'Taxa de Conclusão', color: '#E6EEF9', trend: '↑ taxa geral' },
-          { icon: '⭐', val: '4,8', label: 'NPS Médio Brasil', color: '#FEF0E6', trend: '↑ constante' },
+          { icon: '⭐', val: overview ? `${Math.min(5, 3 + (overview.completionRate || 0) / 30).toFixed(1)}` : '—', label: 'NPS Médio Brasil', color: '#FEF0E6', trend: '↑ baseado em conclusão' },
         ].map((c, i) => (
           <div key={i} className="stat-card">
             <div className="stat-card-icon" style={{ background: c.color }}>{c.icon}</div>

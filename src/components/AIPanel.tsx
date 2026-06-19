@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
+import { api } from '../lib/api'
+import { XP_PER_LEVEL } from '../lib/constants'
 
 const AI_FIRST: Record<string, string> = {
   ADMIN: 'Olá, Admin Nacional! Posso ajudar com gestão de conteúdo, usuários, analytics ou o Painel Nacional. O que precisa?',
@@ -15,7 +17,6 @@ const AI_QUICK: Record<string, string[]> = {
 
 const AI_KNOWLEDGE: Record<string, string[]> = {
   ADMIN: [
-    'A Academia PayGas tem +4.800 usuários em 27 estados.',
     'Você pode gerenciar conteúdo na seção Gestão de Conteúdo.',
     'O painel nacional mostra distribuição por região.',
     'Use Analytics para ver métricas de engajamento.',
@@ -24,13 +25,11 @@ const AI_KNOWLEDGE: Record<string, string[]> = {
     'Acesse "Minha Equipe" para ver o progresso de cada atendente.',
     'O KPI mais importante é o NPS de satisfação do cliente.',
     'Você pode exportar relatórios em CSV.',
-    'A trilha de Gestão tem 7 módulos — recomendamos começar por KPIs.',
   ],
   ATENDENTE: [
-    'A trilha de Atendimento é obrigatória — 6 módulos.',
     'Use o script de cashback para explicar ao cliente de forma simples.',
     'Seu XP aumenta a cada aula concluída.',
-    'Dúvidas sobre o terminal? A trilha de Operação do Terminal cobre tudo.',
+    'Dúvidas sobre o terminal? Acesse as trilhas de aprendizado.',
   ],
 }
 
@@ -44,13 +43,25 @@ export function AIPanel({ open, onClose }: AIPanelProps) {
   const [messages, setMessages] = useState<{ text: string; type: 'bot' | 'user' }[]>([])
   const [input, setInput] = useState('')
   const [typing, setTyping] = useState(false)
+  const [stats, setStats] = useState<any>(null)
 
   const role = user?.role || 'ATENDENTE'
 
-  const _initAI = () => {
-    if (messages.length === 0) {
+  useEffect(() => {
+    if (open && messages.length === 0) {
+      api.getPublicStats().then(setStats).catch(() => {})
       setMessages([{ text: AI_FIRST[role] || 'Olá! Como posso ajudar?', type: 'bot' }])
     }
+  }, [open])
+
+  const getKnowledge = (): string[] => {
+    const totalUsers = stats?.alunos?.toLocaleString('pt-BR') || 'vários'
+    const totalModulos = stats?.notas || 'vários'
+    return [
+      `A Academia PayGas tem ${totalUsers} usuários ativos.`,
+      `Existem ${totalModulos} módulos disponíveis na plataforma.`,
+      ...((AI_KNOWLEDGE[role] || []).slice(2)),
+    ]
   }
 
   const sendAI = () => {
@@ -62,13 +73,13 @@ export function AIPanel({ open, onClose }: AIPanelProps) {
 
     setTimeout(() => {
       setTyping(false)
-      const know = AI_KNOWLEDGE[role] || []
+      const know = getKnowledge()
       let resp = know[Math.floor(Math.random() * know.length)] || 'Entendido! Consulte as trilhas disponíveis para mais detalhes.'
 
       if (userMsg.toLowerCase().includes('certif')) {
         resp = 'Os certificados são emitidos automaticamente ao concluir um módulo. Acesse a seção "Certificados" no menu lateral.'
       } else if (userMsg.toLowerCase().includes('xp')) {
-        resp = 'Você ganha XP (+100) por aula concluída, (+50) por quiz correto e (+500) ao terminar um módulo completo.'
+        resp = `Você ganha XP por aula concluída e por quizzes. Cada nível requer ${XP_PER_LEVEL} XP total.`
       } else if (userMsg.toLowerCase().includes('quiz')) {
         resp = 'Os quizzes são avaliações ao final de cada módulo. Acerte para ganhar XP bônus e avançar ao certificado.'
       } else if (userMsg.toLowerCase().includes('ranking')) {

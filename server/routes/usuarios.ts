@@ -142,6 +142,42 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
   }
 })
 
+// PUT /api/usuarios/change-password (MUST be before /:id to avoid route shadowing)
+router.put('/change-password', authenticate, async (req: AuthRequest, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias' })
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'Nova senha deve ter pelo menos 8 caracteres' })
+    }
+
+    const user = await prisma.user.findUnique({ where: { id: req.userId } })
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' })
+    }
+
+    const validPassword = await bcrypt.compare(currentPassword, user.senha)
+    if (!validPassword) {
+      return res.status(401).json({ error: 'Senha atual incorreta' })
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12)
+    await prisma.user.update({
+      where: { id: req.userId },
+      data: { senha: hashedPassword },
+    })
+
+    await logActivity(req.userId!, 'Alterar Senha', 'Senha alterada com sucesso')
+    res.json({ message: 'Senha alterada com sucesso' })
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao alterar senha' })
+  }
+})
+
 // PUT /api/usuarios/:id
 router.put('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
   try {
@@ -176,42 +212,6 @@ router.put('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthR
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao atualizar usuário' })
-  }
-})
-
-// PUT /api/usuarios/change-password
-router.put('/change-password', authenticate, async (req: AuthRequest, res) => {
-  try {
-    const { currentPassword, newPassword } = req.body
-    if (!currentPassword || !newPassword) {
-      return res.status(400).json({ error: 'Senha atual e nova senha são obrigatórias' })
-    }
-
-    if (newPassword.length < 8) {
-      return res.status(400).json({ error: 'Nova senha deve ter pelo menos 8 caracteres' })
-    }
-
-    const user = await prisma.user.findUnique({ where: { id: req.userId } })
-    if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado' })
-    }
-
-    const validPassword = await bcrypt.compare(currentPassword, user.senha)
-    if (!validPassword) {
-      return res.status(401).json({ error: 'Senha atual incorreta' })
-    }
-
-    const hashedPassword = await bcrypt.hash(newPassword, 12)
-    await prisma.user.update({
-      where: { id: req.userId },
-      data: { senha: hashedPassword },
-    })
-
-    await logActivity(req.userId!, 'Alterar Senha', 'Senha alterada com sucesso')
-    res.json({ message: 'Senha alterada com sucesso' })
-  } catch (error) {
-    console.error('[ROUTE ERROR]', error)
-    res.status(500).json({ error: 'Erro ao alterar senha' })
   }
 })
 

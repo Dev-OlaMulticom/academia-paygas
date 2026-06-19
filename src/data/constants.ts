@@ -3,5 +3,3 @@ export const PERSONAS = {
   GESTOR: { label: 'Gestor de Posto', icon: 'Fuel', color: '#D97706', initials: 'GP' },
   ATENDENTE: { label: 'Atendente', icon: 'User', color: '#16A34A', initials: 'AT' },
 }
-
-export const TRACKS: any[] = []

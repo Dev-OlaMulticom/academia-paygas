@@ -89,7 +89,8 @@ export function MapaPage() {
               {municipios.length === 0 ? (
                 <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--gray-400)' }}>Nenhum dado disponível</td></tr>
               ) : municipios.map((m, i) => {
-                const pct = Math.round(m.usuarios / 18)
+                const maxUsuarios = Math.max(...municipios.map(x => x.usuarios))
+                const pct = maxUsuarios > 0 ? Math.round((m.usuarios / maxUsuarios) * 100) : 0
                 return (
                   <tr key={i}>
                     <td><b>{m.pos}</b></td>
