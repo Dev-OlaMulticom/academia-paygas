@@ -2,19 +2,6 @@
 # NOTE: Proxy to Node.js is now handled by nginx (location /api/).
 # These rules only apply when Apache serves requests directly.
 
-# ─── FORZAR PageSpeed Off (sin wrapper IfModule) ───────────
-PageSpeed Off
-ModPagespeed Off
-ModPagespeedUnplugged true
-ModPagespeedDisallow "*"
-
-# ─── No cache for HTML (evitar pagespeed stale) ───────────
-<IfModule mod_headers.c>
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires "0"
-</IfModule>
-
 # Bloquear archivos Pagespeed fantasma (.pagespeed.*)
 <IfModule mod_rewrite.c>
     RewriteEngine On

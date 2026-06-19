@@ -342,22 +342,9 @@ echo "=== [6d/10] Corrigiendo .htaccess ==="
 HTACCESS_FILE="$DEPLOY_DIR/.htaccess"
 DIST_HTACCESS="$DEPLOY_DIR/dist/.htaccess"
 
-# Reconstruir .htaccess desde cero para garantizar que PageSpeed Off esta al inicio
+# Reconstruir .htaccess desde cero
 cat > "$HTACCESS_FILE" << 'HTACCESS_EOF'
 # Academia PayGas - Security Rules for Apache
-
-# ─── FORZAR PageSpeed Off ─────────────────────────────────
-PageSpeed Off
-ModPagespeed Off
-ModPagespeedUnplugged true
-ModPagespeedDisallow "*"
-
-# ─── No cache for HTML ───────────────────────────────────
-<IfModule mod_headers.c>
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires "0"
-</IfModule>
 
 # Bloquear archivos Pagespeed fantasma (.pagespeed.*)
 <IfModule mod_rewrite.c>

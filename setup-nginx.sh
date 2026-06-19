@@ -133,16 +133,6 @@ echo "=== [5] Corrigiendo .htaccess ==="
 HTACCESS="$APP_DIR/.htaccess"
 cat > "$HTACCESS" << 'HTACCESS_EOF'
 # Academia PayGas - Security Rules for Apache
-PageSpeed Off
-ModPagespeed Off
-ModPagespeedUnplugged true
-ModPagespeedDisallow "*"
-
-<IfModule mod_headers.c>
-    Header set Cache-Control "no-cache, no-store, must-revalidate"
-    Header set Pragma "no-cache"
-    Header set Expires "0"
-</IfModule>
 
 <IfModule mod_rewrite.c>
     RewriteEngine On
