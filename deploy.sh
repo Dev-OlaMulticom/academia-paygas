@@ -340,17 +340,14 @@ fi
 echo "=== [6d/10] Corrigiendo .htaccess ==="
 
 HTACCESS_FILE="$DEPLOY_DIR/.htaccess"
-DIST_HTACCESS="$DEPLOY_DIR/dist/.htaccess"
 
 # Safety: eliminar PageSpeed Off de cualquier .htaccess existente
-for f in "$HTACCESS_FILE" "$DIST_HTACCESS"; do
-    if [ -f "$f" ]; then
-        if grep -q "^PageSpeed Off\|^ModPagespeed" "$f"; then
-            sed -i '/^PageSpeed Off$/d; /^ModPagespeed Off$/d; /^ModPagespeedUnplugged true$/d; /^ModPagespeedDisallow /d' "$f"
-            log_fix "PageSpeed Off eliminado de $(basename $f) (causa 500 en Apache)"
-        fi
+if [ -f "$HTACCESS_FILE" ]; then
+    if grep -q "^PageSpeed Off\|^ModPagespeed" "$HTACCESS_FILE"; then
+        sed -i '/^PageSpeed Off$/d; /^ModPagespeed Off$/d; /^ModPagespeedUnplugged true$/d; /^ModPagespeedDisallow /d' "$HTACCESS_FILE"
+        log_fix "PageSpeed Off eliminado de .htaccess (causa 500 en Apache)"
     fi
-done
+fi
 
 # Reconstruir .htaccess desde cero (SIN PageSpeed Off — causa 500 en Apache)
 cat > "$HTACCESS_FILE" << 'HTACCESS_EOF'
@@ -443,21 +440,6 @@ cat > "$HTACCESS_FILE" << 'HTACCESS_EOF'
 HTACCESS_EOF
 
 log_ok ".htaccess reconstruido (sin PageSpeed Off)"
-
-# Escribir dist/.htaccess con SPA fallback + anti-pagespeed
-cat > "$DIST_HTACCESS" << 'DIST_HTACCESS_EOF'
-# SPA fallback
-RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ /index.html [L]
-
-# Bloquear archivos Pagespeed fantasma
-RewriteCond %{REQUEST_URI} \.pagespeed\.
-RewriteRule ^ - [R=404,L]
-DIST_HTACCESS_EOF
-
-log_ok "dist/.htaccess creado con SPA fallback"
 
 # Recargar Apache si esta corriendo
 if systemctl is-active --quiet httpd 2>/dev/null; then
