@@ -32,7 +32,7 @@ Plataforma de aprendizaje corporativo para empleados de estaciones de gasolina P
 - Encriptacion AES-256-GCM para payloads
 - Soporte offline con IndexedDB
 - Activity logs para auditoria
-- Deploy en cPanel con Phusion Passenger
+- Deploy en cPanel con nginx
 
 ---
 
@@ -101,7 +101,7 @@ pnpm dev
 | Tokens con expiracion | Verificacion de email expira en 24h |
 | GESTOR restringido | Solo gestiona usuarios de su equipo |
 | Health check limpio | No expone errores de base de datos |
-| .htaccess | Bloquea node_modules, prisma, server, *.ts, configs |
+| .htaccess | Bloquea node_modules, prisma, server, *.ts, configs (Apache only, nginx lo ignora) |
 | .env protegido | En .gitignore, eliminado del historial con BFG |
 
 ### Variables de Entorno
@@ -263,15 +263,15 @@ ADMIN
 Browser (HTTPS 443)
     │
     ▼
-Apache (SSL termination)
+nginx (SSL termination)
     │
     ├── /api/* ──────────► reverse proxy ──► Node.js (HTTP 3001)
     │                                           └── Express API
     │
-    └── /* (estaticos) ──► dist/ (React SPA)
+    └── /* (estaticos) ──► dist/ (React SPA via try_files)
 ```
 
-Apache recibe todas las peticiones HTTPS. Las rutas `/api/*` se forwardan al backend Node.js en puerto 3001 via proxy reverso. El resto se sirve como archivos estaticos (React SPA).
+nginx recibe todas las peticiones HTTPS. Las rutas `/api/*` se forwardan al backend Node.js en puerto 3001 via proxy reverso. El resto se sirve como archivos estaticos (React SPA).
 
 ### Script Automatico
 
@@ -280,13 +280,27 @@ Apache recibe todas las peticiones HTTPS. Las rutas `/api/*` se forwardan al bac
 ```
 
 El script:
-1. Mata todos los procesos Node viejos
-2. Limpia cache y build anterior
-3. Instala dependencias
-4. Genera Prisma y migra
-5. Compila frontend (Vite) y servidor (TypeScript)
-6. Inicia Node.js en puerto 3001
-7. Verifica health check en `127.0.0.1:3001`
+1. Detecta nginx y auto-configura el snippet de proxy (paso 6c)
+2. Mata todos los procesos Node viejos
+3. Limpia cache y build anterior
+4. Instala dependencias
+5. Genera Prisma y migra (con auto-reparacion)
+6. Compila frontend (Vite) y servidor (TypeScript)
+7. Inicia Node.js en puerto 3001
+8. Recarga nginx con el snippet de proxy
+9. Verifica health check en `127.0.0.1:3001` y via dominio
+
+### Configuracion nginx (auto)
+
+`deploy.sh` crea automaticamente un snippet de nginx en:
+```
+/etc/nginx/conf.d/users/olamulticomcom/academia.paygas.com.br.olamulticom.com.br/nodejs-app.conf
+```
+
+Manualmente:
+```bash
+sudo bash setup-nginx.sh
+```
 
 ### Manual
 
@@ -300,25 +314,29 @@ killall -9 node
 PORT=3001 nohup node dist/server/index.js > logs/app.log 2>&1 &
 ```
 
-### Proxy Reverso (OBLIGATORIO)
+### Proxy Reverso en nginx
 
-Para que `https://academia.paygas.com.br/api/health` funcione, Apache debe forwardar `/api/*` a Node.js. Esto se configura en `.htaccess`:
+El snippet `nodejs-app.conf` configura el proxy:
 
-```apache
-<IfModule mod_proxy.c>
-    <IfModule mod_proxy_http.c>
-        RewriteEngine On
-        RewriteCond %{REQUEST_URI} ^/api/
-        RewriteRule ^api/(.*) http://127.0.0.1:3001/api/$1 [P,L]
-    </IfModule>
-</IfModule>
+```nginx
+location /api/ {
+    proxy_pass http://127.0.0.1:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 30s;
+    proxy_connect_timeout 10s;
+}
+
+location / {
+    root "/home/olamulticomcom/public_html/academia-paygas/dist";
+    try_files $uri $uri/ /index.html;
+}
 ```
 
-**Requisitos:**
-- `mod_proxy` y `mod_proxy_http` habilitados en Apache
-- En cPanel → "Select Apache Version" o contactar al hosting
-
-**Sin proxy:** Las peticiones a `/api/*` devuelven `index.html` (React) en vez de JSON.
+**NOTA:** `.htaccess` NO funciona con nginx. El snippet de nginx reemplaza esa funcionalidad.
 
 ### Verificacion
 
@@ -326,15 +344,19 @@ Para que `https://academia.paygas.com.br/api/health` funcione, Apache debe forwa
 # Directo al servidor Node (siempre funciona)
 curl http://127.0.0.1:3001/api/health
 
-# Via el dominio (requiere proxy configurado)
+# Via el dominio (requiere snippet nginx configurado)
 curl https://academia.paygas.com.br/api/health
+
+# Verificar config nginx
+nginx -t
 ```
 
 ### Notas de Deploy
 
 - `deploy.sh` ejecuta `node dist/server/index.js` directamente (NO Passenger)
-- Apache maneja SSL, Node escucha en HTTP interno (puerto 3001)
-- `ModPagespeed Off` en `.htaccess`
+- nginx maneja SSL, Node escucha en HTTP interno (puerto 3001)
+- El snippet de nginx sobrevive regeneraciones de config de cPanel
+- cPanel genera nginx config pero NO configura proxy a Node.js
 - `app.js` es para Phusion Passenger, `deploy.sh` no lo usa
 
 ---
