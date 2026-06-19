@@ -257,6 +257,22 @@ ADMIN
 
 ## Deployment en cPanel
 
+### Arquitectura de Red
+
+```
+Browser (HTTPS 443)
+    │
+    ▼
+Apache (SSL termination)
+    │
+    ├── /api/* ──────────► reverse proxy ──► Node.js (HTTP 3001)
+    │                                           └── Express API
+    │
+    └── /* (estaticos) ──► dist/ (React SPA)
+```
+
+Apache recibe todas las peticiones HTTPS. Las rutas `/api/*` se forwardan al backend Node.js en puerto 3001 via proxy reverso. El resto se sirve como archivos estaticos (React SPA).
+
 ### Script Automatico
 
 ```bash
@@ -269,8 +285,8 @@ El script:
 3. Instala dependencias
 4. Genera Prisma y migra
 5. Compila frontend (Vite) y servidor (TypeScript)
-6. Inicia Node.js
-7. Verifica health check
+6. Inicia Node.js en puerto 3001
+7. Verifica health check en `127.0.0.1:3001`
 
 ### Manual
 
@@ -284,12 +300,42 @@ killall -9 node
 PORT=3001 nohup node dist/server/index.js > logs/app.log 2>&1 &
 ```
 
+### Proxy Reverso (OBLIGATORIO)
+
+Para que `https://academia.paygas.com.br/api/health` funcione, Apache debe forwardar `/api/*` a Node.js. Esto se configura en `.htaccess`:
+
+```apache
+<IfModule mod_proxy.c>
+    <IfModule mod_proxy_http.c>
+        RewriteEngine On
+        RewriteCond %{REQUEST_URI} ^/api/
+        RewriteRule ^api/(.*) http://127.0.0.1:3001/api/$1 [P,L]
+    </IfModule>
+</IfModule>
+```
+
+**Requisitos:**
+- `mod_proxy` y `mod_proxy_http` habilitados en Apache
+- En cPanel → "Select Apache Version" o contactar al hosting
+
+**Sin proxy:** Las peticiones a `/api/*` devuelven `index.html` (React) en vez de JSON.
+
+### Verificacion
+
+```bash
+# Directo al servidor Node (siempre funciona)
+curl http://127.0.0.1:3001/api/health
+
+# Via el dominio (requiere proxy configurado)
+curl https://academia.paygas.com.br/api/health
+```
+
 ### Notas de Deploy
 
-- **Passenger** usa `app.js` como entry point
-- Apache maneja SSL, Node escucha en HTTP (puerto 3001)
+- `deploy.sh` ejecuta `node dist/server/index.js` directamente (NO Passenger)
+- Apache maneja SSL, Node escucha en HTTP interno (puerto 3001)
 - `ModPagespeed Off` en `.htaccess`
-- Proceso viejo en `public_html/` puede causar conflictos
+- `app.js` es para Phusion Passenger, `deploy.sh` no lo usa
 
 ---
 

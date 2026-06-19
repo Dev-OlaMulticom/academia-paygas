@@ -224,6 +224,52 @@ La aplicación Node.js correrá en HTTP interno ( puerto 3001), y Apache/Nginx h
 
 ---
 
+## Proxy Reverso (OBLIGATORIO)
+
+Para que las llamadas a la API funcionen a traves del dominio (ej: `https://academia.paygas.com.br/api/health`), Apache debe hacer proxy reverso de `/api/*` al puerto 3001.
+
+### Configuracion en .htaccess
+
+El archivo `.htaccess` raiz debe contener:
+
+```apache
+# ─── Reverse Proxy: /api/* → Node.js backend (port 3001) ───
+<IfModule mod_proxy.c>
+    <IfModule mod_proxy_http.c>
+        RewriteEngine On
+        RewriteCond %{REQUEST_URI} ^/api/
+        RewriteRule ^api/(.*) http://127.0.0.1:3001/api/$1 [P,L]
+    </IfModule>
+</IfModule>
+```
+
+### Requisitos del servidor
+
+- `mod_proxy` habilitado en Apache
+- `mod_proxy_http` habilitado en Apache
+- En cPanel → "Select Apache Version" → seleccionar "Proxy" o contactar al hosting
+
+### Sin proxy reverso (problema comun)
+
+Si no hay proxy configurado:
+1. Browser pide `https://academia.paygas.com.br/api/health`
+2. Apache no encuentra archivo fisico `/api/health`
+3. `dist/.htaccess`SPA fallback lo redirige a `index.html`
+4. Se devuelve HTML del frontend en vez de JSON de la API
+
+### Verificacion
+
+```bash
+# Directo al servidor Node (siempre funciona)
+curl http://127.0.0.1:3001/api/health
+
+# Via el dominio (requiere proxy configurado)
+curl https://academia.paygas.com.br/api/health
+# Debe retornar: {"status":"ok",...}
+```
+
+---
+
 ## Variables de Entorno Críticas
 
 | Variable | Descripción | Seguridad |

@@ -296,24 +296,54 @@ Backend: decrypt(base64) → JSON.parse(body)
 
 ## Deployment en cPanel
 
+### Arquitectura de Red
+
+```
+Browser (HTTPS 443)
+    │
+    ▼
+Apache (SSL termination)
+    │
+    ├── /api/* ──────────► reverse proxy ──► Node.js (HTTP 3001)
+    │                                           └── Express API
+    │
+    └── /* (estaticos) ──► dist/ (React SPA)
+```
+
+**Flujo de una peticion API:**
+1. Browser envia `GET https://academia.paygas.com.br/api/health`
+2. Apache recibe en puerto 443 (SSL)
+3. `.htaccess` detecta `/api/` → proxy reverso a `http://127.0.0.1:3001/api/health`
+4. Express en puerto 3001 responde con JSON
+
+**Flujo de una peticion frontend:**
+1. Browser envia `GET https://academia.paygas.com.br/usuarios`
+2. Apache recibe en puerto 443
+3. No es `/api/` → sirve archivos estaticos de `dist/`
+4. `dist/.htaccess` SPA fallback → `dist/index.html`
+
 ### Estructura
 
 ```
 /home/usuario/public_html/academia-paygas/
-├── app.js                    # Entry point Passenger
+├── app.js                    # Entry point Passenger (NO usado por deploy.sh)
 ├── dist/                     # Frontend build + Backend compilado
+│   ├── index.html            # React SPA
+│   ├── assets/               # JS/CSS compilados
+│   ├── server/               # Express compilado (index.js)
+│   └── .htaccess             # SPA fallback para rutas frontend
 ├── prisma/                   # Schema y migraciones
 ├── server/                   # Source TypeScript
 ├── node_modules/
 ├── .env                      # Variables de entorno
-├── .htaccess                 # Seguridad Apache
+├── .htaccess                 # Seguridad + PROXY REVERSO a Node
 └── deploy.sh                 # Script de deploy
 ```
 
 ### Deploy
 
 ```bash
-# Automatico (detecta ruta)
+# Automatico
 ./deploy.sh
 
 # Manual
@@ -326,13 +356,34 @@ killall -9 node
 PORT=3001 nohup node dist/server/index.js > logs/app.log 2>&1 &
 ```
 
+### Proxy Reverso en .htaccess
+
+El `.htaccess` raiz contiene las reglas de proxy:
+
+```apache
+<IfModule mod_proxy.c>
+    <IfModule mod_proxy_http.c>
+        RewriteEngine On
+        RewriteCond %{REQUEST_URI} ^/api/
+        RewriteRule ^api/(.*) http://127.0.0.1:3001/api/$1 [P,L]
+    </IfModule>
+</IfModule>
+```
+
+**Requisitos del servidor:**
+- `mod_proxy` habilitado en Apache
+- `mod_proxy_http` habilitado en Apache
+- En cPanel: "Select Apache Version" → seleccionar "Proxy" o activar modulos manualmente
+
+**Sin estas reglas:** Las peticiones a `/api/*` son capturadas por el SPA fallback de `dist/.htaccess` y devuelven `index.html` en vez de JSON.
+
 ### Notas Importantes
 
-- **Passenger** ejecuta `app.js` como entry point
-- `app.js` importa `dist/server/index.js` (Express compilado)
-- `deploy.sh` mata TODOS los procesos Node viejos antes de iniciar
-- Apache maneja SSL, Node escucha en HTTP interno (puerto 3001)
+- `deploy.sh` ejecuta `node dist/server/index.js` directamente (NO Passenger)
+- El servidor Node escucha en HTTP interno (puerto 3001), Apache maneja SSL
 - **ModPagespeed Off** en `.htaccess` para evitar problemas con JS/CSS
+- `app.js` es para Phusion Passenger, `deploy.sh` no lo usa
+- Verificar despues del deploy: `curl https://academia.paygas.com.br/api/health` debe retornar JSON
 
 ---
 
@@ -412,10 +463,22 @@ npx prisma db seed          # Poblar datos de prueba
 
 ### Reglas
 
-1. Despues de cada cambio, crear commit coherente
+1. Despues de cada cambio, hacer `git add` y `git commit` con mensaje descriptivo
 2. Formato: `tipo: descripcion` (feat, fix, security, docs, chore, deploy)
 3. No commitear archivos sensibles (.env, .pem)
 4. Push solo cuando el working tree esta limpio
+
+### IMPORTANTE: Siempre hacer commit despues de cada cambio
+
+Despues de modificar cualquier archivo (configuracion, codigo, documentacion), **siempre hacer commit** para que el cambio quede registrado y pueda ser desplegado:
+
+```bash
+git add .
+git commit -m "fix: agregar proxy reverso en .htaccess para /api/*"
+git push
+```
+
+Sin commit, los cambios no se propagan al servidor y el deploy no los incluira.
 
 ### Seguridad Git
 
