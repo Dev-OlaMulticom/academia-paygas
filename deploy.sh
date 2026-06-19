@@ -163,15 +163,15 @@ fi
 # Matar procesos node del servidor compilado
 pkill -9 -f "node.*dist/server/index.js" 2>/dev/null && log_ok "Procesos node dist/server eliminados" || log_ok "No habia procesos node dist/server"
 
-# Matar cualquier proceso escuchando en puerto 3001
+# Matar cualquier proceso escuchando en puerto 3001 (con timeout)
 if command -v lsof &> /dev/null; then
-    PORT_PIDS=$(lsof -ti :3001 2>/dev/null || true)
+    PORT_PIDS=$(timeout 5 lsof -ti :3001 2>/dev/null || true)
     if [ -n "$PORT_PIDS" ]; then
         echo "$PORT_PIDS" | xargs kill -9 2>/dev/null || true
         log_fix "Procesos en puerto 3001 terminados"
     fi
 elif command -v fuser &> /dev/null; then
-    fuser -k 3001/tcp 2>/dev/null && log_fix "Puerto 3001 liberado" || true
+    timeout 5 fuser -k 3001/tcp 2>/dev/null && log_fix "Puerto 3001 liberado" || true
 fi
 
 sleep 1
