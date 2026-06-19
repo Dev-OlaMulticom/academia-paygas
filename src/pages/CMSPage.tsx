@@ -187,9 +187,9 @@ export function CMSPage({ user }: CMSPageProps) {
       await api.addPergunta(editingQuiz.id, newPergunta)
       alert('Pergunta adicionada!')
       setNewPergunta({ pergunta: '', opcaoA: '', opcaoB: '', opcaoC: '', opcaoD: '', correta: 'A' })
-      // Reload quiz data
       const updatedQuiz = await api.getQuiz(selectedModulo.id, quizAula.id)
       setEditingQuiz(updatedQuiz)
+      if (selectedModulo) loadAulas(selectedModulo.id)
     } catch (err: any) {
       alert(err.message || 'Erro ao adicionar pergunta')
     }
@@ -201,6 +201,7 @@ export function CMSPage({ user }: CMSPageProps) {
       await api.deletePergunta(perguntaId)
       const updatedQuiz = await api.getQuiz(selectedModulo.id, quizAula.id)
       setEditingQuiz(updatedQuiz)
+      if (selectedModulo) loadAulas(selectedModulo.id)
     } catch (err: any) {
       alert(err.message || 'Erro ao excluir pergunta')
     }
