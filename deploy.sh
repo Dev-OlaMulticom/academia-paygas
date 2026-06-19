@@ -43,12 +43,12 @@ npx vite build
 echo "=== Compilando servidor ==="
 npx tsc --project tsconfig.server.json
 
-echo "=== Iniciando Node.js ==="
-mkdir -p logs
-nohup node dist/server/index.js > logs/app.log 2>&1 &
-echo $! > logs/app.pid
+echo "=== Reiniciando Passenger (Phusion) ==="
+mkdir -p tmp
+touch tmp/restart.txt
+echo "Passenger reiniciado via tmp/restart.txt"
 
-echo "=== Deploy completado (PID: $(cat logs/app.pid)) ==="
+echo "=== Deploy completado ==="
 
 echo "=== Limpiando cache Apache ==="
 touch dist/index.html 2>/dev/null || true
@@ -57,9 +57,9 @@ if command -v pagespeed &> /dev/null; then
 fi
 
 echo "=== Verificando... ==="
-sleep 2
-curl -s http://127.0.0.1:3001/api/health
+sleep 3
+curl -s https://academia.paygas.com.br/api/health
 echo ""
-curl -s http://127.0.0.1:3001/api/config
+curl -s https://academia.paygas.com.br/api/config
 echo ""
 echo "=== Deploy finalizado ==="
