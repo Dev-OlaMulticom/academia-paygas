@@ -16,7 +16,15 @@ process.env.NODE_ENV = process.env.NODE_ENV || 'production';
 try { require('dotenv/config'); } catch { /* dotenv not installed */ }
 
 // Import compiled Express app from dist/server/
-const app = require('./dist/server/index.js').default || require('./dist/server/index.js');
+let app
+try {
+  app = require('./dist/server/index.js').default || require('./dist/server/index.js')
+} catch (err) {
+  console.error('FATAL: No se pudo cargar dist/server/index.js')
+  console.error('Ejecutar: npx prisma generate && npx tsc --project tsconfig.server.json')
+  console.error(err)
+  process.exit(1)
+}
 
 // ─── Static files (frontend build) ───────────────────────
 const distPath = path.join(__dirname, 'dist');

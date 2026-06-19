@@ -16,7 +16,8 @@ router.get('/', authenticate, async (req: any, res) => {
       },
     })
     res.json(progresso)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar progresso' })
   }
 })
@@ -68,7 +69,8 @@ router.put('/', authenticate, async (req: any, res) => {
     }
 
     res.json(progresso)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao atualizar progresso' })
   }
 })
@@ -98,7 +100,8 @@ router.get('/stats', authenticate, async (req: any, res) => {
       modulosIniciados: modulosIniciados.length,
       xp: user?.xp || 0,
     })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar estatísticas' })
   }
 })

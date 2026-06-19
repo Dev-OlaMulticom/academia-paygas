@@ -39,7 +39,8 @@ router.get('/', authenticate, async (req: any, res) => {
         totalPages: Math.ceil(total / limit),
       },
     })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar certificados' })
   }
 })
@@ -72,7 +73,8 @@ router.post('/', authenticate, async (req: any, res) => {
       include: { modulo: { select: { titulo: true } } },
     })
     res.status(201).json(cert)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao criar certificado' })
   }
 })
@@ -87,7 +89,8 @@ router.put('/:id/approve', authenticate, authorize('ADMIN'), async (req: any, re
       data: { status: 'APPROVED', aprovadoPor: req.userId, aprovadoEm: new Date() },
     })
     res.json(cert)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao aprovar certificado' })
   }
 })
@@ -102,7 +105,8 @@ router.put('/:id/issue', authenticate, authorize('ADMIN'), async (req, res) => {
       data: { status: 'ISSUED' },
     })
     res.json(cert)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao emitir certificado' })
   }
 })

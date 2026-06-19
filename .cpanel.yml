@@ -25,7 +25,7 @@ deployment:
     - /bin/cp -r public $DEPLOYPATH/
     - /bin/cp -r styles $DEPLOYPATH/
     - /bin/cp -n .env $DEPLOYPATH/ 2>/dev/null || true
-    - cd $DEPLOYPATH && npm install --production=false
+    - cd $DEPLOYPATH && npm install --production
     - cd $DEPLOYPATH && npx prisma generate
     - cd $DEPLOYPATH && npx prisma migrate deploy
     - cd $DEPLOYPATH && npx vite build

@@ -50,12 +50,18 @@ class ApiClient {
       headers['Content-Type'] = 'application/json'
     }
 
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30s timeout
+
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
       body,
       headers,
+      signal: controller.signal,
       ...(import.meta.env.DEV ? { cache: 'no-store' } : {}),
     })
+
+    clearTimeout(timeoutId)
 
     if (!res.ok) {
       const error = await res.json().catch(() => ({ error: 'Erro desconhecido' }))

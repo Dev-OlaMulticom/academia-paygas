@@ -7,10 +7,11 @@ const SALT_LENGTH = 64
 const KEY_LENGTH = 32
 const ITERATIONS = 100000
 
-const SECRET_KEY = process.env.ENCRYPTION_KEY
+// Use env var if provided, otherwise generate dynamic key (same as encryption.ts)
+let SECRET_KEY: string = process.env.ENCRYPTION_KEY || ''
 if (!SECRET_KEY) {
-  console.error('FATAL: ENCRYPTION_KEY no esta definido en las variables de entorno')
-  process.exit(1)
+  SECRET_KEY = crypto.randomBytes(32).toString('hex')
+  console.warn('⚠️  ENCRYPTION_KEY not set. Generated dynamic key for this session. Data encrypted with this key will NOT survive restarts.')
 }
 
 function deriveKey(salt: Buffer): Buffer {

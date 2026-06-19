@@ -11,6 +11,7 @@ function createPrismaClient() {
   })
 }
 
+// Always use singleton — both in development and production
+// Without this, production can create multiple clients across module contexts
 export const prisma = globalForPrisma.prisma || createPrismaClient()
-
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+if (!globalForPrisma.prisma) globalForPrisma.prisma = prisma

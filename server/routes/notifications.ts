@@ -13,7 +13,8 @@ router.get('/unread-count', authenticate, async (req: any, res) => {
       where: { toId: req.userId, lida: false },
     })
     res.json({ count })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao contar notificações' })
   }
 })
@@ -27,7 +28,8 @@ router.get('/', authenticate, async (req: any, res) => {
       orderBy: { createdAt: 'desc' },
     })
     res.json(notifs)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar notificações' })
   }
 })
@@ -108,7 +110,8 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
     }).catch(() => {})
 
     res.status(201).json({ success: true, sent: notifs.count })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao enviar notificação' })
   }
 })
@@ -128,7 +131,8 @@ router.put('/:id/read', authenticate, async (req: any, res) => {
       data: { lida: true },
     })
     res.json(updated)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao marcar como lida' })
   }
 })
@@ -141,7 +145,8 @@ router.put('/read-all', authenticate, async (req: any, res) => {
       data: { lida: true },
     })
     res.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao marcar todas como lidas' })
   }
 })

@@ -12,6 +12,8 @@
     "preview": "vite preview",
     "start": "node dist/server/index.js",
     "start:prod": "NODE_ENV=production node dist/server/index.js",
+    "prestart": "node -e \"if(!require('fs').existsSync('dist/server/index.js')){console.error('Build not found. Run: npm run build'); process.exit(1)}\"",
+    "healthcheck": "node -e \"const h=require('http');h.get('http://localhost:3001/api/health',r=>{let d='';r.on('data',c=>d+=c);r.on('end',()=>{try{const j=JSON.parse(d);process.exit(j.status==='ok'?0:1)}catch{process.exit(1)}})}).on('error',()=>process.exit(1))\"",
     "lint": "eslint .",
     "db:generate": "npx prisma generate",
     "db:migrate": "npx prisma migrate deploy",

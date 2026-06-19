@@ -42,28 +42,38 @@ function initializeTransporter() {
 }
 
 export async function sendEmail(options: EmailOptions): Promise<boolean> {
-  try {
-    const transport = initializeTransporter()
-    if (!transport) {
-      console.warn('⚠️  SMTP not configured, email not sent')
-      return false
-    }
+  const MAX_RETRIES = 3
 
-    const mailOptions = {
-      from: process.env.SMTP_FROM || 'noreply@academia-paygas.com',
-      to: options.to,
-      subject: options.subject,
-      html: options.html || '',
-      text: options.text || '',
-    }
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const transport = initializeTransporter()
+      if (!transport) {
+        console.warn('⚠️  SMTP not configured, email not sent')
+        return false
+      }
 
-    const result = await transport.sendMail(mailOptions)
-    console.log(`✅ Email sent: ${result.messageId}`)
-    return true
-  } catch (error) {
-    console.error('❌ Error sending email:', error instanceof Error ? error.message : error)
-    return false
+      const mailOptions = {
+        from: process.env.SMTP_FROM || 'noreply@academia-paygas.com',
+        to: options.to,
+        subject: options.subject,
+        html: options.html || '',
+        text: options.text || '',
+      }
+
+      const result = await transport.sendMail(mailOptions)
+      console.log(`✅ Email sent: ${result.messageId}`)
+      return true
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      if (attempt < MAX_RETRIES) {
+        console.warn(`⚠️  Email attempt ${attempt}/${MAX_RETRIES} failed: ${msg}. Retrying...`)
+        await new Promise(r => setTimeout(r, 1000 * attempt))
+      } else {
+        console.error(`❌ Error sending email after ${MAX_RETRIES} attempts: ${msg}`)
+      }
+    }
   }
+  return false
 }
 
 /**
