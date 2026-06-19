@@ -107,6 +107,10 @@ router.get('/:id/aulas', authenticate, async (req: any, res) => {
   try {
     const moduloId = getStringParam(req.params.id)
     if (!moduloId) return res.status(400).json({ error: 'ID inválido' })
+
+    const moduloExists = await prisma.modulo.findUnique({ where: { id: moduloId }, select: { id: true } })
+    if (!moduloExists) return res.status(404).json({ error: 'Módulo não encontrado' })
+
     let aulas = await prisma.aula.findMany({
       where: { moduloId },
       include: {
