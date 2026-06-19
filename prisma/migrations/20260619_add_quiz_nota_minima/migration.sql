@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "Quiz" ADD COLUMN "notaMinima" INTEGER NOT NULL DEFAULT 7;

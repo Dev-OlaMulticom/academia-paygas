@@ -322,7 +322,7 @@ router.delete('/licoes/:id', authenticate, authorize('ADMIN'), async (req, res) 
 // POST /api/modulos/:moduloId/quiz - Create quiz for an aula
 router.post('/:moduloId/quiz', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
-    const { aulaId, titulo, autoGerarCertificado } = req.body
+    const { aulaId, titulo, autoGerarCertificado, notaMinima } = req.body
     if (!aulaId || !titulo) {
       return res.status(400).json({ error: 'aulaId e titulo são obrigatórios' })
     }
@@ -337,6 +337,7 @@ router.post('/:moduloId/quiz', authenticate, authorize('ADMIN'), async (req, res
         aulaId,
         titulo,
         autoGerarCertificado: autoGerarCertificado || false,
+        notaMinima: typeof notaMinima === 'number' ? notaMinima : 7,
       },
     })
     res.status(201).json(quiz)
@@ -370,12 +371,12 @@ router.get('/:moduloId/quiz/:aulaId', authenticate, async (req, res) => {
 // PUT /api/modulos/quiz/:quizId - Update quiz
 router.put('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req, res) => {
   try {
-    const { titulo, autoGerarCertificado } = req.body
+    const { titulo, autoGerarCertificado, notaMinima } = req.body
     const quizId = getStringParam(req.params.quizId)
     if (!quizId) return res.status(400).json({ error: 'ID inválido' })
     const quiz = await prisma.quiz.update({
       where: { id: quizId },
-      data: { titulo, autoGerarCertificado },
+      data: { titulo, autoGerarCertificado, ...(typeof notaMinima === 'number' ? { notaMinima } : {}) },
     })
     res.json(quiz)
   } catch (error) {

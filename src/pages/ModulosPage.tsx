@@ -119,7 +119,7 @@ export function ModulosPage() {
       const nota = result.nota || 0
       const total = result.total || lesson.quiz.perguntas.length
       const correct = result.correct || 0
-      const passed = result.concluido || nota >= 7
+      const passed = result.concluido || nota >= (lesson.quiz?.notaMinima ?? 7)
 
       setQuizResult({ nota, total, correct, passed })
       setQuizSubmitted(true)
@@ -135,7 +135,7 @@ export function ModulosPage() {
         if (selectedAnswers[p.id] === p.correta) correct++
       })
       const nota = Math.round((correct / total) * 10)
-      const passed = nota >= 7
+      const passed = nota >= (lesson.quiz?.notaMinima ?? 7)
 
       setQuizResult({ nota, total, correct, passed })
       setQuizSubmitted(true)
@@ -241,10 +241,11 @@ export function ModulosPage() {
                 <div className="lesson-item-info">
                   <b>{lesson.titulo}</b>
                   <span>
-                    {isQuiz ? 'Quiz' : lesson.tipo === 'PDF' ? 'PDF' : lesson.tipo === 'TEXTO' ? 'Texto' : 'Vídeo'}
-                    {!isQuiz && lesson.licoes && lesson.licoes.length > 0 ? ` · ${lesson.licoes.length} ${lesson.licoes.length === 1 ? 'lição' : 'lições'}` : ''}
-                    {!isQuiz && (!lesson.licoes || lesson.licoes.length === 0) && lesson.duracaoMin ? ` · ${lesson.duracaoMin} min` : ''}
-                    {lesson.videoInicio || lesson.videoFim ? ` · ${lesson.videoInicio || 0}s-${lesson.videoFim || 'fim'}s` : ''}
+                    {lesson.tipo === 'PDF' ? 'PDF' : lesson.tipo === 'TEXTO' ? 'Texto' : lesson.videoUrl ? 'Vídeo' : 'Conteúdo'}
+                    {lesson.licoes && lesson.licoes.length > 0 ? ` · ${lesson.licoes.length} ${lesson.licoes.length === 1 ? 'lição' : 'lições'}` : ''}
+                    {!lesson.licoes || lesson.licoes.length === 0 ? (
+                      lesson.videoInicio || lesson.videoFim ? ` · ${lesson.videoInicio || 0}s-${lesson.videoFim || 'fim'}s` : ''
+                    ) : ''}
                   </span>
                 </div>
                 {completed && <span className="lesson-check"><i className="icon-check icon-sm" /></span>}
@@ -304,14 +305,11 @@ export function ModulosPage() {
                 <h2>{current?.titulo}</h2>
                 <div className="lesson-tags">
                   <span className="lesson-tag">
-                    {current?.tipo === 'PDF' ? 'PDF' : current?.videoUrl ? 'Vídeo' : current?.quiz ? 'Quiz' : 'Conteúdo'}
+                    {current?.tipo === 'PDF' ? 'PDF' : current?.videoUrl ? 'Vídeo' : 'Conteúdo'}
                   </span>
                   {current?.licoes && current.licoes.length > 0 && (
                     <span className="lesson-tag">{current.licoes.length} {current.licoes.length === 1 ? 'lição' : 'lições'}</span>
                   )}
-                  {!current?.licoes || current.licoes.length === 0 ? (
-                    current?.duracaoMin ? <span className="lesson-tag">{current.duracaoMin} min</span> : null
-                  ) : null}
                   {current?.videoInicio || current?.videoFim ? (
                     <span className="lesson-tag">⏱ {current.videoInicio || 0}s – {current.videoFim || 'fim'}s</span>
                   ) : null}
@@ -379,7 +377,7 @@ export function ModulosPage() {
                   <div style={{ padding: '12px 16px', background: '#FFF3E0', borderRadius: '8px', borderLeft: '4px solid #FF9800', marginBottom: '16px' }}>
                     <b>📝 Esta aula contém um quiz</b>
                     <p style={{ fontSize: '13px', color: 'var(--gray-600)', margin: '4px 0 0' }}>
-                      Ao concluir, você será direcionado para responder as perguntas. Nota mínima: 7/10.
+                      Ao concluir, você será direcionado para responder as perguntas. Nota mínima: {current.quiz.notaMinima ?? 7}/10.
                     </p>
                   </div>
                 )}
@@ -428,7 +426,7 @@ export function ModulosPage() {
           ) : (
             <div className="lesson-body">
               <h2>Quiz: {current?.titulo}</h2>
-              <div className="lesson-text">Responda todas as perguntas para concluir esta aula. Nota mínima: 7/10.</div>
+              <div className="lesson-text">Responda todas as perguntas para concluir esta aula. Nota mínima: {current?.quiz?.notaMinima ?? 7}/10.</div>
 
               {quizResult && (
                 <div style={{ padding: '16px', borderRadius: '8px', marginTop: '16px', marginBottom: '16px', background: quizResult.passed ? '#E8F5E9' : '#FFEBEE', color: quizResult.passed ? '#1B5E20' : '#B71C1C' }}>

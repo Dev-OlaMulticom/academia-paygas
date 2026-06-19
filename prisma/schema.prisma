@@ -125,6 +125,7 @@ model Quiz {
   id          String   @id @default(cuid())
   aulaId      String   @unique
   titulo      String
+  notaMinima  Int      @default(7)
   autoGerarCertificado Boolean @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
