@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { api } from '../lib/api'
 import { APP_VERSION } from '../lib/constants'
 
@@ -86,7 +87,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           {loading ? 'Entrando...' : 'Acessar Academia'}
         </button>
         <p className="login-terms">
-          Ao acessar, você concorda com os <a href="#">Termos de Uso</a> e a <a href="#">Política de Privacidade</a>.
+          Ao acessar, você concorda com os <Link to="/termos">Termos de Uso</Link> e a <Link to="/privacidade">Política de Privacidade</Link>.
         </p>
       </div>
       <div className="login-bg">

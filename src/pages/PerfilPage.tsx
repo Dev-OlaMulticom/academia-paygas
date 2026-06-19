@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { Link } from 'react-router-dom'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
 import { XP_PER_LEVEL } from '../lib/constants'
@@ -241,6 +242,11 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
             </div>
           )}
         </div>
+      </div>
+      <div style={{ textAlign: 'center', padding: '16px', fontSize: '12px', color: 'var(--gray-400)' }}>
+        <Link to="/termos" style={{ color: 'var(--gray-500)', textDecoration: 'none' }}>Termos de Uso</Link>
+        <span style={{ margin: '0 8px' }}>·</span>
+        <Link to="/privacidade" style={{ color: 'var(--gray-500)', textDecoration: 'none' }}>Política de Privacidade</Link>
       </div>
     </div>
   )

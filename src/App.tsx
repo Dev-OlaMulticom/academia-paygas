@@ -19,6 +19,8 @@ import { UsuariosPage } from './pages/UsuariosPage'
 import { NotifPage } from './pages/NotifPage'
 import { PerfilPage } from './pages/PerfilPage'
 import { ConquistasPage } from './pages/ConquistasPage'
+import { TermosPage } from './pages/TermosPage'
+import { PrivacidadePage } from './pages/PrivacidadePage'
 import './index.css'
 
 function RoleRoute({ user, allowedRoles, children }: { user: any; allowedRoles: string[]; children: React.ReactNode }) {
@@ -53,6 +55,14 @@ export default function App() {
         <Route
           path="/verificar-email"
           element={<VerificarEmailPage />}
+        />
+        <Route
+          path="/termos"
+          element={<TermosPage />}
+        />
+        <Route
+          path="/privacidade"
+          element={<PrivacidadePage />}
         />
         <Route
           path="/*"
