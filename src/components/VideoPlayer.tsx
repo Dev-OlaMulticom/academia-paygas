@@ -34,8 +34,8 @@ export function VideoPlayer({ url, startAt = 0, endAt, onReady, microLessons }: 
     )
   }
 
-  let src = `https://www.youtube.com/embed/${videoId}?iv_load_policy=3&modestbranding=1&playsinline=1&showinfo=0&rel=0&enablejsapi=1`
-  if (startAt > 0) src += `&start=${startAt}`
+  let src = `https://www.youtube.com/embed/${videoId}?iv_load_policy=3&modestbranding=1&playsinline=1&showinfo=0&rel=0&enablejsapi=1&autoplay=1&mute=1`
+  if (startAt !== undefined && startAt > 0) src += `&start=${startAt}`
   if (endAt && endAt > startAt) src += `&end=${endAt}`
   src += '&origin=' + window.location.origin
 

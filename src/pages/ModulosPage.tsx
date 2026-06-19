@@ -271,6 +271,7 @@ export function ModulosPage() {
               ) : current?.videoUrl ? (
                 <div className="lesson-video">
                   <VideoPlayer
+                    key={`${current.id}-${current.videoInicio}`}
                     url={current.videoUrl}
                     startAt={current.videoInicio || 0}
                     endAt={current.videoFim || undefined}
@@ -345,7 +346,7 @@ export function ModulosPage() {
                               <div style={{ padding: '0 12px 12px', borderTop: '1px solid var(--gray-100)' }}>
                                 {licao.tipo === 'VIDEO' && licao.conteudo ? (
                                   <div style={{ marginTop: '8px', borderRadius: '6px', overflow: 'hidden' }}>
-                                    <VideoPlayer url={licao.conteudo} />
+                                    <VideoPlayer key={licao.id} url={licao.conteudo} />
                                   </div>
                                 ) : licao.tipo === 'PDF' && licao.conteudo ? (
                                   <div style={{ marginTop: '8px' }}>
