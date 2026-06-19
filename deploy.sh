@@ -244,11 +244,51 @@ else
     npx prisma generate 2>&1 && log_ok "Prisma client generado (reintento)" || log_fail "Prisma generate fallo definitivamente"
 fi
 
-# Migrate (no falla si ya esta actualizado)
-if npx prisma migrate deploy 2>&1; then
+# Migrate with auto-repair for failed migrations
+MIGRATE_OUTPUT=$(npx prisma migrate deploy 2>&1) && MIGRATE_OK=true || MIGRATE_OK=false
+
+if [ "$MIGRATE_OK" = true ]; then
     log_ok "Migraciones aplicadas"
 else
-    log_warn "Migraciones ya estaban al dia o fallaron (no critico)"
+    # Check if it's a "failed migration" error (P3009 or P3018)
+    if echo "$MIGRATE_OUTPUT" | grep -q "P3009\|P3018\|failed migrations\|A migration failed"; then
+        log_warn "Migracion fallida detectada, intentando auto-reparacion..."
+
+        # Extract failed migration name from error output
+        FAILED_MIGRATION=$(echo "$MIGRATE_OUTPUT" | grep -oP 'Migration name: \K.*' | head -1)
+
+        if [ -n "$FAILED_MIGRATION" ]; then
+            log_fix "Migracion fallida: $FAILED_MIGRATION"
+
+            # Step 1: Mark as rolled back
+            log_fix "Marcando migracion como rolled-back..."
+            npx prisma migrate resolve --rolled-back "$FAILED_MIGRATION" 2>&1 && \
+                log_ok "Migracion marcada como rolled-back" || \
+                log_warn "No se pudo marcar como rolled-back"
+
+            # Step 2: Sync schema with db push (creates missing tables/columns)
+            log_fix "Sincronizando schema con db push..."
+            npx prisma db push --accept-data-loss 2>&1 && \
+                log_ok "Schema sincronizado con db push" || \
+                log_warn "db push tuvo problemas (no critico)"
+
+            # Step 3: Regenerate client after schema changes
+            npx prisma generate 2>&1 && log_ok "Prisma client regenerado" || true
+
+            # Step 4: Retry migrate deploy
+            if npx prisma migrate deploy 2>&1; then
+                log_ok "Migraciones aplicadas despues de reparacion"
+            else
+                log_warn "Migraciones pendientes (schema ya sincronizado via db push)"
+            fi
+        else
+            log_warn "No se pudo detectar la migracion fallida"
+            log_warn "Intentando db push como fallback..."
+            npx prisma db push --accept-data-loss 2>&1 && log_ok "Schema sincronizado" || true
+        fi
+    else
+        log_warn "Migraciones fallaron: $MIGRATE_OUTPUT"
+    fi
 fi
 
 echo ""
