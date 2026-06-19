@@ -5,7 +5,8 @@ import _crypto from 'crypto'
 import { prisma } from '../lib/prisma'
 import { JWT_SECRET, authenticate, AuthRequest } from '../middleware/auth'
 import { sendVerificationEmail as _sendVerificationEmail } from '../services/email'
-import { awardPoints } from '../services/gamification'
+import { awardLoginPointsDaily } from '../services/gamification'
+import { logActivity } from '../services/log'
 
 const router = Router()
 
@@ -32,8 +33,10 @@ router.post('/login', async (req, res) => {
       data: { lastLogin: new Date() },
     })
 
-    // Award login points
-    await awardPoints(user.id, 'LOGIN', 'Acesso a plataforma')
+    // Award login points (max once per day)
+    await awardLoginPointsDaily(user.id)
+
+    await logActivity(user.id, 'Login', `Acesso de ${user.email}`)
 
     const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '24h' })
 

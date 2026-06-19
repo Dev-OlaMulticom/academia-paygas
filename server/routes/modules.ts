@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { authenticate, authorize, AuthRequest } from '../middleware/auth'
+import { logActivity } from '../services/log'
 
 const router = Router()
 
@@ -68,6 +69,7 @@ router.put('/:key', authenticate, authorize('ADMIN'), async (req: AuthRequest, r
       create: { key, label: String(key), enabled },
     })
 
+    await logActivity(req.userId!, 'Modulo Toggle', `${key}: ${enabled ? 'ativado' : 'desativado'}`)
     res.json(module)
   } catch (error) {
     console.error('[MODULE TOGGLE ERROR]', error)

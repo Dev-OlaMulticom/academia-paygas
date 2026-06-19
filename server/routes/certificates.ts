@@ -2,6 +2,7 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { authenticate, authorize } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
+import { logActivity } from '../services/log'
 
 const router = Router()
 
@@ -72,6 +73,7 @@ router.post('/', authenticate, async (req: any, res) => {
       data: { userId: req.userId, moduloId, status: certStatus },
       include: { modulo: { select: { titulo: true } } },
     })
+    await logActivity(req.userId, 'Certificado Solicitado', `Modulo: ${cert.modulo.titulo}`)
     res.status(201).json(cert)
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -87,7 +89,9 @@ router.put('/:id/approve', authenticate, authorize('ADMIN'), async (req: any, re
     const cert = await prisma.certificate.update({
       where: { id },
       data: { status: 'APPROVED', aprovadoPor: req.userId, aprovadoEm: new Date() },
+      include: { user: { select: { nome: true } }, modulo: { select: { titulo: true } } },
     })
+    await logActivity(req.userId!, 'Certificado Aprovado', `Modulo: ${cert.modulo.titulo} — User: ${cert.user.nome}`)
     res.json(cert)
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -96,14 +100,16 @@ router.put('/:id/approve', authenticate, authorize('ADMIN'), async (req: any, re
 })
 
 // PUT /api/certificates/:id/issue
-router.put('/:id/issue', authenticate, authorize('ADMIN'), async (req, res) => {
+router.put('/:id/issue', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
     const cert = await prisma.certificate.update({
       where: { id },
       data: { status: 'ISSUED' },
+      include: { user: { select: { nome: true } }, modulo: { select: { titulo: true } } },
     })
+    await logActivity(req.userId!, 'Certificado Emitido', `Modulo: ${cert.modulo.titulo} — User: ${cert.user.nome}`)
     res.json(cert)
   } catch (error) {
     console.error('[ROUTE ERROR]', error)

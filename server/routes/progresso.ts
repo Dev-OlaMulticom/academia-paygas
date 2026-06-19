@@ -1,7 +1,8 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { authenticate } from '../middleware/auth'
-import { awardPoints } from '../services/gamification'
+import { awardPointsIfNotAwarded } from '../services/gamification'
+import { logActivity } from '../services/log'
 
 const router = Router()
 
@@ -44,8 +45,9 @@ router.put('/', authenticate, async (req: any, res) => {
 
     // Award points for lesson completion (only if newly completed)
     if (!existing?.concluido && concluido !== false) {
-      const aula = await prisma.aula.findUnique({ where: { id: aulaId } })
-      await awardPoints(req.userId, 'LESSON_COMPLETE', `Aula: ${aula?.titulo || aulaId}`)
+      const aula = await prisma.aula.findUnique({ where: { id: aulaId }, select: { titulo: true } })
+      await awardPointsIfNotAwarded(req.userId, 'LESSON_COMPLETE', `LESSON_COMPLETE:aula:${aulaId}`)
+      await logActivity(req.userId, 'Aula Concluida', `Aula: ${aula?.titulo || aulaId}`)
 
       // Check if all aulas in the modulo are completed
       const modulo = await prisma.modulo.findUnique({
@@ -63,7 +65,8 @@ router.put('/', authenticate, async (req: any, res) => {
         })
 
         if (completedCount >= modulo.aulas.length) {
-          await awardPoints(req.userId, 'MODULE_COMPLETE', `Modulo: ${modulo.titulo}`)
+          await awardPointsIfNotAwarded(req.userId, 'MODULE_COMPLETE', `MODULE_COMPLETE:modulo:${moduloId}`)
+          await logActivity(req.userId, 'Modulo Concluido', `Modulo: ${modulo.titulo}`)
         }
       }
     }

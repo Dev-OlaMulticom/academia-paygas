@@ -1,6 +1,7 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { authenticate, AuthRequest } from '../middleware/auth'
+import { logActivity } from '../services/log'
 
 const router = Router()
 
@@ -38,6 +39,7 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
       },
       include: { autor: { select: AUTHOR_SELECT } },
     })
+    await logActivity(userId, 'Forum Post', `Post: ${titulo}`)
     res.status(201).json(post)
   } catch (error) {
     console.error('[FORUM CREATE ERROR]', error)
@@ -58,6 +60,7 @@ router.post('/:id/like', authenticate, async (req: AuthRequest, res) => {
       data: { likes: post.likes + 1 },
       include: { autor: { select: AUTHOR_SELECT } },
     })
+    await logActivity(req.userId!, 'Forum Like', `Post: ${post.titulo}`)
     res.json(updated)
   } catch (error) {
     console.error('[FORUM LIKE ERROR]', error)
@@ -78,6 +81,7 @@ router.post('/:id/reply', authenticate, async (req: AuthRequest, res) => {
       data: { replies: post.replies + 1 },
       include: { autor: { select: AUTHOR_SELECT } },
     })
+    await logActivity(req.userId!, 'Forum Resposta', `Post: ${post.titulo}`)
     res.json(updated)
   } catch (error) {
     console.error('[FORUM REPLY ERROR]', error)

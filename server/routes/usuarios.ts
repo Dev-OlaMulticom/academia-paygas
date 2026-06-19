@@ -6,16 +6,10 @@ import { authenticate, authorize, AuthRequest } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
 import { Role } from '@prisma/client'
 import { sendVerificationEmail } from '../services/email'
-import { awardPoints } from '../services/gamification'
+import { awardPointsIfNotAwarded } from '../services/gamification'
+import { logActivity } from '../services/log'
 
 const router = Router()
-
-// Helper: register activity log
-async function logActivity(userId: string, acao: string, detalhes?: string) {
-  await prisma.activityLog.create({
-    data: { userId, acao, detalhes },
-  }).catch(() => {})
-}
 
 // Helper: check if gestor owns the user
 async function gestorOwnsUser(gestorId: string, userId: string): Promise<boolean> {
@@ -129,7 +123,7 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
     })
 
     await logActivity(req.userId!, 'Criar Usuario', `Criou ${role}: ${nome} (${email})`)
-    await awardPoints(req.userId!, 'MODULE_OPEN', 'Gestor criou novo usuario')
+    await awardPointsIfNotAwarded(req.userId!, 'MODULE_OPEN', `USER_CREATE:${user.id}`)
 
     sendVerificationEmail(email, nome, verificationToken).catch(err => {
       console.error('Erro ao enviar email de verificacao:', err)
@@ -334,13 +328,18 @@ router.post('/:id/validate-account', authenticate, authorize('ADMIN', 'GESTOR'),
       return res.status(403).json({ error: 'Voce so pode validar atendentes da sua equipe' })
     }
 
+    // Skip if already verified — no duplicate XP
+    if (user.emailVerificado) {
+      return res.json({ message: 'Conta já validada anteriormente' })
+    }
+
     await prisma.user.update({
       where: { id },
       data: { emailVerificado: true, tokenVerificacao: null, tokenExpiry: null },
     })
 
     await logActivity(req.userId!, 'Validar Conta', `Validou conta de: ${user.nome}`)
-    await awardPoints(req.userId!, 'LESSON_COMPLETE', 'Gestor validou conta de atendente')
+    await awardPointsIfNotAwarded(req.userId!, 'LESSON_COMPLETE', `VALIDATE_ACCOUNT:${id}`)
 
     res.json({ message: 'Conta validada com sucesso!' })
   } catch (error) {

@@ -2,12 +2,13 @@ import { Router } from 'express'
 import { prisma } from '../lib/prisma'
 import { authenticate, authorize } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
-import { awardPoints } from '../services/gamification'
+import { awardPointsIfNotAwarded } from '../services/gamification'
+import { logActivity } from '../services/log'
 
 const router = Router()
 
 // GET /api/cms/modulos - accessible to all authenticated users
-router.get('/', authenticate, async (req, res) => {
+router.get('/', authenticate, async (req: any, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1)
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20))
@@ -42,7 +43,7 @@ router.get('/', authenticate, async (req, res) => {
 })
 
 // POST /api/cms/modulos
-router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
+router.post('/', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado } = req.body
     if (!titulo) {
@@ -65,6 +66,7 @@ router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
         autoCertificado: autoCertificado || false,
       },
     })
+    await logActivity(req.userId!, 'Criar Modulo', `Modulo: ${titulo}`)
     res.status(201).json(modulo)
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -73,7 +75,7 @@ router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
 })
 
 // PUT /api/cms/modulos/:id
-router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
+router.put('/:id', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado } = req.body
     const id = getStringParam(req.params.id)
@@ -82,6 +84,7 @@ router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
       where: { id },
       data: { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado },
     })
+    await logActivity(req.userId!, 'Editar Modulo', `Modulo: ${modulo.titulo}`)
     res.json(modulo)
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -90,11 +93,12 @@ router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
 })
 
 // DELETE /api/cms/modulos/:id
-router.delete('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
+router.delete('/:id', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
     await prisma.modulo.delete({ where: { id } })
+    await logActivity(req.userId!, 'Excluir Modulo', `Modulo ID: ${id}`)
     res.json({ success: true })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -173,7 +177,7 @@ router.get('/:id/aulas', authenticate, async (req: any, res) => {
 })
 
 // POST /api/modulos/:id/aulas
-router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req, res) => {
+router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, obrigatorio } = req.body
     const moduloId = getStringParam(req.params.id)
@@ -199,6 +203,7 @@ router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req, res) => 
         obrigatorio: obrigatorio || false,
       },
     })
+    await logActivity(req.userId!, 'Criar Aula', `Aula: ${titulo}`)
     res.status(201).json(aula)
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -207,7 +212,7 @@ router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req, res) => 
 })
 
 // PUT /api/aulas/:id
-router.put('/aulas/:id', authenticate, authorize('ADMIN'), async (req, res) => {
+router.put('/aulas/:id', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio } = req.body
     const id = getStringParam(req.params.id)
@@ -216,6 +221,7 @@ router.put('/aulas/:id', authenticate, authorize('ADMIN'), async (req, res) => {
       where: { id },
       data: { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio },
     })
+    await logActivity(req.userId!, 'Editar Aula', `Aula: ${aula.titulo}`)
     res.json(aula)
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -224,11 +230,12 @@ router.put('/aulas/:id', authenticate, authorize('ADMIN'), async (req, res) => {
 })
 
 // DELETE /api/aulas/:id
-router.delete('/aulas/:id', authenticate, authorize('ADMIN'), async (req, res) => {
+router.delete('/aulas/:id', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
     await prisma.aula.delete({ where: { id } })
+    await logActivity(req.userId!, 'Excluir Aula', `Aula ID: ${id}`)
     res.json({ success: true })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -239,7 +246,7 @@ router.delete('/aulas/:id', authenticate, authorize('ADMIN'), async (req, res) =
 // ==================== LICAO ENDPOINTS ====================
 
 // GET /api/cms/aulas/:aulaId/licoes
-router.get('/aulas/:aulaId/licoes', authenticate, async (req, res) => {
+router.get('/aulas/:aulaId/licoes', authenticate, async (req: any, res) => {
   try {
     const aulaId = getStringParam(req.params.aulaId)
     if (!aulaId) return res.status(400).json({ error: 'ID inválido' })
@@ -256,7 +263,7 @@ router.get('/aulas/:aulaId/licoes', authenticate, async (req, res) => {
 })
 
 // POST /api/cms/aulas/:aulaId/licoes
-router.post('/aulas/:aulaId/licoes', authenticate, authorize('ADMIN'), async (req, res) => {
+router.post('/aulas/:aulaId/licoes', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const aulaId = getStringParam(req.params.aulaId)
     if (!aulaId) return res.status(400).json({ error: 'ID inválido' })
@@ -281,6 +288,7 @@ router.post('/aulas/:aulaId/licoes', authenticate, authorize('ADMIN'), async (re
         ordem: (maxOrdem._max.ordem ?? 0) + 1,
       },
     })
+    await logActivity(req.userId!, 'Criar Licao', `Licao: ${titulo}`)
     res.status(201).json(licao)
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -289,7 +297,7 @@ router.post('/aulas/:aulaId/licoes', authenticate, authorize('ADMIN'), async (re
 })
 
 // PUT /api/cms/licoes/:id
-router.put('/licoes/:id', authenticate, authorize('ADMIN'), async (req, res) => {
+router.put('/licoes/:id', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
@@ -307,6 +315,7 @@ router.put('/licoes/:id', authenticate, authorize('ADMIN'), async (req, res) => 
         ...(typeof fimSeg === 'number' ? { fimSeg } : {}),
       },
     })
+    await logActivity(req.userId!, 'Editar Licao', `Licao: ${licao.titulo}`)
     res.json(licao)
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -315,11 +324,12 @@ router.put('/licoes/:id', authenticate, authorize('ADMIN'), async (req, res) => 
 })
 
 // DELETE /api/cms/licoes/:id
-router.delete('/licoes/:id', authenticate, authorize('ADMIN'), async (req, res) => {
+router.delete('/licoes/:id', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
     await prisma.licao.delete({ where: { id } })
+    await logActivity(req.userId!, 'Excluir Licao', `Licao ID: ${id}`)
     res.json({ success: true })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -330,7 +340,7 @@ router.delete('/licoes/:id', authenticate, authorize('ADMIN'), async (req, res) 
 // ==================== QUIZ ENDPOINTS ====================
 
 // POST /api/modulos/:moduloId/quiz - Create quiz for an aula
-router.post('/:moduloId/quiz', authenticate, authorize('ADMIN'), async (req, res) => {
+router.post('/:moduloId/quiz', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const { aulaId, titulo, autoGerarCertificado, notaMinima } = req.body
     if (!aulaId || !titulo) {
@@ -350,6 +360,7 @@ router.post('/:moduloId/quiz', authenticate, authorize('ADMIN'), async (req, res
         notaMinima: typeof notaMinima === 'number' ? notaMinima : 7,
       },
     })
+    await logActivity(req.userId!, 'Criar Quiz', `Quiz: ${titulo}`)
     res.status(201).json(quiz)
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -358,7 +369,7 @@ router.post('/:moduloId/quiz', authenticate, authorize('ADMIN'), async (req, res
 })
 
 // GET /api/modulos/:moduloId/quiz/:aulaId - Get quiz with questions
-router.get('/:moduloId/quiz/:aulaId', authenticate, async (req, res) => {
+router.get('/:moduloId/quiz/:aulaId', authenticate, async (req: any, res) => {
   try {
     const aulaId = getStringParam(req.params.aulaId)
     if (!aulaId) return res.status(400).json({ error: 'ID inválido' })
@@ -379,7 +390,7 @@ router.get('/:moduloId/quiz/:aulaId', authenticate, async (req, res) => {
 })
 
 // PUT /api/modulos/quiz/:quizId - Update quiz
-router.put('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req, res) => {
+router.put('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const { titulo, autoGerarCertificado, notaMinima } = req.body
     const quizId = getStringParam(req.params.quizId)
@@ -388,6 +399,7 @@ router.put('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req, res) =
       where: { id: quizId },
       data: { titulo, autoGerarCertificado, ...(typeof notaMinima === 'number' ? { notaMinima } : {}) },
     })
+    await logActivity(req.userId!, 'Editar Quiz', `Quiz: ${quiz.titulo}`)
     res.json(quiz)
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -396,11 +408,12 @@ router.put('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req, res) =
 })
 
 // DELETE /api/modulos/quiz/:quizId - Delete quiz
-router.delete('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req, res) => {
+router.delete('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const quizId = getStringParam(req.params.quizId)
     if (!quizId) return res.status(400).json({ error: 'ID inválido' })
     await prisma.quiz.delete({ where: { id: quizId } })
+    await logActivity(req.userId!, 'Excluir Quiz', `Quiz ID: ${quizId}`)
     res.json({ success: true })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -409,7 +422,7 @@ router.delete('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req, res
 })
 
 // POST /api/modulos/quiz/:quizId/perguntas - Add question to quiz
-router.post('/quiz/:quizId/perguntas', authenticate, authorize('ADMIN'), async (req, res) => {
+router.post('/quiz/:quizId/perguntas', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta } = req.body
     const quizId = getStringParam(req.params.quizId)
@@ -443,7 +456,7 @@ router.post('/quiz/:quizId/perguntas', authenticate, authorize('ADMIN'), async (
 })
 
 // PUT /api/modulos/perguntas/:perguntaId - Update question
-router.put('/perguntas/:perguntaId', authenticate, authorize('ADMIN'), async (req, res) => {
+router.put('/perguntas/:perguntaId', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta, ordem } = req.body
     const perguntaId = getStringParam(req.params.perguntaId)
@@ -460,7 +473,7 @@ router.put('/perguntas/:perguntaId', authenticate, authorize('ADMIN'), async (re
 })
 
 // DELETE /api/modulos/perguntas/:perguntaId - Delete question
-router.delete('/perguntas/:perguntaId', authenticate, authorize('ADMIN'), async (req, res) => {
+router.delete('/perguntas/:perguntaId', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
     const perguntaId = getStringParam(req.params.perguntaId)
     if (!perguntaId) return res.status(400).json({ error: 'ID inválido' })
@@ -500,11 +513,14 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
     })
 
     if (correct > 0) {
-      await awardPoints(req.userId, 'QUIZ_CORRECT', `${correct}/${total} respostas corretas no quiz`)
+      await awardPointsIfNotAwarded(req.userId, 'QUIZ_CORRECT', `QUIZ_CORRECT:quiz:${req.params.quizId}`)
     }
 
     if (concluido) {
-      await awardPoints(req.userId, 'QUIZ_PASS', `Quiz aprovado com nota ${nota}/10`)
+      await awardPointsIfNotAwarded(req.userId, 'QUIZ_PASS', `QUIZ_PASS:quiz:${req.params.quizId}`)
+      await logActivity(req.userId, 'Quiz Aprovado', `Quiz: ${quiz.titulo} — Nota ${nota}/10`)
+    } else {
+      await logActivity(req.userId, 'Quiz Reprovado', `Quiz: ${quiz.titulo} — Nota ${nota}/10`)
     }
 
     // Auto-generate certificate if: quiz passed + autoGerarCertificado + ALL aulas completed
@@ -537,7 +553,8 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
                   status: certStatus,
                 },
               })
-              await awardPoints(req.userId, 'CERTIFICATE', `Certificado emitido: ${modulo.titulo}`)
+              await awardPointsIfNotAwarded(req.userId, 'CERTIFICATE', `CERTIFICATE:modulo:${aula.moduloId}`)
+              await logActivity(req.userId, 'Certificado Gerado', `Modulo: ${modulo.titulo}`)
             }
           }
         }
@@ -579,7 +596,8 @@ router.post('/:id/open', authenticate, async (req: any, res) => {
     const modulo = await prisma.modulo.findUnique({ where: { id } })
     if (!modulo) return res.status(404).json({ error: 'Modulo nao encontrado' })
 
-    await awardPoints(req.userId, 'MODULE_OPEN', `Modulo aberto: ${modulo.titulo}`)
+    await awardPointsIfNotAwarded(req.userId, 'MODULE_OPEN', `MODULE_OPEN:modulo:${id}`)
+    await logActivity(req.userId, 'Modulo Aberto', `Modulo: ${modulo.titulo}`)
 
     res.json({ message: 'Modulo registrado', xp: 20 })
   } catch (error) {
