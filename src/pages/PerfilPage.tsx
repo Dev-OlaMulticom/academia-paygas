@@ -18,6 +18,14 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
   const [passwordLoading, setPasswordLoading] = useState(false)
   const [passwordMsg, setPasswordMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
 
+  const demoUsers = [
+    { email: 'admin@paygas.com.br', senha: '123456', role: 'ADMIN', nome: 'Administrador PayGas' },
+    { email: 'gestor@paygas.com.br', senha: '123456', role: 'GESTOR', nome: 'Carlos Mendes' },
+    { email: 'atendente@paygas.com.br', senha: '123456', role: 'ATENDENTE', nome: 'Ana Paula Costa' },
+    { email: 'joao@paygas.com.br', senha: '123456', role: 'ATENDENTE', nome: 'Joao Silva' },
+    { email: 'maria@paygas.com.br', senha: '123456', role: 'ATENDENTE', nome: 'Maria Santos' },
+  ]
+
   const loadStats = async () => {
     try {
       const data = await api.getDashboard()
@@ -198,6 +206,37 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
                   <div className="stat-card-val" style={{ fontSize: '20px' }}>{teamStats.totalAtendentes}</div>
                   <div className="stat-card-label">Atendentes</div>
                 </div>
+              </div>
+            </div>
+          )}
+
+          {isAdmin && (
+            <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '24px', marginBottom: '16px' }}>
+              <div className="section-title" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                Sandbox — Usuários de Teste
+              </div>
+              <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginBottom: '14px', padding: '8px 12px', background: '#FEF3C7', borderRadius: '8px', border: '1px solid #FDE68A' }}>
+                Estas são credenciais de demonstração para acesso rápido ao ambiente de testes.
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                {demoUsers.map((u) => {
+                  const personaColor = u.role === 'ADMIN' ? 'var(--pg-red)' : u.role === 'GESTOR' ? 'var(--pg-gold)' : 'var(--pg-green)'
+                  return (
+                    <div key={u.email} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 12px', borderRadius: '8px', background: '#f8fafc', border: '1px solid var(--gray-200)' }}>
+                      <div className="user-avatar" style={{ width: '36px', height: '36px', fontSize: '14px', background: personaColor, color: '#fff' }}>
+                        {u.nome.charAt(0)}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <b style={{ fontSize: '13px', color: 'var(--gray-900)', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{u.nome}</b>
+                        <span style={{ fontSize: '11px', color: 'var(--gray-500)' }}>{u.email}</span>
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: '2px' }}>
+                        <span style={{ fontSize: '11px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: personaColor, color: '#fff' }}>{u.role}</span>
+                        <span style={{ fontSize: '11px', color: 'var(--gray-400)', fontFamily: 'monospace' }}>senha: {u.senha}</span>
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           )}
