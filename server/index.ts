@@ -6,8 +6,7 @@ import rateLimit from 'express-rate-limit'
 import https from 'https'
 import fs from 'fs'
 import path from 'path'
-import { encryptedPayload, getServerEncryptionKey } from './middleware/encryption'
-import { authenticate, AuthRequest } from './middleware/auth'
+import { encryptedPayload } from './middleware/encryption'
 import authRoutes from './routes/auth'
 import usuariosRoutes from './routes/usuarios'
 import cmsRoutes from './routes/cms'
@@ -22,6 +21,7 @@ import gamificationRoutes from './routes/gamification'
 import publicRoutes from './routes/public'
 import modulesRoutes from './routes/modules'
 import conquistasRoutes from './routes/conquistas'
+import logsRoutes from './routes/logs'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -29,11 +29,15 @@ const PORT = process.env.PORT || 3001
 // Security headers
 app.use(helmet())
 
-// CORS configuration
+// CORS configuration — fail closed when ALLOWED_ORIGINS is not set
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean)
+if (allowedOrigins.length === 0 && process.env.NODE_ENV === 'production') {
+  console.warn('⚠️  ALLOWED_ORIGINS is not set. Cross-origin requests will be rejected.')
+}
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
-    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
+    // Allow same-origin requests (no Origin header) and explicitly listed origins
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true)
     } else {
       callback(new Error('No permitido por CORS'))
@@ -108,13 +112,7 @@ app.use('/api/gamification', gamificationRoutes)
 app.use('/api/conquistas', conquistasRoutes)
 app.use('/api/public', publicRoutes)
 app.use('/api/admin/modules', modulesRoutes)
-
-// Config endpoint: provides encryption key for frontend (public - needed before login)
-app.get('/api/config', (_req, res) => {
-  res.json({
-    encryptionKey: getServerEncryptionKey(),
-  })
-})
+app.use('/api/logs', logsRoutes)
 
 app.get('/api/health', async (_req, res) => {
   const checks: Record<string, string> = { status: 'ok' }

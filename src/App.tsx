@@ -19,6 +19,7 @@ import { UsuariosPage } from './pages/UsuariosPage'
 import { NotifPage } from './pages/NotifPage'
 import { PerfilPage } from './pages/PerfilPage'
 import { ConquistasPage } from './pages/ConquistasPage'
+import { LogsPage } from './pages/LogsPage'
 import { TermosPage } from './pages/TermosPage'
 import { PrivacidadePage } from './pages/PrivacidadePage'
 import './index.css'
@@ -97,6 +98,11 @@ export default function App() {
                   } />
                   <Route path="/notif" element={<NotifPage user={user!} />} />
                   <Route path="/conquistas" element={<ConquistasPage user={user!} />} />
+                  <Route path="/logs" element={
+                    <RoleRoute user={user} allowedRoles={['ADMIN']}>
+                      <LogsPage user={user!} />
+                    </RoleRoute>
+                  } />
                   <Route path="/perfil" element={<PerfilPage user={user!} xp={xp} />} />
                   <Route path="*" element={<Navigate to="/" replace />} />
                 </Routes>

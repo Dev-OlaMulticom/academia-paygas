@@ -124,6 +124,9 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
                   <i className="icon-bar-chart-3 nav-icon" /> Relatórios
                 </button>
               )}
+              <button id="nav-logs" className={`nav-item ${currentPath === '/logs' ? 'active' : ''}`} onClick={() => navigate('/logs')}>
+                <i className="icon-clipboard nav-icon" /> Logs de Atividade
+              </button>
             </div>
           )}
           <div className="sidebar-section">

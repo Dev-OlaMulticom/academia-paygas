@@ -6,7 +6,7 @@ const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
 class ApiClient {
   private token: string | null = null
-  private encryptionEnabled = true
+  private encryptionEnabled = false
 
   constructor() {
     this.token = localStorage.getItem('token')
@@ -157,9 +157,16 @@ class ApiClient {
       await db.users.put(user)
       return user
     } catch (error) {
-      const cached = await db.users.toArray()
+      // On 401/403 (invalid/expired token), re-throw so useAuth can clear state
+      // Only fall back to cache on network errors (offline scenario)
+      const msg = error instanceof Error ? error.message : String(error)
+      if (msg.includes('HTTP 401') || msg.includes('HTTP 403') || msg.includes('Não autenticado')) {
+        throw error
+      }
+      // Network error — try cache
       const stored = localStorage.getItem('user')
       if (stored) return JSON.parse(stored)
+      const cached = await db.users.toArray()
       if (cached.length > 0) return cached[0]
       throw error
     }
@@ -662,6 +669,32 @@ class ApiClient {
       method: 'PUT',
       body: JSON.stringify({ enabled }),
     })
+  }
+
+  // ==================== LOGS / ATIVIDADE ====================
+
+  async getActivityLogs(params?: { userId?: string; startDate?: string; endDate?: string; acao?: string; page?: number; limit?: number }) {
+    const query = new URLSearchParams()
+    if (params?.userId) query.set('userId', params.userId)
+    if (params?.startDate) query.set('startDate', params.startDate)
+    if (params?.endDate) query.set('endDate', params.endDate)
+    if (params?.acao) query.set('acao', params.acao)
+    if (params?.page) query.set('page', String(params.page))
+    if (params?.limit) query.set('limit', String(params.limit))
+    const qs = query.toString()
+    return this.request<any>(`/logs${qs ? `?${qs}` : ''}`)
+  }
+
+  async getActivityUsers() {
+    return this.request<any[]>('/logs/users')
+  }
+
+  async getActivityStats(params?: { startDate?: string; endDate?: string }) {
+    const query = new URLSearchParams()
+    if (params?.startDate) query.set('startDate', params.startDate)
+    if (params?.endDate) query.set('endDate', params.endDate)
+    const qs = query.toString()
+    return this.request<any>(`/logs/stats${qs ? `?${qs}` : ''}`)
   }
 }
 
