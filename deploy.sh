@@ -280,6 +280,64 @@ fi
 
 echo ""
 
+# ─── 6c. Auto-configurar nginx para Node.js ─────────────
+if [ "$WEB_SERVER" = "nginx" ]; then
+    echo "=== [6c/10] Configurando nginx para Node.js ==="
+
+    # Crear snippet de nginx para proxy /api/ a Node.js
+    NGINX_SNIPPET="/etc/nginx/conf.d/users/olamulticomcom/academia.paygas.com.br.olamulticom.com.br/nodejs-app.conf"
+
+    # Solo crear si no existe
+    if [ ! -f "$NGINX_SNIPPET" ]; then
+        log_fix "Creando snippet nginx para Node.js..."
+
+        INCLUDE_DIR="/etc/nginx/conf.d/users/olamulticomcom/academia.paygas.com.br.olamulticom.com.br"
+        mkdir -p "$INCLUDE_DIR"
+
+        cat > "$NGINX_SNIPPET" << 'NGINX_EOF'
+# ─── Node.js API proxy ────────────────────────────────────
+location /api/ {
+    proxy_pass http://127.0.0.1:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Upgrade $http_upgrade;
+    proxy_set_header Connection "upgrade";
+    proxy_read_timeout 30s;
+    proxy_send_timeout 30s;
+    proxy_connect_timeout 10s;
+}
+
+# ─── Frontend static files (SPA) ─────────────────────────
+location / {
+    root "/home/olamulticomcom/public_html/academia-paygas/dist";
+    try_files $uri $uri/ /index.html;
+
+    # Cache static assets
+    location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+        expires 1y;
+        add_header Cache-Control "public, immutable";
+    }
+}
+NGINX_EOF
+        log_ok "Snippet nginx creado: $NGINX_SNIPPET"
+
+        # Reload nginx
+        if nginx -t 2>/dev/null; then
+            nginx -s reload 2>/dev/null && log_ok "nginx recargado" || log_warn "No se pudo recargar nginx"
+        else
+            log_warn "Error de sintaxis en nginx, revertiendo..."
+            rm -f "$NGINX_SNIPPET"
+        fi
+    else
+        log_ok "Snippet nginx ya existe"
+    fi
+
+    echo ""
+fi
+
 # ─── 7. Prisma: generate + migrate ───────────────────────
 echo "=== [7/10] Configurando base de datos ==="
 
@@ -523,18 +581,18 @@ if [ "$HEALTH_OK" = false ] || [ "$FRONTEND_OK" = false ]; then
     echo "  Causa: nginx/Passenger no esta configurado correctamente."
     echo ""
     echo "  Soluciones:"
-    echo "  1. En cPanel → Setup Node.js App"
+    echo ""
+    echo "  1. Ejecutar configuracion nginx automática:"
+    echo "     sudo bash setup-nginx.sh"
+    echo ""
+    echo "  2. O configurar manualmente en cPanel → Setup Node.js App"
     echo "     - Application Root: $(pwd)"
     echo "     - Application Startup File: app.js"
     echo "     - Application Mode: Production"
     echo "     - Click 'Create' o 'Restart'"
     echo ""
-    echo "  2. Verificar que Passenger esta habilitado:"
-    echo "     - cPanel → Select Web Server → Habilitar Passenger"
-    echo ""
     echo "  3. Verificar logs de nginx:"
     echo "     - tail -20 /usr/local/nginx/logs/error.log"
-    echo "     - tail -20 logs/passenger-error.log 2>/dev/null"
     echo ""
     echo "  4. Diagnosticar con:"
     echo "     - bash diagnose.sh"
