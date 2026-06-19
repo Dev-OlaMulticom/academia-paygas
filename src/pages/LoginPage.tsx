@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
+import { APP_VERSION } from '../lib/constants'
 
 interface LoginPageProps {
   onLogin: (user: any, token: string) => void
@@ -14,6 +15,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState(isProd ? '' : '123456')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [publicStats, setPublicStats] = useState<any>(null)
+
+  useEffect(() => {
+    api.getPublicStats().then(setPublicStats).catch(() => {})
+  }, [])
 
   const handleLogin = async () => {
     if (!email) {
@@ -82,15 +88,15 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         </p>
       </div>
       <div className="login-bg">
-        <span className="ver-badge-login">V26 — Edição Nacional</span>
+        <span className="ver-badge-login">{APP_VERSION} — Edição Nacional</span>
         <div className="login-bg-content">
           <h1>Capacitação <span>Nacional</span><br/>em um só lugar</h1>
           <p>A Academia PayGas conecta postos, parceiros e comunidades em todo o Brasil com conteúdo profissional, módulos personalizados e certificação reconhecida.</p>
           <div className="login-stats" style={{ gridTemplateColumns: '1fr 1fr' }}>
-            <div className="login-stat"><b>12.400+</b><span>Usuários ativos</span></div>
-            <div className="login-stat"><b>27</b><span>Estados cobertos</span></div>
-            <div className="login-stat"><b>R$ 2,1M</b><span>Cashback gerado</span></div>
-            <div className="login-stat"><b>4,8</b><span>NPS médio</span></div>
+            <div className="login-stat"><b>{publicStats?.alunos?.toLocaleString('pt-BR') || '—'}</b><span>Usuários ativos</span></div>
+            <div className="login-stat"><b>{publicStats?.notas || '—'}</b><span>Módulos disponíveis</span></div>
+            <div className="login-stat"><b>{publicStats?.horas || '—'}</b><span>Horas de conteúdo</span></div>
+            <div className="login-stat"><b>{publicStats?.certificados || '—'}</b><span>Certificados emitidos</span></div>
           </div>
         </div>
       </div>

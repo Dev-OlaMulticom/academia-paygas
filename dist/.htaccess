@@ -1,9 +1,39 @@
-# SPA fallback
-RewriteEngine On
-RewriteCond %{REQUEST_FILENAME} !-f
-RewriteCond %{REQUEST_FILENAME} !-d
-RewriteRule ^ /index.html [L]
+# PayGas Academy SPA + PageSpeed Rules
 
-# Bloquear archivos Pagespeed fantasma
-RewriteCond %{REQUEST_URI} \.pagespeed\.
-RewriteRule ^ - [R=404,L]
+# ─── Security ──────────────────────────────────────
+RewriteEngine On
+
+# Redirect HTTP to HTTPS
+RewriteCond %{HTTPS} !=on
+RewriteRule ^(.*)$ https://%{HTTP_HOST}/$1 [R=301,L]
+
+# Redirect www to apex
+RewriteCond %{HTTP_HOST} ^www\.(.*) [NC]
+RewriteRule ^(.*)$ https://%1/$1 [R=301,L]
+
+# ─── PageSpeed ─────────────────────────────────────
+# Disable PageSpeed rewriting (nginx handles it)
+RewriteRule \.pagespeed\.([a-z_.]+) /$1 [L]
+
+# ─── Security Headers ──────────────────────────────
+<IfModule mod_headers.c>
+  Header set X-Content-Type-Options "nosniff"
+  Header set X-XSS-Protection "1; mode=block"
+  Header set X-Frame-Options "SAMEORIGIN"
+  Header set Referrer-Policy "strict-origin-when-cross-origin"
+  Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+  Header set Strict-Transport-Security "max-age=31536000; includeSubDomains" env=HTTPS
+</IfModule>
+
+# ─── SPA Fallback ──────────────────────────────────
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+
+  # If the request is for a file or directory that exists, serve it directly
+  RewriteCond %{REQUEST_FILENAME} -f [OR]
+  RewriteCond %{REQUEST_FILENAME} -d
+  RewriteRule ^ - [L]
+
+  # Otherwise, serve index.html (SPA fallback)
+  RewriteRule ^ index.html [L]
+</IfModule>

@@ -1,20 +1,46 @@
+import { useState, useEffect } from 'react'
 import { useAuth } from '../hooks/useAuth'
-
-const RANKING_DATA = [
-  { nome: 'Mariana Tech', role: 'Integrador ERP', estado: 'PR', xp: 5500, avatar: 'MT', color: '#1F2937' },
-  { nome: 'Carlos Mendes', role: 'Gestor', estado: 'RJ', xp: 4100, avatar: 'CM', color: '#D97706' },
-  { nome: 'Lúcia Ferreira', role: 'Gestora', estado: 'GO', xp: 3800, avatar: 'LF', color: '#D97706' },
-  { nome: 'João Santos', role: 'Líder Comunitário', estado: 'BA', xp: 3200, avatar: 'JS', color: '#0891B2' },
-  { nome: 'Ana Paula Costa', role: 'Atendente', estado: 'SP', xp: 2400, avatar: 'AC', color: '#16A34A' },
-  { nome: 'Rafael Costa', role: 'Parceiro', estado: 'CE', xp: 1200, avatar: 'RC', color: '#7C3AED' },
-  { nome: 'Fernanda Lima', role: 'Parceira', estado: 'MG', xp: 1800, avatar: 'FL', color: '#7C3AED' },
-  { nome: 'Pedro Oliveira', role: 'Atendente', estado: 'SC', xp: 900, avatar: 'PO', color: '#16A34A' },
-].sort((a, b) => b.xp - a.xp)
+import { api } from '../lib/api'
 
 const MEDALS = ['🥇', '🥈', '🥉']
 
 export function RankingPage() {
   const { user } = useAuth()
+  const [data, setData] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    api.getGamificationLeaderboard()
+      .then(setData)
+      .catch(() => setData([]))
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div>
+        <div className="page-header">
+          <div>
+            <div className="page-title">Ranking Nacional 🥇</div>
+            <div className="page-subtitle">Carregando...</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (data.length === 0) {
+    return (
+      <div>
+        <div className="page-header">
+          <div>
+            <div className="page-title">Ranking Nacional 🥇</div>
+            <div className="page-subtitle">Nenhum dado disponível ainda</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div>
@@ -25,11 +51,11 @@ export function RankingPage() {
         </div>
       </div>
       <div>
-        {RANKING_DATA.map((r, i) => {
-          const isMe = r.nome === user?.nome
+        {data.map((r, i) => {
+          const isMe = r.userId === user?.id
           return (
             <div
-              key={i}
+              key={r.userId || i}
               className="ranking-item"
               style={{
                 background: isMe ? 'var(--pg-orange-lt)' : '#fff',
@@ -45,8 +71,8 @@ export function RankingPage() {
               >
                 {MEDALS[i] || `#${i + 1}`}
               </div>
-              <div className="rank-avatar" style={{ background: r.color }}>
-                {r.avatar}
+              <div className="rank-avatar" style={{ background: r.avatar || 'var(--pg-orange)' }}>
+                {r.avatar || r.nome?.charAt(0) || '?'}
               </div>
               <div className="rank-info">
                 <b>
@@ -64,10 +90,10 @@ export function RankingPage() {
                     </span>
                   )}
                 </b>
-                <span>{r.role} · {r.estado}</span>
+                <span>{r.cargo} · {r.estado}</span>
               </div>
               <div style={{ textAlign: 'right' }}>
-                <div className="rank-xp">{r.xp.toLocaleString('pt-BR')}</div>
+                <div className="rank-xp">{(r.xp || 0).toLocaleString('pt-BR')}</div>
                 <div style={{ fontSize: '10px', color: 'var(--gray-400)' }}>XP</div>
               </div>
             </div>

@@ -536,6 +536,76 @@ class ApiClient {
   async getDashboardLeaderboard() {
     return this.getWithCache<any>('/dashboard/leaderboard', db.users)
   }
+
+  // ==================== ANALYTICS ====================
+
+  async getAnalyticsOverview() {
+    return this.request<any>('/analytics/overview')
+  }
+
+  async getAnalyticsModules() {
+    return this.request<any[]>('/analytics/modules')
+  }
+
+  async getAnalyticsPersonas() {
+    return this.request<any[]>('/analytics/personas')
+  }
+
+  async getAnalyticsRegions() {
+    return this.request<any[]>('/analytics/regions')
+  }
+
+  async getAnalyticsMunicipios() {
+    return this.request<any[]>('/analytics/municipios')
+  }
+
+  // ==================== FORUM ====================
+
+  async getForumPosts() {
+    return this.request<any[]>('/forum')
+  }
+
+  async createForumPost(data: { titulo: string; conteudo: string; tags?: string[] }) {
+    return this.request<any>('/forum', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async likeForumPost(id: string) {
+    return this.request<any>(`/forum/${id}/like`, { method: 'POST' })
+  }
+
+  async replyForumPost(id: string, conteudo: string) {
+    return this.request<any>(`/forum/${id}/reply`, {
+      method: 'POST',
+      body: JSON.stringify({ conteudo }),
+    })
+  }
+
+  // ==================== GAMIFICATION ====================
+
+  async getAchievements() {
+    return this.request<any[]>('/gamification/achievements')
+  }
+
+  async getGamificationLeaderboard() {
+    return this.request<any[]>('/gamification/leaderboard')
+  }
+
+  async getGamificationStatsV2() {
+    return this.request<any>('/gamification/stats')
+  }
+
+  // ==================== PUBLIC ====================
+
+  async getPublicStats() {
+    return this.request<any>('/public/stats')
+  }
+
+  async getPublicConfig() {
+    return this.request<any>('/public/config')
+  }
 }
 
 export const api = new ApiClient()

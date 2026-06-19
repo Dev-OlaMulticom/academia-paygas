@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
+import { XP_PER_LEVEL } from '../lib/constants'
 
 
 interface DashboardPageProps {
@@ -25,9 +26,9 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
     loadDashboard()
   }, [])
 
-  const level = dashData?.level || Math.floor(xp / 2000) + 1
-  const currentLevelXp = (level - 1) * 2000
-  const nextLevelXp = level * 2000
+  const level = dashData?.level || Math.floor(xp / XP_PER_LEVEL) + 1
+  const currentLevelXp = (level - 1) * XP_PER_LEVEL
+  const nextLevelXp = level * XP_PER_LEVEL
   const progressPercent = Math.min(((xp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100, 100)
 
   return (
@@ -39,7 +40,6 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
         </div>
       </div>
 
-      {/* Level & XP Card */}
       <div style={{
         background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
         borderRadius: '16px',
@@ -72,7 +72,6 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
         </div>
       </div>
 
-      {/* Stats Grid */}
       <div className="cards-grid">
         <div className="stat-card">
           <div className="stat-card-icon" style={{ background: '#FEF3C7' }}><i className="icon-book-open icon-lg" /></div>
@@ -96,7 +95,6 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
         </div>
       </div>
 
-      {/* Quick Actions */}
       <div className="section-title">Acoes Rapidas</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px', marginBottom: '24px' }}>
         <button

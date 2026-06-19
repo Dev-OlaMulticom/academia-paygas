@@ -16,6 +16,10 @@ import notificationsRoutes from './routes/notifications'
 import progressoRoutes from './routes/progresso'
 import dashboardRoutes from './routes/dashboard'
 import docsRoutes from './routes/docs'
+import analyticsRoutes from './routes/analytics'
+import forumRoutes from './routes/forum'
+import gamificationRoutes from './routes/gamification'
+import publicRoutes from './routes/public'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -96,6 +100,10 @@ app.use('/api/notifications', notificationsRoutes)
 app.use('/api/progresso', progressoRoutes)
 app.use('/api/dashboard', dashboardRoutes)
 app.use('/api/docs', docsRoutes)
+app.use('/api/analytics', analyticsRoutes)
+app.use('/api/forum', forumRoutes)
+app.use('/api/gamification', gamificationRoutes)
+app.use('/api/public', publicRoutes)
 
 // Config endpoint: provides encryption key for frontend (public - needed before login)
 app.get('/api/config', (_req, res) => {

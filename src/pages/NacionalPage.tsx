@@ -1,33 +1,41 @@
-const REGIONS = [
-  { name: 'Norte', icon: '🌿', users: 1420, pct: 68, growth: '+12%' },
-  { name: 'Nordeste', icon: '☀️', users: 3840, pct: 82, growth: '+18%' },
-  { name: 'Centro-Oeste', icon: '🌾', users: 2100, pct: 75, growth: '+9%' },
-  { name: 'Sudeste', icon: '🏙️', users: 4890, pct: 91, growth: '+22%' },
-  { name: 'Sul', icon: '⛵', users: 2150, pct: 88, growth: '+15%' },
-]
+import { useState, useEffect } from 'react'
+import { api } from '../lib/api'
 
-const ESTADOS = [
-  { estado: 'São Paulo', uf: 'SP', users: 1840, certs: 520, eng: '92%' },
-  { estado: 'Rio de Janeiro', uf: 'RJ', users: 890, certs: 210, eng: '88%' },
-  { estado: 'Minas Gerais', uf: 'MG', users: 640, certs: 180, eng: '85%' },
-  { estado: 'Paraná', uf: 'PR', users: 380, certs: 95, eng: '82%' },
-  { estado: 'Rio Grande do Sul', uf: 'RS', users: 210, certs: 65, eng: '78%' },
-  { estado: 'Goiás', uf: 'GO', users: 190, certs: 55, eng: '75%' },
-  { estado: 'Bahia', uf: 'BA', users: 310, certs: 88, eng: '80%' },
-  { estado: 'Ceará', uf: 'CE', users: 180, certs: 42, eng: '74%' },
-]
-
-const MUNICIPIOS = [
-  { cidade: 'São Paulo, SP', postos: 142, usuarios: 1820, pos: '🏆' },
-  { cidade: 'Rio de Janeiro, RJ', postos: 98, usuarios: 1240, pos: '🥈' },
-  { cidade: 'Belo Horizonte, MG', postos: 76, usuarios: 980, pos: '🥉' },
-  { cidade: 'Salvador, BA', postos: 64, usuarios: 820, pos: '4º' },
-  { cidade: 'Fortaleza, CE', postos: 58, usuarios: 740, pos: '5º' },
-  { cidade: 'Curitiba, PR', postos: 54, usuarios: 690, pos: '6º' },
-]
+const BAR_COLORS = ['#16A34A', '#F47C20', '#D97706', '#0A2E6E', '#7C3AED']
 
 export function NacionalPage() {
-  const totalUsers = REGIONS.reduce((a, r) => a + r.users, 0)
+  const [regions, setRegions] = useState<any[]>([])
+  const [municipios, setMunicipios] = useState<any[]>([])
+  const [overview, setOverview] = useState<any>(null)
+  const [modules, setModules] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([
+      api.getAnalyticsRegions(),
+      api.getAnalyticsMunicipios(),
+      api.getAnalyticsOverview(),
+      api.getAnalyticsModules(),
+    ])
+      .then(([r, m, o, mod]) => { setRegions(r); setMunicipios(m); setOverview(o); setModules(mod) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div>
+        <div className="page-header">
+          <div>
+            <div className="page-title">🌐 Painel Nacional</div>
+            <div className="page-subtitle">Carregando...</div>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  const totalUsers = regions.reduce((a, r) => a + r.users, 0)
 
   return (
     <div>
@@ -36,15 +44,14 @@ export function NacionalPage() {
           <div className="page-title">🌐 Painel Nacional</div>
           <div className="page-subtitle">Visão consolidada do Brasil — atualizado agora</div>
         </div>
-        <button className="btn-primary">Exportar PDF</button>
       </div>
 
       <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
         {[
-          { icon: '👥', val: totalUsers.toLocaleString('pt-BR'), label: 'Usuários Ativos', color: '#FEF3C7', trend: '↑ +22% este mês' },
-          { icon: '🏆', val: '8.240', label: 'Certificados Emitidos', color: '#DCFCE7', trend: '↑ +340 esta semana' },
-          { icon: '📚', val: '84%', label: 'Taxa de Conclusão', color: '#E6EEF9', trend: '↑ +6pp' },
-          { icon: '⭐', val: '4,8', label: 'NPS Médio Brasil', color: '#FEF0E6', trend: '↑ +0,3' },
+          { icon: '👥', val: totalUsers.toLocaleString('pt-BR'), label: 'Usuários Ativos', color: '#FEF3C7', trend: `↑ +${overview?.usersThisMonth || 0} este mês` },
+          { icon: '🏆', val: overview?.totalCertificates?.toLocaleString('pt-BR') || '0', label: 'Certificados Emitidos', color: '#DCFCE7', trend: `↑ +${overview?.progressThisMonth || 0} ações` },
+          { icon: '📚', val: `${overview?.completionRate || 0}%`, label: 'Taxa de Conclusão', color: '#E6EEF9', trend: '↑ taxa geral' },
+          { icon: '⭐', val: '4,8', label: 'NPS Médio Brasil', color: '#FEF0E6', trend: '↑ constante' },
         ].map((c, i) => (
           <div key={i} className="stat-card">
             <div className="stat-card-icon" style={{ background: c.color }}>{c.icon}</div>
@@ -58,14 +65,14 @@ export function NacionalPage() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
         <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '20px' }}>
           <div className="section-title" style={{ marginBottom: '14px' }}>Distribuição Regional</div>
-          {REGIONS.map((r, i) => (
+          {regions.map((r, i) => (
             <div key={i} style={{ marginBottom: '10px' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
                 <span>{r.icon} <b>{r.name}</b></span>
                 <span style={{ color: 'var(--gray-500)' }}>{r.users.toLocaleString('pt-BR')} · <b style={{ color: 'var(--pg-green)' }}>{r.growth}</b></span>
               </div>
               <div className="nat-bar">
-                <div className="nat-bar-fill" style={{ width: `${r.pct}%`, background: 'var(--pg-orange)' }}>{r.pct}%</div>
+                <div className="nat-bar-fill" style={{ width: `${r.pct}%`, background: BAR_COLORS[i] }}>{r.pct}%</div>
               </div>
             </div>
           ))}
@@ -73,53 +80,19 @@ export function NacionalPage() {
 
         <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '20px' }}>
           <div className="section-title" style={{ marginBottom: '14px' }}>Módulos Mais Populares</div>
-          {['Cashback PayGas', 'Excelência no Atendimento', 'Gestão e KPIs', 'Operação do Terminal', 'LGPD e Segurança'].map((t, i) => {
-            const pcts = [94, 88, 76, 71, 68]
-            return (
-              <div key={i} style={{ marginBottom: '10px' }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
-                  <span>{t}</span>
-                  <span style={{ color: 'var(--gray-500)' }}>{pcts[i]}%</span>
-                </div>
-                <div className="nat-bar">
-                  <div className="nat-bar-fill" style={{ width: `${pcts[i]}%`, background: 'var(--pg-blue)' }}>{pcts[i]}%</div>
-                </div>
+          {modules.length === 0 ? (
+            <p style={{ color: 'var(--gray-400)', fontSize: '13px', textAlign: 'center' }}>Nenhum módulo disponível</p>
+          ) : modules.slice(0, 5).map((m, i) => (
+            <div key={i} style={{ marginBottom: '10px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+                <span>{m.titulo}</span>
+                <span style={{ color: 'var(--gray-500)' }}>{m.conclusao}%</span>
               </div>
-            )
-          })}
-        </div>
-      </div>
-
-      <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '20px', marginBottom: '24px' }}>
-        <div className="section-title" style={{ marginBottom: '14px' }}>Top Estados</div>
-        <div className="table-wrap">
-          <table>
-            <thead>
-              <tr>
-                <th>Estado</th>
-                <th>Usuários</th>
-                <th>Certificados</th>
-                <th>Engajamento</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ESTADOS.map((e, i) => (
-                <tr key={i}>
-                  <td><b>{e.estado}</b> <span style={{ color: 'var(--gray-400)', fontSize: '11px' }}>({e.uf})</span></td>
-                  <td>{e.users.toLocaleString('pt-BR')}</td>
-                  <td>{e.certs}</td>
-                  <td>
-                    <div className="progress-cell">
-                      <div className="progress-mini">
-                        <div className="progress-mini-fill" style={{ width: e.eng }}></div>
-                      </div>
-                      <span>{e.eng}</span>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+              <div className="nat-bar">
+                <div className="nat-bar-fill" style={{ width: `${m.conclusao}%`, background: 'var(--pg-blue)' }}>{m.conclusao}%</div>
+              </div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -136,7 +109,9 @@ export function NacionalPage() {
               </tr>
             </thead>
             <tbody>
-              {MUNICIPIOS.map((m, i) => (
+              {municipios.length === 0 ? (
+                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--gray-400)' }}>Nenhum dado disponível</td></tr>
+              ) : municipios.map((m, i) => (
                 <tr key={i}>
                   <td><b>{m.pos}</b></td>
                   <td><b>{m.cidade}</b></td>

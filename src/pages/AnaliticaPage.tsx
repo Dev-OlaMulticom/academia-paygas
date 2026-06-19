@@ -1,4 +1,34 @@
+import { useState, useEffect } from 'react'
+import { api } from '../lib/api'
+
 export function AnaliticaPage() {
+  const [overview, setOverview] = useState<any>(null)
+  const [modules, setModules] = useState<any[]>([])
+  const [personas, setPersonas] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    Promise.all([
+      api.getAnalyticsOverview(),
+      api.getAnalyticsModules(),
+      api.getAnalyticsPersonas(),
+    ])
+      .then(([o, m, p]) => { setOverview(o); setModules(m); setPersonas(p) })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+  }, [])
+
+  if (loading) {
+    return (
+      <div>
+        <div className="page-header">
+          <div className="page-title">Analytics</div>
+        </div>
+        <p style={{ color: 'var(--gray-400)' }}>Carregando dados...</p>
+      </div>
+    )
+  }
+
   return (
     <div>
       <div className="page-header">
@@ -7,10 +37,10 @@ export function AnaliticaPage() {
 
       <div className="cards-grid">
         {[
-          { icon: '👁️', val: '12.400', label: 'Visualizações/mês', trend: '↑ +18%', color: '#E6EEF9' },
-          { icon: '⏱️', val: '42 min', label: 'Tempo Médio/sessão', trend: '↑ +5 min', color: '#FEF3C7' },
-          { icon: '🔁', val: '68%', label: 'Taxa de Retorno', trend: '↑ +3%', color: '#DCFCE7' },
-          { icon: '📱', val: '54%', label: 'Acesso Mobile', trend: '→ estável', color: '#FEF0E6' },
+          { icon: '👥', val: overview?.totalUsers?.toLocaleString('pt-BR') || '0', label: 'Usuários Ativos', trend: `↑ +${overview?.usersThisMonth || 0} este mês`, color: '#E6EEF9' },
+          { icon: '📚', val: `${overview?.completionRate || 0}%`, label: 'Taxa de Conclusão', trend: '↑ taxa geral', color: '#FEF3C7' },
+          { icon: '🔁', val: `${overview?.returnRate || 0}%`, label: 'Taxa de Retorno', trend: '↑ engajamento', color: '#DCFCE7' },
+          { icon: '🏆', val: overview?.totalCertificates?.toLocaleString('pt-BR') || '0', label: 'Certificados Emitidos', trend: `↑ +${overview?.progressThisMonth || 0} ações`, color: '#FEF0E6' },
         ].map((c, i) => (
           <div key={i} className="stat-card">
             <div className="stat-card-icon" style={{ background: c.color }}>{c.icon}</div>
@@ -34,22 +64,18 @@ export function AnaliticaPage() {
                 </tr>
               </thead>
               <tbody>
-                {[
-                  { mod: 'Excelência no Atendimento', access: 1840, conv: '88%' },
-                  { mod: 'Sistema de Cashback PayGas', access: 1620, conv: '75%' },
-                  { mod: 'Operação do Terminal', access: 1380, conv: '91%' },
-                  { mod: 'Gestão e KPIs do Posto', access: 980, conv: '68%' },
-                  { mod: 'Integração via API', access: 720, conv: '82%' },
-                ].map((m, i) => (
+                {modules.length === 0 ? (
+                  <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--gray-400)' }}>Nenhum dado disponível</td></tr>
+                ) : modules.map((m, i) => (
                   <tr key={i}>
-                    <td><b>{m.mod}</b></td>
-                    <td>{m.access.toLocaleString('pt-BR')}</td>
+                    <td><b>{m.titulo}</b></td>
+                    <td>{m.acessos.toLocaleString('pt-BR')}</td>
                     <td>
                       <div className="progress-cell">
                         <div className="progress-mini">
-                          <div className="progress-mini-fill" style={{ width: m.conv }}></div>
+                          <div className="progress-mini-fill" style={{ width: `${m.conclusao}%` }}></div>
                         </div>
-                        {m.conv}
+                        {m.conclusao}%
                       </div>
                     </td>
                   </tr>
@@ -71,18 +97,13 @@ export function AnaliticaPage() {
                 </tr>
               </thead>
               <tbody>
-                {[
-                  { persona: 'Atendente', users: '1.840', xp: '1.820' },
-                  { persona: 'Gestor', users: '980', xp: '3.950' },
-                  { persona: 'Parceiro', users: '640', xp: '1.640' },
-                  { persona: 'Líder Comunitário', users: '420', xp: '2.840' },
-                  { persona: 'Integrador ERP', users: '280', xp: '4.920' },
-                  { persona: 'Admin PayGas', users: '120', xp: '7.800' },
-                ].map((p, i) => (
+                {personas.length === 0 ? (
+                  <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--gray-400)' }}>Nenhum dado disponível</td></tr>
+                ) : personas.map((p, i) => (
                   <tr key={i}>
                     <td>{p.persona}</td>
-                    <td><b>{p.users}</b></td>
-                    <td><b style={{ color: 'var(--pg-orange)' }}>{p.xp}</b></td>
+                    <td><b>{p.users.toLocaleString('pt-BR')}</b></td>
+                    <td><b style={{ color: 'var(--pg-orange)' }}>{p.xp.toLocaleString('pt-BR')}</b></td>
                   </tr>
                 ))}
               </tbody>

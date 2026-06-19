@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { User } from '../hooks/useAuth'
 import { PERSONAS } from '../data/constants'
 import { api } from '../lib/api'
+import { XP_PER_LEVEL } from '../lib/constants'
 
 
 interface EquipePageProps {
@@ -35,7 +36,7 @@ export function EquipePage({ user }: EquipePageProps) {
 
   const renderAtendenteRow = (member: any, i: number) => {
     const memberXp = member.xp || 0
-    const level = Math.floor(memberXp / 2000) + 1
+    const level = Math.floor(memberXp / XP_PER_LEVEL) + 1
     return (
       <tr key={i}>
         <td>
@@ -87,7 +88,6 @@ export function EquipePage({ user }: EquipePageProps) {
     </thead>
   )
 
-  // GESTOR view: flat array of members
   if (isGestor) {
     const members = Array.isArray(teamData) ? teamData : []
     return (
@@ -115,7 +115,6 @@ export function EquipePage({ user }: EquipePageProps) {
     )
   }
 
-  // ADMIN view: grouped by gestor
   const teams = Array.isArray(teamData) ? teamData : []
   const totalMembros = teams.reduce((sum: number, t: any) => sum + (t.totalMembros || 0), 0)
 

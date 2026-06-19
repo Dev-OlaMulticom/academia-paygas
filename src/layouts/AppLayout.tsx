@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import type { User } from '../hooks/useAuth'
 import { PERSONAS } from '../data/constants'
+import { APP_VERSION } from '../lib/constants'
 
 interface AppLayoutProps {
   user: User
@@ -51,7 +52,7 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
           <div className="header-logo-icon">PG</div>
           <div>
             <div className="header-logo-name">Academia PayGas</div>
-            <div className="header-logo-ver">V26 — Edição Nacional</div>
+            <div className="header-logo-ver">{APP_VERSION} — Edição Nacional</div>
           </div>
         </div>
         <div className="header-right">
