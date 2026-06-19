@@ -63,7 +63,8 @@ router.get('/me', authenticate, async (req: AuthRequest, res) => {
     })
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' })
     res.json(user)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro interno do servidor' })
   }
 })
@@ -103,7 +104,8 @@ router.get('/verify-email', async (req, res) => {
     })
 
     res.json({ message: 'Email verificado com sucesso!' })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao verificar email' })
   }
 })

@@ -124,20 +124,54 @@ if (require.main === module) {
   const keyFile = path.join(certPath, 'key.pem')
   const certFile = path.join(certPath, 'cert.pem')
 
+  let server: ReturnType<typeof app.listen>
+
   if (fs.existsSync(keyFile) && fs.existsSync(certFile)) {
     const httpsOptions = {
       key: fs.readFileSync(keyFile),
       cert: fs.readFileSync(certFile),
     }
 
-    https.createServer(httpsOptions, app).listen(PORT, () => {
+    server = https.createServer(httpsOptions, app).listen(PORT, () => {
       console.log(`🔒 HTTPS Server running on https://localhost:${PORT}`)
     })
   } else {
-    app.listen(PORT, () => {
+    server = app.listen(PORT, () => {
       console.log(`🚀 HTTP Server running on http://localhost:${PORT} (no SSL certs found)`)
     })
   }
+
+  // ─── Graceful Shutdown ──────────────────────────────────
+  const shutdown = async (signal: string) => {
+    console.log(`\n${signal} received. Shutting down gracefully...`)
+    server.close(async () => {
+      try {
+        const { prisma } = await import('./lib/prisma')
+        await prisma.$disconnect()
+        console.log('Database connection closed.')
+      } catch { /* ignore */ }
+      process.exit(0)
+    })
+    // Force kill after 10 seconds
+    setTimeout(() => {
+      console.error('Forced shutdown after timeout.')
+      process.exit(1)
+    }, 10000)
+  }
+
+  process.on('SIGTERM', () => shutdown('SIGTERM'))
+  process.on('SIGINT', () => shutdown('SIGINT'))
+
+  // ─── Uncaught Error Handlers ────────────────────────────
+  process.on('uncaughtException', (err) => {
+    console.error('[FATAL] Uncaught Exception:', err)
+    process.exit(1)
+  })
+
+  process.on('unhandledRejection', (reason) => {
+    console.error('[FATAL] Unhandled Rejection:', reason)
+    process.exit(1)
+  })
 }
 
 export default app

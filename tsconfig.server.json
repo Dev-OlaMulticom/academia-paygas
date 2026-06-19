@@ -6,7 +6,7 @@
     "lib": ["ES2020"],
     "outDir": "./dist/server",
     "rootDir": "./server",
-    "strict": false,
+    "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,

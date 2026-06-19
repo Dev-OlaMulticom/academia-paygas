@@ -35,6 +35,12 @@ export async function processSyncQueue(): Promise<{ sent: number; failed: number
       }
       if (token) headers['Authorization'] = `Bearer ${token}`
 
+      // Exponential backoff: 1s, 2s, 4s, 8s, 16s
+      const backoffMs = Math.min(1000 * Math.pow(2, item.retryCount), 16000)
+      if (item.retryCount > 0) {
+        await new Promise(resolve => setTimeout(resolve, backoffMs))
+      }
+
       const res = await fetch(`${API_BASE}${item.path}`, {
         method: item.method,
         headers,

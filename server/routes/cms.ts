@@ -35,7 +35,8 @@ router.get('/', authenticate, async (req, res) => {
         totalPages: Math.ceil(total / limit),
       },
     })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar modulos' })
   }
 })
@@ -65,7 +66,8 @@ router.post('/', authenticate, authorize('ADMIN'), async (req, res) => {
       },
     })
     res.status(201).json(modulo)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao criar módulo' })
   }
 })
@@ -81,7 +83,8 @@ router.put('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
       data: { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado },
     })
     res.json(modulo)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao atualizar módulo' })
   }
 })
@@ -93,7 +96,8 @@ router.delete('/:id', authenticate, authorize('ADMIN'), async (req, res) => {
     if (!id) return res.status(400).json({ error: 'ID inválido' })
     await prisma.modulo.delete({ where: { id } })
     res.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao excluir módulo' })
   }
 })
@@ -156,7 +160,8 @@ router.get('/:id/aulas', authenticate, async (req: any, res) => {
     }))
 
     res.json(result)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar aulas' })
   }
 })
@@ -189,7 +194,8 @@ router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req, res) => 
       },
     })
     res.status(201).json(aula)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao criar aula' })
   }
 })
@@ -205,7 +211,8 @@ router.put('/aulas/:id', authenticate, authorize('ADMIN'), async (req, res) => {
       data: { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio },
     })
     res.json(aula)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao atualizar aula' })
   }
 })
@@ -217,7 +224,8 @@ router.delete('/aulas/:id', authenticate, authorize('ADMIN'), async (req, res) =
     if (!id) return res.status(400).json({ error: 'ID inválido' })
     await prisma.aula.delete({ where: { id } })
     res.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao excluir aula' })
   }
 })
@@ -245,7 +253,8 @@ router.post('/:moduloId/quiz', authenticate, authorize('ADMIN'), async (req, res
       },
     })
     res.status(201).json(quiz)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao criar quiz' })
   }
 })
@@ -265,7 +274,8 @@ router.get('/:moduloId/quiz/:aulaId', authenticate, async (req, res) => {
       return res.status(404).json({ error: 'Quiz não encontrado' })
     }
     res.json(quiz)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar quiz' })
   }
 })
@@ -281,7 +291,8 @@ router.put('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req, res) =
       data: { titulo, autoGerarCertificado },
     })
     res.json(quiz)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao atualizar quiz' })
   }
 })
@@ -293,7 +304,8 @@ router.delete('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req, res
     if (!quizId) return res.status(400).json({ error: 'ID inválido' })
     await prisma.quiz.delete({ where: { id: quizId } })
     res.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao excluir quiz' })
   }
 })
@@ -326,7 +338,8 @@ router.post('/quiz/:quizId/perguntas', authenticate, authorize('ADMIN'), async (
       },
     })
     res.status(201).json(newPergunta)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao criar pergunta' })
   }
 })
@@ -342,7 +355,8 @@ router.put('/perguntas/:perguntaId', authenticate, authorize('ADMIN'), async (re
       data: { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta, ordem },
     })
     res.json(updated)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao atualizar pergunta' })
   }
 })
@@ -354,7 +368,8 @@ router.delete('/perguntas/:perguntaId', authenticate, authorize('ADMIN'), async 
     if (!perguntaId) return res.status(400).json({ error: 'ID inválido' })
     await prisma.quizPergunta.delete({ where: { id: perguntaId } })
     res.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao excluir pergunta' })
   }
 })
@@ -432,7 +447,8 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
     }
 
     res.json({ nota, total, correct, concluido, response })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao enviar respostas' })
   }
 })
@@ -450,7 +466,8 @@ router.get('/quiz/:quizId/resultados', authenticate, async (req: any, res) => {
       orderBy: { createdAt: 'desc' },
     })
     res.json(responses)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar resultados' })
   }
 })
@@ -467,7 +484,8 @@ router.post('/:id/open', authenticate, async (req: any, res) => {
     await awardPoints(req.userId, 'MODULE_OPEN', `Modulo aberto: ${modulo.titulo}`)
 
     res.json({ message: 'Modulo registrado', xp: 20 })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao registrar abertura do modulo' })
   }
 })
@@ -488,7 +506,8 @@ router.get('/gamification/leaderboard', authenticate, async (req: any, res) => {
     }))
 
     res.json(result)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar leaderboard' })
   }
 })
@@ -515,7 +534,8 @@ router.get('/gamification/stats', authenticate, async (req: any, res) => {
       totalUsers: totalXpResult._count.id,
       topActions,
     })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar estatisticas de gamificacao' })
   }
 })

@@ -58,7 +58,8 @@ router.get('/', authenticate, async (req: any, res) => {
       recentActivity,
       pointsByAction: userPoints.byAction,
     })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar dashboard' })
   }
 })
@@ -69,7 +70,8 @@ router.get('/leaderboard', authenticate, async (req: any, res) => {
     const gestorId = req.userRole === 'GESTOR' ? req.userId : undefined
     const team = await getTeamPoints(gestorId)
     res.json(team)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar leaderboard' })
   }
 })

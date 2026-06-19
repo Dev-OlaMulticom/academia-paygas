@@ -72,7 +72,8 @@ router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequ
         totalPages: Math.ceil(total / limit),
       },
     })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar usuarios' })
   }
 })
@@ -135,7 +136,8 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
     })
 
     res.status(201).json(user)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao criar usuário' })
   }
 })
@@ -171,7 +173,8 @@ router.put('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthR
 
     await logActivity(req.userId!, 'Editar Usuario', `Editou usuario: ${user.nome}`)
     res.json(user)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao atualizar usuário' })
   }
 })
@@ -206,7 +209,8 @@ router.put('/change-password', authenticate, async (req: AuthRequest, res) => {
 
     await logActivity(req.userId!, 'Alterar Senha', 'Senha alterada com sucesso')
     res.json({ message: 'Senha alterada com sucesso' })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao alterar senha' })
   }
 })
@@ -228,7 +232,8 @@ router.delete('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: Au
 
     await logActivity(req.userId!, 'Excluir Usuario', `Excluiu usuario: ${user?.nome} (${user?.email})`)
     res.json({ success: true })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao excluir usuário' })
   }
 })
@@ -290,7 +295,8 @@ router.get('/equipe', authenticate, authorize('ADMIN', 'GESTOR'), async (req: Au
     }))
 
     res.json(teams)
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar equipe' })
   }
 })
@@ -309,7 +315,8 @@ router.get('/equipe/stats', authenticate, authorize('ADMIN'), async (req: AuthRe
       totalAtendentesComGestor,
       totalAtendentesSemGestor,
     })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar estatisticas' })
   }
 })
@@ -336,7 +343,8 @@ router.post('/:id/validate-account', authenticate, authorize('ADMIN', 'GESTOR'),
     await awardPoints(req.userId!, 'LESSON_COMPLETE', 'Gestor validou conta de atendente')
 
     res.json({ message: 'Conta validada com sucesso!' })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao validar conta' })
   }
 })
@@ -370,7 +378,8 @@ router.post('/:id/resend-verification', authenticate, authorize('ADMIN', 'GESTOR
     await logActivity(req.userId!, 'Reenviar Verificacao', `Reenviou verificacao para: ${user.nome}`)
 
     res.json({ message: 'Email de verificacao reenviado!' })
-  } catch {
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao reenviar verificacao' })
   }
 })

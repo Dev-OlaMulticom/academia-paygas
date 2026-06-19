@@ -3,19 +3,11 @@
   "outputDirectory": "dist",
   "framework": null,
   "installCommand": "pnpm install",
-  "functions": {
-    "api/index.js": {
-      "maxDuration": 30
-    }
-  },
   "rewrites": [
-    {
-      "source": "/api/:path*",
-      "destination": "/api/index.js"
-    },
     {
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
-  ]
+  ],
+  "_note": "This config is for Vercel. Production uses cPanel + Phusion Passenger with app.js entry point."
 }

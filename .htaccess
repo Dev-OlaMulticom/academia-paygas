@@ -6,6 +6,10 @@
         RewriteEngine On
         RewriteCond %{REQUEST_URI} ^/api/
         RewriteRule ^api/(.*) http://127.0.0.1:3001/api/$1 [P,L]
+
+        # Proxy timeouts (prevent hanging connections)
+        ProxyTimeout 30
+        Timeout 30
     </IfModule>
 </IfModule>
 

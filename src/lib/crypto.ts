@@ -19,9 +19,10 @@ async function fetchEncryptionKey(): Promise<string> {
       }
     }
   } catch {
-    // network error - fallback
+    // network error
   }
-  return SECRET_KEY || ''
+  // Never return empty string — throw if key cannot be fetched
+  throw new Error('No se pudo obtener la encryption key. Verificar conexion con el servidor.')
 }
 
 export function initEncryptionKey(): Promise<string> {

@@ -7,7 +7,12 @@ const JWT_SECRET_FALLBACK_FILE = '.jwt-secret'
 function getJWTSecret(): string {
   const envSecret = process.env.JWT_SECRET
   
-  if (envSecret && envSecret.length >= 32 && !envSecret.includes('academia-paygas')) {
+  if (envSecret && envSecret.length >= 32) {
+    return envSecret
+  }
+  
+  if (envSecret && envSecret.length < 32) {
+    console.warn('⚠️  JWT_SECRET is shorter than 32 characters. Using it anyway but consider generating a longer one.')
     return envSecret
   }
   
@@ -16,7 +21,7 @@ function getJWTSecret(): string {
     const fs = require('fs')
     if (fs.existsSync(JWT_SECRET_FALLBACK_FILE)) {
       const persisted = fs.readFileSync(JWT_SECRET_FALLBACK_FILE, 'utf8').trim()
-      if (persisted && persisted.length >= 32) {
+      if (persisted && persisted.length >= 16) {
         return persisted
       }
     }

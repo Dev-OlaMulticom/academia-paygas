@@ -285,6 +285,19 @@ if [ ! -f dist/server/index.js ]; then
     log_fail "dist/server/index.js no existe despues del build"
 fi
 
+# Abortar si AMBOS builds fallaron
+if [ "$BUILD_FE_OK" = false ] && [ "$BUILD_BE_OK" = false ]; then
+    log_fail "Ambos builds fallaron. Abortando deploy."
+    if [ -d "$BACKUP_DIR" ]; then
+        log_warn "Restaurando build anterior desde backup..."
+        cp -r "$BACKUP_DIR"/* dist/ 2>/dev/null || true
+        log_ok "Build anterior restaurado"
+    fi
+    echo ""
+    echo "  Deploy abortado. Verificar errores arriba."
+    exit 1
+fi
+
 echo ""
 
 # ─── 9. Reiniciar aplicacion ─────────────────────────────
@@ -309,6 +322,20 @@ else
     nohup node dist/server/index.js > logs/app.log 2>&1 &
     echo $! > logs/app.pid
     log_ok "Node.js iniciado en puerto 3001 (PID: $(cat logs/app.pid))"
+
+    # Verificar que el proceso esta vivo despues de 3 segundos
+    sleep 3
+    if kill -0 "$(cat logs/app.pid)" 2>/dev/null; then
+        log_ok "Proceso Node.js esta activo"
+    else
+        log_fail "Proceso Node.js murio despues de iniciar"
+        log_fail "Revisar logs/app.log para detalles"
+        if [ -f logs/app.log ]; then
+            echo "  --- Ultimas 10 lineas del log ---"
+            tail -10 logs/app.log
+            echo "  --- Fin del log ---"
+        fi
+    fi
 fi
 
 # Limpiar cache Apache
