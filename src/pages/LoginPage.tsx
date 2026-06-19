@@ -54,7 +54,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           <div className="login-logo-icon">PG</div>
           <div className="login-logo-text">
             <b>Academia PayGas</b>
-            <span>Plataforma Nacional de Capacitação</span>
+            <span>Plataforma de Capacitação</span>
           </div>
         </div>
         <h2>Bem-vindo de volta!</h2>
@@ -92,7 +92,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       <div className="login-bg">
         <span className="ver-badge-login">{APP_VERSION} — Sistema</span>
         <div className="login-bg-content">
-          <h1>Capacitação <span>Nacional</span><br/>em um só lugar</h1>
+          <h1>Capacitação<br/>em um só lugar</h1>
           <p>A Academia PayGas conecta postos, parceiros e comunidades em todo o Brasil com conteúdo profissional, módulos personalizados e certificação reconhecida.</p>
           <div className="login-stats" style={{ gridTemplateColumns: '1fr 1fr' }}>
             <div className="login-stat"><b>{publicStats?.alunos?.toLocaleString('pt-BR') || '—'}</b><span>Usuários ativos</span></div>
