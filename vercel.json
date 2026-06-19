@@ -8,6 +8,5 @@
       "source": "/((?!api/).*)",
       "destination": "/index.html"
     }
-  ],
-  "_note": "This config is for Vercel. Production uses cPanel + Phusion Passenger with app.js entry point."
+  ]
 }
