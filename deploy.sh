@@ -336,6 +336,28 @@ NGINX_EOF
     echo ""
 fi
 
+# ─── 6d. Fix .htaccess: eliminar ProxyTimeout que causa 500 ──
+echo "=== [6d/10] Corrigiendo .htaccess ==="
+
+HTACCESS_FILE="$DEPLOY_DIR/.htaccess"
+if [ -f "$HTACCESS_FILE" ]; then
+    if grep -q "ProxyTimeout" "$HTACCESS_FILE"; then
+        sed -i '/ProxyTimeout /d' "$HTACCESS_FILE"
+        sed -i '/Timeout 30/d' "$HTACCESS_FILE"
+        log_fix "ProxyTimeout/Timeout eliminados del .htaccess (causaba 500 en Apache)"
+        # Recargar Apache si esta corriendo
+        if systemctl is-active --quiet httpd 2>/dev/null; then
+            systemctl reload httpd 2>/dev/null && log_ok "Apache recargado" || true
+        fi
+    else
+        log_ok ".htaccess ya corregido"
+    fi
+else
+    log_warn ".htaccess no encontrado"
+fi
+
+echo ""
+
 # ─── 7. Prisma: generate + migrate ───────────────────────
 echo "=== [7/10] Configurando base de datos ==="
 
