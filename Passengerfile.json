@@ -1,0 +1,10 @@
+{
+  "app_root": ".",
+  "startup_file": "app.js",
+  "production": true,
+  "environment": "production",
+  "log_file": "logs/passenger.log",
+  "error_log_file": "logs/passenger-error.log",
+  "disable_security_update_check": true,
+  "union_station_support_enabled": false
+}
