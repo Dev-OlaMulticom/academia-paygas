@@ -41,6 +41,18 @@ fi
 NODE_VER=$(node -v)
 log_ok "Node.js $NODE_VER"
 
+# Detectar web server (nginx vs Apache)
+WEB_SERVER="unknown"
+if command -v nginx &> /dev/null; then
+    WEB_SERVER="nginx"
+    log_ok "Web server: nginx"
+elif pgrep -x "apache2\|httpd" &> /dev/null; then
+    WEB_SERVER="apache"
+    log_ok "Web server: Apache"
+else
+    log_warn "Web server no detectado"
+fi
+
 # npm (siempre disponible con node)
 if ! command -v npm &> /dev/null; then
     log_fail "npm no encontrado"
@@ -232,6 +244,42 @@ fi
 
 echo ""
 
+# ─── 6b. Verificar configuracion de Passenger/nginx ──────
+echo "=== [6b/10] Verificando Passenger/nginx ==="
+
+# Ensure Passengerfile.json exists
+if [ ! -f Passengerfile.json ]; then
+    log_fix "Creando Passengerfile.json..."
+    cat > Passengerfile.json << 'PASSENGER_EOF'
+{
+  "app_root": ".",
+  "startup_file": "app.js",
+  "production": true,
+  "environment": "production",
+  "log_file": "logs/passenger.log",
+  "error_log_file": "logs/passenger-error.log"
+}
+PASSENGER_EOF
+    log_ok "Passengerfile.json creado"
+else
+    log_ok "Passengerfile.json existe"
+fi
+
+# Ensure app.js exists and is correct
+if [ ! -f app.js ]; then
+    log_fail "app.js no existe (entry point de Passenger)"
+fi
+
+# Ensure tmp/restart.txt directory exists
+mkdir -p tmp logs
+
+# Verify dist/server/index.js exists before proceeding
+if [ ! -f dist/server/index.js ]; then
+    log_warn "dist/server/index.js no existe antes del build (se creara en paso 8)"
+fi
+
+echo ""
+
 # ─── 7. Prisma: generate + migrate ───────────────────────
 echo "=== [7/10] Configurando base de datos ==="
 
@@ -353,9 +401,20 @@ if [ -f app.js ] && grep -q "module.exports" app.js 2>/dev/null; then
 fi
 
 if [ "$PASSENGER_APP" = true ]; then
+    # Ensure Passengerfile.json exists
+    if [ ! -f Passengerfile.json ]; then
+        echo '{"app_root":".","startup_file":"app.js","production":true,"environment":"production"}' > Passengerfile.json
+        log_fix "Passengerfile.json creado"
+    fi
+
     # Reiniciar via Passenger
     touch tmp/restart.txt
     log_ok "Passenger reiniciado via tmp/restart.txt"
+
+    # If nginx, try to reload
+    if command -v nginx &> /dev/null; then
+        nginx -s reload 2>/dev/null && log_ok "nginx recargado" || log_warn "No se pudo recargar nginx"
+    fi
 else
     # Iniciar Node directamente como fallback
     log_warn "app.js no encontrado o no es Passenger, iniciando Node directo"
@@ -378,11 +437,10 @@ else
     fi
 fi
 
-# Limpiar cache Apache
+# Limpiar cache de pagespeed si existe
 touch dist/index.html 2>/dev/null || true
 if command -v pagespeed &> /dev/null; then
-    pagespeed flush "$DOMAIN" 2>/dev/null || true
-    log_ok "Cache de Pagespeed limpiado"
+    pagespeed flush "$DOMAIN" 2>/dev/null && log_ok "Cache de Pagespeed limpiado" || true
 fi
 
 echo ""
@@ -396,46 +454,45 @@ HEALTH_OK=false
 CONFIG_OK=false
 FRONTEND_OK=false
 
-# Test 1: Health check via dominio
+# Test directo a puerto 3001 (siempre funciona si Node esta corriendo)
+DIRECT_OK=false
 if command -v curl &> /dev/null; then
+    HEALTH_DIRECT=$(curl -s -m 5 "http://127.0.0.1:3001/api/health" 2>/dev/null || true)
+    if echo "$HEALTH_DIRECT" | grep -q '"status"' 2>/dev/null; then
+        log_ok "API funciona en puerto 3001 (Node.js activo)"
+        DIRECT_OK=true
+    else
+        log_fail "API NO funciona en puerto 3001 (Node.js no responde)"
+    fi
+fi
+
+# Test via dominio
+if [ "$DIRECT_OK" = true ] && command -v curl &> /dev/null; then
     HEALTH_RESPONSE=$(curl -s -m 10 "https://$DOMAIN/api/health" 2>/dev/null || true)
     if echo "$HEALTH_RESPONSE" | grep -q '"status"' 2>/dev/null; then
-        log_ok "/api/health → JSON valido"
+        log_ok "/api/health via dominio → JSON valido"
         HEALTH_OK=true
-    elif echo "$HEALTH_RESPONSE" | grep -q 'html' 2>/dev/null; then
-        log_warn "/api/health devolvio HTML (proxy no configurado?)"
-        # Intentar via puerto directo como fallback
-        HEALTH_DIRECT=$(curl -s -m 5 "http://127.0.0.1:3001/api/health" 2>/dev/null || true)
-        if echo "$HEALTH_DIRECT" | grep -q '"status"' 2>/dev/null; then
-            log_ok "/api/health funciona en puerto 3001 (necesita proxy reverso)"
-        else
-            log_fail "/api/health no funciona ni en puerto 3001"
-        fi
+    elif echo "$HEALTH_RESPONSE" | grep -q '500\|Internal Server' 2>/dev/null; then
+        log_fail "/api/health via dominio → HTTP 500 (Passenger o nginx no configurado)"
     else
-        log_fail "/api/health no respondio"
+        log_warn "/api/health via dominio → no devolvio JSON"
     fi
 
-    # Test 2: Config endpoint
     CONFIG_RESPONSE=$(curl -s -m 10 "https://$DOMAIN/api/config" 2>/dev/null || true)
     if echo "$CONFIG_RESPONSE" | grep -q 'key\|encryption' 2>/dev/null; then
-        log_ok "/api/config → JSON valido"
+        log_ok "/api/config via dominio → JSON valido"
         CONFIG_OK=true
-    elif echo "$CONFIG_RESPONSE" | grep -q 'html' 2>/dev/null; then
-        log_warn "/api/config devolvio HTML (proxy no configurado?)"
     else
-        log_fail "/api/config no respondio"
+        log_warn "/api/config via dominio → no devolvio JSON"
     fi
 
-    # Test 3: Frontend
     FRONTEND_RESPONSE=$(curl -s -m 10 "https://$DOMAIN/" 2>/dev/null || true)
     if echo "$FRONTEND_RESPONSE" | grep -q 'Academia PayGas' 2>/dev/null; then
-        log_ok "Frontend carga correctamente"
+        log_ok "Frontend carga correctamente via dominio"
         FRONTEND_OK=true
     else
-        log_fail "Frontend no carga"
+        log_warn "Frontend no carga via dominio"
     fi
-else
-    log_warn "curl no disponible, omitiendo verificacion"
 fi
 
 echo ""
@@ -445,29 +502,46 @@ echo "════════════════════════�
 echo "  RESUMEN DEL DEPLOY"
 echo "═══════════════════════════════════════════════════════"
 echo ""
-echo "  Build Frontend:  $([ "$BUILD_FE_OK" = true ] && echo "OK" || echo "FALLO")"
-echo "  Build Servidor:  $([ "$BUILD_BE_OK" = true ] && echo "OK" || echo "FALLO")"
-echo "  Health API:      $([ "$HEALTH_OK" = true ] && echo "OK" || echo "FALLO - ver abajo")"
-echo "  Config API:      $([ "$CONFIG_OK" = true ] && echo "OK" || echo "FALLO - ver abajo")"
-echo "  Frontend Web:    $([ "$FRONTEND_OK" = true ] && echo "OK" || echo "FALLO - ver abajo")"
+echo "  Build Frontend:    $([ "$BUILD_FE_OK" = true ] && echo "OK" || echo "FALLO")"
+echo "  Build Servidor:    $([ "$BUILD_BE_OK" = true ] && echo "OK" || echo "FALLO")"
+echo "  API (puerto 3001): $([ "$DIRECT_OK" = true ] && echo "OK" || echo "FALLO")"
+echo "  API (dominio):     $([ "$HEALTH_OK" = true ] && echo "OK" || echo "FALLO")"
+echo "  Config (dominio):  $([ "$CONFIG_OK" = true ] && echo "OK" || echo "FALLO")"
+echo "  Frontend (dominio): $([ "$FRONTEND_OK" = true ] && echo "OK" || echo "FALLO")"
 echo ""
 
-if [ "$ERRORS" -gt 0 ]; then
-    echo "  [!] $ERRORS problema(s) detectado(s)"
-    echo ""
-    echo "  Soluciones posibles:"
-    if [ "$HEALTH_OK" = false ]; then
-        echo "  - Si /api/health devuelve HTML: habilitar mod_proxy en Apache"
-        echo "    o configurar cPanel Node.js App con app.js como startup file"
-    fi
-    if [ "$BUILD_FE_OK" = false ] || [ "$BUILD_BE_OK" = false ]; then
-        echo "  - Revisar logs: cat logs/app.log"
-        echo "  - Reinstalar: rm -rf node_modules && $PKG_MGR install"
-    fi
+if [ "$DIRECT_OK" = false ]; then
+    echo "  [CRITICO] Node.js no esta respondiendo en puerto 3001"
+    echo "  Revisar: cat logs/app.log"
     echo ""
     exit 1
-else
-    echo "  [OK] Deploy completado sin errores"
-    echo ""
-    exit 0
 fi
+
+if [ "$HEALTH_OK" = false ] || [ "$FRONTEND_OK" = false ]; then
+    echo "  [!] La app funciona en puerto 3001 pero NO via el dominio"
+    echo ""
+    echo "  Causa: nginx/Passenger no esta configurado correctamente."
+    echo ""
+    echo "  Soluciones:"
+    echo "  1. En cPanel → Setup Node.js App"
+    echo "     - Application Root: $(pwd)"
+    echo "     - Application Startup File: app.js"
+    echo "     - Application Mode: Production"
+    echo "     - Click 'Create' o 'Restart'"
+    echo ""
+    echo "  2. Verificar que Passenger esta habilitado:"
+    echo "     - cPanel → Select Web Server → Habilitar Passenger"
+    echo ""
+    echo "  3. Verificar logs de nginx:"
+    echo "     - tail -20 /usr/local/nginx/logs/error.log"
+    echo "     - tail -20 logs/passenger-error.log 2>/dev/null"
+    echo ""
+    echo "  4. Diagnosticar con:"
+    echo "     - bash diagnose.sh"
+    echo ""
+    exit 1
+fi
+
+echo "  [OK] Deploy completado sin errores"
+echo ""
+exit 0
