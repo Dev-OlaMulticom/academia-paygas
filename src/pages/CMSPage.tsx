@@ -45,10 +45,7 @@ export function CMSPage({ user }: CMSPageProps) {
       const mods = await api.getCmsModulos()
       setModulos(mods)
     } catch {
-      setModulos([
-        { id: '1', titulo: 'Boas-Vindas à Academia PayGas', descricao: 'Introdução à plataforma', _count: { aulas: 3 } },
-        { id: '2', titulo: 'Manual do Atendente', descricao: 'Procedimentos de atendimento', _count: { aulas: 8 } },
-      ])
+      setModulos([])
     }
   }
 
