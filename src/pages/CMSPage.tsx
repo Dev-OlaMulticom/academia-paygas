@@ -251,6 +251,7 @@ export function CMSPage({ user }: CMSPageProps) {
 
   const getMaxTime = (totalDuration: { hours: number; minutes: number; seconds: number }, selectedHour: number) => {
     const totalSec = totalDuration.hours * 3600 + totalDuration.minutes * 60 + totalDuration.seconds
+    if (totalSec === 0) return { maxMinutes: 59, maxSeconds: 59 }
     const hourStart = selectedHour * 3600
     const remaining = Math.max(0, totalSec - hourStart)
     const maxMin = Math.floor(remaining / 60)
