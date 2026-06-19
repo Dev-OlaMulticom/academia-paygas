@@ -90,7 +90,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         </p>
       </div>
       <div className="login-bg">
-        <span className="ver-badge-login">{APP_VERSION} — Edição Nacional</span>
+        <span className="ver-badge-login">{APP_VERSION} — Sistema</span>
         <div className="login-bg-content">
           <h1>Capacitação <span>Nacional</span><br/>em um só lugar</h1>
           <p>A Academia PayGas conecta postos, parceiros e comunidades em todo o Brasil com conteúdo profissional, módulos personalizados e certificação reconhecida.</p>
