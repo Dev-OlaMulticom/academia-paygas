@@ -107,7 +107,27 @@ echo "[...] Recargando nginx..."
 nginx -s reload 2>&1
 echo "[OK] nginx recargado"
 
-# 5. Verificar que el dominio funciona
+# 5. Fix .htaccess: eliminar ProxyTimeout/Timeout que causan 500 en Apache
+echo "=== [5] Corrigiendo .htaccess ==="
+
+HTACCESS="$APP_DIR/.htaccess"
+if [ -f "$HTACCESS" ]; then
+    if grep -q "ProxyTimeout" "$HTACCESS"; then
+        sed -i '/ProxyTimeout /d' "$HTACCESS"
+        sed -i '/Timeout 30/d' "$HTACCESS"
+        echo "[OK] ProxyTimeout/Timeout eliminados del .htaccess"
+        # Recargar Apache
+        systemctl reload httpd 2>/dev/null && echo "[OK] Apache recargado" || true
+    else
+        echo "[OK] .htaccess ya corregido"
+    fi
+else
+    echo "[WARN] .htaccess no encontrado"
+fi
+
+echo ""
+
+# 6. Verificar que el dominio funciona
 echo ""
 echo "=== Verificando ==="
 sleep 2
