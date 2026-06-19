@@ -351,7 +351,7 @@ export function ModulosPage() {
                               <div style={{ padding: '0 12px 12px', borderTop: '1px solid var(--gray-100)' }}>
                                 {licao.tipo === 'VIDEO' && licao.conteudo ? (
                                   <div style={{ marginTop: '8px', borderRadius: '6px', overflow: 'hidden' }}>
-                                    <VideoPlayer key={licao.id} url={licao.conteudo} />
+                                    <VideoPlayer key={licao.id} url={licao.conteudo} startAt={licao.inicioSeg || 0} endAt={licao.fimSeg || undefined} />
                                   </div>
                                 ) : licao.tipo === 'PDF' && licao.conteudo ? (
                                   <div style={{ marginTop: '8px' }}>

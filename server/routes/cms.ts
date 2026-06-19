@@ -261,7 +261,7 @@ router.post('/aulas/:aulaId/licoes', authenticate, authorize('ADMIN'), async (re
     const aulaId = getStringParam(req.params.aulaId)
     if (!aulaId) return res.status(400).json({ error: 'ID inválido' })
 
-    const { titulo, conteudo, tipo, duracaoMin } = req.body
+    const { titulo, conteudo, tipo, duracaoMin, inicioSeg, fimSeg } = req.body
     if (!titulo) return res.status(400).json({ error: 'Título é obrigatório' })
 
     const maxOrdem = await prisma.licao.aggregate({
@@ -276,6 +276,8 @@ router.post('/aulas/:aulaId/licoes', authenticate, authorize('ADMIN'), async (re
         conteudo: conteudo || null,
         tipo: tipo || 'TEXTO',
         duracaoMin: duracaoMin || null,
+        inicioSeg: typeof inicioSeg === 'number' ? inicioSeg : null,
+        fimSeg: typeof fimSeg === 'number' ? fimSeg : null,
         ordem: (maxOrdem._max.ordem ?? 0) + 1,
       },
     })
@@ -292,10 +294,18 @@ router.put('/licoes/:id', authenticate, authorize('ADMIN'), async (req, res) => 
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
 
-    const { titulo, conteudo, tipo, ordem, duracaoMin } = req.body
+    const { titulo, conteudo, tipo, ordem, duracaoMin, inicioSeg, fimSeg } = req.body
     const licao = await prisma.licao.update({
       where: { id },
-      data: { titulo, conteudo, tipo, ordem, duracaoMin },
+      data: {
+        titulo,
+        conteudo,
+        tipo,
+        ordem,
+        duracaoMin,
+        ...(typeof inicioSeg === 'number' ? { inicioSeg } : {}),
+        ...(typeof fimSeg === 'number' ? { fimSeg } : {}),
+      },
     })
     res.json(licao)
   } catch (error) {

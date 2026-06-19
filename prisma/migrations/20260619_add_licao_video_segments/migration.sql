@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Licao" ADD COLUMN "inicioSeg" INTEGER;
+ALTER TABLE "Licao" ADD COLUMN "fimSeg" INTEGER;

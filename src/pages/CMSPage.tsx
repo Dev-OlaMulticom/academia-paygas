@@ -151,7 +151,13 @@ export function CMSPage({ user }: CMSPageProps) {
       } else {
         payload.pdfUrl = newAula.pdfUrl
       }
-      await api.createAula(selectedModulo.id, payload)
+      const created: any = await api.createAula(selectedModulo.id, payload)
+      if (created?.id && newAula.microLessons?.length > 0) {
+        for (const ml of newAula.microLessons) {
+          const inicioSeg = (ml.hours || 0) * 3600 + (ml.minutes || 0) * 60 + (ml.seconds || 0)
+          await api.createLicao(created.id, { titulo: ml.titulo, tipo: 'VIDEO', conteudo: newAula.videoUrl || null, inicioSeg }).catch(() => {})
+        }
+      }
       toast('Aula criada com sucesso!', 'success')
       setShowAulaModal(false)
       setNewAula({ titulo: '', tipo: 'VIDEO', videoUrl: '', pdfUrl: '', obrigatorio: false, microLessons: [], duration: { hours: 0, minutes: 0, seconds: 0 } })
@@ -165,6 +171,24 @@ export function CMSPage({ user }: CMSPageProps) {
     if (!editingAula) return
     try {
       await api.updateAula(editingAula.id, editingAula)
+      const microLessons = editingAula.microLessons || []
+      const existing = (editingAula.licoes || []) as any[]
+      const existingIds = new Set(existing.map((l: any) => l.id))
+      const incomingIds = new Set(microLessons.filter((m: any) => m.id).map((m: any) => m.id))
+      for (const lid of existingIds) {
+        if (!incomingIds.has(lid)) {
+          await api.deleteLicao(lid).catch(() => {})
+        }
+      }
+      for (const ml of microLessons) {
+        const inicioSeg = (ml.hours || 0) * 3600 + (ml.minutes || 0) * 60 + (ml.seconds || 0)
+        const payload = { titulo: ml.titulo, tipo: 'VIDEO', conteudo: editingAula.videoUrl || null, inicioSeg }
+        if (ml.id) {
+          await api.updateLicao(ml.id, payload).catch(() => {})
+        } else {
+          await api.createLicao(editingAula.id, payload).catch(() => {})
+        }
+      }
       toast('Aula atualizada!', 'success')
       setEditingAula(null)
       loadAulas(selectedModulo.id)
@@ -349,7 +373,16 @@ export function CMSPage({ user }: CMSPageProps) {
                       )}
                     </td>
                     <td style={{ display: 'flex', gap: '6px' }}>
-                      {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingAula({ ...aula })}><i className="icon-pencil icon-xs" /> Editar</button>}
+                      {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => {
+                        const licoes = (aula.licoes || []).map((l: any) => ({
+                          id: l.id,
+                          titulo: l.titulo || '',
+                          hours: Math.floor((l.inicioSeg || 0) / 3600),
+                          minutes: Math.floor(((l.inicioSeg || 0) % 3600) / 60),
+                          seconds: (l.inicioSeg || 0) % 60,
+                        }))
+                        setEditingAula({ ...aula, microLessons: licoes })
+                      }}><i className="icon-pencil icon-xs" /> Editar</button>}
                       {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDeleteAula(aula.id)}><i className="icon-trash-2 icon-xs" /></button>}
                     </td>
                   </tr>

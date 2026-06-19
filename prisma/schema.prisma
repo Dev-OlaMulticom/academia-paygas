@@ -112,6 +112,8 @@ model Licao {
   tipo      AulaTipo  @default(TEXTO)
   ordem     Int
   duracaoMin Int?
+  inicioSeg Int?      // Segundo de inicio no video (micro-lecao)
+  fimSeg    Int?      // Segundo de fim no video (micro-lecao)
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
