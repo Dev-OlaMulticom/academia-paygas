@@ -26,6 +26,7 @@ export function ModulosPage() {
   const [quizSubmitted, setQuizSubmitted] = useState(false)
   const [quizResult, setQuizResult] = useState<any>(null)
   const [videoEnded, setVideoEnded] = useState(false)
+  const [expandedLicao, setExpandedLicao] = useState<string | null>(null)
 
   const loadModulo = async () => {
     if (!moduloNombre) return
@@ -313,6 +314,60 @@ export function ModulosPage() {
                 <div className="lesson-text">
                   {current?.descricao || 'Conteúdo da aula.'}
                 </div>
+                {current?.licoes && current.licoes.length > 0 && (
+                  <div style={{ marginTop: '16px' }}>
+                    <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '8px' }}>
+                      Lições ({current.licoes.length})
+                    </h3>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                      {current.licoes.sort((a: any, b: any) => a.ordem - b.ordem).map((licao: any) => {
+                        const isExpanded = expandedLicao === licao.id
+                        const tipoIcon = licao.tipo === 'VIDEO' ? 'icon-play' : licao.tipo === 'PDF' ? 'icon-file-text' : 'icon-file'
+                        const tipoLabel = licao.tipo === 'VIDEO' ? 'Video' : licao.tipo === 'PDF' ? 'PDF' : 'Texto'
+
+                        return (
+                          <div key={licao.id} style={{ border: '1px solid var(--gray-200)', borderRadius: '8px', overflow: 'hidden' }}>
+                            <div
+                              onClick={() => setExpandedLicao(isExpanded ? null : licao.id)}
+                              style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', background: isExpanded ? 'var(--gray-50)' : '#fff', transition: 'background 0.15s' }}
+                            >
+                              <i className={`${tipoIcon} icon-sm`} style={{ color: 'var(--pg-red)' }} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: 500, fontSize: '13px' }}>{licao.titulo}</div>
+                                <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>
+                                  {tipoLabel}
+                                  {licao.duracaoMin ? ` · ${licao.duracaoMin} min` : ''}
+                                </div>
+                              </div>
+                              <i className={`icon-chevron-${isExpanded ? 'up' : 'down'} icon-sm`} style={{ color: 'var(--gray-400)' }} />
+                            </div>
+                            {isExpanded && (
+                              <div style={{ padding: '0 12px 12px', borderTop: '1px solid var(--gray-100)' }}>
+                                {licao.tipo === 'VIDEO' && licao.conteudo ? (
+                                  <div style={{ marginTop: '8px', borderRadius: '6px', overflow: 'hidden' }}>
+                                    <VideoPlayer url={licao.conteudo} />
+                                  </div>
+                                ) : licao.tipo === 'PDF' && licao.conteudo ? (
+                                  <div style={{ marginTop: '8px' }}>
+                                    <PDFViewer url={licao.conteudo} />
+                                  </div>
+                                ) : licao.tipo === 'TEXTO' && licao.conteudo ? (
+                                  <div style={{ marginTop: '8px', padding: '12px', background: '#f9f9f9', borderRadius: '6px', fontSize: '14px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                                    {licao.conteudo}
+                                  </div>
+                                ) : (
+                                  <div style={{ marginTop: '8px', padding: '12px', background: '#f9f9f9', borderRadius: '6px', color: 'var(--gray-500)', fontSize: '13px' }}>
+                                    Sem conteúdo disponível
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                )}
                 {current?.quiz && (
                   <div style={{ padding: '12px 16px', background: '#FFF3E0', borderRadius: '8px', borderLeft: '4px solid #FF9800', marginBottom: '16px' }}>
                     <b>📝 Esta aula contém um quiz</b>
