@@ -336,30 +336,28 @@ NGINX_EOF
     echo ""
 fi
 
-# ─── 6d. Fix .htaccess: ProxyTimeout + PageSpeed ───────────
+# ─── 6d. Fix .htaccess: PageSpeed Off + no-cache + anti-phantom ──
 echo "=== [6d/10] Corrigiendo .htaccess ==="
 
 HTACCESS_FILE="$DEPLOY_DIR/.htaccess"
-if [ -f "$HTACCESS_FILE" ]; then
-    CHANGED=false
+DIST_HTACCESS="$DEPLOY_DIR/dist/.htaccess"
 
-    # Fix 1: eliminar ProxyTimeout que causa 500
-    if grep -q "ProxyTimeout" "$HTACCESS_FILE"; then
-        sed -i '/ProxyTimeout /d' "$HTACCESS_FILE"
-        sed -i '/Timeout 30/d' "$HTACCESS_FILE"
-        log_fix "ProxyTimeout/Timeout eliminados del .htaccess (causaba 500 en Apache)"
-        CHANGED=true
-    fi
+# Reconstruir .htaccess desde cero para garantizar que PageSpeed Off esta al inicio
+cat > "$HTACCESS_FILE" << 'HTACCESS_EOF'
+# Academia PayGas - Security Rules for Apache
 
-    # Fix 2: desactivar PageSpeed y bloquear archivos .pagespeed.*
-    if ! grep -q "ModPagespeedDisallow" "$HTACCESS_FILE"; then
-        sed -i '/ModPagespeedUnplugged true/a\    ModPagespeedDisallow "*.pagespeed.*"' "$HTACCESS_FILE"
-        log_fix "ModPagespeedDisallow agregado al .htaccess"
-        CHANGED=true
-    fi
+# ─── FORZAR PageSpeed Off ─────────────────────────────────
+PageSpeed Off
+ModPagespeed Off
+ModPagespeedUnplugged true
+ModPagespeedDisallow "*"
 
-    if ! grep -q "\.pagespeed\\\." "$HTACCESS_FILE"; then
-        cat >> "$HTACCESS_FILE" << 'HTACCESS_EOF'
+# ─── No cache for HTML ───────────────────────────────────
+<IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+</IfModule>
 
 # Bloquear archivos Pagespeed fantasma (.pagespeed.*)
 <IfModule mod_rewrite.c>
@@ -367,21 +365,94 @@ if [ -f "$HTACCESS_FILE" ]; then
     RewriteCond %{REQUEST_URI} \.pagespeed\.
     RewriteRule ^ - [R=404,L]
 </IfModule>
-HTACCESS_EOF
-        log_fix "RewriteRule para bloquear .pagespeed.* agregado"
-        CHANGED=true
-    fi
 
-    if [ "$CHANGED" = true ]; then
-        # Recargar Apache si esta corriendo
-        if systemctl is-active --quiet httpd 2>/dev/null; then
-            systemctl reload httpd 2>/dev/null && log_ok "Apache recargado" || true
-        fi
-    else
-        log_ok ".htaccess ya corregido"
-    fi
-else
-    log_warn ".htaccess no encontrado"
+# ─── Block access to sensitive files ──────────────────────
+<FilesMatch "^(\.env|\.git|\.htaccess|\.htpasswd|\.gitignore)$">
+    Require all denied
+</FilesMatch>
+
+# Block all .env variants
+<FilesMatch "\.env">
+    Require all denied
+</FilesMatch>
+
+# Block node_modules
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^node_modules/ - [F,L]
+</IfModule>
+
+# Block access to sensitive directories and files
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Block prisma migrations and config
+    RewriteRule ^prisma/ - [F,L]
+
+    # Block server source code
+    RewriteRule ^server/ - [F,L]
+
+    # Block TypeScript source files
+    RewriteRule \.(ts|tsx)$ - [F,L]
+
+    # Block config files
+    RewriteRule ^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig.*\.json|vite\.config\.ts|tailwind\.config\.ts|postcss\.config\.mjs|prisma\.config\.ts|eslint\.config\.js|components\.json)$ - [F,L]
+
+    # Block shell scripts
+    RewriteRule \.(sh)$ - [F,L]
+
+    # Block logs directory
+    RewriteRule ^logs/ - [F,L]
+
+    # Block scripts directory
+    RewriteRule ^scripts/ - [F,L]
+
+    # Block backup and zip files
+    RewriteRule \.(zip|tar\.gz|bak|sql)$ - [F,L]
+
+    # Block wordpress plugin directory
+    RewriteRule ^wordpress-plugin-academia-paygas - [F,L]
+
+    # Block test files
+    RewriteRule ^test-api\.js$ - [F,L]
+
+    # Block design/docs files
+    RewriteRule ^(design\.md|RESULTADO_ANALISIS\.md|SECURITY_CHANGES\.md|DEPLOY-CPANEL\.md|agents\.md)$ - [F,L]
+</IfModule>
+
+# ─── Security Headers ─────────────────────────────────────
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+# ─── Caching for static assets ────────────────────────────
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType application/json "access plus 1 hour"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>
+HTACCESS_EOF
+
+log_ok ".htaccess reconstruido con PageSpeed Off + no-cache"
+
+# Copiar .htaccess a dist/
+cp "$HTACCESS_FILE" "$DIST_HTACCESS" 2>/dev/null && log_ok ".htaccess copiado a dist/" || true
+
+# Recargar Apache si esta corriendo
+if systemctl is-active --quiet httpd 2>/dev/null; then
+    systemctl reload httpd 2>/dev/null && log_ok "Apache recargado" || true
 fi
 
 # Fix 3: eliminar archivos .pagespeed.* fantasma de dist/

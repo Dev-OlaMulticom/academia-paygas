@@ -130,50 +130,83 @@ echo "[...] Recargando nginx..."
 nginx -s reload 2>&1
 echo "[OK] nginx recargado"
 
-# 5. Fix .htaccess: ProxyTimeout + PageSpeed
+# 5. Fix .htaccess: PageSpeed Off + no-cache
 echo "=== [5] Corrigiendo .htaccess ==="
 
 HTACCESS="$APP_DIR/.htaccess"
-if [ -f "$HTACCESS" ]; then
-    CHANGED=false
+cat > "$HTACCESS" << 'HTACCESS_EOF'
+# Academia PayGas - Security Rules for Apache
+PageSpeed Off
+ModPagespeed Off
+ModPagespeedUnplugged true
+ModPagespeedDisallow "*"
 
-    # Fix 1: eliminar ProxyTimeout que causa 500
-    if grep -q "ProxyTimeout" "$HTACCESS"; then
-        sed -i '/ProxyTimeout /d' "$HTACCESS"
-        sed -i '/Timeout 30/d' "$HTACCESS"
-        echo "[OK] ProxyTimeout/Timeout eliminados del .htaccess"
-        CHANGED=true
-    fi
+<IfModule mod_headers.c>
+    Header set Cache-Control "no-cache, no-store, must-revalidate"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+</IfModule>
 
-    # Fix 2: desactivar PageSpeed y bloquear archivos .pagespeed.*
-    if ! grep -q "ModPagespeedDisallow" "$HTACCESS"; then
-        sed -i '/ModPagespeedUnplugged true/a\    ModPagespeedDisallow "*.pagespeed.*"' "$HTACCESS"
-        echo "[OK] ModPagespeedDisallow agregado"
-        CHANGED=true
-    fi
-
-    if ! grep -q "\.pagespeed\\\." "$HTACCESS"; then
-        cat >> "$HTACCESS" << 'HTACCESS_EOF'
-
-# Bloquear archivos Pagespeed fantasma (.pagespeed.*)
 <IfModule mod_rewrite.c>
     RewriteEngine On
     RewriteCond %{REQUEST_URI} \.pagespeed\.
     RewriteRule ^ - [R=404,L]
 </IfModule>
-HTACCESS_EOF
-        echo "[OK] RewriteRule para .pagespeed.* agregado"
-        CHANGED=true
-    fi
 
-    if [ "$CHANGED" = true ]; then
-        systemctl reload httpd 2>/dev/null && echo "[OK] Apache recargado" || true
-    else
-        echo "[OK] .htaccess ya corregido"
-    fi
-else
-    echo "[WARN] .htaccess no encontrado"
-fi
+<FilesMatch "^(\.env|\.git|\.htaccess|\.htpasswd|\.gitignore)$">
+    Require all denied
+</FilesMatch>
+<FilesMatch "\.env">
+    Require all denied
+</FilesMatch>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^node_modules/ - [F,L]
+</IfModule>
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteRule ^prisma/ - [F,L]
+    RewriteRule ^server/ - [F,L]
+    RewriteRule \.(ts|tsx)$ - [F,L]
+    RewriteRule ^(package\.json|pnpm-lock\.yaml|pnpm-workspace\.yaml|tsconfig.*\.json|vite\.config\.ts|tailwind\.config\.ts|postcss\.config\.mjs|prisma\.config\.ts|eslint\.config\.js|components\.json)$ - [F,L]
+    RewriteRule \.(sh)$ - [F,L]
+    RewriteRule ^logs/ - [F,L]
+    RewriteRule ^scripts/ - [F,L]
+    RewriteRule \.(zip|tar\.gz|bak|sql)$ - [F,L]
+    RewriteRule ^wordpress-plugin-academia-paygas - [F,L]
+    RewriteRule ^test-api\.js$ - [F,L]
+    RewriteRule ^(design\.md|RESULTADO_ANALISIS\.md|SECURITY_CHANGES\.md|DEPLOY-CPANEL\.md|agents\.md)$ - [F,L]
+</IfModule>
+
+<IfModule mod_headers.c>
+    Header always set X-Frame-Options "SAMEORIGIN"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set X-XSS-Protection "1; mode=block"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+</IfModule>
+
+<IfModule mod_expires.c>
+    ExpiresActive On
+    ExpiresByType text/css "access plus 1 year"
+    ExpiresByType application/javascript "access plus 1 year"
+    ExpiresByType application/json "access plus 1 hour"
+    ExpiresByType image/png "access plus 1 year"
+    ExpiresByType image/jpg "access plus 1 year"
+    ExpiresByType image/jpeg "access plus 1 year"
+    ExpiresByType image/gif "access plus 1 year"
+    ExpiresByType image/svg+xml "access plus 1 year"
+    ExpiresByType image/webp "access plus 1 year"
+    ExpiresByType font/woff "access plus 1 year"
+    ExpiresByType font/woff2 "access plus 1 year"
+</IfModule>
+HTACCESS_EOF
+echo "[OK] .htaccess reconstruido con PageSpeed Off + no-cache"
+
+cp "$HTACCESS" "$APP_DIR/dist/.htaccess" 2>/dev/null && echo "[OK] .htaccess copiado a dist/" || true
+
+systemctl reload httpd 2>/dev/null && echo "[OK] Apache recargado" || true
 
 echo ""
 
