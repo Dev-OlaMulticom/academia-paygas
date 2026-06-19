@@ -298,53 +298,77 @@ Backend: decrypt(base64) → JSON.parse(body)
 
 ### Arquitectura de Red
 
+**Produccion: nginx (cPanel default)**
+
 ```
 Browser (HTTPS 443)
     │
     ▼
-Apache (SSL termination)
+nginx (SSL termination)
     │
     ├── /api/* ──────────► reverse proxy ──► Node.js (HTTP 3001)
     │                                           └── Express API
     │
-    └── /* (estaticos) ──► dist/ (React SPA)
+    └── /* (estaticos) ──► dist/ (React SPA via try_files)
 ```
 
 **Flujo de una peticion API:**
 1. Browser envia `GET https://academia.paygas.com.br/api/health`
-2. Apache recibe en puerto 443 (SSL)
-3. `.htaccess` detecta `/api/` → proxy reverso a `http://127.0.0.1:3001/api/health`
+2. nginx recibe en puerto 443 (SSL)
+3. Snippet en include dir detecta `/api/` → proxy a `http://127.0.0.1:3001/api/health`
 4. Express en puerto 3001 responde con JSON
 
 **Flujo de una peticion frontend:**
 1. Browser envia `GET https://academia.paygas.com.br/usuarios`
-2. Apache recibe en puerto 443
-3. No es `/api/` → sirve archivos estaticos de `dist/`
-4. `dist/.htaccess` SPA fallback → `dist/index.html`
+2. nginx recibe en puerto 443
+3. No es `/api/` → `try_files` busca en `dist/`
+4. No existe `/usuarios` → fallback a `dist/index.html` (SPA)
+
+### Configuracion nginx (auto por deploy.sh)
+
+`deploy.sh` paso 6c crea automaticamente un snippet de nginx en:
+```
+/etc/nginx/conf.d/users/olamulticomcom/academia.paygas.com.br.olamulticom.com.br/nodejs-app.conf
+```
+
+Este snippet se incluye en el server block del subdominio via `include` directive (sobrevive regeneraciones de config de cPanel).
+
+El snippet contiene:
+- `location /api/` → `proxy_pass http://127.0.0.1:3001`
+- `location /` → `try_files $uri $uri/ /index.html` (SPA fallback)
 
 ### Estructura
 
 ```
-/home/usuario/public_html/academia-paygas/
+/home/olamulticomcom/public_html/academia-paygas/
 ├── app.js                    # Entry point Passenger (NO usado por deploy.sh)
 ├── dist/                     # Frontend build + Backend compilado
 │   ├── index.html            # React SPA
 │   ├── assets/               # JS/CSS compilados
 │   ├── server/               # Express compilado (index.js)
-│   └── .htaccess             # SPA fallback para rutas frontend
+│   └── .htaccess             # SPA fallback (nginx lo ignora, sirve para Apache)
 ├── prisma/                   # Schema y migraciones
 ├── server/                   # Source TypeScript
 ├── node_modules/
 ├── .env                      # Variables de entorno
-├── .htaccess                 # Seguridad + PROXY REVERSO a Node
-└── deploy.sh                 # Script de deploy
+├── .htaccess                 # Seguridad (nginx lo ignora, sirve para Apache)
+├── Passengerfile.json        # Config Passenger (no usado, cPanel lo genera)
+├── setup-nginx.sh            # Configurar nginx snippet para Node.js
+└── deploy.sh                 # Script de deploy con auto-reparacion
+
+# Config nginx snippet (en servidor):
+/etc/nginx/conf.d/users/olamulticomcom/academia.paygas.com.br.olamulticom.com.br/
+└── nodejs-app.conf           # Proxy /api/ → Node.js + SPA fallback
 ```
 
 ### Deploy
 
 ```bash
-# Automatico
+# Automatico (detecta nginx, configura snippet, compila, reinicia)
 ./deploy.sh
+
+# Configurar nginx manualmente (si deploy.sh no lo detecto)
+sudo bash setup-nginx.sh
 
 # Manual
 git pull
@@ -356,34 +380,51 @@ killall -9 node
 PORT=3001 nohup node dist/server/index.js > logs/app.log 2>&1 &
 ```
 
-### Proxy Reverso en .htaccess
+### Proxy Reverso en nginx
 
-El `.htaccess` raiz contiene las reglas de proxy:
+El snippet `nodejs-app.conf` en el include dir de nginx configura el proxy:
 
-```apache
-<IfModule mod_proxy.c>
-    <IfModule mod_proxy_http.c>
-        RewriteEngine On
-        RewriteCond %{REQUEST_URI} ^/api/
-        RewriteRule ^api/(.*) http://127.0.0.1:3001/api/$1 [P,L]
-    </IfModule>
-</IfModule>
+```nginx
+location /api/ {
+    proxy_pass http://127.0.0.1:3001;
+    proxy_http_version 1.1;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_read_timeout 30s;
+    proxy_connect_timeout 10s;
+}
+
+location / {
+    root "/home/olamulticomcom/public_html/academia-paygas/dist";
+    try_files $uri $uri/ /index.html;
+}
 ```
 
-**Requisitos del servidor:**
-- `mod_proxy` habilitado en Apache
-- `mod_proxy_http` habilitado en Apache
-- En cPanel: "Select Apache Version" → seleccionar "Proxy" o activar modulos manualmente
+**NOTA:** `.htaccess` NO funciona con nginx. Si el servidor usa nginx (cPanel default), las reglas proxy de `.htaccess` son ignoradas. El snippet de nginx reemplaza esa funcionalidad.
 
-**Sin estas reglas:** Las peticiones a `/api/*` son capturadas por el SPA fallback de `dist/.htaccess` y devuelven `index.html` en vez de JSON.
+**Verificar que nginx sirve la app:**
+```bash
+# Test directo (Node.js activo)
+curl -s http://127.0.0.1:3001/api/health
+
+# Test via dominio (nginx proxy)
+curl -s https://academia.paygas.com.br/api/health
+
+# Verificar config nginx
+nginx -t
+```
 
 ### Notas Importantes
 
 - `deploy.sh` ejecuta `node dist/server/index.js` directamente (NO Passenger)
-- El servidor Node escucha en HTTP interno (puerto 3001), Apache maneja SSL
-- **ModPagespeed Off** en `.htaccess` para evitar problemas con JS/CSS
-- `app.js` es para Phusion Passenger, `deploy.sh` no lo usa
+- El servidor Node escucha en HTTP interno (puerto 3001), nginx maneja SSL
+- **nginx NO lee `.htaccess`** — el snippet de nginx reemplaza esas reglas
+- `app.js` y `Passengerfile.json` son para Phusion Passenger, `deploy.sh` no los usa
 - Verificar despues del deploy: `curl https://academia.paygas.com.br/api/health` debe retornar JSON
+- El snippet de nginx sobrevive regeneraciones de config de cPanel (esta en directorio include)
+- cPanel genera nginx config automaticamente, pero no configura Passenger ni proxy a Node.js
 
 ---
 
@@ -488,5 +529,5 @@ Sin commit, los cambios no se propagan al servidor y el deploy no los incluira.
 
 ---
 
-*Ultima actualizacion: 2026-06-18*
-*Version: 4.0*
+*Ultima actualizacion: 2026-06-19*
+*Version: 5.0*
