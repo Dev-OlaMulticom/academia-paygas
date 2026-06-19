@@ -24,9 +24,6 @@ echo "[OK] Directorio de includes creado: $INCLUDE_DIR"
 # NOTA: NO incluir "location /" porque ya existe en el config principal de cPanel.
 # Usamos locations mas especificos que toman precedencia sobre "location /".
 cat > "$INCLUDE_DIR/nodejs-app.conf" << 'NGINX_EOF'
-# ─── Desactivar PageSpeed (reescribe nombres de archivos JS/CSS) ──
-pagespeed off;
-
 # ─── Node.js API proxy ────────────────────────────────────
 # "location /api/" es mas especifico que "location /" del config principal.
 location /api/ {
