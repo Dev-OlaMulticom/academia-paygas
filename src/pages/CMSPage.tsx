@@ -207,6 +207,15 @@ export function CMSPage({ user }: CMSPageProps) {
     }
   }
 
+  const getMaxTime = (totalDuration: { hours: number; minutes: number; seconds: number }, selectedHour: number) => {
+    const totalSec = totalDuration.hours * 3600 + totalDuration.minutes * 60 + totalDuration.seconds
+    const hourStart = selectedHour * 3600
+    const remaining = Math.max(0, totalSec - hourStart)
+    const maxMin = Math.floor(remaining / 60)
+    const maxSec = remaining - maxMin * 60
+    return { maxMinutes: maxMin, maxSeconds: maxSec }
+  }
+
   const addMicroLesson = () => {
     setNewAula({ ...newAula, microLessons: [...newAula.microLessons, { hours: 0, minutes: 0, seconds: 0, titulo: '' }] })
   }
@@ -400,7 +409,9 @@ export function CMSPage({ user }: CMSPageProps) {
                 {newAula.tipo === 'VIDEO' && (
                   <div className="form-field">
                     <label className="form-label">Micro-Leções (pontos de separação)</label>
-                    {newAula.microLessons.map((ml, i) => (
+                    {newAula.microLessons.map((ml, i) => {
+                      const { maxMinutes, maxSeconds } = getMaxTime(newAula.duration, ml.hours)
+                      return (
                       <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'flex-end' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <label style={{ fontSize: '11px', color: 'var(--gray-500)' }}>Hora</label>
@@ -423,7 +434,7 @@ export function CMSPage({ user }: CMSPageProps) {
                             value={ml.minutes}
                             onChange={e => updateMicroLesson(i, 'minutes', parseInt(e.target.value) || 0)}
                           >
-                            {Array.from({ length: 60 }, (_, i) => i).map(m => (
+                            {Array.from({ length: maxMinutes + 1 }, (_, i) => i).map(m => (
                               <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
                             ))}
                           </select>
@@ -436,7 +447,7 @@ export function CMSPage({ user }: CMSPageProps) {
                             value={ml.seconds}
                             onChange={e => updateMicroLesson(i, 'seconds', parseInt(e.target.value) || 0)}
                           >
-                            {Array.from({ length: 60 }, (_, i) => i).map(s => (
+                            {Array.from({ length: (ml.minutes < maxMinutes ? 60 : maxSeconds) + 1 }, (_, i) => i).map(s => (
                               <option key={s} value={s}>{s.toString().padStart(2, '0')}</option>
                             ))}
                           </select>
@@ -446,7 +457,8 @@ export function CMSPage({ user }: CMSPageProps) {
                         </div>
                         <button className="btn-secondary" style={{ padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => removeMicroLesson(i)}><i className="icon-x icon-sm" /></button>
                       </div>
-                    ))}
+                      )
+                    })}
                     <button className="btn-secondary" style={{ width: '100%' }} onClick={addMicroLesson}>+ Adicionar Ponto</button>
                   </div>
                 )}
@@ -513,7 +525,10 @@ export function CMSPage({ user }: CMSPageProps) {
                 {editingAula.tipo === 'VIDEO' && (
                   <div className="form-field">
                     <label className="form-label">Micro-Leções (pontos de separação)</label>
-                    {(editingAula.microLessons || []).map((ml: MicroLesson, i: number) => (
+                    {(editingAula.microLessons || []).map((ml: MicroLesson, i: number) => {
+                      const dur = editingAula.duration || { hours: 0, minutes: 0, seconds: 0 }
+                      const { maxMinutes, maxSeconds } = getMaxTime(dur, ml.hours || 0)
+                      return (
                       <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'flex-end' }}>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                           <label style={{ fontSize: '11px', color: 'var(--gray-500)' }}>Hora</label>
@@ -527,7 +542,7 @@ export function CMSPage({ user }: CMSPageProps) {
                               setEditingAula({ ...editingAula, microLessons: updated })
                             }}
                           >
-                            {Array.from({ length: (editingAula.duration?.hours || 0) + 1 }, (_, i) => i).map(h => (
+                            {Array.from({ length: dur.hours + 1 }, (_, i) => i).map(h => (
                               <option key={h} value={h}>{h}</option>
                             ))}
                           </select>
@@ -544,7 +559,7 @@ export function CMSPage({ user }: CMSPageProps) {
                               setEditingAula({ ...editingAula, microLessons: updated })
                             }}
                           >
-                            {Array.from({ length: 60 }, (_, i) => i).map(m => (
+                            {Array.from({ length: maxMinutes + 1 }, (_, i) => i).map(m => (
                               <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
                             ))}
                           </select>
@@ -561,7 +576,7 @@ export function CMSPage({ user }: CMSPageProps) {
                               setEditingAula({ ...editingAula, microLessons: updated })
                             }}
                           >
-                            {Array.from({ length: 60 }, (_, i) => i).map(s => (
+                            {Array.from({ length: ((ml.minutes || 0) < maxMinutes ? 60 : maxSeconds) + 1 }, (_, i) => i).map(s => (
                               <option key={s} value={s}>{s.toString().padStart(2, '0')}</option>
                             ))}
                           </select>
@@ -577,7 +592,8 @@ export function CMSPage({ user }: CMSPageProps) {
                           setEditingAula({ ...editingAula, microLessons: (editingAula.microLessons || []).filter((_: any, idx: number) => idx !== i) })
                         }}><i className="icon-x icon-sm" /></button>
                       </div>
-                    ))}
+                      )
+                    })}
                     <button className="btn-secondary" style={{ width: '100%' }} onClick={() => {
                       setEditingAula({ ...editingAula, microLessons: [...(editingAula.microLessons || []), { hours: 0, minutes: 0, seconds: 0, titulo: '' }] })
                     }}>+ Adicionar Ponto</button>
