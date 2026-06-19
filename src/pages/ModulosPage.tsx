@@ -242,7 +242,8 @@ export function ModulosPage() {
                   <b>{lesson.titulo}</b>
                   <span>
                     {isQuiz ? 'Quiz' : lesson.tipo === 'PDF' ? 'PDF' : lesson.tipo === 'TEXTO' ? 'Texto' : 'Vídeo'}
-                    {lesson.duracaoMin ? ` · ${lesson.duracaoMin} min` : ''}
+                    {!isQuiz && lesson.licoes && lesson.licoes.length > 0 ? ` · ${lesson.licoes.length} ${lesson.licoes.length === 1 ? 'lição' : 'lições'}` : ''}
+                    {!isQuiz && (!lesson.licoes || lesson.licoes.length === 0) && lesson.duracaoMin ? ` · ${lesson.duracaoMin} min` : ''}
                     {lesson.videoInicio || lesson.videoFim ? ` · ${lesson.videoInicio || 0}s-${lesson.videoFim || 'fim'}s` : ''}
                   </span>
                 </div>
@@ -303,9 +304,14 @@ export function ModulosPage() {
                 <h2>{current?.titulo}</h2>
                 <div className="lesson-tags">
                   <span className="lesson-tag">
-                    {current?.tipo === 'PDF' ? 'PDF' : current?.videoUrl ? 'Vídeo' : 'Conteúdo'}
+                    {current?.tipo === 'PDF' ? 'PDF' : current?.videoUrl ? 'Vídeo' : current?.quiz ? 'Quiz' : 'Conteúdo'}
                   </span>
-                  {current?.duracaoMin && <span className="lesson-tag">{current.duracaoMin} min</span>}
+                  {current?.licoes && current.licoes.length > 0 && (
+                    <span className="lesson-tag">{current.licoes.length} {current.licoes.length === 1 ? 'lição' : 'lições'}</span>
+                  )}
+                  {!current?.licoes || current.licoes.length === 0 ? (
+                    current?.duracaoMin ? <span className="lesson-tag">{current.duracaoMin} min</span> : null
+                  ) : null}
                   {current?.videoInicio || current?.videoFim ? (
                     <span className="lesson-tag">⏱ {current.videoInicio || 0}s – {current.videoFim || 'fim'}s</span>
                   ) : null}

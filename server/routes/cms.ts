@@ -125,15 +125,15 @@ router.get('/:id/aulas', authenticate, async (req: any, res) => {
       const modulo = await prisma.modulo.findUnique({ where: { id: moduloId } })
       const titulo = modulo?.titulo || 'Modulo'
       const demoAulas = [
-        { titulo: `Introducao a ${titulo}`, descricao: `Conceitos basicos e visao geral de ${titulo}.`, duracaoMin: 15 },
-        { titulo: `Praticas Fundamentais`, descricao: `Melhores praticas e tecnicas essenciais.`, duracaoMin: 20 },
-        { titulo: `Aplicacao Pratica`, descricao: `Exercicios praticos e estudos de caso.`, duracaoMin: 25 },
+        { titulo: `Introducao a ${titulo}`, descricao: `Conceitos basicos e visao geral de ${titulo}.` },
+        { titulo: `Praticas Fundamentais`, descricao: `Melhores praticas e tecnicas essenciais.` },
+        { titulo: `Aplicacao Pratica`, descricao: `Exercicios praticos e estudos de caso.` },
       ]
 
       for (let i = 0; i < demoAulas.length; i++) {
         const d = demoAulas[i]
         const aula = await prisma.aula.create({
-          data: { moduloId, titulo: d.titulo, descricao: d.descricao, ordem: i + 1, duracaoMin: d.duracaoMin },
+          data: { moduloId, titulo: d.titulo, descricao: d.descricao, ordem: i + 1 },
         })
         const quiz = await prisma.quiz.create({
           data: { aulaId: aula.id, titulo: `Quiz: ${d.titulo}`, autoGerarCertificado: i === demoAulas.length - 1 },
