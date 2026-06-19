@@ -20,14 +20,12 @@ echo "=== Configurando nginx para $DOMAIN ==="
 mkdir -p "$INCLUDE_DIR"
 echo "[OK] Directorio de includes creado: $INCLUDE_DIR"
 
-# 2. Crear snippet de nginx para Node.js
+# 2. Crear snippet de nginx para Node.js + Frontend
 # NOTA: NO incluir "location /" porque ya existe en el config principal de cPanel.
-# Solo agregar "location /api/" que es mas especifico y toma precedencia.
+# Usamos locations mas especificos que toman precedencia sobre "location /".
 cat > "$INCLUDE_DIR/nodejs-app.conf" << 'NGINX_EOF'
 # ─── Node.js API proxy ────────────────────────────────────
-# Proxy /api/* requests to Node.js backend on port 3001.
-# "location /api/" es mas especifico que "location /" del config principal,
-# asi que nginx lo usa primero para cualquier request que empiece con /api/.
+# "location /api/" es mas especifico que "location /" del config principal.
 location /api/ {
     proxy_pass http://127.0.0.1:3001;
     proxy_http_version 1.1;
@@ -42,18 +40,58 @@ location /api/ {
     proxy_connect_timeout 10s;
 }
 
-# ─── Frontend SPA fallback ────────────────────────────────
-# Para rutas frontend (/usuarios, /modulos, etc.) que no son /api/,
-# el request cae en "location /" del config principal que proxy a Apache.
-# Apache sirve archivos estaticos de dist/.
-# Si el archivo no existe, Apache devuelve 404 y el browser recarga.
-# Para SPA necesitamos que devuelva index.html en vez de 404.
-# Esto se logra modificando el config principal (ver paso 3).
+# ─── Frontend: servir assets estaticos directamente ───────
+# "location ^~" tiene mayor precedencia que prefix y regex locations.
+location ^~ /assets/ {
+    root /home/olamulticomcom/public_html/academia-paygas/dist;
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+    access_log off;
+}
+
+# ─── Frontend: archivos estaticos en raiz ─────────────────
+# Icons, images, etc. en la raiz de dist/
+location ~* \.(ico|png|jpg|jpeg|gif|svg|woff|woff2|ttf|eot|map|webp)$ {
+    root /home/olamulticomcom/public_html/academia-paygas/dist;
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+    access_log off;
+}
 NGINX_EOF
 
 echo "[OK] Snippet nginx creado: $INCLUDE_DIR/nodejs-app.conf"
 
-# 3. Verificar que nginx syntax esta OK
+# 3. Modificar el config principal de nginx para este dominio
+# Reemplazar "location /" del bloque de academia.paygas.com.br
+# para que sirva desde dist/ en vez de proxea a Apache.
+NGINX_MAIN="/etc/nginx/conf.d/users/$USER.conf"
+
+echo "[...] Modificando config principal de nginx..."
+
+# Backup del config original
+if [ ! -f "${NGINX_MAIN}.bak-academia" ]; then
+    cp "$NGINX_MAIN" "${NGINX_MAIN}.bak-academia"
+    echo "[OK] Backup creado: ${NGINX_MAIN}.bak-academia"
+fi
+
+# Usar perl para reemplazar el location / dentro del bloque server de academia
+# Busca: desde "server_name ... academia.paygas.com.br" hasta el "}" de ese server block
+# Reemplaza SOLO el "location /" que esta dentro de ese bloque
+perl -i -0pe '
+    # Solo reemplazar dentro del bloque server de academia.paygas.com.br
+    s/(server\s*\{[^}]*server_name[^"]*academia\.paygas\.com\.br[^}]*\{.*?)(location\s*/\s*\{\s*\n\s*include\s+conf\.d\/includes-optional\/cpanel-proxy\.conf;\s*\n\s*proxy_pass\s+\$CPANEL_APACHE_PROXY_PASS;\s*\n\s*\})/$1location \/ {\n        root "\/home\/olamulticomcom\/public_html\/academia-paygas\/dist";\n        try_files \$uri \$uri\/ \/index.html;\n\n        include conf.d\/includes-optional\/cpanel-proxy.conf;\n        proxy_pass \$CPANEL_APACHE_PROXY_PASS;\n    }/
+' "$NGINX_MAIN" 2>/dev/null
+
+# Verificar si perl hizo el cambio
+if grep -q 'academia-paygas/dist' "$NGINX_MAIN"; then
+    echo "[OK] Config principal modificado: location / ahora sirve desde dist/"
+else
+    echo "[WARN] No se pudo modificar el config con perl"
+    echo "  Se usara solo el snippet (API + assets estaticos)"
+fi
+
+echo ""
+
 echo "[...] Verificando sintaxis de nginx..."
 nginx -t 2>&1
 if [ $? -eq 0 ]; then

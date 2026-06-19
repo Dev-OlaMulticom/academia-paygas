@@ -296,7 +296,6 @@ if [ "$WEB_SERVER" = "nginx" ]; then
 
         cat > "$NGINX_SNIPPET" << 'NGINX_EOF'
 # ─── Node.js API proxy ────────────────────────────────────
-# Proxy /api/* requests to Node.js backend on port 3001.
 # "location /api/" es mas especifico que "location /" del config principal.
 location /api/ {
     proxy_pass http://127.0.0.1:3001;
@@ -310,6 +309,15 @@ location /api/ {
     proxy_read_timeout 30s;
     proxy_send_timeout 30s;
     proxy_connect_timeout 10s;
+}
+
+# ─── Frontend: servir assets estaticos directamente ───────
+# "location ^~" tiene mayor precedencia que prefix y regex locations.
+location ^~ /assets/ {
+    root /home/olamulticomcom/public_html/academia-paygas/dist;
+    expires 1y;
+    add_header Cache-Control "public, immutable";
+    access_log off;
 }
 NGINX_EOF
         log_ok "Snippet nginx creado: $NGINX_SNIPPET"
