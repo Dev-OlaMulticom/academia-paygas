@@ -6,7 +6,7 @@ import rateLimit from 'express-rate-limit'
 import https from 'https'
 import fs from 'fs'
 import path from 'path'
-import { encryptedPayload } from './middleware/encryption'
+import { encryptedPayload, getServerEncryptionKey } from './middleware/encryption'
 import authRoutes from './routes/auth'
 import usuariosRoutes from './routes/usuarios'
 import cmsRoutes from './routes/cms'
@@ -128,6 +128,10 @@ app.get('/api/health', async (_req, res) => {
   checks.nodeEnv = process.env.NODE_ENV || 'undefined'
   checks.timestamp = new Date().toISOString()
   res.json(checks)
+})
+
+app.get('/api/config', (_req, res) => {
+  res.json({ encryptionKey: getServerEncryptionKey() })
 })
 
 // Only start listening when run directly (not when imported by Passenger or test)
