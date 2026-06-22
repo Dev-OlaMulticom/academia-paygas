@@ -172,21 +172,35 @@ if [ -f "$PID_FILE" ]; then
     rm -f "$PID_FILE"
 fi
 
-# Matar procesos node del servidor compilado
-pkill -9 -f "node.*dist/server/index.js" 2>/dev/null && log_ok "Procesos node dist/server eliminados" || log_ok "No habia procesos node dist/server"
+# Matar procesos node del servidor compilado (varios patrones)
+pkill -9 -f "node.*dist/server/index\.js" 2>/dev/null && log_ok "Procesos 'node dist/server' eliminados" || true
+pkill -9 -f "node.*app\.js" 2>/dev/null && log_ok "Procesos 'node app.js' eliminados" || true
 
 # Matar cualquier proceso escuchando en puerto 3001 (con timeout)
+# Este paso es critico: asegura que el puerto quede libre SIEMPRE
 if command -v lsof &> /dev/null; then
     PORT_PIDS=$(timeout 5 lsof -ti :3001 2>/dev/null || true)
     if [ -n "$PORT_PIDS" ]; then
         echo "$PORT_PIDS" | xargs kill -9 2>/dev/null || true
-        log_fix "Procesos en puerto 3001 terminados"
+        log_fix "Procesos en puerto 3001 terminados (PIDs: $PORT_PIDS)"
     fi
 elif command -v fuser &> /dev/null; then
     timeout 5 fuser -k 3001/tcp 2>/dev/null && log_fix "Puerto 3001 liberado" || true
 fi
 
-sleep 1
+# Esperar a que el puerto se libere completamente (max 5 segundos)
+WAIT_COUNT=0
+while ss -tlnp 2>/dev/null | grep -q ":3001" && [ "$WAIT_COUNT" -lt 5 ]; do
+    sleep 1
+    WAIT_COUNT=$((WAIT_COUNT + 1))
+done
+
+if ss -tlnp 2>/dev/null | grep -q ":3001"; then
+    log_fail "Puerto 3001 sigue ocupado despues de esperar"
+else
+    log_ok "Puerto 3001 libre"
+fi
+
 log_ok "Procesos limpiados"
 echo ""
 
@@ -586,35 +600,45 @@ echo "=== [9/10] Reiniciando aplicacion ==="
 # Crear directorios necesarios
 mkdir -p logs tmp
 
-# Verificar si Passenger esta configurado
-PASSENGER_APP=false
-if [ -f app.js ] && grep -q "module.exports" app.js 2>/dev/null; then
-    PASSENGER_APP=true
+# ─── Detectar si Passenger esta realmente corriendo ───────
+PASSENGER_RUNNING=false
+if command -v passenger-status &> /dev/null; then
+    if passenger-status &> /dev/null; then
+        PASSENGER_RUNNING=true
+    fi
 fi
 
-if [ "$PASSENGER_APP" = true ]; then
-    # Ensure Passengerfile.json exists
-    if [ ! -f Passengerfile.json ]; then
-        echo '{"app_root":".","startup_file":"app.js","production":true,"environment":"production"}' > Passengerfile.json
-        log_fix "Passengerfile.json creado"
+# Tambien verificar si hay procesos Passenger activos
+if [ "$PASSENGER_RUNNING" = false ]; then
+    if pgrep -f "Passenger.*Rack" &> /dev/null || pgrep -f "passenger" &> /dev/null; then
+        PASSENGER_RUNNING=true
     fi
+fi
 
+if [ "$PASSENGER_RUNNING" = true ]; then
+    log_ok "Passenger detectado y activo"
     # Reiniciar via Passenger
     touch tmp/restart.txt
     log_ok "Passenger reiniciado via tmp/restart.txt"
-
-    # If nginx, try to reload
+    # Reload nginx si existe
     if command -v nginx &> /dev/null; then
         nginx -s reload 2>/dev/null && log_ok "nginx recargado" || log_warn "No se pudo recargar nginx"
     fi
 else
-    # Iniciar Node directamente como fallback
-    log_warn "app.js no encontrado o no es Passenger, iniciando Node directo"
+    # Passenger NO esta corriendo — iniciar Node directamente
+    log_warn "Passenger no esta activo, iniciando Node.js directo"
+
+    # Verificar que el build existe
+    if [ ! -f dist/server/index.js ]; then
+        log_fail "dist/server/index.js no existe — no se puede iniciar"
+        exit 1
+    fi
+
     nohup node dist/server/index.js > logs/app.log 2>&1 &
     echo $! > logs/app.pid
     log_ok "Node.js iniciado en puerto 3001 (PID: $(cat logs/app.pid))"
 
-    # Verificar que el proceso esta vivo despues de 3 segundos
+    # Verificar que el proceso esta vivo y el puerto esta activo
     sleep 3
     if kill -0 "$(cat logs/app.pid)" 2>/dev/null; then
         log_ok "Proceso Node.js esta activo"
@@ -622,8 +646,23 @@ else
         log_fail "Proceso Node.js murio despues de iniciar"
         log_fail "Revisar logs/app.log para detalles"
         if [ -f logs/app.log ]; then
-            echo "  --- Ultimas 10 lineas del log ---"
-            tail -10 logs/app.log
+            echo "  --- Ultimas 20 lineas del log ---"
+            tail -20 logs/app.log
+            echo "  --- Fin del log ---"
+        fi
+        exit 1
+    fi
+
+    # Verificar que responde HTTP
+    sleep 2
+    TEST_RESPONSE=$(curl -s -m 5 "http://127.0.0.1:3001/api/health" 2>/dev/null || true)
+    if echo "$TEST_RESPONSE" | grep -q '"status"' 2>/dev/null; then
+        log_ok "API responde correctamente en puerto 3001"
+    else
+        log_fail "API no responde en puerto 3001 despues de iniciar"
+        if [ -f logs/app.log ]; then
+            echo "  --- Ultimas 20 lineas del log ---"
+            tail -20 logs/app.log
             echo "  --- Fin del log ---"
         fi
     fi
