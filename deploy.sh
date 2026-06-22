@@ -163,7 +163,6 @@ if [ -f "$PID_FILE" ]; then
     if kill -0 "$OLD_PID" 2>/dev/null; then
         kill "$OLD_PID" 2>/dev/null || true
         sleep 1
-        # Forzar si sigue vivo
         kill -9 "$OLD_PID" 2>/dev/null || true
         log_ok "Proceso PID $OLD_PID terminado"
     else
@@ -176,30 +175,20 @@ fi
 pkill -9 -f "node.*dist/server/index\.js" 2>/dev/null && log_ok "Procesos 'node dist/server' eliminados" || true
 pkill -9 -f "node.*app\.js" 2>/dev/null && log_ok "Procesos 'node app.js' eliminados" || true
 
-# Matar cualquier proceso escuchando en puerto 3001 (con timeout)
-# Este paso es critico: asegura que el puerto quede libre SIEMPRE
-if command -v lsof &> /dev/null; then
+# Matar por puerto 3001 con fuser (mas confiable que lsof)
+if command -v fuser &> /dev/null; then
+    fuser -k 3001/tcp 2>/dev/null && log_ok "Procesos en puerto 3001 terminados" || true
+elif command -v lsof &> /dev/null; then
     PORT_PIDS=$(timeout 5 lsof -ti :3001 2>/dev/null || true)
     if [ -n "$PORT_PIDS" ]; then
         echo "$PORT_PIDS" | xargs kill -9 2>/dev/null || true
-        log_fix "Procesos en puerto 3001 terminados (PIDs: $PORT_PIDS)"
+        log_ok "Procesos en puerto 3001 terminados"
     fi
-elif command -v fuser &> /dev/null; then
-    timeout 5 fuser -k 3001/tcp 2>/dev/null && log_fix "Puerto 3001 liberado" || true
 fi
 
-# Esperar a que el puerto se libere completamente (max 5 segundos)
-WAIT_COUNT=0
-while ss -tlnp 2>/dev/null | grep -q ":3001" && [ "$WAIT_COUNT" -lt 5 ]; do
-    sleep 1
-    WAIT_COUNT=$((WAIT_COUNT + 1))
-done
-
-if ss -tlnp 2>/dev/null | grep -q ":3001"; then
-    log_fail "Puerto 3001 sigue ocupado despues de esperar"
-else
-    log_ok "Puerto 3001 libre"
-fi
+# Nota: cPanel puede auto-reiniciar el proceso. El codigo nuevo se carga
+# despues del build en paso 8. Si cPanel reinicia, cargara el dist nuevo.
+# Si cPanel NO reinicia (o el rebuild es posterior), se inicia manualmente en paso 9.
 
 log_ok "Procesos limpiados"
 echo ""
@@ -600,51 +589,39 @@ echo "=== [9/10] Reiniciando aplicacion ==="
 # Crear directorios necesarios
 mkdir -p logs tmp
 
-# ─── Detectar si Passenger esta realmente corriendo ───────
-PASSENGER_RUNNING=false
-if command -v passenger-status &> /dev/null; then
-    if passenger-status &> /dev/null; then
-        PASSENGER_RUNNING=true
-    fi
+# Verificar que el build existe
+if [ ! -f dist/server/index.js ]; then
+    log_fail "dist/server/index.js no existe despues del build — no se puede iniciar"
+    exit 1
 fi
 
-# Tambien verificar si hay procesos Passenger activos
-if [ "$PASSENGER_RUNNING" = false ]; then
-    if pgrep -f "Passenger.*Rack" &> /dev/null || pgrep -f "passenger" &> /dev/null; then
-        PASSENGER_RUNNING=true
+# ─── Matar proceso viejo para forzar reload del codigo nuevo ──
+# cPanel puede estar gestionando el proceso. Matarlo fuerza un restart
+# que cargara el dist/ recien compilado.
+if command -v fuser &> /dev/null; then
+    fuser -k 3001/tcp 2>/dev/null && log_ok "Proceso anterior terminado" || true
+elif command -v lsof &> /dev/null; then
+    PORT_PIDS=$(lsof -ti :3001 2>/dev/null || true)
+    if [ -n "$PORT_PIDS" ]; then
+        echo "$PORT_PIDS" | xargs kill -9 2>/dev/null || true
+        log_ok "Proceso anterior terminado"
     fi
 fi
+sleep 3
 
-if [ "$PASSENGER_RUNNING" = true ]; then
-    log_ok "Passenger detectado y activo"
-    # Reiniciar via Passenger
-    touch tmp/restart.txt
-    log_ok "Passenger reiniciado via tmp/restart.txt"
-    # Reload nginx si existe
-    if command -v nginx &> /dev/null; then
-        nginx -s reload 2>/dev/null && log_ok "nginx recargado" || log_warn "No se pudo recargar nginx"
-    fi
+# ─── Verificar si cPanel/Passenger reinicio automaticamente ───
+if ss -tlnp 2>/dev/null | grep -q ":3001"; then
+    log_ok "Puerto 3001 activo (cPanel/Passenger reinicio automaticamente)"
 else
-    # Passenger NO esta corriendo — iniciar Node directamente
-    log_warn "Passenger no esta activo, iniciando Node.js directo"
-
-    # Verificar que el build existe
-    if [ ! -f dist/server/index.js ]; then
-        log_fail "dist/server/index.js no existe — no se puede iniciar"
-        exit 1
-    fi
-
+    # cPanel no reinicio — iniciar Node directamente
+    log_warn "Puerto 3001 libre, iniciando Node.js directo"
     nohup node dist/server/index.js > logs/app.log 2>&1 &
     echo $! > logs/app.pid
-    log_ok "Node.js iniciado en puerto 3001 (PID: $(cat logs/app.pid))"
-
-    # Verificar que el proceso esta vivo y el puerto esta activo
+    log_ok "Node.js iniciado (PID: $(cat logs/app.pid))"
     sleep 3
-    if kill -0 "$(cat logs/app.pid)" 2>/dev/null; then
-        log_ok "Proceso Node.js esta activo"
-    else
+
+    if ! kill -0 "$(cat logs/app.pid)" 2>/dev/null; then
         log_fail "Proceso Node.js murio despues de iniciar"
-        log_fail "Revisar logs/app.log para detalles"
         if [ -f logs/app.log ]; then
             echo "  --- Ultimas 20 lineas del log ---"
             tail -20 logs/app.log
@@ -652,20 +629,26 @@ else
         fi
         exit 1
     fi
+fi
 
-    # Verificar que responde HTTP
-    sleep 2
-    TEST_RESPONSE=$(curl -s -m 5 "http://127.0.0.1:3001/api/health" 2>/dev/null || true)
-    if echo "$TEST_RESPONSE" | grep -q '"status"' 2>/dev/null; then
-        log_ok "API responde correctamente en puerto 3001"
-    else
-        log_fail "API no responde en puerto 3001 despues de iniciar"
-        if [ -f logs/app.log ]; then
-            echo "  --- Ultimas 20 lineas del log ---"
-            tail -20 logs/app.log
-            echo "  --- Fin del log ---"
-        fi
-    fi
+# ─── Verificar que el codigo nuevo esta activo ───────────
+sleep 2
+TEST_HEALTH=$(curl -s -m 5 "http://127.0.0.1:3001/api/health" 2>/dev/null || true)
+TEST_CONFIG=$(curl -s -m 5 "http://127.0.0.1:3001/api/config" 2>/dev/null || true)
+
+if echo "$TEST_HEALTH" | grep -q '"status"' 2>/dev/null; then
+    log_ok "API health responde correctamente"
+else
+    log_fail "API health no responde"
+    exit 1
+fi
+
+if echo "$TEST_CONFIG" | grep -q 'encryptionKey' 2>/dev/null; then
+    log_ok "API config responde correctamente (codigo nuevo activo)"
+else
+    log_fail "API config no responde — el proceso puede tener codigo viejo"
+    log_warn "Intentar: fuser -k 3001/tcp && sleep 3"
+    exit 1
 fi
 
 # Limpiar cache de pagespeed si existe
