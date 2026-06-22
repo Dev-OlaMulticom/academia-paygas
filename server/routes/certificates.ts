@@ -50,10 +50,7 @@ router.get('/', authenticate, async (req: any, res) => {
 router.post('/', authenticate, async (req: any, res) => {
   try {
     const { moduloId } = req.body
-    const existing = await prisma.certificate.findFirst({
-      where: { userId: req.userId, moduloId },
-    })
-    if (existing) return res.status(409).json({ error: 'Certificado já existe' })
+    if (!moduloId) return res.status(400).json({ error: 'moduloId é obrigatório' })
 
     const modulo = await prisma.modulo.findUnique({
       where: { id: moduloId },
@@ -68,9 +65,14 @@ router.post('/', authenticate, async (req: any, res) => {
       return res.status(400).json({ error: 'Complete todas as aulas antes de solicitar o certificado' })
     }
 
+    // Atomic upsert to prevent race condition duplicates
     const certStatus = modulo.autoCertificado ? 'APPROVED' : 'PENDING'
-    const cert = await prisma.certificate.create({
-      data: { userId: req.userId, moduloId, status: certStatus },
+    const cert = await prisma.certificate.upsert({
+      where: {
+        userId_moduloId: { userId: req.userId, moduloId },
+      },
+      update: {},
+      create: { userId: req.userId, moduloId, status: certStatus },
       include: { modulo: { select: { titulo: true } } },
     })
     await logActivity(req.userId, 'Certificado Solicitado', `Modulo: ${cert.modulo.titulo}`)
@@ -86,6 +88,13 @@ router.put('/:id/approve', authenticate, authorize('ADMIN'), async (req: any, re
   try {
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
+
+    const existing = await prisma.certificate.findUnique({ where: { id }, select: { status: true } })
+    if (!existing) return res.status(404).json({ error: 'Certificado não encontrado' })
+    if (existing.status !== 'PENDING') {
+      return res.status(400).json({ error: `Não é possível aprovar um certificado com status "${existing.status}". Apenas certificados PENDING podem ser aprovados.` })
+    }
+
     const cert = await prisma.certificate.update({
       where: { id },
       data: { status: 'APPROVED', aprovadoPor: req.userId, aprovadoEm: new Date() },
@@ -104,6 +113,13 @@ router.put('/:id/issue', authenticate, authorize('ADMIN'), async (req: any, res)
   try {
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
+
+    const existing = await prisma.certificate.findUnique({ where: { id }, select: { status: true } })
+    if (!existing) return res.status(404).json({ error: 'Certificado não encontrado' })
+    if (existing.status !== 'APPROVED') {
+      return res.status(400).json({ error: `Não é possível emitir um certificado com status "${existing.status}". Apenas certificados APPROVED podem ser emitidos.` })
+    }
+
     const cert = await prisma.certificate.update({
       where: { id },
       data: { status: 'ISSUED' },

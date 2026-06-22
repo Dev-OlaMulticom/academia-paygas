@@ -126,30 +126,36 @@ router.get('/:id/aulas', authenticate, async (req: any, res) => {
     })
 
     if (aulas.length === 0) {
-      const modulo = await prisma.modulo.findUnique({ where: { id: moduloId } })
-      const titulo = modulo?.titulo || 'Modulo'
-      const demoAulas = [
-        { titulo: `Introducao a ${titulo}`, descricao: `Conceitos basicos e visao geral de ${titulo}.` },
-        { titulo: `Praticas Fundamentais`, descricao: `Melhores praticas e tecnicas essenciais.` },
-        { titulo: `Aplicacao Pratica`, descricao: `Exercicios praticos e estudos de caso.` },
-      ]
+      // Try to auto-seed demo aulas; if race condition causes duplicates, just skip
+      try {
+        const modulo = await prisma.modulo.findUnique({ where: { id: moduloId } })
+        const titulo = modulo?.titulo || 'Modulo'
+        const demoAulas = [
+          { titulo: `Introducao a ${titulo}`, descricao: `Conceitos basicos e visao geral de ${titulo}.` },
+          { titulo: `Praticas Fundamentais`, descricao: `Melhores praticas e tecnicas essenciais.` },
+          { titulo: `Aplicacao Pratica`, descricao: `Exercicios praticos e estudos de caso.` },
+        ]
 
-      for (let i = 0; i < demoAulas.length; i++) {
-        const d = demoAulas[i]
-        const aula = await prisma.aula.create({
-          data: { moduloId, titulo: d.titulo, descricao: d.descricao, ordem: i + 1 },
-        })
-        const quiz = await prisma.quiz.create({
-          data: { aulaId: aula.id, titulo: `Quiz: ${d.titulo}`, autoGerarCertificado: i === demoAulas.length - 1 },
-        })
-        await prisma.quizPergunta.create({
-          data: {
-            quizId: quiz.id, pergunta: `Pergunta principal sobre ${d.titulo}?`,
-            opcaoA: 'Alternativa incorreta A', opcaoB: 'Alternativa correta',
-            opcaoC: 'Alternativa incorreta C', opcaoD: 'Alternativa incorreta D',
-            correta: 'B', ordem: 1,
-          },
-        })
+        for (let i = 0; i < demoAulas.length; i++) {
+          const d = demoAulas[i]
+          const aula = await prisma.aula.create({
+            data: { moduloId, titulo: d.titulo, descricao: d.descricao, ordem: i + 1 },
+          })
+          const quiz = await prisma.quiz.create({
+            data: { aulaId: aula.id, titulo: `Quiz: ${d.titulo}`, autoGerarCertificado: i === demoAulas.length - 1 },
+          })
+          await prisma.quizPergunta.create({
+            data: {
+              quizId: quiz.id, pergunta: `Pergunta principal sobre ${d.titulo}?`,
+              opcaoA: 'Alternativa incorreta A', opcaoB: 'Alternativa correta',
+              opcaoC: 'Alternativa incorreta C', opcaoD: 'Alternativa incorreta D',
+              correta: 'B', ordem: 1,
+            },
+          })
+        }
+      } catch (seedError) {
+        // Race condition: another request already created the aulas, just continue
+        console.warn('[CMS AUTO-SEED] Skipped (likely race condition):', (seedError as Error).message)
       }
 
       aulas = await prisma.aula.findMany({
@@ -512,11 +518,10 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
       create: { quizId: req.params.quizId, userId: req.userId, nota, total, concluido },
     })
 
-    if (correct > 0) {
-      await awardPointsIfNotAwarded(req.userId, 'QUIZ_CORRECT', `QUIZ_CORRECT:quiz:${req.params.quizId}`)
-    }
-
     if (concluido) {
+      if (correct > 0) {
+        await awardPointsIfNotAwarded(req.userId, 'QUIZ_CORRECT', `QUIZ_CORRECT:quiz:${req.params.quizId}`)
+      }
       await awardPointsIfNotAwarded(req.userId, 'QUIZ_PASS', `QUIZ_PASS:quiz:${req.params.quizId}`)
       await logActivity(req.userId, 'Quiz Aprovado', `Quiz: ${quiz.titulo} — Nota ${nota}/10`)
     } else {
@@ -541,13 +546,14 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
           })
 
           if (allAulasCompleted >= modulo.aulas.length) {
-            const existingCert = await prisma.certificate.findFirst({
-              where: { userId: req.userId, moduloId: aula.moduloId },
-            })
-            if (!existingCert) {
-              const certStatus = modulo.autoCertificado ? 'APPROVED' : 'PENDING'
-              await prisma.certificate.create({
-                data: {
+            const certStatus = modulo.autoCertificado ? 'APPROVED' : 'PENDING'
+            try {
+              await prisma.certificate.upsert({
+                where: {
+                  userId_moduloId: { userId: req.userId, moduloId: aula.moduloId },
+                },
+                update: {},
+                create: {
                   userId: req.userId,
                   moduloId: aula.moduloId,
                   status: certStatus,
@@ -555,6 +561,8 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
               })
               await awardPointsIfNotAwarded(req.userId, 'CERTIFICATE', `CERTIFICATE:modulo:${aula.moduloId}`)
               await logActivity(req.userId, 'Certificado Gerado', `Modulo: ${modulo.titulo}`)
+            } catch {
+              // Certificate already exists (race condition), skip
             }
           }
         }

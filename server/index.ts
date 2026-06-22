@@ -61,7 +61,7 @@ const globalLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
 })
-app.use('/api/', globalLimiter)
+app.use('/api', globalLimiter)
 
 // Rate limiting estricto para auth
 const authLimiter = rateLimit({
@@ -101,7 +101,6 @@ app.use((req, res, next) => {
 app.use('/api/auth', authRoutes)
 app.use('/api/usuarios', usuariosRoutes)
 app.use('/api/cms', cmsRoutes)
-app.use('/api/modulos', cmsRoutes)
 app.use('/api/certificates', certificatesRoutes)
 app.use('/api/notifications', notificationsRoutes)
 app.use('/api/progresso', progressoRoutes)
@@ -130,8 +129,29 @@ app.get('/api/health', async (_req, res) => {
   res.json(checks)
 })
 
-app.get('/api/config', (_req, res) => {
-  res.json({ encryptionKey: getServerEncryptionKey() })
+app.get('/api/config', (req, res) => {
+  const authHeader = req.headers.authorization
+  if (!authHeader?.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Token não fornecido' })
+  }
+  try {
+    const jwt = require('jsonwebtoken')
+    const JWT_SECRET_FALLBACK_FILE = '.jwt-secret'
+    let JWT_SECRET = process.env.JWT_SECRET
+    if (!JWT_SECRET || JWT_SECRET.length < 16) {
+      try {
+        const fs = require('fs')
+        if (fs.existsSync(JWT_SECRET_FALLBACK_FILE)) {
+          const persisted = fs.readFileSync(JWT_SECRET_FALLBACK_FILE, 'utf8').trim()
+          if (persisted && persisted.length >= 16) JWT_SECRET = persisted
+        }
+      } catch { /* */ }
+    }
+    jwt.verify(authHeader.split(' ')[1], JWT_SECRET)
+    res.json({ encryptionKey: getServerEncryptionKey() })
+  } catch {
+    res.status(401).json({ error: 'Token inválido' })
+  }
 })
 
 // Only start listening when run directly (not when imported by Passenger or test)

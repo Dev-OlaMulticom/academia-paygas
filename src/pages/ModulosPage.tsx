@@ -80,9 +80,7 @@ export function ModulosPage() {
       updated[currentLesson] = { ...updated[currentLesson], concluido: true }
       setLessons(updated)
     } catch {
-      const updated = [...lessons]
-      updated[currentLesson] = { ...updated[currentLesson], concluido: true }
-      setLessons(updated)
+      // Do NOT mark complete locally if API fails
     }
 
     if (currentLesson < lessons.length - 1) {
@@ -130,21 +128,10 @@ export function ModulosPage() {
       updated[currentLesson] = { ...updated[currentLesson], concluido: true }
       setLessons(updated)
     } catch {
-      let correct = 0
-      const total = lesson.quiz.perguntas.length
-      lesson.quiz.perguntas.forEach((p: any) => {
-        if (selectedAnswers[p.id] === p.correta) correct++
-      })
-      const nota = Math.round((correct / total) * 10)
-      const passed = nota >= (lesson.quiz?.notaMinima ?? 7)
-
-      setQuizResult({ nota, total, correct, passed })
+      // Server rejected quiz submission — do NOT mark complete locally
+      // Show a generic error to the user
+      setQuizResult({ nota: 0, total: lesson.quiz.perguntas.length, correct: 0, passed: false })
       setQuizSubmitted(true)
-
-      await api.updateProgresso(modulo!.id, lesson.id, true)
-      const updated = [...lessons]
-      updated[currentLesson] = { ...updated[currentLesson], concluido: true }
-      setLessons(updated)
     }
   }
 
@@ -326,7 +313,7 @@ export function ModulosPage() {
                       Lições ({current.licoes.length})
                     </h3>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {current.licoes.sort((a: any, b: any) => a.ordem - b.ordem).map((licao: any) => {
+                      {[...current.licoes].sort((a: any, b: any) => a.ordem - b.ordem).map((licao: any) => {
                         const isExpanded = expandedLicao === licao.id
                         const tipoIcon = licao.tipo === 'VIDEO' ? 'icon-play' : licao.tipo === 'PDF' ? 'icon-file-text' : 'icon-file'
                         const tipoLabel = licao.tipo === 'VIDEO' ? 'Video' : licao.tipo === 'PDF' ? 'PDF' : 'Texto'

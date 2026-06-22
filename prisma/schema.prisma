@@ -215,6 +215,7 @@ model Certificate {
   user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
   modulo      Modulo @relation(fields: [moduloId], references: [id], onDelete: Cascade)
 
+  @@unique([userId, moduloId])
   @@index([userId])
   @@index([moduloId])
 }

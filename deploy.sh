@@ -497,7 +497,7 @@ else
 
             # Step 2: Sync schema with db push (with timeout)
             log_fix "Sincronizando schema con db push..."
-            timeout 60 npx prisma db push --accept-data-loss 2>&1 && \
+            timeout 60 npx prisma db push 2>&1 && \
                 log_ok "Schema sincronizado con db push" || \
                 log_warn "db push tuvo problemas (no critico)"
 
@@ -513,7 +513,7 @@ else
         else
             log_warn "No se pudo detectar la migracion fallida"
             log_warn "Intentando db push como fallback..."
-            npx prisma db push --accept-data-loss 2>&1 && log_ok "Schema sincronizado" || true
+            npx prisma db push 2>&1 && log_ok "Schema sincronizado" || true
         fi
     else
         log_warn "Migraciones fallaron: $MIGRATE_OUTPUT"

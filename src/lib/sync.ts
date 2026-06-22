@@ -25,6 +25,8 @@ export async function processSyncQueue(): Promise<{ sent: number; failed: number
 
   for (const item of pending) {
     if (item.retryCount >= MAX_RETRIES) {
+      // Delete permanently failed items instead of skipping forever
+      await db.syncQueue.delete(item.id!)
       failed++
       continue
     }
@@ -41,10 +43,26 @@ export async function processSyncQueue(): Promise<{ sent: number; failed: number
         await new Promise(resolve => setTimeout(resolve, backoffMs))
       }
 
+      // Parse body and re-encrypt if needed (sync stores raw body, not encrypted)
+      let body = item.body || undefined
+      if (body && (item.method === 'POST' || item.method === 'PUT' || item.method === 'PATCH')) {
+        try {
+          // Try to encrypt the body if encryption is available
+          const { initEncryptionKey, encrypt } = await import('./crypto')
+          await initEncryptionKey()
+          const parsed = JSON.parse(body)
+          const encryptedPayload = await encrypt(JSON.stringify(parsed))
+          body = JSON.stringify({ encrypted: encryptedPayload })
+          headers['X-Encrypted'] = 'true'
+        } catch {
+          // Encryption not available, send raw body
+        }
+      }
+
       const res = await fetch(`${API_BASE}${item.path}`, {
         method: item.method,
         headers,
-        body: item.body || undefined,
+        body,
       })
 
       if (res.ok) {

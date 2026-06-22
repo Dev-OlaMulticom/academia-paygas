@@ -27,14 +27,16 @@ const DEFAULT_MODULES = [
 // GET /api/admin/modules - Get all module configs (any authenticated user)
 router.get('/', authenticate, async (req: AuthRequest, res) => {
   try {
-    // Ensure all default modules exist
-    for (const mod of DEFAULT_MODULES) {
-      await prisma.moduleConfig.upsert({
-        where: { key: mod.key },
-        update: {},
-        create: mod,
-      })
-    }
+    // Ensure all default modules exist (batch upsert instead of sequential)
+    await prisma.$transaction(
+      DEFAULT_MODULES.map(mod =>
+        prisma.moduleConfig.upsert({
+          where: { key: mod.key },
+          update: {},
+          create: mod,
+        })
+      )
+    )
 
     const modules = await prisma.moduleConfig.findMany({
       orderBy: { key: 'asc' },

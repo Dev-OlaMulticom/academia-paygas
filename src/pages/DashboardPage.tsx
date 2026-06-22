@@ -29,7 +29,8 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
   const level = dashData?.level || Math.floor(xp / XP_PER_LEVEL) + 1
   const currentLevelXp = (level - 1) * XP_PER_LEVEL
   const nextLevelXp = level * XP_PER_LEVEL
-  const progressPercent = Math.min(((xp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100, 100)
+  const displayXp = dashData?.xp ?? xp ?? 0
+  const progressPercent = Math.min(((displayXp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100, 100)
 
   return (
     <div className="page active">
@@ -54,7 +55,7 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
           </div>
           <div style={{ textAlign: 'right' }}>
             <div style={{ fontSize: '14px', opacity: 0.8 }}>XP Total</div>
-            <div style={{ fontSize: '28px', fontWeight: 'bold' }}>{xp || dashData?.xp || 0}</div>
+            <div style={{ fontSize: '28px', fontWeight: 'bold' }}>{displayXp}</div>
           </div>
         </div>
         <div style={{ background: 'rgba(255,255,255,0.2)', borderRadius: '8px', height: '8px', overflow: 'hidden' }}>
@@ -67,7 +68,7 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
           }} />
         </div>
         <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '12px', opacity: 0.8 }}>
-          <span>{xp || dashData?.xp || 0} XP</span>
+          <span>{displayXp} XP</span>
           <span>{nextLevelXp} XP</span>
         </div>
       </div>

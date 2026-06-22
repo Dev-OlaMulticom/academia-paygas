@@ -95,10 +95,10 @@ class ApiClient {
     const isDev = import.meta.env.DEV
     const data = await this.request<T>(path)
     if (!isDev) {
-      if (Array.isArray(data)) {
-        await table.bulkPut(data)
-      } else {
-        await table.put(data as any)
+      // Handle paginated responses: extract the data array, not the envelope
+      const items = Array.isArray(data) ? data : (data as any)?.data
+      if (Array.isArray(items) && items.length > 0 && items[0]?.id) {
+        await table.bulkPut(items)
       }
     }
     return data
@@ -123,7 +123,14 @@ class ApiClient {
           }
         }
         return result
-      } catch {
+      } catch (error) {
+        // Only queue for retry on network errors, not HTTP errors
+        const msg = error instanceof Error ? error.message : String(error)
+        const isHttpError = msg.includes('HTTP ')
+        if (isHttpError) {
+          throw error // Re-throw HTTP errors so callers can handle them
+        }
+        // Network error — queue for offline sync
         await queueSync(method, path, body)
         const offlineData = options?.offlineTransform ? options.offlineTransform(body) : { ...body, id: `pending-${Date.now()}`, _pending: true }
         if (table) await table.put(offlineData as any)
@@ -283,18 +290,18 @@ class ApiClient {
   // ==================== AULAS ====================
 
   async getAulas(moduloId: string) {
-    return this.getWithCache<any[]>(`/modulos/${moduloId}/aulas`, db.aulas, {
+    return this.getWithCache<any[]>(`/cms/${moduloId}/aulas`, db.aulas, {
       index: 'moduloId',
       indexValue: moduloId,
     })
   }
 
   async createAula(moduloId: string, data: any) {
-    return this.writeWithCache(`/modulos/${moduloId}/aulas`, 'POST', data, db.aulas)
+    return this.writeWithCache(`/cms/${moduloId}/aulas`, 'POST', data, db.aulas)
   }
 
   async updateAula(id: string, data: any) {
-    return this.writeWithCache(`/modulos/aulas/${id}`, 'PUT', data, db.aulas, {
+    return this.writeWithCache(`/cms/aulas/${id}`, 'PUT', data, db.aulas, {
       offlineTransform: (body) => ({ ...body, id }),
     })
   }
@@ -302,16 +309,16 @@ class ApiClient {
   async deleteAula(id: string) {
     if (isOnline() && this.token) {
       try {
-        await this.request(`/modulos/aulas/${id}`, { method: 'DELETE' })
+        await this.request(`/cms/aulas/${id}`, { method: 'DELETE' })
         await db.aulas.delete(id)
         return
       } catch {
-        await queueSync('DELETE', `/modulos/aulas/${id}`)
+        await queueSync('DELETE', `/cms/aulas/${id}`)
         await db.aulas.delete(id)
         return
       }
     }
-    await queueSync('DELETE', `/modulos/aulas/${id}`)
+    await queueSync('DELETE', `/cms/aulas/${id}`)
     await db.aulas.delete(id)
   }
 
@@ -336,12 +343,12 @@ class ApiClient {
   // ==================== QUIZ ====================
 
   async createQuiz(moduloId: string, data: { aulaId: string; titulo: string; autoGerarCertificado?: boolean }) {
-    return this.writeWithCache(`/modulos/${moduloId}/quiz`, 'POST', data, db.quizzes)
+    return this.writeWithCache(`/cms/${moduloId}/quiz`, 'POST', data, db.quizzes)
   }
 
   async getQuiz(moduloId: string, aulaId: string) {
     try {
-      const quiz = await this.request<any>(`/modulos/${moduloId}/quiz/${aulaId}`)
+      const quiz = await this.request<any>(`/cms/${moduloId}/quiz/${aulaId}`)
       await db.quizzes.put(quiz)
       return quiz
     } catch (error) {
@@ -352,7 +359,7 @@ class ApiClient {
   }
 
   async updateQuiz(quizId: string, data: { titulo?: string; autoGerarCertificado?: boolean }) {
-    return this.writeWithCache(`/modulos/quiz/${quizId}`, 'PUT', data, db.quizzes, {
+    return this.writeWithCache(`/cms/quiz/${quizId}`, 'PUT', data, db.quizzes, {
       offlineTransform: (body) => ({ ...body, id: quizId }),
     })
   }
@@ -360,25 +367,25 @@ class ApiClient {
   async deleteQuiz(quizId: string) {
     if (isOnline() && this.token) {
       try {
-        await this.request(`/modulos/quiz/${quizId}`, { method: 'DELETE' })
+        await this.request(`/cms/quiz/${quizId}`, { method: 'DELETE' })
         await db.quizzes.delete(quizId)
         return
       } catch {
-        await queueSync('DELETE', `/modulos/quiz/${quizId}`)
+        await queueSync('DELETE', `/cms/quiz/${quizId}`)
         await db.quizzes.delete(quizId)
         return
       }
     }
-    await queueSync('DELETE', `/modulos/quiz/${quizId}`)
+    await queueSync('DELETE', `/cms/quiz/${quizId}`)
     await db.quizzes.delete(quizId)
   }
 
   async addPergunta(quizId: string, data: { pergunta: string; opcaoA: string; opcaoB: string; opcaoC?: string; opcaoD?: string; correta: string }) {
-    return this.writeWithCache(`/modulos/quiz/${quizId}/perguntas`, 'POST', data, db.perguntas)
+    return this.writeWithCache(`/cms/quiz/${quizId}/perguntas`, 'POST', data, db.perguntas)
   }
 
   async updatePergunta(perguntaId: string, data: any) {
-    return this.writeWithCache(`/modulos/perguntas/${perguntaId}`, 'PUT', data, db.perguntas, {
+    return this.writeWithCache(`/cms/perguntas/${perguntaId}`, 'PUT', data, db.perguntas, {
       offlineTransform: (body) => ({ ...body, id: perguntaId }),
     })
   }
@@ -386,21 +393,21 @@ class ApiClient {
   async deletePergunta(perguntaId: string) {
     if (isOnline() && this.token) {
       try {
-        await this.request(`/modulos/perguntas/${perguntaId}`, { method: 'DELETE' })
+        await this.request(`/cms/perguntas/${perguntaId}`, { method: 'DELETE' })
         await db.perguntas.delete(perguntaId)
         return
       } catch {
-        await queueSync('DELETE', `/modulos/perguntas/${perguntaId}`)
+        await queueSync('DELETE', `/cms/perguntas/${perguntaId}`)
         await db.perguntas.delete(perguntaId)
         return
       }
     }
-    await queueSync('DELETE', `/modulos/perguntas/${perguntaId}`)
+    await queueSync('DELETE', `/cms/perguntas/${perguntaId}`)
     await db.perguntas.delete(perguntaId)
   }
 
   async submitQuiz(quizId: string, respostas: Record<string, string>) {
-    return this.writeWithCache(`/modulos/quiz/${quizId}/responder`, 'POST', { respostas }, db.quizResponses, {
+    return this.writeWithCache(`/cms/quiz/${quizId}/responder`, 'POST', { respostas }, db.quizResponses, {
       offlineTransform: (_body) => ({
         id: `pending-${Date.now()}`,
         quizId,
@@ -540,20 +547,20 @@ class ApiClient {
   // ==================== GAMIFICATION ====================
 
   async trackModuleOpen(moduloId: string) {
-    return this.writeWithCache(`/modulos/${moduloId}/open`, 'POST', {}, null)
+    return this.writeWithCache(`/cms/${moduloId}/open`, 'POST', {}, null)
   }
 
   async trackLessonView(aulaId: string) {
-    return this.request<any>(`/modulos/aula/${aulaId}/view`, { method: 'POST' })
+    return this.request<any>(`/cms/aula/${aulaId}/view`, { method: 'POST' })
   }
 
   async getLeaderboard() {
-    return this.getWithCache<any[]>('/modulos/gamification/leaderboard', db.users)
+    return this.getWithCache<any[]>('/cms/gamification/leaderboard', db.users)
   }
 
   async getGamificationStats() {
     try {
-      return await this.request<any>('/modulos/gamification/stats')
+      return await this.request<any>('/cms/gamification/stats')
     } catch {
       const users = await db.users.toArray()
       const totalXp = users.reduce((sum, u) => sum + (u.xp || 0), 0)

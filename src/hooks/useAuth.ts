@@ -49,12 +49,17 @@ export function useAuth() {
           localStorage.setItem('user', JSON.stringify(userData))
         }
       })
-      .catch(() => {
-        setUser(null)
-        setXp(0)
-        localStorage.removeItem('user')
-        localStorage.removeItem('token')
-        api.logout()
+      .catch((error) => {
+        // Only clear auth on 401/403 (invalid/expired token), NOT on network errors
+        const msg = error instanceof Error ? error.message : String(error)
+        if (msg.includes('HTTP 401') || msg.includes('HTTP 403') || msg.includes('Token')) {
+          setUser(null)
+          setXp(0)
+          localStorage.removeItem('user')
+          localStorage.removeItem('token')
+          api.logout()
+        }
+        // Network errors: keep existing session, user may come back online
       })
       .finally(() => setChecking(false))
   }, [])

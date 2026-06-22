@@ -87,7 +87,13 @@ export async function encrypt(text: string): Promise<string> {
   combined.set(iv, salt.length)
   combined.set(encryptedArray, salt.length + iv.length)
 
-  return btoa(String.fromCharCode(...combined))
+  // Convert Uint8Array to base64 without spreading (avoids stack overflow on large payloads)
+  let binary = ''
+  const chunkSize = 8192
+  for (let i = 0; i < combined.length; i += chunkSize) {
+    binary += String.fromCharCode(...combined.subarray(i, i + chunkSize))
+  }
+  return btoa(binary)
 }
 
 export async function decrypt(encryptedData: string): Promise<string> {

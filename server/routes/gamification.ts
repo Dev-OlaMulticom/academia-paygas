@@ -121,6 +121,7 @@ router.get('/stats', authenticate, async (req: AuthRequest, res) => {
     })
 
     const totalAulasConcluidas = await prisma.progresso.count({ where: { userId, concluido: true } })
+    const totalAulasGlobal = await prisma.aula.count()
 
     const XP_PER_LEVEL = 2000
     res.json({
@@ -130,7 +131,7 @@ router.get('/stats', authenticate, async (req: AuthRequest, res) => {
       xpProximoNivel: XP_PER_LEVEL,
       xpRestante: XP_PER_LEVEL - ((user?.xp || 0) % XP_PER_LEVEL),
       aulasConcluidas: totalAulasConcluidas,
-      percentualConclusao: Math.round((totalAulasConcluidas / Math.max(4, 1)) * 100),
+      percentualConclusao: totalAulasGlobal > 0 ? Math.round((totalAulasConcluidas / totalAulasGlobal) * 100) : 0,
       streak: 1,
     })
   } catch (error) {
