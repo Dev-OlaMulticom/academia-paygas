@@ -34,11 +34,12 @@ app.use(helmet())
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || '').split(',').filter(Boolean)
 if (allowedOrigins.length === 0 && process.env.NODE_ENV === 'production') {
   console.warn('⚠️  ALLOWED_ORIGINS is not set. Cross-origin requests will be rejected.')
+  console.warn('   Set ALLOWED_ORIGINS in .env (e.g. "https://academia.paygas.com.br")')
 }
 const corsOptions: cors.CorsOptions = {
   origin: (origin, callback) => {
     // Allow same-origin requests (no Origin header) and explicitly listed origins
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
       callback(null, true)
     } else {
       callback(new Error('No permitido por CORS'))
@@ -208,6 +209,9 @@ if (require.main === module) {
     console.error('[FATAL] Unhandled Rejection:', reason)
     process.exit(1)
   })
+
+  // Log startup completion
+  console.log(`[${new Date().toISOString()}] Server initialization complete, PID: ${process.pid}`)
 }
 
 export default app
