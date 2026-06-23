@@ -31,6 +31,7 @@ export interface Quiz {
   aulaId: string
   titulo: string
   autoGerarCertificado: boolean
+  notaMinima?: number
   createdAt?: string
   updatedAt?: string
 }

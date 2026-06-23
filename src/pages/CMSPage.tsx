@@ -42,6 +42,8 @@ export function CMSPage({ user }: CMSPageProps) {
   const [quizAula, setQuizAula] = useState<any>(null)
   const [showQuizModal, setShowQuizModal] = useState(false)
   const [newPergunta, setNewPergunta] = useState({ pergunta: '', opcaoA: '', opcaoB: '', opcaoC: '', opcaoD: '', correta: 'A' })
+  const [showImportExport, setShowImportExport] = useState(false)
+  const [importing, setImporting] = useState(false)
 
   const isAdmin = user?.role === 'ADMIN'
 
@@ -232,7 +234,7 @@ export function CMSPage({ user }: CMSPageProps) {
     if (aula.quiz) {
       setEditingQuiz(aula.quiz)
     } else {
-      setEditingQuiz(null)
+      setEditingQuiz({ titulo: `Quiz: ${aula.titulo}`, autoGerarCertificado: false, notaMinima: 7, perguntas: [] })
     }
     setShowQuizModal(true)
   }
@@ -244,6 +246,7 @@ export function CMSPage({ user }: CMSPageProps) {
         aulaId: quizAula.id,
         titulo: editingQuiz.titulo || `Quiz: ${quizAula.titulo}`,
         autoGerarCertificado: editingQuiz.autoGerarCertificado || false,
+        notaMinima: typeof editingQuiz.notaMinima === 'number' ? editingQuiz.notaMinima : 7,
       })
       toast('Quiz criado com sucesso!', 'success')
       loadAulas(selectedModulo.id)
@@ -312,6 +315,38 @@ export function CMSPage({ user }: CMSPageProps) {
     setNewAula({ ...newAula, microLessons: updated })
   }
 
+  const handleExport = async (type: 'cursos' | 'aulas' | 'licoes' | 'quiz') => {
+    try {
+      await api.downloadCsv(type)
+      toast(`Exportação de ${type} concluída!`, 'success')
+    } catch (err: any) {
+      toast(err.message || 'Erro ao exportar', 'error')
+    }
+  }
+
+  const handleImport = async (type: 'cursos' | 'aulas' | 'licoes' | 'quiz') => {
+    const input = document.createElement('input')
+    input.type = 'file'
+    input.accept = '.csv'
+    input.onchange = async (e: any) => {
+      const file = e.target.files?.[0]
+      if (!file) return
+      setImporting(true)
+      try {
+        const text = await file.text()
+        const result = await api.importCsv(type, text)
+        toast(`Importação concluída: ${result.created} criados, ${result.skipped} ignorados de ${result.total}`, 'success')
+        if (type === 'cursos') loadModulos()
+        else if (type === 'aulas' && selectedModulo) loadAulas(selectedModulo.id)
+      } catch (err: any) {
+        toast(err.message || 'Erro ao importar', 'error')
+      } finally {
+        setImporting(false)
+      }
+    }
+    input.click()
+  }
+
   return (
     <div className="page active">
       <div className="page-header">
@@ -322,7 +357,10 @@ export function CMSPage({ user }: CMSPageProps) {
           </div>
         </div>
         {view === 'modulos' ? (
-          isAdmin && <button className="btn-primary" onClick={() => navigate('/cms/criar-modulo')}>+ Novo Curso</button>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px' }} onClick={() => setShowImportExport(!showImportExport)}><i className="icon-download icon-xs" /> Importar/Exportar</button>}
+            {isAdmin && <button className="btn-primary" onClick={() => navigate('/cms/criar-modulo')}>+ Novo Curso</button>}
+          </div>
         ) : (
           <>
             <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => setView('modulos')}><i className="icon-arrow-left icon-sm" /> Voltar aos Cursos</button>
@@ -330,6 +368,33 @@ export function CMSPage({ user }: CMSPageProps) {
           </>
         )}
       </div>
+
+      {showImportExport && view === 'modulos' && (
+        <div style={{ background: '#f8f9fa', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '16px', marginBottom: '16px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+            <h4 style={{ margin: 0 }}>Importar / Exportar Dados</h4>
+            <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setShowImportExport(false)}>Fechar</button>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+            {(['cursos', 'aulas', 'licoes', 'quiz'] as const).map(type => (
+              <div key={type} style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: '8px', padding: '12px' }}>
+                <div style={{ fontWeight: 600, marginBottom: '8px', textTransform: 'capitalize' }}>{type}</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <button className="btn-secondary" style={{ fontSize: '11px' }} onClick={() => handleExport(type)} disabled={importing}>
+                    <i className="icon-download icon-xs" /> Exportar CSV
+                  </button>
+                  <button className="btn-secondary" style={{ fontSize: '11px' }} onClick={() => handleImport(type)} disabled={importing}>
+                    <i className="icon-upload icon-xs" /> Importar CSV
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+          <div style={{ marginTop: '12px', padding: '10px', background: '#e8f4fd', borderRadius: '6px', fontSize: '12px', color: '#1a5276' }}>
+            <b>Formato dos arquivos CSV:</b> Use o botão "Exportar CSV" para baixar o formato correto. Ao importar, registros duplicados (mesmo título) são ignorados automaticamente.
+          </div>
+        </div>
+      )}
 
       {view === 'modulos' ? (
         <div className="table-wrap">
@@ -748,6 +813,10 @@ export function CMSPage({ user }: CMSPageProps) {
                     <option value="false">Não</option>
                     <option value="true">Sim (ao passar no quiz)</option>
                   </select>
+                </div>
+                <div className="form-field">
+                  <label className="form-label">Nota Mínima para Aprovação (0-10)</label>
+                  <input className="form-input" type="number" min="0" max="10" value={editingQuiz?.notaMinima ?? 7} onChange={e => setEditingQuiz({ ...(editingQuiz || { titulo: `Quiz: ${quizAula.titulo}`, perguntas: [] }), notaMinima: parseInt(e.target.value) || 7 })} />
                 </div>
                 <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
                   <button className="btn-primary" onClick={handleCreateQuiz}>Criar Quiz</button>

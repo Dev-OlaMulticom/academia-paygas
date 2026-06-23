@@ -342,7 +342,7 @@ class ApiClient {
 
   // ==================== QUIZ ====================
 
-  async createQuiz(moduloId: string, data: { aulaId: string; titulo: string; autoGerarCertificado?: boolean }) {
+  async createQuiz(moduloId: string, data: { aulaId: string; titulo: string; autoGerarCertificado?: boolean; notaMinima?: number }) {
     return this.writeWithCache(`/cms/${moduloId}/quiz`, 'POST', data, db.quizzes)
   }
 
@@ -358,7 +358,7 @@ class ApiClient {
     }
   }
 
-  async updateQuiz(quizId: string, data: { titulo?: string; autoGerarCertificado?: boolean }) {
+  async updateQuiz(quizId: string, data: { titulo?: string; autoGerarCertificado?: boolean; notaMinima?: number }) {
     return this.writeWithCache(`/cms/quiz/${quizId}`, 'PUT', data, db.quizzes, {
       offlineTransform: (body) => ({ ...body, id: quizId }),
     })
@@ -729,6 +729,34 @@ class ApiClient {
     return this.request<any>('/xp-config', {
       method: 'POST',
       body: JSON.stringify(data),
+    })
+  }
+
+  // ==================== IMPORT / EXPORT ====================
+
+  async exportCsv(type: 'cursos' | 'aulas' | 'licoes' | 'quiz'): Promise<string> {
+    const response = await fetch(`${API_BASE}/import-export/export/${type}`, {
+      headers: { Authorization: `Bearer ${this.token}` },
+    })
+    if (!response.ok) throw new Error('Erro ao exportar')
+    return response.text()
+  }
+
+  async downloadCsv(type: 'cursos' | 'aulas' | 'licoes' | 'quiz'): Promise<void> {
+    const csv = await this.exportCsv(type)
+    const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = `${type}.csv`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  async importCsv(type: 'cursos' | 'aulas' | 'licoes' | 'quiz', csvText: string): Promise<{ created: number; skipped: number; total: number }> {
+    return this.request<any>(`/import-export/import/${type}`, {
+      method: 'POST',
+      body: JSON.stringify({ csv: csvText }),
     })
   }
 }

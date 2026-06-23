@@ -23,6 +23,7 @@ import modulesRoutes from './routes/modules'
 import conquistasRoutes from './routes/conquistas'
 import logsRoutes from './routes/logs'
 import xpconfigRoutes from './routes/xpconfig'
+import importExportRoutes from './routes/import-export'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -115,6 +116,7 @@ app.use('/api/public', publicRoutes)
 app.use('/api/admin/modules', modulesRoutes)
 app.use('/api/logs', logsRoutes)
 app.use('/api/xp-config', xpconfigRoutes)
+app.use('/api/import-export', importExportRoutes)
 
 app.get('/api/health', async (_req, res) => {
   const checks: Record<string, string> = { status: 'ok' }
