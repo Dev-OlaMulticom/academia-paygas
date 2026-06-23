@@ -238,15 +238,15 @@ export function CMSPage({ user }: CMSPageProps) {
   const handleCreateQuiz = async () => {
     if (!quizAula || !editingQuiz) return
     try {
-      await api.createQuiz(selectedModulo.id, {
+      const created = await api.createQuiz(selectedModulo.id, {
         aulaId: quizAula.id,
         titulo: editingQuiz.titulo || `Quiz: ${quizAula.titulo}`,
         autoGerarCertificado: editingQuiz.autoGerarCertificado || false,
         notaMinima: typeof editingQuiz.notaMinima === 'number' ? editingQuiz.notaMinima : 7,
       })
+      setEditingQuiz({ ...created, perguntas: [] })
       toast('Quiz criado com sucesso!', 'success')
       loadAulas(selectedModulo.id)
-      setShowQuizModal(false)
     } catch (err: any) {
       toast(err.message || 'Erro ao criar quiz', 'error')
     }
