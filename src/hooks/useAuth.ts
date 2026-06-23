@@ -64,22 +64,23 @@ export function useAuth() {
       .finally(() => setChecking(false))
   }, [])
 
-  const handleLogin = (userData: User, token: string) => {
+  const handleLogin = async (userData: User, token: string) => {
+    // Clear stale IndexedDB cache before setting new session
+    await db.delete().catch(() => {})
     setUser(userData)
     localStorage.setItem('user', JSON.stringify(userData))
     api.setToken(token)
     setXp(userData.xp || 0)
-    // Reset encryption key to fetch new one from server
     resetEncryptionKey()
   }
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
     setUser(null)
     localStorage.removeItem('user')
     api.logout()
     resetEncryptionKey()
-    // Clear IndexedDB to prevent cross-user data leaks on shared devices
-    db.delete().catch(() => {})
+    // Clear all IndexedDB tables and the database itself
+    await db.delete().catch(() => {})
   }
 
   const persona = user ? PERSONAS[user.role as keyof typeof PERSONAS] : null

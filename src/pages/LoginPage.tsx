@@ -5,7 +5,7 @@ import { api } from '../lib/api'
 import { APP_VERSION } from '../lib/constants'
 
 interface LoginPageProps {
-  onLogin: (user: any, token: string) => void
+  onLogin: (user: any, token: string) => Promise<void>
 }
 
 const isProd = import.meta.env.PROD
@@ -39,7 +39,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 
     try {
       const data = await api.login(email, password)
-      onLogin(data.user, data.token)
+      await onLogin(data.user, data.token)
       navigate(redirectTo)
     } catch (err: any) {
       setError(err.message || 'Erro ao fazer login')
