@@ -75,7 +75,7 @@ export default function App() {
                   <Route path="/" element={<DashboardPage xp={xp} user={user} />} />
                   <Route path="/modulos" element={<ModulosListPage />} />
                   <Route path="/modulo/:moduloNombre" element={<ModulosPage />} />
-                  <Route path="/certificados" element={<CertificadosPage />} />
+                  <Route path="/certificados" element={<CertificadosPage user={user} />} />
                   <Route path="/equipe" element={
                     <RoleRoute user={user} allowedRoles={['ADMIN', 'GESTOR']}>
                       <EquipePage user={user!} />

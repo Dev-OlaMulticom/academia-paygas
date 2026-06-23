@@ -580,17 +580,6 @@ export function CMSPage({ user }: CMSPageProps) {
                 <option value="true">Sim (Automático ao concluir)</option>
               </select>
             </div>
-            <div className="form-field">
-              <label className="form-label">Template do Certificado (HTML)</label>
-              <p style={{ fontSize: '12px', color: 'var(--gray-500)', margin: '0 0 8px' }}>
-                Variáveis: {'{{MODULO_ICONE}}'} {'{{MODULO_TITULO}}'} {'{{USUARIO_NOME}}'} {'{{DATA}}'}
-              </p>
-              <textarea id="mod-edit-template" className="form-input" value={editingMod.certificadoTemplate || ''} onChange={e => setEditingMod({ ...editingMod, certificadoTemplate: e.target.value })} rows={8} style={{ fontFamily: 'monospace', fontSize: '12px' }} />
-              <div style={{ marginTop: '12px' }}>
-                <label className="form-label">Prévia do Certificado</label>
-                <div id="mod-edit-cert-preview" style={{ border: '1px solid var(--gray-200)', borderRadius: '8px', padding: '16px', background: '#f5f5f5', display: 'flex', justifyContent: 'center', overflow: 'auto' }} dangerouslySetInnerHTML={{ __html: (editingMod.certificadoTemplate || '').replace(/\{\{MODULO_ICONE\}\}/g, editingMod.icone || '📚').replace(/\{\{MODULO_TITULO\}\}/g, editingMod.titulo || '').replace(/\{\{USUARIO_NOME\}\}/g, 'João da Silva').replace(/\{\{DATA\}\}/g, new Date().toLocaleDateString('pt-BR')) }} />
-              </div>
-            </div>
             <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
               <button id="mod-edit-salvar" className="btn-primary" onClick={handleEditModulo}>Salvar</button>
               <button id="mod-edit-cancelar" className="btn-secondary" onClick={() => setEditingMod(null)}>Cancelar</button>

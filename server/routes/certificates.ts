@@ -21,7 +21,7 @@ router.get('/', authenticate, async (req: any, res) => {
       prisma.certificate.findMany({
         where,
         include: {
-          modulo: { select: { titulo: true, descricao: true } },
+          modulo: { select: { titulo: true, descricao: true, icone: true, certificadoTemplate: true } },
           user: { select: { nome: true, email: true } },
         },
         orderBy: { createdAt: 'desc' },

@@ -30,7 +30,6 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
     icone: '📚',
     obrigatorio: false,
     autoCertificado: false,
-    certificadoTemplate: DEFAULT_CERT_TEMPLATE,
   })
   const [loading, setLoading] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -120,18 +119,6 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
             <option value="false">Não (Requer aprovação)</option>
             <option value="true">Sim (Automático ao concluir)</option>
           </select>
-        </div>
-
-        <div className="form-field">
-          <label className="form-label">Template do Certificado (HTML)</label>
-          <p style={{ fontSize: '12px', color: 'var(--gray-500)', margin: '0 0 8px' }}>
-            Variáveis: {'{{MODULO_ICONE}}'} {'{{MODULO_TITULO}}'} {'{{USUARIO_NOME}}'} {'{{DATA}}'}
-          </p>
-          <textarea id="criar-template-cert" className="form-input" value={modulo.certificadoTemplate} onChange={e => setModulo({ ...modulo, certificadoTemplate: e.target.value })} rows={8} style={{ fontFamily: 'monospace', fontSize: '12px' }} />
-          <div style={{ marginTop: '12px' }}>
-            <label className="form-label">Prévia do Certificado</label>
-            <div id="criar-cert-preview" style={{ border: '1px solid var(--gray-200)', borderRadius: '8px', padding: '16px', background: '#f5f5f5', display: 'flex', justifyContent: 'center', overflow: 'auto' }} dangerouslySetInnerHTML={{ __html: renderCertPreview(modulo.certificadoTemplate) }} />
-          </div>
         </div>
 
         <div style={{ display: 'flex', gap: '12px', marginTop: '24px' }}>
