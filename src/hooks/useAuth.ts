@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { PERSONAS } from '../data/constants'
 import { api } from '../lib/api'
 import { resetEncryptionKey } from '../lib/crypto'
-import { db } from '../lib/db'
 
 export interface User {
   id?: string
@@ -50,7 +49,6 @@ export function useAuth() {
         }
       })
       .catch((error) => {
-        // Only clear auth on 401/403 (invalid/expired token), NOT on network errors
         const msg = error instanceof Error ? error.message : String(error)
         if (msg.includes('HTTP 401') || msg.includes('HTTP 403') || msg.includes('Token')) {
           setUser(null)
@@ -59,14 +57,11 @@ export function useAuth() {
           localStorage.removeItem('token')
           api.logout()
         }
-        // Network errors: keep existing session, user may come back online
       })
       .finally(() => setChecking(false))
   }, [])
 
   const handleLogin = async (userData: User, token: string) => {
-    // Clear stale IndexedDB data before setting new session
-    await db.clearAll().catch(() => {})
     setUser(userData)
     localStorage.setItem('user', JSON.stringify(userData))
     api.setToken(token)
@@ -79,8 +74,6 @@ export function useAuth() {
     localStorage.removeItem('user')
     api.logout()
     resetEncryptionKey()
-    // Clear all IndexedDB tables (not db.delete, which destroys the DB instance)
-    await db.clearAll().catch(() => {})
   }
 
   const persona = user ? PERSONAS[user.role as keyof typeof PERSONAS] : null

@@ -1,6 +1,4 @@
 import { encrypt, decrypt, initEncryptionKey } from './crypto'
-import { db } from './db'
-import { queueSync, isOnline } from './sync'
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
 
@@ -51,7 +49,7 @@ class ApiClient {
     }
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 30000) // 30s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 30000)
 
     const res = await fetch(`${API_BASE}${path}`, {
       ...options,
@@ -83,65 +81,8 @@ class ApiClient {
   }
 
   async clearAllCache() {
-    await db.clearAll()
+    localStorage.removeItem('user')
     window.location.reload()
-  }
-
-  private async getWithCache<T>(
-    path: string,
-    table: any,
-    _options?: { index?: string; indexValue?: any }
-  ): Promise<T> {
-    const isDev = import.meta.env.DEV
-    const data = await this.request<T>(path)
-    if (!isDev) {
-      // Handle paginated responses: extract the data array, not the envelope
-      const items = Array.isArray(data) ? data : (data as any)?.data
-      if (Array.isArray(items) && items.length > 0 && items[0]?.id) {
-        await table.bulkPut(items)
-      }
-    }
-    return data
-  }
-
-  private async writeWithCache<T>(
-    path: string,
-    method: string,
-    body: any,
-    table: any,
-    options?: { offlineTransform?: (body: any) => any }
-  ): Promise<T> {
-    const token = this.token
-    if (isOnline() && token) {
-      try {
-        const result = await this.request<T>(path, { method, body: JSON.stringify(body) })
-        if (table) {
-          if (Array.isArray(result)) {
-            await table.bulkPut(result)
-          } else {
-            await table.put(result as any)
-          }
-        }
-        return result
-      } catch (error) {
-        // Only queue for retry on network errors, not HTTP errors
-        const msg = error instanceof Error ? error.message : String(error)
-        const isHttpError = msg.includes('HTTP ')
-        if (isHttpError) {
-          throw error // Re-throw HTTP errors so callers can handle them
-        }
-        // Network error — queue for offline sync
-        await queueSync(method, path, body)
-        const offlineData = options?.offlineTransform ? options.offlineTransform(body) : { ...body, id: `pending-${Date.now()}`, _pending: true }
-        if (table) await table.put(offlineData as any)
-        return offlineData as T
-      }
-    } else {
-      await queueSync(method, path, body)
-      const offlineData = options?.offlineTransform ? options.offlineTransform(body) : { ...body, id: `pending-${Date.now()}`, _pending: true }
-      if (table) await table.put(offlineData as any)
-      return offlineData as T
-    }
   }
 
   // ==================== AUTH ====================
@@ -161,20 +102,15 @@ class ApiClient {
     if (!token) throw new Error('Não autenticado')
     try {
       const user = await this.request<any>('/auth/me')
-      await db.users.put(user)
+      localStorage.setItem('user', JSON.stringify(user))
       return user
     } catch (error) {
-      // On 401/403 (invalid/expired token), re-throw so useAuth can clear state
-      // Only fall back to cache on network errors (offline scenario)
       const msg = error instanceof Error ? error.message : String(error)
       if (msg.includes('HTTP 401') || msg.includes('HTTP 403') || msg.includes('Não autenticado')) {
         throw error
       }
-      // Network error — try cache
       const stored = localStorage.getItem('user')
       if (stored) return JSON.parse(stored)
-      const cached = await db.users.toArray()
-      if (cached.length > 0) return cached[0]
       throw error
     }
   }
@@ -187,36 +123,22 @@ class ApiClient {
   // ==================== USUARIOS ====================
 
   async getUsuarios() {
-    const result = await this.getWithCache<any>('/usuarios', db.users)
+    const result = await this.request<any>('/usuarios')
     if (Array.isArray(result)) return result
     if (result?.data && Array.isArray(result.data)) return result.data
     return []
   }
 
   async createUsuario(data: { email: string; nome: string; senha: string; role: string; gestorId?: string }) {
-    return this.writeWithCache('/usuarios', 'POST', data, db.users)
+    return this.request<any>('/usuarios', { method: 'POST', body: JSON.stringify(data) })
   }
 
   async updateUsuario(id: string, data: any) {
-    return this.writeWithCache(`/usuarios/${id}`, 'PUT', data, db.users, {
-      offlineTransform: (body) => ({ ...body, id }),
-    })
+    return this.request<any>(`/usuarios/${id}`, { method: 'PUT', body: JSON.stringify(data) })
   }
 
   async deleteUsuario(id: string) {
-    if (isOnline() && this.token) {
-      try {
-        await this.request(`/usuarios/${id}`, { method: 'DELETE' })
-        await db.users.delete(id)
-        return
-      } catch {
-        await queueSync('DELETE', `/usuarios/${id}`)
-        await db.users.delete(id)
-        return
-      }
-    }
-    await queueSync('DELETE', `/usuarios/${id}`)
-    await db.users.delete(id)
+    await this.request(`/usuarios/${id}`, { method: 'DELETE' })
   }
 
   async changePassword(currentPassword: string, newPassword: string) {
@@ -245,7 +167,7 @@ class ApiClient {
   }
 
   async getEquipe() {
-    return this.getWithCache<any[]>('/usuarios/equipe', db.users)
+    return this.request<any[]>('/usuarios/equipe')
   }
 
   async getEquipeDetalhe() {
@@ -255,71 +177,40 @@ class ApiClient {
   // ==================== CMS - MODULOS ====================
 
   async getCmsModulos() {
-    const result = await this.getWithCache<any>('/cms', db.modulos)
+    const result = await this.request<any>('/cms')
     if (Array.isArray(result)) return result
     if (result?.data && Array.isArray(result.data)) return result.data
     return []
   }
 
   async createModulo(data: any) {
-    return this.writeWithCache('/cms', 'POST', data, db.modulos)
+    return this.request<any>('/cms', { method: 'POST', body: JSON.stringify(data) })
   }
 
   async updateModulo(id: string, data: any) {
-    return this.writeWithCache(`/cms/${id}`, 'PUT', data, db.modulos, {
-      offlineTransform: (body) => ({ ...body, id }),
-    })
+    return this.request<any>(`/cms/${id}`, { method: 'PUT', body: JSON.stringify(data) })
   }
 
   async deleteModulo(id: string) {
-    if (isOnline() && this.token) {
-      try {
-        await this.request(`/cms/${id}`, { method: 'DELETE' })
-        await db.modulos.delete(id)
-        return
-      } catch {
-        await queueSync('DELETE', `/cms/${id}`)
-        await db.modulos.delete(id)
-        return
-      }
-    }
-    await queueSync('DELETE', `/cms/${id}`)
-    await db.modulos.delete(id)
+    await this.request(`/cms/${id}`, { method: 'DELETE' })
   }
 
   // ==================== AULAS ====================
 
   async getAulas(moduloId: string) {
-    return this.getWithCache<any[]>(`/cms/${moduloId}/aulas`, db.aulas, {
-      index: 'moduloId',
-      indexValue: moduloId,
-    })
+    return this.request<any[]>(`/cms/${moduloId}/aulas`)
   }
 
   async createAula(moduloId: string, data: any) {
-    return this.writeWithCache(`/cms/${moduloId}/aulas`, 'POST', data, db.aulas)
+    return this.request<any>(`/cms/${moduloId}/aulas`, { method: 'POST', body: JSON.stringify(data) })
   }
 
   async updateAula(id: string, data: any) {
-    return this.writeWithCache(`/cms/aulas/${id}`, 'PUT', data, db.aulas, {
-      offlineTransform: (body) => ({ ...body, id }),
-    })
+    return this.request<any>(`/cms/aulas/${id}`, { method: 'PUT', body: JSON.stringify(data) })
   }
 
   async deleteAula(id: string) {
-    if (isOnline() && this.token) {
-      try {
-        await this.request(`/cms/aulas/${id}`, { method: 'DELETE' })
-        await db.aulas.delete(id)
-        return
-      } catch {
-        await queueSync('DELETE', `/cms/aulas/${id}`)
-        await db.aulas.delete(id)
-        return
-      }
-    }
-    await queueSync('DELETE', `/cms/aulas/${id}`)
-    await db.aulas.delete(id)
+    await this.request(`/cms/aulas/${id}`, { method: 'DELETE' })
   }
 
   // ==================== LICAO ====================
@@ -343,152 +234,81 @@ class ApiClient {
   // ==================== QUIZ ====================
 
   async createQuiz(moduloId: string, data: { aulaId: string; titulo: string; autoGerarCertificado?: boolean; notaMinima?: number }) {
-    return this.writeWithCache(`/cms/${moduloId}/quiz`, 'POST', data, db.quizzes)
+    return this.request<any>(`/cms/${moduloId}/quiz`, { method: 'POST', body: JSON.stringify(data) })
   }
 
   async getQuiz(moduloId: string, aulaId: string) {
-    try {
-      const quiz = await this.request<any>(`/cms/${moduloId}/quiz/${aulaId}`)
-      await db.quizzes.put(quiz)
-      return quiz
-    } catch (error) {
-      const cached = await db.quizzes.where('aulaId').equals(aulaId).first()
-      if (cached) return cached
-      throw error
-    }
+    return this.request<any>(`/cms/${moduloId}/quiz/${aulaId}`)
   }
 
   async updateQuiz(quizId: string, data: { titulo?: string; autoGerarCertificado?: boolean; notaMinima?: number }) {
-    return this.writeWithCache(`/cms/quiz/${quizId}`, 'PUT', data, db.quizzes, {
-      offlineTransform: (body) => ({ ...body, id: quizId }),
-    })
+    return this.request<any>(`/cms/quiz/${quizId}`, { method: 'PUT', body: JSON.stringify(data) })
   }
 
   async deleteQuiz(quizId: string) {
-    if (isOnline() && this.token) {
-      try {
-        await this.request(`/cms/quiz/${quizId}`, { method: 'DELETE' })
-        await db.quizzes.delete(quizId)
-        return
-      } catch {
-        await queueSync('DELETE', `/cms/quiz/${quizId}`)
-        await db.quizzes.delete(quizId)
-        return
-      }
-    }
-    await queueSync('DELETE', `/cms/quiz/${quizId}`)
-    await db.quizzes.delete(quizId)
+    await this.request(`/cms/quiz/${quizId}`, { method: 'DELETE' })
   }
 
   async addPergunta(quizId: string, data: { pergunta: string; opcaoA: string; opcaoB: string; opcaoC?: string; opcaoD?: string; correta: string }) {
-    return this.writeWithCache(`/cms/quiz/${quizId}/perguntas`, 'POST', data, db.perguntas)
+    return this.request<any>(`/cms/quiz/${quizId}/perguntas`, { method: 'POST', body: JSON.stringify(data) })
   }
 
   async updatePergunta(perguntaId: string, data: any) {
-    return this.writeWithCache(`/cms/perguntas/${perguntaId}`, 'PUT', data, db.perguntas, {
-      offlineTransform: (body) => ({ ...body, id: perguntaId }),
-    })
+    return this.request<any>(`/cms/perguntas/${perguntaId}`, { method: 'PUT', body: JSON.stringify(data) })
   }
 
   async deletePergunta(perguntaId: string) {
-    if (isOnline() && this.token) {
-      try {
-        await this.request(`/cms/perguntas/${perguntaId}`, { method: 'DELETE' })
-        await db.perguntas.delete(perguntaId)
-        return
-      } catch {
-        await queueSync('DELETE', `/cms/perguntas/${perguntaId}`)
-        await db.perguntas.delete(perguntaId)
-        return
-      }
-    }
-    await queueSync('DELETE', `/cms/perguntas/${perguntaId}`)
-    await db.perguntas.delete(perguntaId)
+    await this.request(`/cms/perguntas/${perguntaId}`, { method: 'DELETE' })
   }
 
   async submitQuiz(quizId: string, respostas: Record<string, string>) {
-    return this.writeWithCache(`/cms/quiz/${quizId}/responder`, 'POST', { respostas }, db.quizResponses, {
-      offlineTransform: (_body) => ({
-        id: `pending-${Date.now()}`,
-        quizId,
-        userId: '',
-        nota: 0,
-        total: 0,
-        concluido: false,
-        _pending: true,
-      }),
+    return this.request<any>(`/cms/quiz/${quizId}/responder`, {
+      method: 'POST',
+      body: JSON.stringify({ respostas }),
     })
   }
 
   // ==================== PROGRESSO ====================
 
   async getProgresso() {
-    return this.getWithCache<any[]>('/progresso', db.progressos)
+    return this.request<any[]>('/progresso')
   }
 
   async updateProgresso(moduloId: string, aulaId: string, concluido: boolean) {
-    return this.writeWithCache('/progresso', 'PUT', { moduloId, aulaId, concluido }, db.progressos, {
-      offlineTransform: (_body) => ({
-        id: `pending-${Date.now()}`,
-        moduloId,
-        aulaId,
-        userId: '',
-        concluido,
-        _pending: true,
-      }),
+    return this.request<any>('/progresso', {
+      method: 'PUT',
+      body: JSON.stringify({ moduloId, aulaId, concluido }),
     })
   }
 
   async getProgressoStats() {
-    try {
-      return await this.request<any>('/progresso/stats')
-    } catch (error) {
-      const cached = await db.progressos.toArray()
-      if (cached.length > 0) {
-        const completed = cached.filter(p => p.concluido).length
-        return {
-          totalAulas: cached.length,
-          concluidas: completed,
-          percentual: cached.length > 0 ? Math.round((completed / cached.length) * 100) : 0,
-          modulosIniciados: new Set(cached.map(p => p.moduloId)).size,
-          xp: 0,
-        }
-      }
-      throw error
-    }
+    return this.request<any>('/progresso/stats')
   }
 
   // ==================== CERTIFICADOS ====================
 
   async getCertificates() {
-    const result = await this.getWithCache<any>('/certificates', db.certificates)
+    const result = await this.request<any>('/certificates')
     if (Array.isArray(result)) return result
     if (result?.data && Array.isArray(result.data)) return result.data
     return []
   }
 
   async createCertificate(moduloId: string) {
-    return this.writeWithCache('/certificates', 'POST', { moduloId }, db.certificates, {
-      offlineTransform: (_body) => ({
-        id: `pending-${Date.now()}`,
-        userId: '',
-        moduloId,
-        status: 'PENDING',
-        _pending: true,
-      }),
+    return this.request<any>('/certificates', {
+      method: 'POST',
+      body: JSON.stringify({ moduloId }),
     })
   }
 
   async approveCertificate(id: string) {
-    return this.writeWithCache(`/certificates/${id}/approve`, 'PUT', {}, db.certificates, {
-      offlineTransform: (_body) => ({ id, status: 'APPROVED', _pending: true }),
-    })
+    return this.request<any>(`/certificates/${id}/approve`, { method: 'PUT', body: JSON.stringify({}) })
   }
 
   // ==================== NOTIFICACIONES ====================
 
   async getNotifications() {
-    return this.getWithCache<any[]>('/notifications', db.notifications)
+    return this.request<any[]>('/notifications')
   }
 
   async sendNotification(toId: string, titulo: string, mensagem: string) {
@@ -506,48 +326,23 @@ class ApiClient {
   }
 
   async markNotificationRead(id: string) {
-    return this.writeWithCache(`/notifications/${id}/read`, 'PUT', {}, db.notifications, {
-      offlineTransform: (_body) => ({ id, lida: true, _pending: true }),
-    })
+    return this.request<any>(`/notifications/${id}/read`, { method: 'PUT', body: JSON.stringify({}) })
   }
 
   async markAllNotificationsRead() {
-    return this.writeWithCache('/notifications/read-all', 'PUT', {}, null)
+    return this.request<any>('/notifications/read-all', { method: 'PUT', body: JSON.stringify({}) })
   }
 
   // ==================== DASHBOARD ====================
 
   async getDashboard() {
-    try {
-      const data = await this.request<any>('/dashboard')
-      return data
-    } catch (error) {
-      const progressos = await db.progressos.toArray()
-      const modulos = await db.modulos.toArray()
-      const certificates = await db.certificates.toArray()
-      if (progressos.length > 0 || modulos.length > 0) {
-        const completed = progressos.filter(p => p.concluido).length
-        return {
-          totalModulos: modulos.length,
-          modulosConcluidos: 0,
-          totalCertificados: certificates.filter(c => c.status === 'ISSUED').length,
-          totalAulas: progressos.length,
-          aulasConcluidas: completed,
-          percentual: progressos.length > 0 ? Math.round((completed / progressos.length) * 100) : 0,
-          xp: 0,
-          level: 1,
-          recentActivity: [],
-          pointsByAction: [],
-        }
-      }
-      throw error
-    }
+    return this.request<any>('/dashboard')
   }
 
   // ==================== GAMIFICATION ====================
 
   async trackModuleOpen(moduloId: string) {
-    return this.writeWithCache(`/cms/${moduloId}/open`, 'POST', {}, null)
+    return this.request<any>(`/cms/${moduloId}/open`, { method: 'POST', body: JSON.stringify({}) })
   }
 
   async trackLessonView(aulaId: string) {
@@ -555,26 +350,15 @@ class ApiClient {
   }
 
   async getLeaderboard() {
-    return this.getWithCache<any[]>('/cms/gamification/leaderboard', db.users)
+    return this.request<any[]>('/cms/gamification/leaderboard')
   }
 
   async getGamificationStats() {
-    try {
-      return await this.request<any>('/cms/gamification/stats')
-    } catch {
-      const users = await db.users.toArray()
-      const totalXp = users.reduce((sum, u) => sum + (u.xp || 0), 0)
-      return {
-        totalXpDistributed: totalXp,
-        averageXp: users.length > 0 ? Math.round(totalXp / users.length) : 0,
-        totalUsers: users.length,
-        topActions: [],
-      }
-    }
+    return this.request<any>('/cms/gamification/stats')
   }
 
   async getDashboardLeaderboard() {
-    return this.getWithCache<any>('/dashboard/leaderboard', db.users)
+    return this.request<any>('/dashboard/leaderboard')
   }
 
   // ==================== ANALYTICS ====================
@@ -623,7 +407,7 @@ class ApiClient {
     })
   }
 
-  // ==================== GAMIFICATION ====================
+  // ==================== GAMIFICATION V2 ====================
 
   async getAchievements() {
     return this.request<any[]>('/gamification/achievements')

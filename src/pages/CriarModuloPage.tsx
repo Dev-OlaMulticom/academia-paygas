@@ -26,12 +26,8 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
     }
     setLoading(true)
     try {
-      const created: any = await api.createModulo(modulo)
-      if (String(created?.id).startsWith('pending-')) {
-        toast('Curso salvo offline — será sincronizado quando a conexão retornar', 'info')
-      } else {
-        toast('Curso criado com sucesso!', 'success')
-      }
+      await api.createModulo(modulo)
+      toast('Curso criado com sucesso!', 'success')
       navigate('/cms')
     } catch (err: any) {
       toast(err.message || 'Erro ao criar curso', 'error')

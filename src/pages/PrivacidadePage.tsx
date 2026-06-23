@@ -87,8 +87,8 @@ export function PrivacidadePage() {
 
           <h2 style={sectionTitle}>9. Cookies e Armazenamento Local</h2>
           <p style={bodyText}>
-            A Plataforma utiliza armazenamento local (localStorage e IndexedDB) para manter sua sessão ativa
-            e cache de dados para funcionamento offline. Nenhum dado pessoal sensível é armazenado em cookies de terceiros.
+            A Plataforma utiliza armazenamento local (localStorage) para manter sua sessão ativa.
+            Nenhum dado pessoal sensível é armazenado em cookies de terceiros.
           </p>
 
           <h2 style={sectionTitle}>10. Alterações desta Política</h2>

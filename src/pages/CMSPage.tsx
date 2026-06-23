@@ -155,7 +155,7 @@ export function CMSPage({ user }: CMSPageProps) {
         payload.pdfUrl = newAula.pdfUrl
       }
       const created: any = await api.createAula(selectedModulo.id, payload)
-      if (created?.id && !String(created.id).startsWith('pending-') && newAula.microLessons?.length > 0) {
+      if (created?.id && newAula.microLessons?.length > 0) {
         let licaoErrors = 0
         for (const ml of newAula.microLessons) {
           const inicioSeg = (ml.hours || 0) * 3600 + (ml.minutes || 0) * 60 + (ml.seconds || 0)
@@ -165,11 +165,7 @@ export function CMSPage({ user }: CMSPageProps) {
           toast(`Aula criada, mas ${licaoErrors} lição(ões) falhou ao salvar`, 'info')
         }
       }
-      if (String(created.id).startsWith('pending-')) {
-        toast('Aula salva offline — será sincronizada quando a conexão retornar', 'info')
-      } else {
-        toast('Aula criada com sucesso!', 'success')
-      }
+      toast('Aula criada com sucesso!', 'success')
       setShowAulaModal(false)
       setNewAula({ titulo: '', tipo: 'VIDEO', videoUrl: '', pdfUrl: '', obrigatorio: false, microLessons: [], duration: { hours: 0, minutes: 0, seconds: 0 } })
       loadAulas(selectedModulo.id)

@@ -5,7 +5,6 @@ import type { User } from '../hooks/useAuth'
 import { PERSONAS } from '../data/constants'
 import { APP_VERSION } from '../lib/constants'
 import { api } from '../lib/api'
-import { useSync } from '../hooks/useSync'
 
 interface AppLayoutProps {
   user: User
@@ -24,9 +23,6 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
   const isAdmin = user?.role === 'ADMIN'
   const isGestor = user?.role === 'GESTOR'
   const currentPath = location.pathname
-
-  // Activate offline sync queue processing
-  useSync()
 
   const isModuleEnabled = useCallback((key: string) => {
     if (enabledModules.length === 0) return true // Fallback: show all if not loaded yet
