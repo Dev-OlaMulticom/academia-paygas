@@ -45,6 +45,9 @@ export function CMSPage({ user }: CMSPageProps) {
   const [newQuizData, setNewQuizData] = useState({ titulo: '', autoGerarCertificado: false, notaMinima: 7 })
   const [showImportExport, setShowImportExport] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [editingQuizMeta, setEditingQuizMeta] = useState(false)
+  const [editingPerguntaId, setEditingPerguntaId] = useState<string | null>(null)
+  const [editPerguntaData, setEditPerguntaData] = useState({ pergunta: '', opcaoA: '', opcaoB: '', opcaoC: '', opcaoD: '', correta: 'A' })
 
   const isAdmin = user?.role === 'ADMIN'
 
@@ -290,6 +293,63 @@ export function CMSPage({ user }: CMSPageProps) {
       if (selectedModulo) loadAulas(selectedModulo.id)
     } catch (err: any) {
       toast(err.message || 'Erro ao excluir pergunta', 'error')
+    }
+  }
+
+  const handleUpdateQuizMeta = async () => {
+    if (!editingQuiz) return
+    try {
+      const updated = await api.updateQuiz(editingQuiz.id, {
+        titulo: editingQuiz.titulo,
+        autoGerarCertificado: editingQuiz.autoGerarCertificado,
+        notaMinima: editingQuiz.notaMinima,
+      })
+      setEditingQuiz(updated)
+      setEditingQuizMeta(false)
+      toast('Quiz atualizado!', 'success')
+      loadAulas(selectedModulo.id)
+    } catch (err: any) {
+      toast(err.message || 'Erro ao atualizar quiz', 'error')
+    }
+  }
+
+  const handleDeleteQuiz = async () => {
+    if (!editingQuiz) return
+    const ok = await confirm({
+      title: 'Excluir Quiz',
+      message: `Tem certeza que deseja excluir o quiz "${editingQuiz.titulo}" e todas as suas perguntas?`,
+      confirmLabel: 'Excluir',
+      danger: true,
+    })
+    if (!ok) return
+    try {
+      await api.deleteQuiz(editingQuiz.id)
+      toast('Quiz excluído!', 'success')
+      setEditingQuiz(null)
+      setEditingQuizMeta(false)
+      setShowQuizModal(false)
+      setQuizAula(null)
+      if (selectedModulo) loadAulas(selectedModulo.id)
+    } catch (err: any) {
+      toast(err.message || 'Erro ao excluir quiz', 'error')
+    }
+  }
+
+  const handleStartEditPergunta = (p: any) => {
+    setEditingPerguntaId(p.id)
+    setEditPerguntaData({ pergunta: p.pergunta, opcaoA: p.opcaoA, opcaoB: p.opcaoB, opcaoC: p.opcaoC || '', opcaoD: p.opcaoD || '', correta: p.correta })
+  }
+
+  const handleSaveEditPergunta = async () => {
+    if (!editingPerguntaId) return
+    try {
+      await api.updatePergunta(editingPerguntaId, editPerguntaData)
+      const updatedQuiz = await api.getQuiz(selectedModulo.id, quizAula.id)
+      setEditingQuiz(updatedQuiz)
+      setEditingPerguntaId(null)
+      toast('Pergunta atualizada!', 'success')
+    } catch (err: any) {
+      toast(err.message || 'Erro ao atualizar pergunta', 'error')
     }
   }
 
@@ -827,12 +887,51 @@ export function CMSPage({ user }: CMSPageProps) {
               </div>
             ) : (
               <div>
+                {/* Quiz meta info + edit/delete buttons */}
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
                   <span style={{ color: 'var(--gray-500)' }}>{editingQuiz.perguntas?.length || 0} {pluralize(editingQuiz.perguntas?.length || 0, 'pergunta')}</span>
-                  <span className={`track-badge ${editingQuiz.autoGerarCertificado ? 'badge-done' : 'badge-new'}`}>
-                    {editingQuiz.autoGerarCertificado ? 'Certificado Automático' : 'Sem Certificado Auto'}
-                  </span>
+                  <div style={{ display: 'flex', gap: '6px', alignItems: 'center' }}>
+                    <span className={`track-badge ${editingQuiz.autoGerarCertificado ? 'badge-done' : 'badge-new'}`}>
+                      {editingQuiz.autoGerarCertificado ? 'Certificado Automático' : 'Sem Certificado Auto'}
+                    </span>
+                    {isAdmin && !editingQuizMeta && (
+                      <button id="btn-editar-quiz-meta" className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setEditingQuizMeta(true)}>
+                        <i className="icon-pencil icon-xs" /> Editar Quiz
+                      </button>
+                    )}
+                    {isAdmin && (
+                      <button id="btn-excluir-quiz" className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)' }} onClick={handleDeleteQuiz}>
+                        <i className="icon-trash-2 icon-xs" /> Excluir
+                      </button>
+                    )}
+                  </div>
                 </div>
+
+                {/* Edit quiz metadata */}
+                {editingQuizMeta && (
+                  <div style={{ background: '#f8f9fa', border: '1px solid var(--gray-200)', borderRadius: '8px', padding: '12px', marginBottom: '16px' }}>
+                    <h4 style={{ marginBottom: '8px', fontSize: '13px' }}>Editar Configurações do Quiz</h4>
+                    <div className="form-field">
+                      <label className="form-label">Título</label>
+                      <input id="quiz-edit-titulo" className="form-input" value={editingQuiz.titulo} onChange={e => setEditingQuiz({ ...editingQuiz, titulo: e.target.value })} />
+                    </div>
+                    <div className="form-field">
+                      <label className="form-label">Nota Mínima (0-10)</label>
+                      <input id="quiz-edit-nota" className="form-input" type="number" min="0" max="10" value={editingQuiz.notaMinima ?? 7} onChange={e => setEditingQuiz({ ...editingQuiz, notaMinima: parseInt(e.target.value) || 7 })} />
+                    </div>
+                    <div className="form-field">
+                      <label className="form-label">Certificado Automático</label>
+                      <select id="quiz-edit-cert" className="form-select" value={editingQuiz.autoGerarCertificado ? 'true' : 'false'} onChange={e => setEditingQuiz({ ...editingQuiz, autoGerarCertificado: e.target.value === 'true' })}>
+                        <option value="false">Não</option>
+                        <option value="true">Sim</option>
+                      </select>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button id="btn-salvar-quiz-meta" className="btn-primary" style={{ fontSize: '12px' }} onClick={handleUpdateQuizMeta}>Salvar</button>
+                      <button id="btn-cancelar-quiz-meta" className="btn-secondary" style={{ fontSize: '12px' }} onClick={() => setEditingQuizMeta(false)}>Cancelar</button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Existing questions */}
                 {editingQuiz.perguntas?.length > 0 && (
@@ -840,19 +939,64 @@ export function CMSPage({ user }: CMSPageProps) {
                     <h4 style={{ marginBottom: '8px' }}>Perguntas Existentes</h4>
                     {editingQuiz.perguntas.map((p: any, i: number) => (
                       <div key={p.id} style={{ padding: '12px', background: '#f9f9f9', borderRadius: '8px', marginBottom: '8px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        {editingPerguntaId === p.id ? (
                           <div>
-                            <p style={{ fontWeight: 600, margin: 0 }}>{i + 1}. {p.pergunta}</p>
-                            <p style={{ fontSize: '12px', color: 'var(--gray-500)', margin: '4px 0 0' }}>
-                              A: {p.opcaoA} | B: {p.opcaoB} {p.opcaoC ? `| C: ${p.opcaoC}` : ''} {p.opcaoD ? `| D: ${p.opcaoD}` : ''} | Resposta: <b>{p.correta}</b>
-                            </p>
+                            <div className="form-field">
+                              <label className="form-label">Pergunta</label>
+                              <textarea id="edit-pergunta-texto" className="form-input" value={editPerguntaData.pergunta} onChange={e => setEditPerguntaData({ ...editPerguntaData, pergunta: e.target.value })} />
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+                              <div className="form-field">
+                                <label className="form-label">A *</label>
+                                <input id="edit-pergunta-opcao-a" className="form-input" value={editPerguntaData.opcaoA} onChange={e => setEditPerguntaData({ ...editPerguntaData, opcaoA: e.target.value })} />
+                              </div>
+                              <div className="form-field">
+                                <label className="form-label">B *</label>
+                                <input id="edit-pergunta-opcao-b" className="form-input" value={editPerguntaData.opcaoB} onChange={e => setEditPerguntaData({ ...editPerguntaData, opcaoB: e.target.value })} />
+                              </div>
+                              <div className="form-field">
+                                <label className="form-label">C</label>
+                                <input id="edit-pergunta-opcao-c" className="form-input" value={editPerguntaData.opcaoC} onChange={e => setEditPerguntaData({ ...editPerguntaData, opcaoC: e.target.value })} />
+                              </div>
+                              <div className="form-field">
+                                <label className="form-label">D</label>
+                                <input id="edit-pergunta-opcao-d" className="form-input" value={editPerguntaData.opcaoD} onChange={e => setEditPerguntaData({ ...editPerguntaData, opcaoD: e.target.value })} />
+                              </div>
+                            </div>
+                            <div className="form-field">
+                              <label className="form-label">Resposta Correta</label>
+                              <select id="edit-pergunta-correta" className="form-select" value={editPerguntaData.correta} onChange={e => setEditPerguntaData({ ...editPerguntaData, correta: e.target.value })}>
+                                <option value="A">A</option>
+                                <option value="B">B</option>
+                                {editPerguntaData.opcaoC && <option value="C">C</option>}
+                                {editPerguntaData.opcaoD && <option value="D">D</option>}
+                              </select>
+                            </div>
+                            <div style={{ display: 'flex', gap: '6px' }}>
+                              <button id="btn-salvar-pergunta" className="btn-primary" style={{ fontSize: '11px', padding: '4px 10px' }} onClick={handleSaveEditPergunta}>Salvar</button>
+                              <button id="btn-cancelar-pergunta" className="btn-secondary" style={{ fontSize: '11px', padding: '4px 10px' }} onClick={() => setEditingPerguntaId(null)}>Cancelar</button>
+                            </div>
                           </div>
-                          {isAdmin && (
-                            <button id={`btn-delete-pergunta-${p.id}`} className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)' }} onClick={() => handleDeletePergunta(p.id)}>
-                              <i className="icon-trash-2 icon-xs" />
-                            </button>
-                          )}
-                        </div>
+                        ) : (
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                            <div>
+                              <p style={{ fontWeight: 600, margin: 0 }}>{i + 1}. {p.pergunta}</p>
+                              <p style={{ fontSize: '12px', color: 'var(--gray-500)', margin: '4px 0 0' }}>
+                                A: {p.opcaoA} | B: {p.opcaoB} {p.opcaoC ? `| C: ${p.opcaoC}` : ''} {p.opcaoD ? `| D: ${p.opcaoD}` : ''} | Resposta: <b>{p.correta}</b>
+                              </p>
+                            </div>
+                            {isAdmin && (
+                              <div style={{ display: 'flex', gap: '4px' }}>
+                                <button id={`btn-edit-pergunta-${p.id}`} className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => handleStartEditPergunta(p)}>
+                                  <i className="icon-pencil icon-xs" />
+                                </button>
+                                <button id={`btn-delete-pergunta-${p.id}`} className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)' }} onClick={() => handleDeletePergunta(p.id)}>
+                                  <i className="icon-trash-2 icon-xs" />
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
