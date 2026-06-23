@@ -66,11 +66,13 @@ model Modulo {
   titulo           String
   descricao        String
   ordem            Int
+  icone            String?
   videoUrl         String?
   videoInicio      Int?
   videoFim         Int?
   obrigatorio      Boolean  @default(false)
   autoCertificado  Boolean  @default(false)
+  certificadoTemplate String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 

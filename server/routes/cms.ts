@@ -45,7 +45,7 @@ router.get('/', authenticate, async (req: any, res) => {
 // POST /api/cms/modulos
 router.post('/', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
-    const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado } = req.body
+    const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado, icone, certificadoTemplate } = req.body
     if (!titulo) {
       return res.status(400).json({ error: 'Título é obrigatório' })
     }
@@ -59,11 +59,13 @@ router.post('/', authenticate, authorize('ADMIN'), async (req: any, res) => {
         titulo,
         descricao: descricao || '',
         ordem: ordem ?? ((maxOrdem._max.ordem ?? 0) + 1),
+        icone: icone || null,
         videoUrl: videoUrl || null,
         videoInicio: videoInicio || null,
         videoFim: videoFim || null,
         obrigatorio: obrigatorio || false,
         autoCertificado: autoCertificado || false,
+        certificadoTemplate: certificadoTemplate || null,
       },
     })
     await logActivity(req.userId!, 'Criar Modulo', `Modulo: ${titulo}`)
@@ -77,12 +79,12 @@ router.post('/', authenticate, authorize('ADMIN'), async (req: any, res) => {
 // PUT /api/cms/modulos/:id
 router.put('/:id', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
-    const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado } = req.body
+    const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado, icone, certificadoTemplate } = req.body
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
     const modulo = await prisma.modulo.update({
       where: { id },
-      data: { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado },
+      data: { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado, icone, certificadoTemplate },
     })
     await logActivity(req.userId!, 'Editar Modulo', `Modulo: ${modulo.titulo}`)
     res.json(modulo)

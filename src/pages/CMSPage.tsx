@@ -7,6 +7,8 @@ import { VideoPreview } from '../components/VideoPreview'
 import { PDFViewer } from '../components/PDFViewer'
 import { useToast, useConfirm } from '../components/Toast'
 
+const EMOJI_OPTIONS = ['📚', '🎓', '💪', '⭐', '🏆', '🎯', '🔥', '✅', '📖', '💡', '🚀', '🤝', '🛡️', '⛽', '🧑‍💼', '🔧', '📋', '🔑', '🏆', '🌟']
+
 
 interface CMSPageProps {
   user: User
@@ -86,7 +88,7 @@ export function CMSPage({ user }: CMSPageProps) {
   const handleEditModulo = async () => {
     if (!editingMod) return
     try {
-      await api.updateModulo(editingMod.id, { titulo: editingMod.titulo, descricao: editingMod.descricao, obrigatorio: editingMod.obrigatorio, autoCertificado: editingMod.autoCertificado })
+      await api.updateModulo(editingMod.id, { titulo: editingMod.titulo, descricao: editingMod.descricao, obrigatorio: editingMod.obrigatorio, autoCertificado: editingMod.autoCertificado, icone: editingMod.icone, certificadoTemplate: editingMod.certificadoTemplate })
       toast('Curso atualizado!', 'success')
       setEditingMod(null)
       loadModulos()
@@ -468,7 +470,7 @@ export function CMSPage({ user }: CMSPageProps) {
               {modulos.length > 0 ? (
                 modulos.map((mod) => (
                   <tr key={mod.id}>
-                    <td><b>{mod.titulo}</b></td>
+                    <td><b>{mod.icone || '📚'} {mod.titulo}</b></td>
                     <td style={{ color: 'var(--gray-500)', fontSize: '13px' }}>{mod.descricao || '—'}</td>
                     <td>{mod._count?.aulas || 0} {pluralize(mod._count?.aulas || 0, 'aula')}</td>
                     <td style={{ display: 'flex', gap: '6px' }}>
@@ -543,53 +545,55 @@ export function CMSPage({ user }: CMSPageProps) {
       {/* Modal Editar Curso */}
       {editingMod && (
         <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '24px', width: '400px', maxWidth: '90%' }}>
+          <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '24px', width: '700px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
             <h3 style={{ marginBottom: '16px' }}>Editar Curso</h3>
-            <div className="form-field"><label className="form-label">Título</label><input className="form-input" value={editingMod.titulo} onChange={e => setEditingMod({ ...editingMod, titulo: e.target.value })} /></div>
-            <div className="form-field"><label className="form-label">Descrição</label><textarea className="form-input" value={editingMod.descricao || ''} onChange={e => setEditingMod({ ...editingMod, descricao: e.target.value })} /></div>
+            <div className="form-field"><label className="form-label">Título</label><input id="mod-edit-titulo" className="form-input" value={editingMod.titulo} onChange={e => setEditingMod({ ...editingMod, titulo: e.target.value })} /></div>
+            <div className="form-field">
+              <label className="form-label">Ícone / Emoji</label>
+              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <button id="mod-edit-icone-btn" type="button" className="btn-secondary" style={{ fontSize: '24px', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setEditingMod({ ...editingMod, _showEmoji: !editingMod._showEmoji })}>
+                  {editingMod.icone || '📚'}
+                </button>
+                {editingMod._showEmoji && (
+                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', padding: '8px', background: '#f9f9f9', borderRadius: '8px', border: '1px solid var(--gray-200)' }}>
+                    {EMOJI_OPTIONS.map(em => (
+                      <button key={em} type="button" style={{ fontSize: '20px', background: editingMod.icone === em ? '#e3f2fd' : 'transparent', border: editingMod.icone === em ? '2px solid #1976d2' : '2px solid transparent', borderRadius: '6px', cursor: 'pointer', padding: '4px' }} onClick={() => setEditingMod({ ...editingMod, icone: em, _showEmoji: false })}>
+                        {em}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="form-field"><label className="form-label">Descrição</label><textarea id="mod-edit-descricao" className="form-input" value={editingMod.descricao || ''} onChange={e => setEditingMod({ ...editingMod, descricao: e.target.value })} /></div>
             <div className="form-field">
               <label className="form-label">Obrigatório</label>
-              <select className="form-select" value={editingMod.obrigatorio ? 'true' : 'false'} onChange={e => setEditingMod({ ...editingMod, obrigatorio: e.target.value === 'true' })}>
+              <select id="mod-edit-obrigatorio" className="form-select" value={editingMod.obrigatorio ? 'true' : 'false'} onChange={e => setEditingMod({ ...editingMod, obrigatorio: e.target.value === 'true' })}>
                 <option value="false">Não</option>
                 <option value="true">Sim</option>
               </select>
             </div>
             <div className="form-field">
-              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                Gerar Certificado Automaticamente
-                <span style={{ position: 'relative', display: 'inline-flex', alignItems: 'center' }}>
-                  <i className="icon-info icon-sm" style={{ color: 'var(--gray-400)', cursor: 'help' }} />
-                  <span style={{
-                    position: 'absolute',
-                    bottom: '100%',
-                    left: '50%',
-                    transform: 'translateX(-50%)',
-                    background: 'var(--gray-800)',
-                    color: '#fff',
-                    padding: '8px 12px',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    whiteSpace: 'nowrap',
-                    opacity: 0,
-                    visibility: 'hidden',
-                    transition: 'opacity 0.2s, visibility 0.2s',
-                    marginBottom: '8px',
-                    zIndex: 100
-                  }} className="tooltip-content">
-                    Ativado: O certificado é gerado automaticamente ao concluir a avaliação
-                    <br />
-                    Desativado: O gestor do posto deve aprovar antes de gerar o certificado
-                  </span>
-                </span>
-              </label>
-              <select className="form-select" value={editingMod.autoCertificado ? 'true' : 'false'} onChange={e => setEditingMod({ ...editingMod, autoCertificado: e.target.value === 'true' })}>
+              <label className="form-label">Gerar Certificado Automaticamente</label>
+              <select id="mod-edit-autoCert" className="form-select" value={editingMod.autoCertificado ? 'true' : 'false'} onChange={e => setEditingMod({ ...editingMod, autoCertificado: e.target.value === 'true' })}>
                 <option value="false">Não (Requer aprovação do gestor)</option>
                 <option value="true">Sim (Automático ao concluir)</option>
               </select>
             </div>
+            <div className="form-field">
+              <label className="form-label">Template do Certificado (HTML)</label>
+              <p style={{ fontSize: '12px', color: 'var(--gray-500)', margin: '0 0 8px' }}>
+                Variáveis: {'{{MODULO_ICONE}}'} {'{{MODULO_TITULO}}'} {'{{USUARIO_NOME}}'} {'{{DATA}}'}
+              </p>
+              <textarea id="mod-edit-template" className="form-input" value={editingMod.certificadoTemplate || ''} onChange={e => setEditingMod({ ...editingMod, certificadoTemplate: e.target.value })} rows={8} style={{ fontFamily: 'monospace', fontSize: '12px' }} />
+              <div style={{ marginTop: '12px' }}>
+                <label className="form-label">Prévia do Certificado</label>
+                <div id="mod-edit-cert-preview" style={{ border: '1px solid var(--gray-200)', borderRadius: '8px', padding: '16px', background: '#f5f5f5', display: 'flex', justifyContent: 'center', overflow: 'auto' }} dangerouslySetInnerHTML={{ __html: (editingMod.certificadoTemplate || '').replace(/\{\{MODULO_ICONE\}\}/g, editingMod.icone || '📚').replace(/\{\{MODULO_TITULO\}\}/g, editingMod.titulo || '').replace(/\{\{USUARIO_NOME\}\}/g, 'João da Silva').replace(/\{\{DATA\}\}/g, new Date().toLocaleDateString('pt-BR')) }} />
+              </div>
+            </div>
             <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-              <button className="btn-primary" onClick={handleEditModulo}>Salvar</button>
-              <button className="btn-secondary" onClick={() => setEditingMod(null)}>Cancelar</button>
+              <button id="mod-edit-salvar" className="btn-primary" onClick={handleEditModulo}>Salvar</button>
+              <button id="mod-edit-cancelar" className="btn-secondary" onClick={() => setEditingMod(null)}>Cancelar</button>
             </div>
           </div>
         </div>
