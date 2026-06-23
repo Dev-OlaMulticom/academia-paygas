@@ -4,6 +4,7 @@ import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
 import { pluralize } from '../lib/utils'
 import { VideoPreview } from '../components/VideoPreview'
+import { PDFViewer } from '../components/PDFViewer'
 import { useToast, useConfirm } from '../components/Toast'
 
 
@@ -152,13 +153,21 @@ export function CMSPage({ user }: CMSPageProps) {
         payload.pdfUrl = newAula.pdfUrl
       }
       const created: any = await api.createAula(selectedModulo.id, payload)
-      if (created?.id && newAula.microLessons?.length > 0) {
+      if (created?.id && !String(created.id).startsWith('pending-') && newAula.microLessons?.length > 0) {
+        let licaoErrors = 0
         for (const ml of newAula.microLessons) {
           const inicioSeg = (ml.hours || 0) * 3600 + (ml.minutes || 0) * 60 + (ml.seconds || 0)
-          await api.createLicao(created.id, { titulo: ml.titulo, tipo: 'VIDEO', conteudo: newAula.videoUrl || null, inicioSeg }).catch(() => {})
+          await api.createLicao(created.id, { titulo: ml.titulo || 'Sem titulo', tipo: 'VIDEO', conteudo: newAula.videoUrl || null, inicioSeg }).catch(() => { licaoErrors++ })
+        }
+        if (licaoErrors > 0) {
+          toast(`Aula criada, mas ${licaoErrors} lição(ões) falhou ao salvar`, 'info')
         }
       }
-      toast('Aula criada com sucesso!', 'success')
+      if (String(created.id).startsWith('pending-')) {
+        toast('Aula salva offline — será sincronizada quando a conexão retornar', 'info')
+      } else {
+        toast('Aula criada com sucesso!', 'success')
+      }
       setShowAulaModal(false)
       setNewAula({ titulo: '', tipo: 'VIDEO', videoUrl: '', pdfUrl: '', obrigatorio: false, microLessons: [], duration: { hours: 0, minutes: 0, seconds: 0 } })
       loadAulas(selectedModulo.id)
@@ -180,16 +189,21 @@ export function CMSPage({ user }: CMSPageProps) {
           await api.deleteLicao(lid).catch(() => {})
         }
       }
+      let licaoErrors = 0
       for (const ml of microLessons) {
         const inicioSeg = (ml.hours || 0) * 3600 + (ml.minutes || 0) * 60 + (ml.seconds || 0)
-        const payload = { titulo: ml.titulo, tipo: 'VIDEO', conteudo: editingAula.videoUrl || null, inicioSeg }
+        const payload = { titulo: ml.titulo || 'Sem titulo', tipo: 'VIDEO', conteudo: editingAula.videoUrl || null, inicioSeg }
         if (ml.id) {
           await api.updateLicao(ml.id, payload).catch(() => {})
         } else {
-          await api.createLicao(editingAula.id, payload).catch(() => {})
+          await api.createLicao(editingAula.id, payload).catch(() => { licaoErrors++ })
         }
       }
-      toast('Aula atualizada!', 'success')
+      if (licaoErrors > 0) {
+        toast(`Aula atualizada, mas ${licaoErrors} lição(ões) falhou ao salvar`, 'info')
+      } else {
+        toast('Aula atualizada!', 'success')
+      }
       setEditingAula(null)
       loadAulas(selectedModulo.id)
     } catch (err: any) {
@@ -555,9 +569,13 @@ export function CMSPage({ user }: CMSPageProps) {
                 {newAula.tipo === 'PDF' && (
                   <div className="form-field">
                     <label className="form-label">Prévia do PDF</label>
-                    <div style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '40px', border: '2px dashed var(--gray-200)', borderRadius: 'var(--radius)' }}>
-                      A prévia do PDF será exibida aqui
-                    </div>
+                    {newAula.pdfUrl ? (
+                      <PDFViewer url={newAula.pdfUrl} />
+                    ) : (
+                      <div style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '40px', border: '2px dashed var(--gray-200)', borderRadius: 'var(--radius)' }}>
+                        Insira a URL do PDF para visualizar a prévia
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -692,9 +710,13 @@ export function CMSPage({ user }: CMSPageProps) {
                 {editingAula.tipo === 'PDF' && (
                   <div className="form-field">
                     <label className="form-label">Prévia do PDF</label>
-                    <div style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '40px', border: '2px dashed var(--gray-200)', borderRadius: 'var(--radius)' }}>
-                      A prévia do PDF será exibida aqui
-                    </div>
+                    {editingAula.pdfUrl ? (
+                      <PDFViewer url={editingAula.pdfUrl} />
+                    ) : (
+                      <div style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '40px', border: '2px dashed var(--gray-200)', borderRadius: 'var(--radius)' }}>
+                        Insira a URL do PDF para visualizar a prévia
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

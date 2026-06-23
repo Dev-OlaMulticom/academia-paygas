@@ -125,49 +125,7 @@ router.get('/:id/aulas', authenticate, async (req: any, res) => {
       orderBy: { ordem: 'asc' },
     })
 
-    if (aulas.length === 0) {
-      // Try to auto-seed demo aulas; if race condition causes duplicates, just skip
-      try {
-        const modulo = await prisma.modulo.findUnique({ where: { id: moduloId } })
-        const titulo = modulo?.titulo || 'Modulo'
-        const demoAulas = [
-          { titulo: `Introducao a ${titulo}`, descricao: `Conceitos basicos e visao geral de ${titulo}.` },
-          { titulo: `Praticas Fundamentais`, descricao: `Melhores praticas e tecnicas essenciais.` },
-          { titulo: `Aplicacao Pratica`, descricao: `Exercicios praticos e estudos de caso.` },
-        ]
-
-        for (let i = 0; i < demoAulas.length; i++) {
-          const d = demoAulas[i]
-          const aula = await prisma.aula.create({
-            data: { moduloId, titulo: d.titulo, descricao: d.descricao, ordem: i + 1 },
-          })
-          const quiz = await prisma.quiz.create({
-            data: { aulaId: aula.id, titulo: `Quiz: ${d.titulo}`, autoGerarCertificado: i === demoAulas.length - 1 },
-          })
-          await prisma.quizPergunta.create({
-            data: {
-              quizId: quiz.id, pergunta: `Pergunta principal sobre ${d.titulo}?`,
-              opcaoA: 'Alternativa incorreta A', opcaoB: 'Alternativa correta',
-              opcaoC: 'Alternativa incorreta C', opcaoD: 'Alternativa incorreta D',
-              correta: 'B', ordem: 1,
-            },
-          })
-        }
-      } catch (seedError) {
-        // Race condition: another request already created the aulas, just continue
-        console.warn('[CMS AUTO-SEED] Skipped (likely race condition):', (seedError as Error).message)
-      }
-
-      aulas = await prisma.aula.findMany({
-        where: { moduloId },
-        include: {
-          quiz: { include: { perguntas: true } },
-          licoes: { orderBy: { ordem: 'asc' } },
-          progressos: { where: { userId: req.userId }, select: { concluido: true } },
-        },
-        orderBy: { ordem: 'asc' },
-      })
-    }
+    // No auto-seeding: aulas are created explicitly by ADMIN via POST
 
     const result = aulas.map(a => ({
       ...a,
@@ -510,7 +468,7 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
 
     const total = quiz.perguntas.length
     const nota = total > 0 ? Math.round((correct / total) * 10) : 0
-    const concluido = nota >= 7
+    const concluido = nota >= (quiz.notaMinima || 7)
 
     const response = await prisma.quizResponse.upsert({
       where: { quizId_userId: { quizId: req.params.quizId, userId: req.userId } },
