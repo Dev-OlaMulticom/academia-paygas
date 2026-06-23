@@ -83,7 +83,7 @@ class ApiClient {
   }
 
   async clearAllCache() {
-    await db.delete()
+    await db.clearAll()
     window.location.reload()
   }
 

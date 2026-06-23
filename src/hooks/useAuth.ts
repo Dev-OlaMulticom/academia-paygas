@@ -65,8 +65,8 @@ export function useAuth() {
   }, [])
 
   const handleLogin = async (userData: User, token: string) => {
-    // Clear stale IndexedDB cache before setting new session
-    await db.delete().catch(() => {})
+    // Clear stale IndexedDB data before setting new session
+    await db.clearAll().catch(() => {})
     setUser(userData)
     localStorage.setItem('user', JSON.stringify(userData))
     api.setToken(token)
@@ -79,8 +79,8 @@ export function useAuth() {
     localStorage.removeItem('user')
     api.logout()
     resetEncryptionKey()
-    // Clear all IndexedDB tables and the database itself
-    await db.delete().catch(() => {})
+    // Clear all IndexedDB tables (not db.delete, which destroys the DB instance)
+    await db.clearAll().catch(() => {})
   }
 
   const persona = user ? PERSONAS[user.role as keyof typeof PERSONAS] : null

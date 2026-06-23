@@ -163,6 +163,23 @@ class AcademiaDB extends Dexie {
       syncQueue: '++id, createdAt',
     })
   }
+
+  async clearAll() {
+    await Promise.all([
+      this.modulos.clear(),
+      this.aulas.clear(),
+      this.quizzes.clear(),
+      this.perguntas.clear(),
+      this.quizResponses.clear(),
+      this.progressos.clear(),
+      this.certificates.clear(),
+      this.notifications.clear(),
+      this.activityLogs.clear(),
+      this.pointsTransactions.clear(),
+      this.users.clear(),
+      this.syncQueue.clear(),
+    ])
+  }
 }
 
 export const db = new AcademiaDB()
