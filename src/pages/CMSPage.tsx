@@ -879,6 +879,10 @@ export function CMSPage({ user }: CMSPageProps) {
                 <div className="form-field">
                   <label className="form-label">Nota Mínima para Aprovação (0-10)</label>
                   <input id="quiz-nota-minima" className="form-input" type="number" min="0" max="10" value={newQuizData.notaMinima} onChange={e => setNewQuizData({ ...newQuizData, notaMinima: parseInt(e.target.value) || 7 })} />
+                  <p style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '4px' }}>
+                    Fórmula: nota = (respostas corretas ÷ total de perguntas) × 10.
+                    Ex: nota mínima 7 = acertar pelo menos 70% das perguntas.
+                  </p>
                 </div>
                 <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
                   <button id="btn-criar-quiz" className="btn-primary" onClick={handleCreateQuiz}>Criar Quiz</button>
@@ -918,6 +922,15 @@ export function CMSPage({ user }: CMSPageProps) {
                     <div className="form-field">
                       <label className="form-label">Nota Mínima (0-10)</label>
                       <input id="quiz-edit-nota" className="form-input" type="number" min="0" max="10" value={editingQuiz.notaMinima ?? 7} onChange={e => setEditingQuiz({ ...editingQuiz, notaMinima: parseInt(e.target.value) || 7 })} />
+                      <p style={{ fontSize: '11px', color: 'var(--gray-500)', marginTop: '4px' }}>
+                        {(() => {
+                          const total = editingQuiz.perguntas?.length || 0
+                          const minima = editingQuiz.notaMinima ?? 7
+                          if (total === 0) return `Nota ${minima}/10 = acertar pelo menos ${minima}% das perguntas.`
+                          const needed = Math.ceil((minima / 10) * total)
+                          return `Com ${total} ${pluralize(total, 'pergunta')}, o aluno precisa acertar pelo menos ${needed} ${pluralize(needed, 'resposta')} (${minima}/10).`
+                        })()}
+                      </p>
                     </div>
                     <div className="form-field">
                       <label className="form-label">Certificado Automático</label>
