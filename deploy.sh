@@ -290,12 +290,11 @@ if [ "$WEB_SERVER" = "nginx" ]; then
     # Crear snippet de nginx para proxy /api/ a Node.js
     NGINX_SNIPPET="/etc/nginx/conf.d/users/olamulticomcom/academia.paygas.com.br.olamulticom.com.br/nodejs-app.conf"
 
-    # Solo crear si no existe
-    if [ ! -f "$NGINX_SNIPPET" ]; then
-        log_fix "Creando snippet nginx para Node.js..."
+    # Siempre recrear snippet para asegurar config actualizada
+    log_fix "Actualizando snippet nginx para Node.js..."
 
-        INCLUDE_DIR="/etc/nginx/conf.d/users/olamulticomcom/academia.paygas.com.br.olamulticom.com.br"
-        mkdir -p "$INCLUDE_DIR"
+    INCLUDE_DIR="/etc/nginx/conf.d/users/olamulticomcom/academia.paygas.com.br.olamulticom.com.br"
+    mkdir -p "$INCLUDE_DIR"
 
         cat > "$NGINX_SNIPPET" << 'NGINX_EOF'
 # ─── Node.js API proxy ────────────────────────────────────
@@ -322,19 +321,23 @@ location ^~ /assets/ {
     add_header Cache-Control "public, immutable";
     access_log off;
 }
+
+# ─── index.html: NUNCA cachear (SPA entry point) ──────────
+location = /index.html {
+    root /home/olamulticomcom/public_html/academia-paygas/dist;
+    add_header Cache-Control "no-cache, no-store, must-revalidate";
+    add_header Pragma "no-cache";
+    add_header Expires "0";
+}
 NGINX_EOF
-        log_ok "Snippet nginx creado: $NGINX_SNIPPET"
+        log_ok "Snippet nginx actualizado: $NGINX_SNIPPET"
 
         # Reload nginx
         if nginx -t 2>/dev/null; then
             nginx -s reload 2>/dev/null && log_ok "nginx recargado" || log_warn "No se pudo recargar nginx"
         else
-            log_warn "Error de sintaxis en nginx, revertiendo..."
-            rm -f "$NGINX_SNIPPET"
+            log_warn "Error de sintaxis en nginx"
         fi
-    else
-        log_ok "Snippet nginx ya existe"
-    fi
 
     echo ""
 fi

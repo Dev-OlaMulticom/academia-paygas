@@ -253,7 +253,11 @@ export function CMSPage({ user }: CMSPageProps) {
   }
 
   const handleAddPergunta = async () => {
-    if (!editingQuiz || !newPergunta.pergunta || !newPergunta.opcaoA || !newPergunta.opcaoB) {
+    if (!editingQuiz || !editingQuiz.id) {
+      toast('Salve o quiz primeiro antes de adicionar perguntas!', 'info')
+      return
+    }
+    if (!newPergunta.pergunta || !newPergunta.opcaoA || !newPergunta.opcaoB) {
       toast('Pergunta e opções A e B são obrigatórias!', 'info')
       return
     }
