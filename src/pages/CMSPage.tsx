@@ -42,6 +42,7 @@ export function CMSPage({ user }: CMSPageProps) {
   const [quizAula, setQuizAula] = useState<any>(null)
   const [showQuizModal, setShowQuizModal] = useState(false)
   const [newPergunta, setNewPergunta] = useState({ pergunta: '', opcaoA: '', opcaoB: '', opcaoC: '', opcaoD: '', correta: 'A' })
+  const [newQuizData, setNewQuizData] = useState({ titulo: '', autoGerarCertificado: false, notaMinima: 7 })
   const [showImportExport, setShowImportExport] = useState(false)
   const [importing, setImporting] = useState(false)
 
@@ -230,19 +231,20 @@ export function CMSPage({ user }: CMSPageProps) {
     if (aula.quiz) {
       setEditingQuiz(aula.quiz)
     } else {
-      setEditingQuiz({ titulo: `Quiz: ${aula.titulo}`, autoGerarCertificado: false, notaMinima: 7, perguntas: [] })
+      setEditingQuiz(null)
+      setNewQuizData({ titulo: `Quiz: ${aula.titulo}`, autoGerarCertificado: false, notaMinima: 7 })
     }
     setShowQuizModal(true)
   }
 
   const handleCreateQuiz = async () => {
-    if (!quizAula || !editingQuiz) return
+    if (!quizAula) return
     try {
       const created = await api.createQuiz(selectedModulo.id, {
         aulaId: quizAula.id,
-        titulo: editingQuiz.titulo || `Quiz: ${quizAula.titulo}`,
-        autoGerarCertificado: editingQuiz.autoGerarCertificado || false,
-        notaMinima: typeof editingQuiz.notaMinima === 'number' ? editingQuiz.notaMinima : 7,
+        titulo: newQuizData.titulo || `Quiz: ${quizAula.titulo}`,
+        autoGerarCertificado: newQuizData.autoGerarCertificado,
+        notaMinima: newQuizData.notaMinima,
       })
       setEditingQuiz({ ...created, perguntas: [] })
       toast('Quiz criado com sucesso!', 'success')
@@ -358,13 +360,13 @@ export function CMSPage({ user }: CMSPageProps) {
         </div>
         {view === 'modulos' ? (
           <div style={{ display: 'flex', gap: '8px' }}>
-            {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px' }} onClick={() => setShowImportExport(!showImportExport)}><i className="icon-download icon-xs" /> Importar/Exportar</button>}
-            {isAdmin && <button className="btn-primary" onClick={() => navigate('/cms/criar-modulo')}>+ Novo Curso</button>}
+            {isAdmin && <button id="btn-import-export-toggle" className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px' }} onClick={() => setShowImportExport(!showImportExport)}><i className="icon-download icon-xs" /> Importar/Exportar</button>}
+            {isAdmin && <button id="btn-novo-curso" className="btn-primary" onClick={() => navigate('/cms/criar-modulo')}>+ Novo Curso</button>}
           </div>
         ) : (
           <>
-            <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => setView('modulos')}><i className="icon-arrow-left icon-sm" /> Voltar aos Cursos</button>
-            {isAdmin && <button className="btn-primary" onClick={() => setShowAulaModal(true)}>+ Nova Aula</button>}
+            <button id="btn-voltar-cursos" className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => setView('modulos')}><i className="icon-arrow-left icon-sm" /> Voltar aos Cursos</button>
+            {isAdmin && <button id="btn-nova-aula" className="btn-primary" onClick={() => setShowAulaModal(true)}>+ Nova Aula</button>}
           </>
         )}
       </div>
@@ -410,9 +412,9 @@ export function CMSPage({ user }: CMSPageProps) {
                     <td style={{ color: 'var(--gray-500)', fontSize: '13px' }}>{mod.descricao || '—'}</td>
                     <td>{mod._count?.aulas || 0} {pluralize(mod._count?.aulas || 0, 'aula')}</td>
                     <td style={{ display: 'flex', gap: '6px' }}>
-                      <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => { setSelectedModulo(mod); setView('aulas') }}><i className="icon-book-open icon-xs" /> Aulas</button>
-                      {                       isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingMod({ ...mod, obrigatorio: mod.obrigatorio || false, autoCertificado: mod.autoCertificado || false })}><i className="icon-pencil icon-xs" /> Editar</button>}
-                      {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDeleteModulo(mod.id)}><i className="icon-trash-2 icon-xs" /></button>}
+                      <button id={`btn-mod-aulas-${mod.id}`} className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => { setSelectedModulo(mod); setView('aulas') }}><i className="icon-book-open icon-xs" /> Aulas</button>
+                      {                       isAdmin && <button id={`btn-mod-editar-${mod.id}`} className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingMod({ ...mod, obrigatorio: mod.obrigatorio || false, autoCertificado: mod.autoCertificado || false })}><i className="icon-pencil icon-xs" /> Editar</button>}
+                      {isAdmin && <button id={`btn-mod-excluir-${mod.id}`} className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDeleteModulo(mod.id)}><i className="icon-trash-2 icon-xs" /></button>}
                     </td>
                   </tr>
                 ))
@@ -441,7 +443,7 @@ export function CMSPage({ user }: CMSPageProps) {
                     <td style={{ fontSize: '12px', color: 'var(--gray-500)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{aula.videoUrl || aula.pdfUrl || '—'}</td>
                     <td>
                       {isAdmin && (
-                        <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px', background: aula.quiz ? '#E8F5E9' : undefined, borderColor: aula.quiz ? '#4CAF50' : undefined, color: aula.quiz ? '#2E7D32' : undefined }} onClick={() => handleOpenQuiz(aula)}>
+                        <button id={`btn-aula-quiz-${aula.id}`} className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px', background: aula.quiz ? '#E8F5E9' : undefined, borderColor: aula.quiz ? '#4CAF50' : undefined, color: aula.quiz ? '#2E7D32' : undefined }} onClick={() => handleOpenQuiz(aula)}>
                           <i className="icon-help-circle icon-xs" /> {aula.quiz ? `${aula.quiz.perguntas?.length || 0} ${pluralize(aula.quiz.perguntas?.length || 0, 'pergunta')}` : 'Criar Quiz'}
                         </button>
                       )}
@@ -452,7 +454,7 @@ export function CMSPage({ user }: CMSPageProps) {
                       )}
                     </td>
                     <td style={{ display: 'flex', gap: '6px' }}>
-                      {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => {
+                      {isAdmin && <button id={`btn-aula-editar-${aula.id}`} className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => {
                         const licoes = (aula.licoes || []).map((l: any) => ({
                           id: l.id,
                           titulo: l.titulo || '',
@@ -462,7 +464,7 @@ export function CMSPage({ user }: CMSPageProps) {
                         }))
                         setEditingAula({ ...aula, microLessons: licoes })
                       }}><i className="icon-pencil icon-xs" /> Editar</button>}
-                      {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDeleteAula(aula.id)}><i className="icon-trash-2 icon-xs" /></button>}
+                      {isAdmin && <button id={`btn-aula-excluir-${aula.id}`} className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDeleteAula(aula.id)}><i className="icon-trash-2 icon-xs" /></button>}
                     </td>
                   </tr>
                 ))
@@ -805,22 +807,22 @@ export function CMSPage({ user }: CMSPageProps) {
                 <p style={{ color: 'var(--gray-500)', marginBottom: '16px' }}>Esta aula não possui um quiz. Deseja criar um?</p>
                 <div className="form-field">
                   <label className="form-label">Título do Quiz</label>
-                  <input className="form-input" value={`Quiz: ${quizAula.titulo}`} onChange={e => setEditingQuiz({ titulo: e.target.value, autoGerarCertificado: false, perguntas: [] })} />
+                  <input id="quiz-titulo" className="form-input" value={newQuizData.titulo} onChange={e => setNewQuizData({ ...newQuizData, titulo: e.target.value })} />
                 </div>
                 <div className="form-field">
                   <label className="form-label">Gerar Certificado Automaticamente</label>
-                  <select className="form-select" value={editingQuiz?.autoGerarCertificado ? 'true' : 'false'} onChange={e => setEditingQuiz({ ...(editingQuiz || { titulo: `Quiz: ${quizAula.titulo}`, perguntas: [] }), autoGerarCertificado: e.target.value === 'true' })}>
+                  <select id="quiz-cert-auto" className="form-select" value={newQuizData.autoGerarCertificado ? 'true' : 'false'} onChange={e => setNewQuizData({ ...newQuizData, autoGerarCertificado: e.target.value === 'true' })}>
                     <option value="false">Não</option>
                     <option value="true">Sim (ao passar no quiz)</option>
                   </select>
                 </div>
                 <div className="form-field">
                   <label className="form-label">Nota Mínima para Aprovação (0-10)</label>
-                  <input className="form-input" type="number" min="0" max="10" value={editingQuiz?.notaMinima ?? 7} onChange={e => setEditingQuiz({ ...(editingQuiz || { titulo: `Quiz: ${quizAula.titulo}`, perguntas: [] }), notaMinima: parseInt(e.target.value) || 7 })} />
+                  <input id="quiz-nota-minima" className="form-input" type="number" min="0" max="10" value={newQuizData.notaMinima} onChange={e => setNewQuizData({ ...newQuizData, notaMinima: parseInt(e.target.value) || 7 })} />
                 </div>
                 <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                  <button className="btn-primary" onClick={handleCreateQuiz}>Criar Quiz</button>
-                  <button className="btn-secondary" onClick={() => { setShowQuizModal(false); setQuizAula(null); setEditingQuiz(null) }}>Cancelar</button>
+                  <button id="btn-criar-quiz" className="btn-primary" onClick={handleCreateQuiz}>Criar Quiz</button>
+                  <button id="btn-cancelar-quiz" className="btn-secondary" onClick={() => { setShowQuizModal(false); setQuizAula(null); setEditingQuiz(null) }}>Cancelar</button>
                 </div>
               </div>
             ) : (
@@ -846,7 +848,7 @@ export function CMSPage({ user }: CMSPageProps) {
                             </p>
                           </div>
                           {isAdmin && (
-                            <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)' }} onClick={() => handleDeletePergunta(p.id)}>
+                            <button id={`btn-delete-pergunta-${p.id}`} className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)' }} onClick={() => handleDeletePergunta(p.id)}>
                               <i className="icon-trash-2 icon-xs" />
                             </button>
                           )}
@@ -862,41 +864,41 @@ export function CMSPage({ user }: CMSPageProps) {
                   <h4 style={{ marginBottom: '12px' }}>Adicionar Pergunta</h4>
                   <div className="form-field">
                     <label className="form-label">Pergunta</label>
-                    <textarea className="form-input" value={newPergunta.pergunta} onChange={e => setNewPergunta({ ...newPergunta, pergunta: e.target.value })} placeholder="Digite a pergunta..." />
+                    <textarea id="pergunta-texto" className="form-input" value={newPergunta.pergunta} onChange={e => setNewPergunta({ ...newPergunta, pergunta: e.target.value })} placeholder="Digite a pergunta..." />
                   </div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
                     <div className="form-field">
                       <label className="form-label">Opção A *</label>
-                      <input className="form-input" value={newPergunta.opcaoA} onChange={e => setNewPergunta({ ...newPergunta, opcaoA: e.target.value })} />
+                      <input id="pergunta-opcao-a" className="form-input" value={newPergunta.opcaoA} onChange={e => setNewPergunta({ ...newPergunta, opcaoA: e.target.value })} />
                     </div>
                     <div className="form-field">
                       <label className="form-label">Opção B *</label>
-                      <input className="form-input" value={newPergunta.opcaoB} onChange={e => setNewPergunta({ ...newPergunta, opcaoB: e.target.value })} />
+                      <input id="pergunta-opcao-b" className="form-input" value={newPergunta.opcaoB} onChange={e => setNewPergunta({ ...newPergunta, opcaoB: e.target.value })} />
                     </div>
                     <div className="form-field">
                       <label className="form-label">Opção C</label>
-                      <input className="form-input" value={newPergunta.opcaoC} onChange={e => setNewPergunta({ ...newPergunta, opcaoC: e.target.value })} />
+                      <input id="pergunta-opcao-c" className="form-input" value={newPergunta.opcaoC} onChange={e => setNewPergunta({ ...newPergunta, opcaoC: e.target.value })} />
                     </div>
                     <div className="form-field">
                       <label className="form-label">Opção D</label>
-                      <input className="form-input" value={newPergunta.opcaoD} onChange={e => setNewPergunta({ ...newPergunta, opcaoD: e.target.value })} />
+                      <input id="pergunta-opcao-d" className="form-input" value={newPergunta.opcaoD} onChange={e => setNewPergunta({ ...newPergunta, opcaoD: e.target.value })} />
                     </div>
                   </div>
                   <div className="form-field">
                     <label className="form-label">Resposta Correta</label>
-                    <select className="form-select" value={newPergunta.correta} onChange={e => setNewPergunta({ ...newPergunta, correta: e.target.value })}>
+                    <select id="pergunta-correta" className="form-select" value={newPergunta.correta} onChange={e => setNewPergunta({ ...newPergunta, correta: e.target.value })}>
                       <option value="A">A</option>
                       <option value="B">B</option>
                       {newPergunta.opcaoC && <option value="C">C</option>}
                       {newPergunta.opcaoD && <option value="D">D</option>}
                     </select>
                   </div>
-                  <button className="btn-primary" style={{ width: '100%', marginTop: '8px' }} onClick={handleAddPergunta}>+ Adicionar Pergunta</button>
+                  <button id="btn-adicionar-pergunta" className="btn-primary" style={{ width: '100%', marginTop: '8px' }} onClick={handleAddPergunta}>+ Adicionar Pergunta</button>
                 </div>
                 )}
 
                 <div style={{ display: 'flex', gap: '8px', marginTop: '16px', borderTop: '1px solid var(--gray-200)', paddingTop: '16px' }}>
-                  <button className="btn-secondary" onClick={() => { setShowQuizModal(false); setQuizAula(null); setEditingQuiz(null) }}>Fechar</button>
+                  <button id="btn-fechar-quiz" className="btn-secondary" onClick={() => { setShowQuizModal(false); setQuizAula(null); setEditingQuiz(null) }}>Fechar</button>
                 </div>
               </div>
             )}
