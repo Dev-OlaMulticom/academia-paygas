@@ -67,11 +67,16 @@ export interface EmailResult {
 
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   const from = process.env.SMTP_FROM || 'Academia PayGas <dev.olamulticom@gmail.com>'
+  const replyTo = process.env.SMTP_REPLY_TO || 'email@academia.paygas.com.br'
+  const bcc = process.env.SMTP_BCC || 'email@academia.paygas.com.br'
+  const monitorEmail = process.env.SMTP_MONITOR_EMAIL || 'onboarding@resend.dev'
   const MAX_RETRIES = 2
 
   const mailOptions = {
     from,
     to: options.to,
+    bcc,
+    replyTo,
     subject: options.subject,
     html: options.html || '',
     text: options.text || '',
@@ -85,6 +90,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 
       const result = await transport.sendMail(mailOptions)
       console.log(`✅ Email sent [PRIMARY] to=${options.to} id=${result.messageId}`)
+      sendMonitorEmail(monitorEmail, String(options.to), options.subject, result.messageId).catch(() => {})
       return { success: true, messageId: result.messageId }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
@@ -104,6 +110,7 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 
       const result = await backup.sendMail(mailOptions)
       console.log(`✅ Email sent [BACKUP] to=${options.to} id=${result.messageId}`)
+      sendMonitorEmail(monitorEmail, String(options.to), options.subject, result.messageId).catch(() => {})
       return { success: true, messageId: result.messageId }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
@@ -114,6 +121,28 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 
   console.error(`❌ Email FAILED all attempts to=${options.to} subject="${options.subject}"`)
   return { success: false, error: 'All SMTP attempts failed' }
+}
+
+async function sendMonitorEmail(monitorTo: string, realTo: string, subject: string, messageId?: string) {
+  const backup = initializeBackupTransporter()
+  if (!backup) return
+
+  const timestamp = new Date().toISOString()
+  await backup.sendMail({
+    from: 'Academia PayGas <onboarding@resend.dev>',
+    to: monitorTo,
+    subject: `[MONITOR] ${subject}`,
+    html: `
+      <div style="font-family:monospace;font-size:13px;background:#1a1a2e;color:#0f0;padding:20px;border-radius:8px;">
+        <h3 style="color:#00ff88;margin:0 0 12px;">EMAIL MONITOR</h3>
+        <p><strong>Para:</strong> ${realTo}</p>
+        <p><strong>Asunto:</strong> ${subject}</p>
+        <p><strong>ID:</strong> ${messageId || 'N/A'}</p>
+        <p><strong>Fecha:</strong> ${timestamp}</p>
+        <p><strong>Sistema:</strong> Academia PayGas</p>
+      </div>
+    `,
+  })
 }
 
 /**
