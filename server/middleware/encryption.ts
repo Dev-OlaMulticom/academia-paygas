@@ -72,6 +72,12 @@ export function encryptedPayload(req: Request, res: Response, next: NextFunction
     } catch {
       return res.status(400).json({ error: 'Dados encriptados inválidos' })
     }
+  } else if (req.path?.includes('/auth/login') && req.body) {
+    // Diagnostic: verify body is intact for login
+    const hasFields = !!(req.body.email && req.body.password)
+    if (!hasFields) {
+      console.warn('[ENCRYPTION MW] Login body missing email/password:', JSON.stringify(Object.keys(req.body)))
+    }
   }
 
   // Encrypt outgoing response if client requests it

@@ -20,11 +20,13 @@ router.post('/login', async (req, res) => {
 
     const user = await prisma.user.findUnique({ where: { email } })
     if (!user) {
+      console.warn(`[AUTH LOGIN] Usuario nao encontrado: ${email}`)
       return res.status(401).json({ error: 'Credenciais inválidas' })
     }
 
     const validPassword = await bcrypt.compare(password, user.senha)
     if (!validPassword) {
+      console.warn(`[AUTH LOGIN] Senha incorreta para: ${email} (hash prefix: ${user.senha.substring(0, 7)})`)
       return res.status(401).json({ error: 'Credenciais inválidas' })
     }
 
