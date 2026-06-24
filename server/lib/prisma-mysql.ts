@@ -1,9 +1,15 @@
-import { PrismaClient } from '../../prisma/generated/mysql'
 import { PrismaMariaDb } from '@prisma/adapter-mariadb'
+import path from 'path'
 
-const globalForPrismaMysql = globalThis as unknown as { prismaMysql: PrismaClient | null }
+// Dynamic require because compiled output is at dist/server/lib/ (3 levels)
+// while source is at server/lib/ (2 levels) — relative paths differ
+const mysqlPath = path.resolve(__dirname, '../../../prisma/generated/mysql')
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const MysqlPrismaClient: any = require(mysqlPath).PrismaClient
 
-function createMysqlClient(): PrismaClient | null {
+const globalForPrismaMysql = globalThis as unknown as { prismaMysql: any }
+
+function createMysqlClient(): any | null {
   const url = process.env.MYSQL_URL
   if (!url) return null
 
@@ -19,7 +25,7 @@ function createMysqlClient(): PrismaClient | null {
       connectionLimit: 5,
     })
 
-    return new PrismaClient({
+    return new MysqlPrismaClient({
       adapter,
       log: process.env.NODE_ENV === 'development' ? ['error'] : ['error'],
     })
