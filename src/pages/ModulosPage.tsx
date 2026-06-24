@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { pluralize } from '../lib/utils'
@@ -20,6 +20,8 @@ export function ModulosPage() {
   const { user } = useAuth()
   const [currentLesson, setCurrentLesson] = useState(0)
   const [showQuiz, setShowQuiz] = useState(false)
+  const [showAllQuizzes, setShowAllQuizzes] = useState(false)
+  const [showCertificate, setShowCertificate] = useState(false)
   const [lessons, setLessons] = useState<any[]>([])
   const [modulo, setModulo] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -28,6 +30,9 @@ export function ModulosPage() {
   const [quizResult, setQuizResult] = useState<any>(null)
   const [videoEnded, setVideoEnded] = useState(false)
   const [expandedLicao, setExpandedLicao] = useState<string | null>(null)
+  const [certificate, setCertificate] = useState<any>(null)
+  const [allQuizResults, setAllQuizResults] = useState<Record<string, any>>({})
+  const [showConfetti, setShowConfetti] = useState(false)
 
   const loadModulo = async () => {
     if (!moduloNombre) return
@@ -51,9 +56,46 @@ export function ModulosPage() {
     }
   }
 
+  const loadQuizResults = useCallback(async () => {
+    if (!modulo) return
+    try {
+      const results: Record<string, any> = {}
+      for (const lesson of lessons) {
+        if (lesson.quiz) {
+          try {
+            const res = await api.getQuizResults(lesson.quiz.id)
+            const data = Array.isArray(res) ? res : (res as any)?.data || []
+            const myResult = data.find((r: any) => r.userId === user?.id)
+            if (myResult) results[lesson.quiz.id] = myResult
+          } catch {}
+        }
+      }
+      setAllQuizResults(results)
+    } catch {}
+  }, [modulo, lessons, user?.id])
+
+  const loadCertificate = useCallback(async () => {
+    if (!modulo) return
+    try {
+      const certs = await api.getCertificates()
+      const data = Array.isArray(certs) ? certs : (certs as any)?.data || []
+      const myCert = data.find((c: any) => c.moduloId === modulo.id)
+      setCertificate(myCert || null)
+    } catch {
+      setCertificate(null)
+    }
+  }, [modulo])
+
   useEffect(() => {
     loadModulo()
   }, [moduloNombre])
+
+  useEffect(() => {
+    if (modulo && lessons.length > 0) {
+      loadQuizResults()
+      loadCertificate()
+    }
+  }, [modulo, lessons, loadQuizResults, loadCertificate])
 
   const isLessonCompleted = (lesson: any) => lesson.concluido === true
 
@@ -63,6 +105,14 @@ export function ModulosPage() {
       if (lessons[i].obrigatorio && !isLessonCompleted(lessons[i])) return false
     }
     return true
+  }
+
+  const resetLessonState = () => {
+    setShowQuiz(false)
+    setSelectedAnswers({})
+    setQuizSubmitted(false)
+    setQuizResult(null)
+    setVideoEnded(false)
   }
 
   const handleConcluir = async () => {
@@ -79,28 +129,18 @@ export function ModulosPage() {
       const updated = [...lessons]
       updated[currentLesson] = { ...updated[currentLesson], concluido: true }
       setLessons(updated)
-    } catch {
-      // Do NOT mark complete locally if API fails
-    }
+    } catch {}
 
     if (currentLesson < lessons.length - 1) {
       setCurrentLesson(currentLesson + 1)
-      setShowQuiz(false)
-      setSelectedAnswers({})
-      setQuizSubmitted(false)
-      setQuizResult(null)
-      setVideoEnded(false)
+      resetLessonState()
     }
   }
 
   const handleAvanzar = () => {
     if (currentLesson < lessons.length - 1) {
       setCurrentLesson(currentLesson + 1)
-      setShowQuiz(false)
-      setSelectedAnswers({})
-      setQuizSubmitted(false)
-      setQuizResult(null)
-      setVideoEnded(false)
+      resetLessonState()
     }
   }
 
@@ -123,13 +163,25 @@ export function ModulosPage() {
       setQuizResult({ nota, total, correct, passed })
       setQuizSubmitted(true)
 
-      await api.updateProgresso(modulo!.id, lesson.id, true)
-      const updated = [...lessons]
-      updated[currentLesson] = { ...updated[currentLesson], concluido: true }
-      setLessons(updated)
+      if (passed) {
+        setShowConfetti(true)
+        setTimeout(() => setShowConfetti(false), 4000)
+
+        const updated = [...lessons]
+        updated[currentLesson] = { ...updated[currentLesson], concluido: true }
+        setLessons(updated)
+
+        loadQuizResults()
+        loadCertificate()
+
+        if (lesson.quiz.autoGerarCertificado) {
+          setTimeout(() => {
+            setShowQuiz(false)
+            setShowCertificate(true)
+          }, 2500)
+        }
+      }
     } catch {
-      // Server rejected quiz submission — do NOT mark complete locally
-      // Show a generic error to the user
       setQuizResult({ nota: 0, total: lesson.quiz.perguntas.length, correct: 0, passed: false })
       setQuizSubmitted(true)
     }
@@ -145,6 +197,9 @@ export function ModulosPage() {
 
   const isAtendente = user?.role === 'ATENDENTE'
   const semGestor = isAtendente && !user?.gestorId
+
+  const quizzesWithLesson = lessons.filter(l => l.quiz)
+  const hasCertificate = !!certificate
 
   if (loading) {
     return (
@@ -187,8 +242,134 @@ export function ModulosPage() {
     )
   }
 
+  const renderCertificateTab = () => {
+    if (!hasCertificate) {
+      return (
+        <div className="empty-state" style={{ padding: '40px' }}>
+          <div className="empty-icon">📜</div>
+          <p style={{ fontWeight: 600, marginBottom: '8px' }}>Nenhum certificado disponível</p>
+          <p style={{ color: 'var(--gray-500)', fontSize: '14px' }}>Complete todas as aulas e aprov nos quizzes para gerar seu certificado.</p>
+        </div>
+      )
+    }
+
+    const template = certificate.moduloCertTemplate || certificate.modulo?.certificadoTemplate
+    const titulo = certificate.modulo?.titulo || modulo.titulo
+    const icone = certificate.modulo?.icone || modulo.icone || '📚'
+    const nome = user?.nome || 'Usuário'
+
+    return (
+      <div style={{ padding: '24px' }}>
+        <h3 style={{ marginBottom: '16px' }}>📜 Seu Certificado</h3>
+        <div className="cert-card" style={{ maxWidth: '700px', margin: '0 auto' }}>
+          <div className="cert-header">
+            <h3>ACADEMIA PAYGAS</h3>
+            <h2>{icone} {titulo}</h2>
+          </div>
+          <div className="cert-body">
+            <p style={{ fontSize: '14px', color: 'var(--gray-500)', marginBottom: '10px' }}>Certificamos que</p>
+            <div className="cert-name">{nome}</div>
+            <p style={{ fontSize: '14px', color: 'var(--gray-600)', marginTop: '16px' }}>
+              concluiu o módulo de <strong>{titulo}</strong> com sucesso.
+            </p>
+            <div className="cert-footer" style={{ marginTop: '24px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>{new Date().toLocaleDateString('pt-BR')}</span>
+              <div className="cert-seal">PG</div>
+            </div>
+          </div>
+        </div>
+        <div style={{ textAlign: 'center', marginTop: '16px' }}>
+          <button className="btn-primary" onClick={() => navigate('/certificados')}>
+            <i className="icon-download icon-sm" /> Ver meus certificados
+          </button>
+        </div>
+      </div>
+    )
+  }
+
+  const renderAllQuizzes = () => {
+    return (
+      <div style={{ padding: '24px' }}>
+        <h3 style={{ marginBottom: '16px' }}>📝 Todos os Quizzes</h3>
+        {quizzesWithLesson.length === 0 ? (
+          <div className="empty-state" style={{ padding: '24px' }}>
+            <p style={{ color: 'var(--gray-500)' }}>Nenhum quiz disponível neste módulo.</p>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {quizzesWithLesson.map((lesson, idx) => {
+              const quiz = lesson.quiz
+              const result = allQuizResults[quiz.id]
+              const passed = result?.concluido
+              const lessonIdx = lessons.indexOf(lesson)
+
+              return (
+                <div key={quiz.id} style={{
+                  border: `1px solid ${passed ? '#4CAF50' : 'var(--gray-200)'}`,
+                  borderRadius: '8px',
+                  padding: '16px',
+                  background: passed ? '#F1F8E9' : '#fff',
+                  cursor: 'pointer',
+                  transition: 'all 0.15s',
+                }} onClick={() => {
+                  if (canAdvanceToLesson(lessonIdx)) {
+                    setCurrentLesson(lessonIdx)
+                    setShowAllQuizzes(false)
+                    setShowQuiz(true)
+                    resetLessonState()
+                  }
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontWeight: 600, fontSize: '14px' }}>📝 {quiz.titulo}</div>
+                      <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '4px' }}>
+                        Aula: {lesson.titulo} · {quiz.perguntas?.length || 0} perguntas · Nota mínima: {quiz.notaMinima ?? 7}/10
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      {result ? (
+                        <span style={{
+                          padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600,
+                          background: passed ? '#DCFCE7' : '#FEE2E2',
+                          color: passed ? '#166534' : '#991B1B',
+                        }}>
+                          {passed ? `✓ ${result.nota}/10` : `✗ ${result.nota}/10`}
+                        </span>
+                      ) : (
+                        <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', background: 'var(--gray-100)', color: 'var(--gray-500)' }}>
+                          Não resolvido
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="page active">
+      {showConfetti && (
+        <div className="confetti-container">
+          {Array.from({ length: 50 }).map((_, i) => (
+            <div key={i} className="confetti-piece" style={{
+              left: `${Math.random() * 100}%`,
+              animationDelay: `${Math.random() * 2}s`,
+              animationDuration: `${2 + Math.random() * 2}s`,
+              background: ['#F47C20', '#4CAF50', '#2196F3', '#FF9800', '#E91E63', '#FFD700'][i % 6],
+            }} />
+          ))}
+          <div className="confetti-message">
+            <div className="confetti-emoji">🎉</div>
+            <div className="confetti-text">Parabéns!</div>
+          </div>
+        </div>
+      )}
+
       <div className="page-header">
         <div>
           <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }} onClick={() => navigate(-1)}><i className="icon-arrow-left icon-sm" /> Voltar</button>
@@ -202,24 +383,23 @@ export function ModulosPage() {
             <h3>{modulo.titulo}</h3>
             <p>{lessons.filter(l => isLessonCompleted(l)).length}/{lessons.length} concluídas</p>
           </div>
+
           {lessons.map((lesson, i) => {
-            const isQuiz = !!lesson.quiz
             const completed = isLessonCompleted(lesson)
             const locked = lesson.obrigatorio && !completed && !canAdvanceToLesson(i)
             const canClick = !locked || completed
+            const isActive = i === currentLesson && !showAllQuizzes && !showCertificate
 
             return (
               <div
                 key={lesson.id || i}
-                className={`lesson-item ${i === currentLesson ? 'active' : ''} ${completed ? 'done' : ''}`}
+                className={`lesson-item ${isActive ? 'active' : ''} ${completed ? 'done' : ''}`}
                 onClick={() => {
                   if (!canClick) return
+                  setShowAllQuizzes(false)
+                  setShowCertificate(false)
                   setCurrentLesson(i)
-                  setShowQuiz(false)
-                  setSelectedAnswers({})
-                  setQuizSubmitted(false)
-                  setQuizResult(null)
-                  setVideoEnded(false)
+                  resetLessonState()
                 }}
                 style={!canClick ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
               >
@@ -241,6 +421,7 @@ export function ModulosPage() {
               </div>
             )
           })}
+
           {allCompleted && (
             <div style={{ padding: '16px', textAlign: 'center', background: '#E8F5E9', borderRadius: '8px', marginTop: '12px' }}>
               <i className="icon-check-circle icon-lg" style={{ color: '#2E7D32' }} />
@@ -250,9 +431,42 @@ export function ModulosPage() {
               )}
             </div>
           )}
+
+          <div className="lesson-sidebar-extras">
+            <div
+              className={`sidebar-extra-item ${showAllQuizzes ? 'active' : ''}`}
+              onClick={() => {
+                setShowAllQuizzes(!showAllQuizzes)
+                setShowCertificate(false)
+                resetLessonState()
+              }}
+            >
+              <i className="icon-file-text icon-sm" />
+              <span>Todos os Quizzes</span>
+              <span className="sidebar-extra-badge">{quizzesWithLesson.length}</span>
+            </div>
+            <div
+              className={`sidebar-extra-item ${showCertificate ? 'active' : ''}`}
+              onClick={() => {
+                setShowCertificate(!showCertificate)
+                setShowAllQuizzes(false)
+                resetLessonState()
+                loadCertificate()
+              }}
+            >
+              <i className="icon-award icon-sm" />
+              <span>Meu Certificado</span>
+              {hasCertificate && <span className="sidebar-extra-check">✓</span>}
+            </div>
+          </div>
         </div>
+
         <div className="lesson-content">
-          {!showQuiz ? (
+          {showAllQuizzes ? (
+            renderAllQuizzes()
+          ) : showCertificate ? (
+            renderCertificateTab()
+          ) : !showQuiz ? (
             <>
               {current?.tipo === 'PDF' && current?.pdfUrl ? (
                 <div className="lesson-video">
@@ -404,7 +618,7 @@ export function ModulosPage() {
                     </>
                   )}
                   {currentLesson > 0 && (
-                    <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => { setCurrentLesson(currentLesson - 1); setShowQuiz(false); setSelectedAnswers({}); setQuizSubmitted(false); setQuizResult(null); setVideoEnded(false) }}>
+                    <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => { setCurrentLesson(currentLesson - 1); resetLessonState() }}>
                       <i className="icon-arrow-left icon-sm" /> Anterior
                     </button>
                   )}
@@ -417,26 +631,57 @@ export function ModulosPage() {
               <div className="lesson-text">Responda todas as perguntas para concluir esta aula. Nota mínima: {current?.quiz?.notaMinima ?? 7}/10.</div>
 
               {quizResult && (
-                <div style={{ padding: '16px', borderRadius: '8px', marginTop: '16px', marginBottom: '16px', background: quizResult.passed ? '#E8F5E9' : '#FFEBEE', color: quizResult.passed ? '#1B5E20' : '#B71C1C' }}>
-                  <h3 style={{ margin: 0 }}>{quizResult.passed ? '🎉 Aprovado!' : '❌ Reprovado'}</h3>
-                  <p style={{ margin: '8px 0 0' }}>Nota: {quizResult.nota}/10 ({quizResult.correct}/{quizResult.total} corretas)</p>
-                  {!quizResult.passed && (
-                    <button className="btn-secondary" style={{ marginTop: '12px' }} onClick={() => { setQuizSubmitted(false); setQuizResult(null); setSelectedAnswers({}) }}>
-                      Tentar Novamente
-                    </button>
-                  )}
-                  {quizResult.passed && (
-                    <button className="btn-primary" style={{ marginTop: '12px' }} onClick={() => {
-                      setShowQuiz(false)
-                      setQuizSubmitted(false)
-                      setQuizResult(null)
-                      if (currentLesson < lessons.length - 1) {
-                        setCurrentLesson(currentLesson + 1)
-                      }
-                    }}>
-                      {currentLesson < lessons.length - 1 ? 'Avançar para Próxima Aula' : 'Finalizar'}
-                    </button>
-                  )}
+                <div className={`quiz-result-banner ${quizResult.passed ? 'passed' : 'failed'}`}>
+                  <div className="quiz-result-header">
+                    <span className="quiz-result-icon">{quizResult.passed ? '🎉' : '❌'}</span>
+                    <div>
+                      <h3 style={{ margin: 0 }}>{quizResult.passed ? 'Aprovado!' : 'Reprovado'}</h3>
+                      <p style={{ margin: '4px 0 0', fontSize: '14px', opacity: 0.8 }}>
+                        Nota: {quizResult.nota}/10 ({quizResult.correct}/{quizResult.total} corretas)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="quiz-result-breakdown">
+                    {current?.quiz?.perguntas?.map((pergunta: any, qIndex: number) => {
+                      const userAnswer = selectedAnswers[pergunta.id]
+                      const isCorrect = userAnswer === pergunta.correta
+                      return (
+                        <div key={qIndex} className={`quiz-breakdown-item ${isCorrect ? 'correct' : 'wrong'}`}>
+                          <span className="quiz-breakdown-icon">{isCorrect ? '✓' : '✗'}</span>
+                          <span className="quiz-breakdown-text">
+                            {qIndex + 1}. {pergunta.pergunta.substring(0, 60)}{pergunta.pergunta.length > 60 ? '...' : ''}
+                          </span>
+                          <span className="quiz-breakdown-answer">
+                            {isCorrect ? pergunta.correta : `${userAnswer || '-'} → ${pergunta.correta}`}
+                          </span>
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  <div className="quiz-result-actions">
+                    {!quizResult.passed && (
+                      <button className="btn-secondary" onClick={() => { setQuizSubmitted(false); setQuizResult(null); setSelectedAnswers({}) }}>
+                        Tentar Novamente
+                      </button>
+                    )}
+                    {quizResult.passed && (
+                      <button className="btn-primary" onClick={() => {
+                        setShowQuiz(false)
+                        setQuizSubmitted(false)
+                        setQuizResult(null)
+                        if (current?.quiz?.autoGerarCertificado) {
+                          loadCertificate()
+                          setShowCertificate(true)
+                        } else if (currentLesson < lessons.length - 1) {
+                          setCurrentLesson(currentLesson + 1)
+                        }
+                      }}>
+                        {current?.quiz?.autoGerarCertificado ? 'Ver Certificado' : currentLesson < lessons.length - 1 ? 'Avançar para Próxima Aula' : 'Finalizar'}
+                      </button>
+                    )}
+                  </div>
                 </div>
               )}
 
@@ -451,12 +696,7 @@ export function ModulosPage() {
                         const isCorrect = quizSubmitted && letter === pergunta.correta
                         const isWrong = quizSubmitted && isSelected && letter !== pergunta.correta
                         return (
-                          <label key={oIndex} style={{
-                            display: 'flex', gap: '8px', alignItems: 'center', cursor: quizSubmitted ? 'default' : 'pointer',
-                            padding: '8px 12px', borderRadius: '6px',
-                            background: isCorrect ? '#E8F5E9' : isWrong ? '#FFEBEE' : isSelected ? '#E3F2FD' : '#fff',
-                            border: `1px solid ${isCorrect ? '#4CAF50' : isWrong ? '#F44336' : isSelected ? '#2196F3' : '#e0e0e0'}`,
-                          }}>
+                          <label key={oIndex} className={`quiz-opt ${isSelected ? 'selected' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'wrong' : ''}`}>
                             <input
                               type="radio"
                               name={`q${pergunta.id}`}
@@ -464,7 +704,8 @@ export function ModulosPage() {
                               onChange={() => handleAnswerQuiz(pergunta.id, letter)}
                               disabled={quizSubmitted}
                             />
-                            {letter}. {opt}
+                            <span className="quiz-letter">{letter}</span>
+                            {opt}
                           </label>
                         )
                       })}

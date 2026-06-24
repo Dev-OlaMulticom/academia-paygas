@@ -261,6 +261,10 @@ class ApiClient {
     await this.request(`/cms/perguntas/${perguntaId}`, { method: 'DELETE' })
   }
 
+  async getQuizResults(quizId: string) {
+    return this.request<any[]>(`/cms/quiz/${quizId}/resultados`)
+  }
+
   async submitQuiz(quizId: string, respostas: Record<string, string>) {
     return this.request<any>(`/cms/quiz/${quizId}/responder`, {
       method: 'POST',

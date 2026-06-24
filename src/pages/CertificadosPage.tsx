@@ -132,8 +132,8 @@ export function CertificadosPage({ user }: { user?: any }) {
         </div>
         {isAdmin && (
           <div style={{ display: 'flex', gap: '6px' }}>
-            <button id="tab-meus-cert" className={`btn-secondary ${tab === 'meus' ? 'active' : ''}`} style={tab === 'meus' ? { background: 'var(--primary)', color: '#fff' } : {}} onClick={() => setTab('meus')}>Meus Certificados</button>
-            <button id="tab-templates" className={`btn-secondary ${tab === 'templates' ? 'active' : ''}`} style={tab === 'templates' ? { background: 'var(--primary)', color: '#fff' } : {}} onClick={() => setTab('templates')}>Templates</button>
+            <button id="tab-meus-cert" className={`tab-btn ${tab === 'meus' ? 'active' : ''}`} onClick={() => setTab('meus')}>Meus Certificados</button>
+            <button id="tab-templates" className={`tab-btn ${tab === 'templates' ? 'active' : ''}`} onClick={() => setTab('templates')}>Templates</button>
           </div>
         )}
       </div>

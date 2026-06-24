@@ -4,6 +4,7 @@ import { authenticate, authorize } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
 import { awardPointsIfNotAwarded } from '../services/gamification'
 import { logActivity } from '../services/log'
+import { sendNotificationAlertEmail } from '../services/email'
 
 const router = Router()
 
@@ -484,6 +485,30 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
       }
       await awardPointsIfNotAwarded(req.userId, 'QUIZ_PASS', `QUIZ_PASS:quiz:${req.params.quizId}`)
       await logActivity(req.userId, 'Quiz Aprovado', `Quiz: ${quiz.titulo} — Nota ${nota}/10`)
+
+      // Mark lesson as completed only when quiz is passed
+      const quizAula = await prisma.aula.findUnique({ where: { id: quiz.aulaId }, select: { moduloId: true } })
+      if (quizAula) {
+        await prisma.progresso.upsert({
+          where: { moduloId_aulaId_userId: { moduloId: quizAula.moduloId, aulaId: quiz.aulaId, userId: req.userId } },
+          update: { concluido: true },
+          create: { moduloId: quizAula.moduloId, aulaId: quiz.aulaId, userId: req.userId, concluido: true },
+        })
+      }
+
+      // Notify gestor when ATENDENTE passes a quiz
+      const quizUser = await prisma.user.findUnique({ where: { id: req.userId }, select: { id: true, nome: true, email: true, role: true, gestorId: true } })
+      if (quizUser?.role === 'ATENDENTE' && quizUser.gestorId) {
+        const gestor = await prisma.user.findUnique({ where: { id: quizUser.gestorId }, select: { id: true, nome: true, email: true } })
+        if (gestor) {
+          const titulo = 'Quiz Aprovado'
+          const mensagem = `${quizUser.nome} aprovou no quiz "${quiz.titulo}" com nota ${nota}/10.`
+          prisma.notification.create({
+            data: { fromId: req.userId, toId: gestor.id, titulo, mensagem },
+          }).catch(() => {})
+          sendNotificationAlertEmail(gestor.email, gestor.nome || gestor.email, titulo).catch(() => {})
+        }
+      }
     } else {
       await logActivity(req.userId, 'Quiz Reprovado', `Quiz: ${quiz.titulo} — Nota ${nota}/10`)
     }
@@ -529,7 +554,7 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
       }
     }
 
-    res.json({ nota, total, correct, concluido, response })
+    res.json({ nota, total, correct, concluido, aulaId: quiz.aulaId, response })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao enviar respostas' })
