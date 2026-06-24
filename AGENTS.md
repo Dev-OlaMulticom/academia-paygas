@@ -37,6 +37,14 @@ pnpm db:reset            # reset + seed
 
 No typecheck or test commands exist. No test framework is configured.
 
+## Pre-flight Checks
+
+Before starting development or running commands, verify:
+
+1. **pnpm installed**: Run `pnpm --version` — if not found, install with `npm install -g pnpm`
+2. **Dependencies installed**: Run `pnpm install` in project root
+3. **.env file exists**: Copy `.env.example` to `.env` if missing, configure required vars
+
 ## Architecture
 
 **Single package** — not a monorepo. Two compilation targets:
