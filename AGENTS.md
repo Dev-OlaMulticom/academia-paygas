@@ -84,13 +84,37 @@ All under `/api/`. Key route files in `server/routes/`:
 
 ### Database
 
-**Triple-redundancy architecture**: Supabase PostgreSQL (primary, source of truth) + Nhost PostgreSQL (backup) + MySQL (backup, failover).
+**Multi-database architecture with failover**: Reads failover to next healthy database. Writes go to all healthy databases in parallel. Background sync reconciles data when databases recover.
 
-- **Supabase PostgreSQL**: Prisma 7 + `@prisma/adapter-pg`. Schema: `prisma/schema.prisma`. 17 models. `DATABASE_URL` env var.
-- **Nhost PostgreSQL**: Same schema as Supabase. Prisma 7 + `@prisma/adapter-pg`. `NHOST_URL` env var. Dual-write target (best-effort).
-- **MySQL**: Prisma 7 + `@prisma/adapter-mariadb`. Schema: `prisma/schema.mysql.prisma`. Same 17 models, separate generator. `MYSQL_URL` env var.
-- **MySQL client output**: `prisma/generated/mysql/` (in `.gitignore`)
-- **Data sync**: On first deploy, if backup DB is empty, `deploy.sh` syncs from Supabase automatically.
+- **PG_URL_1**: Primary PostgreSQL (Supabase). All reads + writes.
+- **PG_URL_2**: Backup PostgreSQL (Nhost). Failover for reads. Writes are best-effort.
+- **DATABASE_URL**: Legacy fallback (used if PG_URL_1 not set).
+- **MYSQL_URL**: Backup/redundancy (third-tier, different engine).
+- **Health checks**: Every 60s, monitors all databases. Exponential backoff for disconnected ones.
+- **Keep-alive**: Pings all databases every 12h to prevent free-tier pauses.
+- **Background sync**: When a database recovers, syncs all data from healthiest database automatically.
+
+```env
+# .env — Multi-PG configuration
+PG_URL_1="postgres://...@supabase.co:5432/postgres?sslmode=require"   # Primary
+PG_URL_2="postgres://...@nhost.run:5432/project?sslmode=require"     # Backup
+DATABASE_URL="..."  # Legacy fallback (if PG_URL_1 not set)
+MYSQL_URL="..."     # MySQL backup (different engine)
+```
+
+```ts
+// Health endpoint returns all databases
+GET /api/health → {
+  status: "ok",
+  primary: "supabase",
+  databases: {
+    supabase: "connected",
+    nhost: "connected",
+    mysql: "connected"
+  },
+  summary: { total: 2, healthy: 2, unhealthy: 0 }
+}
+```
 
 **Naming gotcha:** The DB table is `Modulo` but the frontend/CMS calls it "Curso". The field `moduloId` is `cursoId` in frontend context. This is cosmetic only — the schema is not changing.
 
@@ -216,6 +240,8 @@ Copy `.env.example` to `.env`. Key vars:
 - `DATABASE_URL` — required, PostgreSQL connection string
 - `NHOST_URL` — optional, Nhost PostgreSQL backup connection string
 - `MYSQL_URL` — optional, MySQL connection string for backup
+- `KEEPALIVE_INTERVAL_MS` — optional, keep-alive interval (default: 43200000 = 12h)
+- `KEEPALIVE_FIRST_DELAY_MS` — optional, first keep-alive delay (default: 300000 = 5min)
 - `JWT_SECRET` — optional, auto-generated if weak/missing
 - `ENCRYPTION_KEY` — optional, auto-generated if missing
 - `ALLOWED_ORIGINS` — required, comma-separated CORS origins
@@ -240,4 +266,8 @@ Copy `.env.example` to `.env`. Key vars:
 - `prisma-mysql.ts` uses `path.resolve(__dirname, ...)` for dynamic require because compiled output (`dist/server/lib/`) is deeper than source (`server/lib/`).
 - When `MYSQL_URL` is not set, `prismaMysql` is `null` and all dual-write operations silently skip MySQL.
 - When `NHOST_URL` is not set, `prismaNhost` is `null` and all dual-write operations silently skip Nhost.
+- `PG_URL_1` takes precedence over `DATABASE_URL` as primary. If neither is set, the server won't start.
+- `prisma.ts` uses `PG_URL_1 || DATABASE_URL` for the primary client. The database registry (`server/config/databases.ts`) manages all connections.
+- Health checks run every 60s in production. Disconnected databases get exponential backoff (30s → 5min).
+- Background sync only runs when in production (`NODE_ENV=production`). It syncs from the database with the most data.
 - The `authorize()` middleware supports both role-based (`authorize('ADMIN','GESTOR')`) and CASL ability-based (`authorize('create','User')`) patterns. Detects which by checking if first arg is a known CASL action.

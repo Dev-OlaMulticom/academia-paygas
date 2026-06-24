@@ -1,7 +1,13 @@
 /**
  * Model configuration for the Data Access Layer.
- * Each model maps to its PG (Supabase), Nhost (backup), and MySQL delegate references.
- * Three-tier redundancy: Supabase (primary) → Nhost (backup PG) → MySQL (backup).
+ *
+ * Three-tier redundancy:
+ *   1. Supabase / PG_URL_1 (primary)
+ *   2. Nhost / PG_URL_2 (backup PostgreSQL)
+ *   3. MySQL (backup, different engine)
+ *
+ * Each model maps to PG, Nhost, and MySQL delegate references.
+ * Adding a new database means adding one line per model here.
  */
 import { prisma } from './prisma'
 import { prismaNhost } from './prisma-nhost'

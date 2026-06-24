@@ -730,6 +730,8 @@ else
 
     # Export all critical env vars so child process inherits them
     export DATABASE_URL="${DATABASE_URL:-}"
+    export PG_URL_1="${PG_URL_1:-}"
+    export PG_URL_2="${PG_URL_2:-}"
     export NHOST_URL="${NHOST_URL:-}"
     export MYSQL_URL="${MYSQL_URL:-}"
     export JWT_SECRET="${JWT_SECRET:-}"

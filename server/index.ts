@@ -25,7 +25,9 @@ import logsRoutes from './routes/logs'
 import xpconfigRoutes from './routes/xpconfig'
 import importExportRoutes from './routes/import-export'
 import adminDashboardRoutes from './routes/admin-dashboard'
-import { startNhostKeepAlive } from './services/nhost-keepalive'
+import { startKeepAlive } from './services/keepalive'
+import { startHealthChecks } from './services/db-health'
+import { startSyncWorker } from './services/db-sync'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -123,10 +125,26 @@ app.use('/api/admin/dashboard', adminDashboardRoutes)
 
 app.get('/api/health', async (_req, res) => {
   const { db } = await import('./lib/db')
+  const { dbRegistry } = await import('./config/databases')
   const health = await db.healthCheck()
+  const registryHealth = dbRegistry.getHealthSummary()
+
+  const primary = dbRegistry.getPrimary()
+  const healthyCount = dbRegistry.getHealthy().length
+  const totalCount = dbRegistry.getAll().length
+
   res.json({
-    status: health.supabase === 'connected' ? 'ok' : 'degraded',
-    ...health,
+    status: health.supabase === 'connected' || healthyCount > 0 ? 'ok' : 'degraded',
+    primary: primary?.name || 'unknown',
+    databases: {
+      ...health,
+      registry: registryHealth,
+    },
+    summary: {
+      total: totalCount,
+      healthy: healthyCount,
+      unhealthy: totalCount - healthyCount,
+    },
     nodeEnv: process.env.NODE_ENV || 'undefined',
     timestamp: new Date().toISOString(),
   })
@@ -185,6 +203,13 @@ if (require.main === module) {
     console.log(`\n${signal} received. Shutting down gracefully...`)
     server.close(async () => {
       try {
+        const { stopKeepAlive } = await import('./services/keepalive')
+        const { stopHealthChecks } = await import('./services/db-health')
+        const { stopSyncWorker } = await import('./services/db-sync')
+        stopKeepAlive()
+        stopHealthChecks()
+        stopSyncWorker()
+
         const { prisma } = await import('./lib/prisma')
         await prisma.$disconnect()
         console.log('Database connection closed.')
@@ -215,9 +240,16 @@ if (require.main === module) {
   // Log startup completion
   console.log(`[${new Date().toISOString()}] Server initialization complete, PID: ${process.pid}`)
 
-  // Start Nhost keep-alive to prevent free-tier database from pausing
+  // ─── Start Database Infrastructure Services ──────────────
   if (process.env.NODE_ENV === 'production') {
-    startNhostKeepAlive()
+    // Keep-alive: prevents free-tier databases from pausing
+    startKeepAlive()
+
+    // Health checks: monitors all databases, detects failures/recoveries
+    startHealthChecks()
+
+    // Background sync: reconciles data when databases recover
+    startSyncWorker()
   }
 }
 
