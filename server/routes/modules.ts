@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
+import { db } from '../lib/db'
 import { authenticate, authorize, AuthRequest } from '../middleware/auth'
 import { logActivity } from '../services/log'
 
@@ -27,16 +28,14 @@ const DEFAULT_MODULES = [
 // GET /api/admin/modules - Get all module configs (any authenticated user)
 router.get('/', authenticate, async (req: AuthRequest, res) => {
   try {
-    // Ensure all default modules exist (batch upsert instead of sequential)
-    await prisma.$transaction(
-      DEFAULT_MODULES.map(mod =>
-        prisma.moduleConfig.upsert({
-          where: { key: mod.key },
-          update: {},
-          create: mod,
-        })
+    // Ensure all default modules exist via DAL dual-write
+    for (const mod of DEFAULT_MODULES) {
+      await db.upsert('moduleConfig',
+        { key: mod.key },
+        mod,
+        {},
       )
-    )
+    }
 
     const modules = await prisma.moduleConfig.findMany({
       orderBy: { key: 'asc' },
@@ -65,11 +64,11 @@ router.put('/:key', authenticate, authorize('ADMIN'), async (req: AuthRequest, r
       return res.status(400).json({ error: `O modulo "${key}" nao pode ser desativado` })
     }
 
-    const module = await prisma.moduleConfig.upsert({
-      where: { key },
-      update: { enabled },
-      create: { key, label: String(key), enabled },
-    })
+    const module = await db.upsert('moduleConfig',
+      { key },
+      { key, label: String(key), enabled },
+      { enabled },
+    )
 
     await logActivity(req.userId!, 'Modulo Toggle', `${key}: ${enabled ? 'ativado' : 'desativado'}`)
     res.json(module)

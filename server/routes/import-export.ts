@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
+import { db } from '../lib/db'
 import { authenticate, authorize } from '../middleware/auth'
 import { logActivity } from '../services/log'
 
@@ -210,17 +211,15 @@ router.post('/import/cursos', authenticate, authorize('ADMIN'), async (req: any,
       const titulo = obj.titulo?.trim()
       if (!titulo) { skipped++; continue }
       if (existingTitles.has(titulo)) { skipped++; continue }
-      await prisma.modulo.create({
-        data: {
-          titulo,
-          descricao: obj.descricao || '',
-          ordem: maxOrdem + i + 1,
-          obrigatorio: obj.obrigatorio === 'true' || obj.obrigatorio === '1',
-          autoCertificado: obj.autoCertificado === 'true' || obj.autoCertificado === '1',
-          videoUrl: obj.videoUrl || null,
-          videoInicio: obj.videoInicio ? parseInt(obj.videoInicio) : null,
-          videoFim: obj.videoFim ? parseInt(obj.videoFim) : null,
-        },
+      await db.create('modulo', {
+        titulo,
+        descricao: obj.descricao || '',
+        ordem: maxOrdem + i + 1,
+        obrigatorio: obj.obrigatorio === 'true' || obj.obrigatorio === '1',
+        autoCertificado: obj.autoCertificado === 'true' || obj.autoCertificado === '1',
+        videoUrl: obj.videoUrl || null,
+        videoInicio: obj.videoInicio ? parseInt(obj.videoInicio) : null,
+        videoFim: obj.videoFim ? parseInt(obj.videoFim) : null,
       })
       existingTitles.add(titulo)
       created++
@@ -257,20 +256,18 @@ router.post('/import/aulas', authenticate, authorize('ADMIN'), async (req: any, 
       const existingAula = await prisma.aula.findFirst({ where: { moduloId, titulo } })
       if (existingAula) { skipped++; continue }
       const maxOrdem = (await prisma.aula.aggregate({ where: { moduloId }, _max: { ordem: true } }))._max.ordem || 0
-      await prisma.aula.create({
-        data: {
-          moduloId,
-          titulo,
-          descricao: obj.descricao || '',
-          ordem: maxOrdem + 1,
-          tipo: (obj.tipo as any) || 'VIDEO',
-          videoUrl: obj.videoUrl || null,
-          pdfUrl: obj.pdfUrl || null,
-          obrigatorio: obj.obrigatorio === 'true' || obj.obrigatorio === '1',
-          duracaoMin: obj.duracaoMin ? parseInt(obj.duracaoMin) : null,
-          videoInicio: obj.videoInicio ? parseInt(obj.videoInicio) : null,
-          videoFim: obj.videoFim ? parseInt(obj.videoFim) : null,
-        },
+      await db.create('aula', {
+        moduloId,
+        titulo,
+        descricao: obj.descricao || '',
+        ordem: maxOrdem + 1,
+        tipo: (obj.tipo as any) || 'VIDEO',
+        videoUrl: obj.videoUrl || null,
+        pdfUrl: obj.pdfUrl || null,
+        obrigatorio: obj.obrigatorio === 'true' || obj.obrigatorio === '1',
+        duracaoMin: obj.duracaoMin ? parseInt(obj.duracaoMin) : null,
+        videoInicio: obj.videoInicio ? parseInt(obj.videoInicio) : null,
+        videoFim: obj.videoFim ? parseInt(obj.videoFim) : null,
       })
       created++
     }
@@ -311,17 +308,15 @@ router.post('/import/licoes', authenticate, authorize('ADMIN'), async (req: any,
       const existing = await prisma.licao.findFirst({ where: { aulaId, titulo } })
       if (existing) { skipped++; continue }
       const maxOrdem = (await prisma.licao.aggregate({ where: { aulaId }, _max: { ordem: true } }))._max.ordem || 0
-      await prisma.licao.create({
-        data: {
-          aulaId,
-          titulo,
-          tipo: (obj.tipo as any) || 'TEXTO',
-          conteudo: obj.conteudo || null,
-          duracaoMin: obj.duracaoMin ? parseInt(obj.duracaoMin) : null,
-          inicioSeg: obj.inicioSeg ? parseInt(obj.inicioSeg) : null,
-          fimSeg: obj.fimSeg ? parseInt(obj.fimSeg) : null,
-          ordem: maxOrdem + 1,
-        },
+      await db.create('licao', {
+        aulaId,
+        titulo,
+        tipo: (obj.tipo as any) || 'TEXTO',
+        conteudo: obj.conteudo || null,
+        duracaoMin: obj.duracaoMin ? parseInt(obj.duracaoMin) : null,
+        inicioSeg: obj.inicioSeg ? parseInt(obj.inicioSeg) : null,
+        fimSeg: obj.fimSeg ? parseInt(obj.fimSeg) : null,
+        ordem: maxOrdem + 1,
       })
       created++
     }
@@ -373,32 +368,34 @@ router.post('/import/quiz', authenticate, authorize('ADMIN'), async (req: any, r
 
       let quiz = await prisma.quiz.findUnique({ where: { aulaId } })
       if (!quiz) {
-        quiz = await prisma.quiz.create({
-          data: { aulaId, titulo: quizTitulo, notaMinima, autoGerarCertificado: autoGerar },
+        const newQuiz = await db.create('quiz', {
+          aulaId,
+          titulo: quizTitulo,
+          notaMinima,
+          autoGerarCertificado: autoGerar,
         })
+        quiz = newQuiz as any
         created++
       }
 
-      const existingPerguntas = await prisma.quizPergunta.findMany({ where: { quizId: quiz.id } })
+      const existingPerguntas = await prisma.quizPergunta.findMany({ where: { quizId: quiz!.id } })
       const existingPerguntaTexts = new Set(existingPerguntas.map(p => p.pergunta))
 
       const perguntasToAdd = group.filter(r => r.pergunta?.trim() && !existingPerguntaTexts.has(r.pergunta.trim()))
       if (perguntasToAdd.length === 0) { skipped += group.length; continue }
 
-      const maxOrdem = (await prisma.quizPergunta.aggregate({ where: { quizId: quiz.id }, _max: { ordem: true } }))._max.ordem || 0
+      const maxOrdem = (await prisma.quizPergunta.aggregate({ where: { quizId: quiz!.id }, _max: { ordem: true } }))._max.ordem || 0
       for (let i = 0; i < perguntasToAdd.length; i++) {
         const p = perguntasToAdd[i]
-        await prisma.quizPergunta.create({
-          data: {
-            quizId: quiz.id,
-            pergunta: p.pergunta.trim(),
-            opcaoA: p.opcaoA || '',
-            opcaoB: p.opcaoB || '',
-            opcaoC: p.opcaoC || null,
-            opcaoD: p.opcaoD || null,
-            correta: p.correta || 'A',
-            ordem: maxOrdem + i + 1,
-          },
+        await db.create('quizPergunta', {
+          quizId: quiz!.id,
+          pergunta: p.pergunta.trim(),
+          opcaoA: p.opcaoA || '',
+          opcaoB: p.opcaoB || '',
+          opcaoC: p.opcaoC || null,
+          opcaoD: p.opcaoD || null,
+          correta: p.correta || 'A',
+          ordem: maxOrdem + i + 1,
         })
         created++
       }

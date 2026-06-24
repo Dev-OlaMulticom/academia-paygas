@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
+import { db } from '../lib/db'
 import { authenticate, authorize } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
 import { awardPointsIfNotAwarded } from '../services/gamification'
@@ -55,19 +56,17 @@ router.post('/', authenticate, authorize('ADMIN'), async (req: any, res) => {
       _max: { ordem: true },
     })
 
-    const modulo = await prisma.modulo.create({
-      data: {
-        titulo,
-        descricao: descricao || '',
-        ordem: ordem ?? ((maxOrdem._max.ordem ?? 0) + 1),
-        icone: icone || null,
-        videoUrl: videoUrl || null,
-        videoInicio: videoInicio || null,
-        videoFim: videoFim || null,
-        obrigatorio: obrigatorio || false,
-        autoCertificado: autoCertificado || false,
-        certificadoTemplate: certificadoTemplate || null,
-      },
+    const modulo = await db.create('modulo', {
+      titulo,
+      descricao: descricao || '',
+      ordem: ordem ?? ((maxOrdem._max.ordem ?? 0) + 1),
+      icone: icone || null,
+      videoUrl: videoUrl || null,
+      videoInicio: videoInicio || null,
+      videoFim: videoFim || null,
+      obrigatorio: obrigatorio || false,
+      autoCertificado: autoCertificado || false,
+      certificadoTemplate: certificadoTemplate || null,
     })
     await logActivity(req.userId!, 'Criar Modulo', `Modulo: ${titulo}`)
     res.status(201).json(modulo)
@@ -83,9 +82,8 @@ router.put('/:id', authenticate, authorize('ADMIN'), async (req: any, res) => {
     const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado, icone, certificadoTemplate } = req.body
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
-    const modulo = await prisma.modulo.update({
-      where: { id },
-      data: { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado, icone, certificadoTemplate },
+    const modulo = await db.update('modulo', { id }, {
+      titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado, icone, certificadoTemplate,
     })
     await logActivity(req.userId!, 'Editar Modulo', `Modulo: ${modulo.titulo}`)
     res.json(modulo)
@@ -100,7 +98,7 @@ router.delete('/:id', authenticate, authorize('ADMIN'), async (req: any, res) =>
   try {
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
-    await prisma.modulo.delete({ where: { id } })
+    await db.delete('modulo', { id })
     await logActivity(req.userId!, 'Excluir Modulo', `Modulo ID: ${id}`)
     res.json({ success: true })
   } catch (error) {
@@ -128,8 +126,6 @@ router.get('/:id/aulas', authenticate, async (req: any, res) => {
       orderBy: { ordem: 'asc' },
     })
 
-    // No auto-seeding: aulas are created explicitly by ADMIN via POST
-
     const result = aulas.map(a => ({
       ...a,
       concluido: a.progressos.length > 0 ? a.progressos[0].concluido : false,
@@ -155,20 +151,18 @@ router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req: any, res
       _max: { ordem: true },
     })
 
-    const aula = await prisma.aula.create({
-      data: {
-        moduloId,
-        titulo,
-        descricao: descricao || '',
-        ordem: (maxOrdem._max.ordem ?? 0) + 1,
-        tipo: tipo || 'VIDEO',
-        videoUrl: videoUrl || null,
-        pdfUrl: pdfUrl || null,
-        videoInicio: videoInicio || null,
-        videoFim: videoFim || null,
-        duracaoMin: duracaoMin || null,
-        obrigatorio: obrigatorio || false,
-      },
+    const aula = await db.create('aula', {
+      moduloId,
+      titulo,
+      descricao: descricao || '',
+      ordem: (maxOrdem._max.ordem ?? 0) + 1,
+      tipo: tipo || 'VIDEO',
+      videoUrl: videoUrl || null,
+      pdfUrl: pdfUrl || null,
+      videoInicio: videoInicio || null,
+      videoFim: videoFim || null,
+      duracaoMin: duracaoMin || null,
+      obrigatorio: obrigatorio || false,
     })
     await logActivity(req.userId!, 'Criar Aula', `Aula: ${titulo}`)
     res.status(201).json(aula)
@@ -184,9 +178,8 @@ router.put('/aulas/:id', authenticate, authorize('ADMIN'), async (req: any, res)
     const { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio } = req.body
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
-    const aula = await prisma.aula.update({
-      where: { id },
-      data: { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio },
+    const aula = await db.update('aula', { id }, {
+      titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio,
     })
     await logActivity(req.userId!, 'Editar Aula', `Aula: ${aula.titulo}`)
     res.json(aula)
@@ -201,7 +194,7 @@ router.delete('/aulas/:id', authenticate, authorize('ADMIN'), async (req: any, r
   try {
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
-    await prisma.aula.delete({ where: { id } })
+    await db.delete('aula', { id })
     await logActivity(req.userId!, 'Excluir Aula', `Aula ID: ${id}`)
     res.json({ success: true })
   } catch (error) {
@@ -243,17 +236,15 @@ router.post('/aulas/:aulaId/licoes', authenticate, authorize('ADMIN'), async (re
       _max: { ordem: true },
     })
 
-    const licao = await prisma.licao.create({
-      data: {
-        aulaId,
-        titulo,
-        conteudo: conteudo || null,
-        tipo: tipo || 'TEXTO',
-        duracaoMin: duracaoMin || null,
-        inicioSeg: typeof inicioSeg === 'number' ? inicioSeg : null,
-        fimSeg: typeof fimSeg === 'number' ? fimSeg : null,
-        ordem: (maxOrdem._max.ordem ?? 0) + 1,
-      },
+    const licao = await db.create('licao', {
+      aulaId,
+      titulo,
+      conteudo: conteudo || null,
+      tipo: tipo || 'TEXTO',
+      duracaoMin: duracaoMin || null,
+      inicioSeg: typeof inicioSeg === 'number' ? inicioSeg : null,
+      fimSeg: typeof fimSeg === 'number' ? fimSeg : null,
+      ordem: (maxOrdem._max.ordem ?? 0) + 1,
     })
     await logActivity(req.userId!, 'Criar Licao', `Licao: ${titulo}`)
     res.status(201).json(licao)
@@ -270,17 +261,14 @@ router.put('/licoes/:id', authenticate, authorize('ADMIN'), async (req: any, res
     if (!id) return res.status(400).json({ error: 'ID inválido' })
 
     const { titulo, conteudo, tipo, ordem, duracaoMin, inicioSeg, fimSeg } = req.body
-    const licao = await prisma.licao.update({
-      where: { id },
-      data: {
-        titulo,
-        conteudo,
-        tipo,
-        ordem,
-        duracaoMin,
-        ...(typeof inicioSeg === 'number' ? { inicioSeg } : {}),
-        ...(typeof fimSeg === 'number' ? { fimSeg } : {}),
-      },
+    const licao = await db.update('licao', { id }, {
+      titulo,
+      conteudo,
+      tipo,
+      ordem,
+      duracaoMin,
+      ...(typeof inicioSeg === 'number' ? { inicioSeg } : {}),
+      ...(typeof fimSeg === 'number' ? { fimSeg } : {}),
     })
     await logActivity(req.userId!, 'Editar Licao', `Licao: ${licao.titulo}`)
     res.json(licao)
@@ -295,7 +283,7 @@ router.delete('/licoes/:id', authenticate, authorize('ADMIN'), async (req: any, 
   try {
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
-    await prisma.licao.delete({ where: { id } })
+    await db.delete('licao', { id })
     await logActivity(req.userId!, 'Excluir Licao', `Licao ID: ${id}`)
     res.json({ success: true })
   } catch (error) {
@@ -319,13 +307,11 @@ router.post('/:moduloId/quiz', authenticate, authorize('ADMIN'), async (req: any
       return res.status(409).json({ error: 'Esta aula já possui um quiz' })
     }
 
-    const quiz = await prisma.quiz.create({
-      data: {
-        aulaId,
-        titulo,
-        autoGerarCertificado: autoGerarCertificado || false,
-        notaMinima: typeof notaMinima === 'number' ? notaMinima : 7,
-      },
+    const quiz = await db.create('quiz', {
+      aulaId,
+      titulo,
+      autoGerarCertificado: autoGerarCertificado || false,
+      notaMinima: typeof notaMinima === 'number' ? notaMinima : 7,
     })
     await logActivity(req.userId!, 'Criar Quiz', `Quiz: ${titulo}`)
     res.status(201).json(quiz)
@@ -362,9 +348,8 @@ router.put('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req: any, r
     const { titulo, autoGerarCertificado, notaMinima } = req.body
     const quizId = getStringParam(req.params.quizId)
     if (!quizId) return res.status(400).json({ error: 'ID inválido' })
-    const quiz = await prisma.quiz.update({
-      where: { id: quizId },
-      data: { titulo, autoGerarCertificado, ...(typeof notaMinima === 'number' ? { notaMinima } : {}) },
+    const quiz = await db.update('quiz', { id: quizId }, {
+      titulo, autoGerarCertificado, ...(typeof notaMinima === 'number' ? { notaMinima } : {}),
     })
     await logActivity(req.userId!, 'Editar Quiz', `Quiz: ${quiz.titulo}`)
     res.json(quiz)
@@ -379,7 +364,7 @@ router.delete('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req: any
   try {
     const quizId = getStringParam(req.params.quizId)
     if (!quizId) return res.status(400).json({ error: 'ID inválido' })
-    await prisma.quiz.delete({ where: { id: quizId } })
+    await db.delete('quiz', { id: quizId })
     await logActivity(req.userId!, 'Excluir Quiz', `Quiz ID: ${quizId}`)
     res.json({ success: true })
   } catch (error) {
@@ -403,17 +388,15 @@ router.post('/quiz/:quizId/perguntas', authenticate, authorize('ADMIN'), async (
       _max: { ordem: true },
     })
 
-    const newPergunta = await prisma.quizPergunta.create({
-      data: {
-        quizId,
-        pergunta,
-        opcaoA,
-        opcaoB,
-        opcaoC: opcaoC || null,
-        opcaoD: opcaoD || null,
-        correta,
-        ordem: (maxOrdem._max.ordem ?? 0) + 1,
-      },
+    const newPergunta = await db.create('quizPergunta', {
+      quizId,
+      pergunta,
+      opcaoA,
+      opcaoB,
+      opcaoC: opcaoC || null,
+      opcaoD: opcaoD || null,
+      correta,
+      ordem: (maxOrdem._max.ordem ?? 0) + 1,
     })
     res.status(201).json(newPergunta)
   } catch (error) {
@@ -428,9 +411,8 @@ router.put('/perguntas/:perguntaId', authenticate, authorize('ADMIN'), async (re
     const { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta, ordem } = req.body
     const perguntaId = getStringParam(req.params.perguntaId)
     if (!perguntaId) return res.status(400).json({ error: 'ID inválido' })
-    const updated = await prisma.quizPergunta.update({
-      where: { id: perguntaId },
-      data: { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta, ordem },
+    const updated = await db.update('quizPergunta', { id: perguntaId }, {
+      pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta, ordem,
     })
     res.json(updated)
   } catch (error) {
@@ -444,7 +426,7 @@ router.delete('/perguntas/:perguntaId', authenticate, authorize('ADMIN'), async 
   try {
     const perguntaId = getStringParam(req.params.perguntaId)
     if (!perguntaId) return res.status(400).json({ error: 'ID inválido' })
-    await prisma.quizPergunta.delete({ where: { id: perguntaId } })
+    await db.delete('quizPergunta', { id: perguntaId })
     res.json({ success: true })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -473,11 +455,11 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
     const nota = total > 0 ? Math.round((correct / total) * 10) : 0
     const concluido = nota >= (quiz.notaMinima || 7)
 
-    const response = await prisma.quizResponse.upsert({
-      where: { quizId_userId: { quizId: req.params.quizId, userId: req.userId } },
-      update: { nota, total, concluido },
-      create: { quizId: req.params.quizId, userId: req.userId, nota, total, concluido },
-    })
+    const response = await db.upsert('quizResponse',
+      { quizId_userId: { quizId: req.params.quizId, userId: req.userId } },
+      { quizId: req.params.quizId, userId: req.userId, nota, total, concluido },
+      { nota, total, concluido },
+    )
 
     if (concluido) {
       if (correct > 0) {
@@ -489,11 +471,11 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
       // Mark lesson as completed only when quiz is passed
       const quizAula = await prisma.aula.findUnique({ where: { id: quiz.aulaId }, select: { moduloId: true } })
       if (quizAula) {
-        await prisma.progresso.upsert({
-          where: { moduloId_aulaId_userId: { moduloId: quizAula.moduloId, aulaId: quiz.aulaId, userId: req.userId } },
-          update: { concluido: true },
-          create: { moduloId: quizAula.moduloId, aulaId: quiz.aulaId, userId: req.userId, concluido: true },
-        })
+        await db.upsert('progresso',
+          { moduloId_aulaId_userId: { moduloId: quizAula.moduloId, aulaId: quiz.aulaId, userId: req.userId } },
+          { moduloId: quizAula.moduloId, aulaId: quiz.aulaId, userId: req.userId, concluido: true },
+          { concluido: true },
+        )
       }
 
       // Notify gestor when ATENDENTE passes a quiz
@@ -503,9 +485,7 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
         if (gestor) {
           const titulo = 'Quiz Aprovado'
           const mensagem = `${quizUser.nome} aprovou no quiz "${quiz.titulo}" com nota ${nota}/10.`
-          prisma.notification.create({
-            data: { fromId: req.userId, toId: gestor.id, titulo, mensagem },
-          }).catch(() => {})
+          db.create('notification', { fromId: req.userId, toId: gestor.id, titulo, mensagem }).catch(() => {})
           sendNotificationAlertEmail(gestor.email, gestor.nome || gestor.email, titulo).catch(() => {})
         }
       }
@@ -533,17 +513,11 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
           if (allAulasCompleted >= modulo.aulas.length) {
             const certStatus = modulo.autoCertificado ? 'APPROVED' : 'PENDING'
             try {
-              await prisma.certificate.upsert({
-                where: {
-                  userId_moduloId: { userId: req.userId, moduloId: aula.moduloId },
-                },
-                update: {},
-                create: {
-                  userId: req.userId,
-                  moduloId: aula.moduloId,
-                  status: certStatus,
-                },
-              })
+              await db.upsert('certificate',
+                { userId_moduloId: { userId: req.userId, moduloId: aula.moduloId } },
+                { userId: req.userId, moduloId: aula.moduloId, status: certStatus },
+                {},
+              )
               await awardPointsIfNotAwarded(req.userId, 'CERTIFICATE', `CERTIFICATE:modulo:${aula.moduloId}`)
               await logActivity(req.userId, 'Certificado Gerado', `Modulo: ${modulo.titulo}`)
             } catch {

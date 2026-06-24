@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
+import { db } from '../lib/db'
 import { authenticate, authorize, AuthRequest } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
 
@@ -56,17 +57,15 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
     if (!titulo || !descricao) {
       return res.status(400).json({ error: 'Titulo e descricao sao obrigatorios' })
     }
-    const conquista = await prisma.conquista.create({
-      data: {
-        titulo,
-        descricao,
-        icone: icone || '🏆',
-        cor: cor || '#F47C20',
-        pontosMinimos: pontosMinimos || 0,
-        xpRecompensa: xpRecompensa || 0,
-        ativo: ativo !== false,
-        ordem: ordem || 0,
-      },
+    const conquista = await db.create('conquista', {
+      titulo,
+      descricao,
+      icone: icone || '🏆',
+      cor: cor || '#F47C20',
+      pontosMinimos: pontosMinimos || 0,
+      xpRecompensa: xpRecompensa || 0,
+      ativo: ativo !== false,
+      ordem: ordem || 0,
     })
     res.status(201).json(conquista)
   } catch (error) {
@@ -81,18 +80,15 @@ router.put('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthR
     const { titulo, descricao, icone, cor, pontosMinimos, xpRecompensa, ativo, ordem } = req.body
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
-    const conquista = await prisma.conquista.update({
-      where: { id },
-      data: {
-        ...(titulo !== undefined && { titulo }),
-        ...(descricao !== undefined && { descricao }),
-        ...(icone !== undefined && { icone }),
-        ...(cor !== undefined && { cor }),
-        ...(pontosMinimos !== undefined && { pontosMinimos }),
-        ...(xpRecompensa !== undefined && { xpRecompensa }),
-        ...(ativo !== undefined && { ativo }),
-        ...(ordem !== undefined && { ordem }),
-      },
+    const conquista = await db.update('conquista', { id }, {
+      ...(titulo !== undefined && { titulo }),
+      ...(descricao !== undefined && { descricao }),
+      ...(icone !== undefined && { icone }),
+      ...(cor !== undefined && { cor }),
+      ...(pontosMinimos !== undefined && { pontosMinimos }),
+      ...(xpRecompensa !== undefined && { xpRecompensa }),
+      ...(ativo !== undefined && { ativo }),
+      ...(ordem !== undefined && { ordem }),
     })
     res.json(conquista)
   } catch (error) {
@@ -106,8 +102,8 @@ router.delete('/:id', authenticate, authorize('ADMIN'), async (req: AuthRequest,
   try {
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
-    await prisma.userConquista.deleteMany({ where: { conquistaId: id } })
-    await prisma.conquista.delete({ where: { id } })
+    await db.deleteMany('userConquista', { conquistaId: id })
+    await db.delete('conquista', { id })
     res.json({ success: true })
   } catch (error) {
     console.error('[CONQUISTA DELETE ERROR]', error)

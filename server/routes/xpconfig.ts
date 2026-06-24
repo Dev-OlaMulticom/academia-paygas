@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
+import { db } from '../lib/db'
 import { authenticate, authorize } from '../middleware/auth'
 
 const router = Router()
@@ -27,20 +28,20 @@ router.put('/:action', authenticate, authorize('ADMIN'), async (req: any, res) =
       return res.status(400).json({ error: 'points deve ser um número não negativo' })
     }
 
-    const config = await prisma.xPConfig.upsert({
-      where: { action },
-      update: {
-        points,
-        ...(label ? { label } : {}),
-        ...(description !== undefined ? { description } : {}),
-      },
-      create: {
+    const config = await db.upsert('xPConfig',
+      { action },
+      {
         action,
         label: label || action,
         points,
         description: description || null,
       },
-    })
+      {
+        points,
+        ...(label ? { label } : {}),
+        ...(description !== undefined ? { description } : {}),
+      },
+    )
 
     res.json(config)
   } catch (error) {
@@ -63,8 +64,11 @@ router.post('/', authenticate, authorize('ADMIN'), async (req: any, res) => {
       return res.status(409).json({ error: 'Esta ação já existe' })
     }
 
-    const config = await prisma.xPConfig.create({
-      data: { action, label, points, description: description || null },
+    const config = await db.create('xPConfig', {
+      action,
+      label,
+      points,
+      description: description || null,
     })
 
     res.status(201).json(config)

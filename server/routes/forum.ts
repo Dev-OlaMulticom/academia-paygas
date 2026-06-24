@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
+import { db } from '../lib/db'
 import { authenticate, AuthRequest } from '../middleware/auth'
 import { logActivity } from '../services/log'
 
@@ -30,17 +31,18 @@ router.post('/', authenticate, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Título e conteúdo são obrigatórios' })
     }
     const tagsStr = Array.isArray(tags) ? JSON.stringify(tags) : undefined
-    const post = await prisma.forumPost.create({
-      data: {
-        titulo,
-        conteudo,
-        ...(tagsStr ? { tags: tagsStr } : {}),
-        autorId: userId,
-      },
+    const post = await db.create('forumPost', {
+      titulo,
+      conteudo,
+      ...(tagsStr ? { tags: tagsStr } : {}),
+      autorId: userId,
+    })
+    const postWithAutor = await prisma.forumPost.findUnique({
+      where: { id: (post as any).id },
       include: { autor: { select: AUTHOR_SELECT } },
     })
     await logActivity(userId, 'Forum Post', `Post: ${titulo}`)
-    res.status(201).json(post)
+    res.status(201).json(postWithAutor)
   } catch (error) {
     console.error('[FORUM CREATE ERROR]', error)
     res.status(500).json({ error: 'Erro ao criar post' })
@@ -55,13 +57,13 @@ router.post('/:id/like', authenticate, async (req: AuthRequest, res) => {
     if (!post) {
       return res.status(404).json({ error: 'Post não encontrado' })
     }
-    const updated = await prisma.forumPost.update({
+    const updated = await db.update('forumPost', { id: postId }, { likes: post.likes + 1 })
+    const updatedWithAutor = await prisma.forumPost.findUnique({
       where: { id: postId },
-      data: { likes: post.likes + 1 },
       include: { autor: { select: AUTHOR_SELECT } },
     })
     await logActivity(req.userId!, 'Forum Like', `Post: ${post.titulo}`)
-    res.json(updated)
+    res.json(updatedWithAutor)
   } catch (error) {
     console.error('[FORUM LIKE ERROR]', error)
     res.status(500).json({ error: 'Erro ao curtir post' })
@@ -76,13 +78,13 @@ router.post('/:id/reply', authenticate, async (req: AuthRequest, res) => {
     if (!post) {
       return res.status(404).json({ error: 'Post não encontrado' })
     }
-    const updated = await prisma.forumPost.update({
+    const updated = await db.update('forumPost', { id: postId }, { replies: post.replies + 1 })
+    const updatedWithAutor = await prisma.forumPost.findUnique({
       where: { id: postId },
-      data: { replies: post.replies + 1 },
       include: { autor: { select: AUTHOR_SELECT } },
     })
     await logActivity(req.userId!, 'Forum Resposta', `Post: ${post.titulo}`)
-    res.json(updated)
+    res.json(updatedWithAutor)
   } catch (error) {
     console.error('[FORUM REPLY ERROR]', error)
     res.status(500).json({ error: 'Erro ao responder post' })
