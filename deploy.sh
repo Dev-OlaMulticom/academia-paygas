@@ -729,7 +729,7 @@ else
     log_warn "Puerto 3001 libre, iniciando Node.js directo"
 
     # Export all critical env vars so child process inherits them
-    export DATABASE_URL="${DATABASE_URL:-}"
+    export DATABASE_URL="${DATABASE_URL:-${PG_URL_1:-}}"
     export PG_URL_1="${PG_URL_1:-}"
     export PG_URL_2="${PG_URL_2:-}"
     export NHOST_URL="${NHOST_URL:-}"

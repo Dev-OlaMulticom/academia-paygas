@@ -7,7 +7,7 @@ import { PrismaClient } from '../prisma/generated/mysql'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 const pgClient = new PrismaClient({
-  adapter: new PrismaPg({ connectionString: process.env.DATABASE_URL }),
+  adapter: new PrismaPg({ connectionString: process.env.PG_URL_1 || process.env.DATABASE_URL }),
 })
 
 const mysqlClient = new PrismaClient({

@@ -3,7 +3,7 @@ import { PrismaClient } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 import bcrypt from 'bcryptjs'
 
-const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
+const adapter = new PrismaPg({ connectionString: process.env.PG_URL_1 || process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } })
 const prisma = new PrismaClient({ adapter })
 
 const ADMIN_EMAIL = 'admin@paygas.com.br'

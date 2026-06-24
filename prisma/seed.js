@@ -7,7 +7,7 @@ require("dotenv/config");
 const client_1 = require("@prisma/client");
 const adapter_pg_1 = require("@prisma/adapter-pg");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const adapter = new adapter_pg_1.PrismaPg({ connectionString: process.env.DATABASE_URL });
+const adapter = new adapter_pg_1.PrismaPg({ connectionString: process.env.PG_URL_1 || process.env.DATABASE_URL });
 const prisma = new client_1.PrismaClient({ adapter });
 async function main() {
     console.log('🌱 Seeding database...');
