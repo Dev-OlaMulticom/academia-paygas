@@ -467,13 +467,20 @@ echo ""
 # ─── 7. Prisma: generate + migrate ───────────────────────
 echo "=== [7/10] Configurando base de datos ==="
 
-# Generate
+# Generate PG client
 if npx prisma generate 2>&1; then
-    log_ok "Prisma client generado"
+    log_ok "Prisma client (PostgreSQL) generado"
 else
     log_warn "prisma generate fallo, reintentando..."
     rm -rf node_modules/.prisma 2>/dev/null || true
-    npx prisma generate 2>&1 && log_ok "Prisma client generado (reintento)" || log_fail "Prisma generate fallo definitivamente"
+    npx prisma generate 2>&1 && log_ok "Prisma client (PostgreSQL) generado (reintento)" || log_fail "Prisma generate fallo definitivamente"
+fi
+
+# Generate MySQL client
+if npx prisma generate --schema=prisma/schema.mysql.prisma 2>&1; then
+    log_ok "Prisma client (MySQL) generado"
+else
+    log_warn "prisma generate MySQL fallo (no critico si MySQL no esta configurado)"
 fi
 
 # Migrate with auto-repair for failed migrations
@@ -521,6 +528,45 @@ else
     else
         log_warn "Migraciones fallaron: $MIGRATE_OUTPUT"
     fi
+fi
+
+echo ""
+
+# ─── 7a. MySQL: schema push + data sync ──────────────────
+echo "=== [7a/10] Configurando MySQL (backup) ==="
+
+# Check if MYSQL_URL is configured
+if [ -n "${MYSQL_URL:-}" ]; then
+    log_ok "MYSQL_URL configurada"
+
+    # Push MySQL schema (creates tables if they don't exist)
+    if npx prisma db push --schema=prisma/schema.mysql.prisma --accept-data-loss 2>&1; then
+        log_ok "Schema MySQL sincronizado"
+    else
+        log_warn "db push MySQL fallo (no critico)"
+    fi
+
+    # Initial data sync: check if MySQL is empty
+    MYSQL_USER_COUNT=$(npx tsx -e "
+        const { PrismaClient } = require('./prisma/generated/mysql');
+        const p = new PrismaClient();
+        p.usuario.count().then(c => { console.log(c); p.\$disconnect(); });
+    " 2>/dev/null || echo "-1")
+
+    if [ "$MYSQL_USER_COUNT" = "0" ]; then
+        log_ok "MySQL vacio, ejecutando sync inicial PG → MySQL..."
+        if npx tsx prisma/sync-mysql.ts 2>&1; then
+            log_ok "Datos sincronizados de PostgreSQL a MySQL"
+        else
+            log_warn "Sync inicial fallo (no critico, dual-write lo maneja)"
+        fi
+    elif [ "$MYSQL_USER_COUNT" = "-1" ]; then
+        log_warn "No se pudo verificar MySQL (no critico)"
+    else
+        log_ok "MySQL ya tiene $MYSQL_USER_COUNT usuarios (sync omitido, dual-write mantiene)"
+    fi
+else
+    log_warn "MYSQL_URL no configurada, omitiendo MySQL"
 fi
 
 echo ""
@@ -636,6 +682,7 @@ else
 
     # Export all critical env vars so child process inherits them
     export DATABASE_URL="${DATABASE_URL:-}"
+    export MYSQL_URL="${MYSQL_URL:-}"
     export JWT_SECRET="${JWT_SECRET:-}"
     export ENCRYPTION_KEY="${ENCRYPTION_KEY:-}"
     export NODE_ENV="production"
