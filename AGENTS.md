@@ -33,8 +33,8 @@ pnpm db:reset            # reset + seed
 
 # Database - MySQL (backup)
 npx prisma generate --schema=prisma/schema.mysql.prisma  # generate MySQL client
-pnpx db:generate:mysql   # same as above
-pnpx db:sync-mysql       # initial sync PG → MySQL (runs pg-dump + mysql import)
+pnpm db:generate:mysql   # same as above
+pnpm db:sync-mysql       # initial sync PG → MySQL (runs pg-dump + mysql import)
 
 # Deploy (cPanel/production)
 ./deploy.sh              # auto-detects nginx, compiles, restarts
@@ -79,12 +79,12 @@ shadcn/ui (new-york style), Radix UI primitives, TailwindCSS 4, Lucide icons. Co
 
 ### Backend routes
 
-All under `/api/`. Key route files in `server/routes/`:
-`auth`, `usuarios`, `cms`, `certificates`, `notifications`, `progresso`, `dashboard`, `analytics`, `forum`, `gamification`, `public`, `modules`, `conquistas`.
+All under `/api/`. Route files in `server/routes/`:
+`auth`, `usuarios`, `cms`, `certificates`, `notifications`, `progresso`, `dashboard`, `docs`, `analytics`, `forum`, `gamification`, `conquistas`, `public`, `modules`, `logs`, `xpconfig`, `import-export`, `adminDashboard`.
 
 ### Database
 
-**Multi-database architecture with failover**: Reads failover to next healthy database. Writes go to all healthy databases in parallel. Background sync reconciles data when databases recover.
+**Multi-database architecture with failover**: Reads failover to next healthy database. Writes go to all healthy databases in parallel. Background sync reconciles empty databases when they recover.
 
 - **PG_URL_1**: Primary PostgreSQL (Supabase). All reads + writes.
 - **PG_URL_2**: Backup PostgreSQL (Nhost). Failover for reads. Writes are best-effort.
@@ -92,7 +92,7 @@ All under `/api/`. Key route files in `server/routes/`:
 - **MYSQL_URL**: Backup/redundancy (third-tier, different engine).
 - **Health checks**: Every 60s, monitors all databases. Exponential backoff for disconnected ones.
 - **Keep-alive**: Pings all databases every 12h to prevent free-tier pauses.
-- **Background sync**: When a database recovers, syncs all data from healthiest database automatically.
+- **Background sync**: When a completely empty database recovers, syncs all data from healthiest database. Does NOT sync stale (non-empty) databases.
 
 ```env
 # .env — Multi-PG configuration
@@ -100,20 +100,6 @@ PG_URL_1="postgres://...@supabase.co:5432/postgres?sslmode=require"   # Primary
 PG_URL_2="postgres://...@nhost.run:5432/project?sslmode=require"     # Backup
 DATABASE_URL="..."  # Legacy fallback (if PG_URL_1 not set)
 MYSQL_URL="..."     # MySQL backup (different engine)
-```
-
-```ts
-// Health endpoint returns all databases
-GET /api/health → {
-  status: "ok",
-  primary: "supabase",
-  databases: {
-    supabase: "connected",
-    nhost: "connected",
-    mysql: "connected"
-  },
-  summary: { total: 2, healthy: 2, unhealthy: 0 }
-}
 ```
 
 **Naming gotcha:** The DB table is `Modulo` but the frontend/CMS calls it "Curso". The field `moduloId` is `cursoId` in frontend context. This is cosmetic only — the schema is not changing.
@@ -132,53 +118,27 @@ await db.update('user', { id: '123' }, { nome: 'New' })
 await db.upsert('progresso', { ... }, { ... }, { ... })
 await db.delete('user', { id: '123' })
 
-// Reads always use Supabase (primary)
+// Reads always use primary (PG_URL_1)
 await db.findMany('modulo', { where: { ativo: true } })
-
-// Health check returns all three databases
-await db.healthCheck() // { supabase: 'connected', nhost: 'connected', mysql: 'connected' }
 ```
 
 Models are configured in `server/lib/db-models.ts`. Each model maps PG, Nhost, and MySQL delegates. Nhost and MySQL are `null` when their URL env vars are not set — dual-write gracefully degrades.
+
+**Gotcha:** `db.transaction()` only uses the primary Prisma client — no replication to backups. Raw queries (`db.queryRaw()`) also only hit primary.
 
 ### Encryption
 
 AES-256-GCM payloads between client and server. Client fetches key from `GET /api/config` before login. See `src/lib/crypto.ts` (client) and `server/middleware/encryption.ts` (server).
 
-### Email Service (High Reliability & Failover)
+### Email Service
 
- Centralized email dispatch via `server/services/email.ts`.
-- **Primary SMTP**: Gmail SMTP (`smtp.gmail.com:587`, TLS) using `dev.olamulticom@gmail.com`.
-- **Backup SMTP**: Resend SMTP (`smtp.resend.com:465`, SSL) with API key credentials.
-- **Auto-fallback & Multi-Try**: Failures with Gmail automatically fallback to Resend.
-- **BCC & Reply-To Compliance**: Every outgoing email is blind-copied (BCC) to `email@academia.paygas.com.br` and sets the Reply-To header to `email@academia.paygas.com.br`.
-- **Audit/Monitoring Pipeline**: For every successfully dispatched email, a copy of the notification metadata is forwarded to `onboarding@resend.dev` via Resend for central monitoring and tracking.
-- **Non-silent errors**: `sendEmail()` returns an `EmailResult` object containing `{ success, messageId, error }` instead of failing silently, ensuring callers (auth registration, certificate creation, etc.) can detect and handle dispatch issues.
-
-### Quiz Editor (Dedicated Full-Page Admin)
-
-Located at `/cms/:moduloId/quiz/:aulaId` (`src/pages/QuizEditorPage.tsx`), replacing the old modal-based editor for superior UX.
-- **Layout**: Two-column layout with a scrollable list of questions on the left, and an active question editor form/metadata configurator on the right. Fully responsive for mobile stacking.
-- **Metadata Management**: Edit title, minimum passing grade (0-10, with real-time feedback on how many correct answers are required based on total questions), and auto-certificate generation.
-- **Question CRUD**: Dynamically create, edit, reorder, and delete quiz questions (A/B/C/D choices with correct answer indicator).
+Centralized email dispatch via `server/services/email.ts`. Primary: Gmail SMTP. Backup: Resend SMTP. Auto-fallback on failure. Every email BCCs `email@academia.paygas.com.br`. `sendEmail()` returns `{ success, messageId, error }`.
 
 ### Auth & Authorization
 
 **Authentication**: JWT + bcryptjs. Three roles: `ADMIN`, `GESTOR`, `ATENDENTE`. GESTOR is restricted to their own team members. Tokens verified via `server/middleware/auth.ts`.
 
 **Authorization**: CASL-based RBAC/ABAC. All permission logic centralized in `server/auth/casl/`.
-
-```
-server/auth/casl/
-  actions.ts          # CASL action constants (create, read, update, delete, manage, ...)
-  subjects.ts         # CASL subject constants (User, Modulo, Team, Message, ...)
-  ability.ts          # AppAbility type definition
-  defineAbility.ts    # Central ability builder — merges all policies
-  policies/
-    user.policy.ts    # User entity permissions
-    team.policy.ts    # Team aggregate permissions
-    message.policy.ts # Notification permissions
-```
 
 **Middleware** (`server/middleware/auth.ts`) supports both patterns:
 ```ts
@@ -200,66 +160,21 @@ if (can('delete', 'User')) { /* show delete button */ }
 
 XP points are configurable via the `XPConfig` table (editable by ADMIN at `/xp-config`). Values are decimals (Float). The `awardPoints` function in `server/services/gamification.ts` reads config from DB with a 60s in-memory cache, falling back to hardcoded defaults.
 
-Default XP values:
-
-| Action | Points | Trigger |
-|--------|--------|---------|
-| `LOGIN` | 0.05 | Each login (max 1/day per user) |
-| `MODULE_OPEN` | 0.05 | First time opening a module |
-| `LESSON_VIEW` | 0.1 | Viewing a lesson/aula |
-| `LESSON_COMPLETE` | 1.0 | Completing a lesson/aula |
-| `MODULE_COMPLETE` | 5.0 | Completing all aulas in a module |
-| `QUIZ_CORRECT` | 0.5 | Each correct quiz answer |
-| `QUIZ_PASS` | 2.0 | Passing a quiz (nota >= notaMinima) |
-| `CERTIFICATE` | 10.0 | Obtaining a certificate |
-
 Level = `Math.floor(xp / 2000) + 1`. `awardPointsIfNotAwarded` deduplicates by (userId, action, details-as-dedupKey). `awardLoginPointsDaily` limits login XP to once per calendar day.
 
 ### Activity Logs
 
 All user actions are logged to the `ActivityLog` table via the shared `logActivity(userId, acao, detalhes)` service (`server/services/log.ts`). ADMIN can view logs at `/logs` with filters by user, action type, and date range.
 
-## Database Tables (17 models)
-
-| Table | Description |
-|-------|-------------|
-| `User` | Usuarios del sistema (email, nome, senha, role, xp, level) |
-| `Modulo` | Cursos/modules del LMS (titulo, descricao, ordem,视频Url) |
-| `Aula` | Secciones dentro de un modulo (titulo, tipo: VIDEO/PDF/TEXTO) |
-| `Licao` | Contenido individual (video, texto, PDF) |
-| `Quiz` | Cuestionarios por aula (1:1 con Aula) |
-| `QuizPergunta` | Preguntas del quiz (opcaoA/B/C/D, correta) |
-| `QuizResponse` | Respuestas de usuarios a quizzes |
-| `Progresso` | Progreso de usuario por aula |
-| `Certificate` | Certificados (PENDING/APPROVED/ISSUED) |
-| `Notification` | Notificaciones in-app (from/to) |
-| `ActivityLog` | Audit log de acciones |
-| `PointsTransaction` | Transacciones XP |
-| `ForumPost` | Posts del foro |
-| `ModuleConfig` | Config de modulos del sidebar (enabled/disabled) |
-| `XPConfig` | Config de puntos XP por accion |
-| `Conquista` | Logros/achievements |
-| `UserConquista` | Relacion usuario-conquista |
-
-### Enums
-
-| Enum | Values |
-|------|--------|
-| `Role` | ADMIN, GESTOR, ATENDENTE |
-| `CertificateStatus` | PENDING, APPROVED, ISSUED |
-| `AulaTipo` | VIDEO, PDF, TEXTO |
-| `PointsAction` | LOGIN, MODULE_OPEN, LESSON_VIEW, LESSON_COMPLETE, MODULE_COMPLETE, QUIZ_CORRECT, QUIZ_PASS, CERTIFICATE |
-
 ## Environment
 
 Copy `.env.example` to `.env`. Key vars:
 
-- `DATABASE_URL` — required, PostgreSQL connection string
-- `NHOST_URL` — optional, Nhost PostgreSQL backup connection string
+- `PG_URL_1` — required, primary PostgreSQL connection string (takes precedence over `DATABASE_URL`)
+- `DATABASE_URL` — required by Prisma migrations, set to same as PG_URL_1
+- `PG_URL_2` — optional, backup PostgreSQL for failover
 - `MYSQL_URL` — optional, MySQL connection string for backup
-- `KEEPALIVE_INTERVAL_MS` — optional, keep-alive interval (default: 43200000 = 12h)
-- `KEEPALIVE_FIRST_DELAY_MS` — optional, first keep-alive delay (default: 300000 = 5min)
-- `JWT_SECRET` — optional, auto-generated if weak/missing
+- `JWT_SECRET` — optional, auto-generated if weak/missing (persisted to `.jwt-secret` file)
 - `ENCRYPTION_KEY` — optional, auto-generated if missing
 - `ALLOWED_ORIGINS` — required, comma-separated CORS origins
 - `SMTP_*` — optional, for email notifications
@@ -275,7 +190,7 @@ Copy `.env.example` to `.env`. Key vars:
 
 - `pnpm build` must run `prisma generate` (PG + MySQL) before vite/tsc — the build script chains this automatically.
 - `.htaccess` does nothing on nginx (production server). The nginx snippet in `deploy.sh` replaces its functionality.
-- Vite dev server proxies `/api` to `https://localhost:3001` (note: `secure: false` for self-signed certs).
+- Vite dev server proxies `/api` to `http://localhost:3001` (not https).
 - `app.js` and `Passengerfile.json` exist for Phusion Passenger but are NOT used by `deploy.sh`.
 - No `typecheck` command — run `npx tsc --noEmit` for frontend or check server with `npx tsc --project tsconfig.server.json --noEmit` if needed.
 - Prisma migrations live in `prisma/migrations/`. Use `prisma migrate dev` to create new ones locally.
@@ -285,6 +200,14 @@ Copy `.env.example` to `.env`. Key vars:
 - When `NHOST_URL` is not set, `prismaNhost` is `null` and all dual-write operations silently skip Nhost.
 - `PG_URL_1` takes precedence over `DATABASE_URL` as primary. If neither is set, the server won't start.
 - `prisma.ts` uses `PG_URL_1 || DATABASE_URL` for the primary client. The database registry (`server/config/databases.ts`) manages all connections.
-- Health checks run every 60s in production. Disconnected databases get exponential backoff (30s → 5min).
-- Background sync only runs when in production (`NODE_ENV=production`). It syncs from the database with the most data.
-- The `authorize()` middleware supports both role-based (`authorize('ADMIN','GESTOR')`) and CASL ability-based (`authorize('create','User')`) patterns. Detects which by checking if first arg is a known CASL action.
+- **Dev mode has no failover**: Health checks, keepalive, and background sync only run when `NODE_ENV=production`. In dev, if the primary DB is down, reads fail immediately with no fallback.
+- **CASL action list is hardcoded** in `authorize()` middleware — if you add a new CASL action in `server/auth/casl/actions.ts`, you must also add it to the detection list in `server/middleware/auth.ts`, otherwise it falls through to role-based auth.
+- **CASL conditions must be JSON.stringified** when passed as third arg: `authorize('update', 'User', JSON.stringify({ gestorId: req.userId }))`.
+- **Frontend CASL is custom** — `src/hooks/useAbility.ts` does NOT use the `@casl/ability` library at runtime. It implements a lightweight rule engine. The backend is always the source of truth.
+- **Prisma uses PrismaPg adapter** (`@prisma/adapter-pg`), not the default binary engine. Connection goes through the `pg` driver with `ssl: { rejectUnauthorized: false }`.
+- **MySQL uses MariaDB adapter** (`@prisma/adapter-mariadb`) — MariaDB is wire-compatible with MySQL but there could be edge cases.
+- **Two PrismaClient instances for PG_URL_1**: `prisma.ts` creates one, `databases.ts` registry creates another. They share the same connection string but have separate connection pools.
+- **`db-models.ts` always uses `allEntries[0]` as primary** regardless of health status, while `databases.ts` has a health-aware `getPrimary()`. These two "primary" concepts can diverge.
+- **HTTPS auto-detection**: Server looks for `server/certs/key.pem` and `cert.pem` relative to `__dirname`. If found, creates HTTPS; otherwise plain HTTP.
+- **JWT_SECRET fallback chain**: env var → `.jwt-secret` file → auto-generate random 64-byte hex and persist to `.jwt-secret`.
+- **`PG_URL_1` through `PG_URL_10`** are supported — the registry scans up to 10 PG databases dynamically.

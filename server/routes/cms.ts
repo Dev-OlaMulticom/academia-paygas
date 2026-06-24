@@ -44,6 +44,26 @@ router.get('/', authenticate, async (req: any, res) => {
   }
 })
 
+// GET /api/cms/:id - Get single modulo
+router.get('/:id', authenticate, async (req: any, res) => {
+  try {
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
+    const modulo = await prisma.modulo.findUnique({
+      where: { id },
+      include: {
+        aulas: { select: { id: true } },
+        _count: { select: { aulas: true, progressos: true } },
+      },
+    })
+    if (!modulo) return res.status(404).json({ error: 'Módulo não encontrado' })
+    res.json(modulo)
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao buscar módulo' })
+  }
+})
+
 // POST /api/cms/modulos
 router.post('/', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
