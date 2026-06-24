@@ -2,8 +2,7 @@ import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
-import { prisma } from '../lib/prisma'
-import { prismaMysql } from '../lib/prisma-mysql'
+import { db } from '../lib/db'
 import { JWT_SECRET, authenticate, AuthRequest } from '../middleware/auth'
 import { sendPasswordResetEmail, isEmailConfigured } from '../services/email'
 import { awardLoginPointsDaily } from '../services/gamification'
@@ -19,7 +18,7 @@ router.post('/login', async (req, res) => {
       return res.status(400).json({ error: 'Email e senha são obrigatórios' })
     }
 
-    const user = await prisma.user.findUnique({ where: { email } })
+    const user = await db.findUnique('user', { email }) as any
     if (!user) {
       console.warn(`[AUTH LOGIN] Usuario nao encontrado: ${email}`)
       return res.status(401).json({ error: 'Credenciais inválidas' })
@@ -31,22 +30,7 @@ router.post('/login', async (req, res) => {
       return res.status(401).json({ error: 'Credenciais inválidas' })
     }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { lastLogin: new Date() },
-    })
-
-    // Dual-write login timestamp to MySQL
-    if (prismaMysql) {
-      try {
-        await prismaMysql.user.update({
-          where: { id: user.id },
-          data: { lastLogin: new Date() },
-        })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL login update failed:', error?.message)
-      }
-    }
+    await db.update('user', { id: user.id }, { lastLogin: new Date() })
 
     // Award login points (max once per day)
     await awardLoginPointsDaily(user.id)
@@ -75,12 +59,18 @@ router.post('/login', async (req, res) => {
 // GET /api/auth/me
 router.get('/me', authenticate, async (req: AuthRequest, res) => {
   try {
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId },
-      select: { id: true, email: true, nome: true, role: true, xp: true, gestorId: true, createdAt: true, lastLogin: true },
-    })
+    const user = await db.findUnique('user', { id: req.userId! }) as any
     if (!user) return res.status(404).json({ error: 'Usuário não encontrado' })
-    res.json(user)
+    res.json({
+      id: user.id,
+      email: user.email,
+      nome: user.nome,
+      role: user.role,
+      xp: user.xp,
+      gestorId: user.gestorId,
+      createdAt: user.createdAt,
+      lastLogin: user.lastLogin,
+    })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro interno do servidor' })
@@ -95,9 +85,7 @@ router.get('/verify-email', async (req, res) => {
       return res.status(400).json({ error: 'Token de verificacao invalido' })
     }
 
-    const user = await prisma.user.findFirst({
-      where: { tokenVerificacao: token },
-    })
+    const user = await db.findFirst('user', { tokenVerificacao: token }) as any
 
     if (!user) {
       return res.status(404).json({ error: 'Token invalido ou expirado' })
@@ -112,30 +100,11 @@ router.get('/verify-email', async (req, res) => {
       return res.json({ message: 'Email ja verificado', alreadyVerified: true })
     }
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: {
-        emailVerificado: true,
-        tokenVerificacao: null,
-        tokenExpiry: null,
-      },
+    await db.update('user', { id: user.id }, {
+      emailVerificado: true,
+      tokenVerificacao: null,
+      tokenExpiry: null,
     })
-
-    // Dual-write email verification to MySQL
-    if (prismaMysql) {
-      try {
-        await prismaMysql.user.update({
-          where: { id: user.id },
-          data: {
-            emailVerificado: true,
-            tokenVerificacao: null,
-            tokenExpiry: null,
-          },
-        })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL email verify failed:', error?.message)
-      }
-    }
 
     res.json({ message: 'Email verificado com sucesso!' })
   } catch (error) {
@@ -157,7 +126,7 @@ router.post('/forgot-password', async (req, res) => {
       return res.status(400).json({ error: 'Email é obrigatório' })
     }
 
-    const user = await prisma.user.findUnique({ where: { email } })
+    const user = await db.findUnique('user', { email }) as any
     if (!user) {
       // Silently succeed to prevent email enumeration
       return res.json({ message: 'Se o email estiver cadastrado, você receberá um código de redefinição.' })
@@ -166,22 +135,10 @@ router.post('/forgot-password', async (req, res) => {
     const code = Math.floor(100000 + Math.random() * 900000).toString()
     const expiry = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
 
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { tokenRecuperacao: code, tokenRecuperacaoExpiry: expiry },
+    await db.update('user', { id: user.id }, {
+      tokenRecuperacao: code,
+      tokenRecuperacaoExpiry: expiry,
     })
-
-    // Dual-write recovery token to MySQL
-    if (prismaMysql) {
-      try {
-        await prismaMysql.user.update({
-          where: { id: user.id },
-          data: { tokenRecuperacao: code, tokenRecuperacaoExpiry: expiry },
-        })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL forgot-password token failed:', error?.message)
-      }
-    }
 
     await sendPasswordResetEmail(user.email, user.nome || user.email, code).catch((err) => {
       console.error('[AUTH] Erro ao enviar email de redefinicao:', err)
@@ -213,48 +170,26 @@ router.post('/reset-password', async (req, res) => {
       return res.status(400).json({ error: 'A senha deve ter pelo menos 8 caracteres' })
     }
 
-    const user = await prisma.user.findUnique({ where: { email } })
+    const user = await db.findUnique('user', { email }) as any
     if (!user || user.tokenRecuperacao !== code) {
       return res.status(400).json({ error: 'Código inválido ou email incorreto' })
     }
 
     if (user.tokenRecuperacaoExpiry && new Date() > user.tokenRecuperacaoExpiry) {
       // Clear expired token
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { tokenRecuperacao: null, tokenRecuperacaoExpiry: null },
+      await db.update('user', { id: user.id }, {
+        tokenRecuperacao: null,
+        tokenRecuperacaoExpiry: null,
       })
-      // Dual-write expired token clear to MySQL
-      if (prismaMysql) {
-        try {
-          await prismaMysql.user.update({
-            where: { id: user.id },
-            data: { tokenRecuperacao: null, tokenRecuperacaoExpiry: null },
-          })
-        } catch (error: any) {
-          console.warn('[DUAL-WRITE] MySQL token clear failed:', error?.message)
-        }
-      }
       return res.status(400).json({ error: 'Código expirado. Solicite um novo.' })
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12)
-    await prisma.user.update({
-      where: { id: user.id },
-      data: { senha: hashedPassword, tokenRecuperacao: null, tokenRecuperacaoExpiry: null },
+    await db.update('user', { id: user.id }, {
+      senha: hashedPassword,
+      tokenRecuperacao: null,
+      tokenRecuperacaoExpiry: null,
     })
-
-    // Dual-write password reset to MySQL
-    if (prismaMysql) {
-      try {
-        await prismaMysql.user.update({
-          where: { id: user.id },
-          data: { senha: hashedPassword, tokenRecuperacao: null, tokenRecuperacaoExpiry: null },
-        })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL password reset failed:', error?.message)
-      }
-    }
 
     await logActivity(user.id, 'Senha Redefinida', 'Senha redefinida via recuperacao')
 

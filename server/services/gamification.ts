@@ -1,5 +1,4 @@
-import { prisma } from '../lib/prisma'
-import { prismaMysql } from '../lib/prisma-mysql'
+import { db } from '../lib/db'
 import { PointsAction } from '@prisma/client'
 
 // Default XP values — used as fallback if DB config is not available
@@ -26,7 +25,7 @@ async function getXPConfig(): Promise<Record<string, number>> {
   }
 
   try {
-    const configs = await prisma.xPConfig.findMany()
+    const configs = await db.findMany('xPConfig')
     xpConfigCache = {}
     for (const c of configs) {
       xpConfigCache[c.action] = c.points
@@ -52,56 +51,25 @@ export async function awardPoints(
 
   if (points === 0) return 0
 
-  await prisma.$transaction([
-    prisma.pointsTransaction.create({
+  await db.transaction(async (tx) => {
+    await tx.pointsTransaction.create({
       data: { userId, action, points, details },
-    }),
-    prisma.user.update({
+    })
+    await tx.user.update({
       where: { id: userId },
       data: { xp: { increment: points } },
-    }),
-  ])
+    })
+  })
 
-  // Dual-write to MySQL
-  if (prismaMysql) {
-    try {
-      await prismaMysql.$transaction([
-        prismaMysql.pointsTransaction.create({
-          data: { userId, action, points, details },
-        }),
-        prismaMysql.user.update({
-          where: { id: userId },
-          data: { xp: { increment: points } },
-        }),
-      ])
-    } catch (error: any) {
-      console.warn('[DUAL-WRITE] MySQL awardPoints failed:', error?.message)
-    }
-  }
+  // MySQL also gets the transaction via DAL (fire-and-forget)
+  // db.create handles MySQL dual-write, but we also need the user XP update there
+  await db.update('user', { id: userId }, { xp: { increment: points } } as any)
 
   // Recalculate and persist level
-  const updated = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { xp: true },
-  })
+  const updated = await db.findUnique('user', { id: userId }) as { xp: number } | null
   if (updated) {
     const newLevel = Math.floor(updated.xp / 2000) + 1
-    await prisma.user.update({
-      where: { id: userId },
-      data: { level: newLevel },
-    })
-
-    // Dual-write level update to MySQL
-    if (prismaMysql) {
-      try {
-        await prismaMysql.user.update({
-          where: { id: userId },
-          data: { level: newLevel },
-        })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL level update failed:', error?.message)
-      }
-    }
+    await db.update('user', { id: userId }, { level: newLevel })
   }
 
   return points
@@ -117,9 +85,7 @@ export async function awardPointsIfNotAwarded(
   action: PointsAction,
   dedupKey: string
 ): Promise<number> {
-  const existing = await prisma.pointsTransaction.findFirst({
-    where: { userId, action, details: dedupKey },
-  })
+  const existing = await db.findFirst('pointsTransaction', { userId, action, details: dedupKey })
   if (existing) return 0
   return awardPoints(userId, action, dedupKey)
 }
@@ -131,30 +97,25 @@ export async function awardLoginPointsDaily(userId: string): Promise<number> {
   const startOfDay = new Date()
   startOfDay.setHours(0, 0, 0, 0)
 
-  const existing = await prisma.pointsTransaction.findFirst({
-    where: {
-      userId,
-      action: 'LOGIN',
-      createdAt: { gte: startOfDay },
-    },
+  const existing = await db.findFirst('pointsTransaction', {
+    userId,
+    action: 'LOGIN',
+    createdAt: { gte: startOfDay },
   })
   if (existing) return 0
   return awardPoints(userId, 'LOGIN', `LOGIN:${startOfDay.toISOString().split('T')[0]}`)
 }
 
 export async function getUserPoints(userId: string) {
-  const user = await prisma.user.findUnique({
-    where: { id: userId },
-    select: { xp: true },
-  })
+  const user = await db.findUnique('user', { id: userId }) as { xp?: number } | null
 
-  const transactions = await prisma.pointsTransaction.findMany({
+  const transactions = await db.findMany('pointsTransaction', {
     where: { userId },
     orderBy: { createdAt: 'desc' },
     take: 50,
   })
 
-  const byAction = await prisma.pointsTransaction.groupBy({
+  const byAction = await db.groupBy('pointsTransaction', {
     by: ['action'],
     where: { userId },
     _sum: { points: true },
@@ -165,10 +126,10 @@ export async function getUserPoints(userId: string) {
     totalXp: user?.xp || 0,
     level: Math.floor((user?.xp || 0) / 2000) + 1,
     transactions,
-    byAction: byAction.map((b: any) => ({
+    byAction: (byAction as any[]).map((b) => ({
       action: b.action,
-      totalPoints: b._sum.points || 0,
-      count: b._count.id,
+      totalPoints: b._sum?.points || 0,
+      count: b._count?.id || 0,
     })),
   }
 }
@@ -176,25 +137,22 @@ export async function getUserPoints(userId: string) {
 export async function getTeamPoints(gestorId?: string) {
   const where = gestorId ? { gestorId } : {}
 
-  const users = await prisma.user.findMany({
+  const users = await db.findMany('user', {
     where,
-    select: {
-      id: true,
-      nome: true,
-      email: true,
-      role: true,
-      xp: true,
-    },
     orderBy: { xp: 'desc' },
-  })
+  }) as any[]
 
-  const totalXp = users.reduce((sum: number, u: any) => sum + u.xp, 0)
+  const totalXp = users.reduce((sum: number, u: any) => sum + (u.xp || 0), 0)
 
   return {
     users: users.map((u: any, i: number) => ({
-      ...u,
+      id: u.id,
+      nome: u.nome,
+      email: u.email,
+      role: u.role,
+      xp: u.xp,
       rank: i + 1,
-      level: Math.floor(u.xp / 2000) + 1,
+      level: Math.floor((u.xp || 0) / 2000) + 1,
     })),
     totalXp,
     averageXp: users.length > 0 ? Math.round(totalXp / users.length) : 0,

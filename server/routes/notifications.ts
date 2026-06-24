@@ -1,6 +1,5 @@
 import { Router } from 'express'
-import { prisma } from '../lib/prisma'
-import { prismaMysql } from '../lib/prisma-mysql'
+import { db } from '../lib/db'
 import { authenticate, authorize, AuthRequest } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
 import { sendNotificationAlertEmail } from '../services/email'
@@ -10,9 +9,7 @@ const router = Router()
 // GET /api/notifications/unread-count
 router.get('/unread-count', authenticate, async (req: any, res) => {
   try {
-    const count = await prisma.notification.count({
-      where: { toId: req.userId, lida: false },
-    })
+    const count = await db.count('notification', { toId: req.userId, lida: false })
     res.json({ count })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -23,9 +20,8 @@ router.get('/unread-count', authenticate, async (req: any, res) => {
 // GET /api/notifications
 router.get('/', authenticate, async (req: any, res) => {
   try {
-    const notifs = await prisma.notification.findMany({
+    const notifs = await db.findMany('notification', {
       where: { toId: req.userId },
-      include: { from: { select: { nome: true, role: true } } },
       orderBy: { createdAt: 'desc' },
     })
     res.json(notifs)
@@ -36,13 +32,6 @@ router.get('/', authenticate, async (req: any, res) => {
 })
 
 // POST /api/notifications — send to user(s)
-// Body:
-//   toId: string       → send to specific user
-//   toId: 'all'        → send to all users (ADMIN only)
-//   toRole: string     → send to all users of role (ADMIN only)
-//   toTeam: true       → send to all team members (GESTOR only)
-//   titulo: string
-//   mensagem: string
 router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
   try {
     const { toId, toRole, toTeam, titulo, mensagem } = req.body
@@ -54,29 +43,20 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
     let targetUserIds: string[] = []
 
     if (toTeam && req.userRole === 'GESTOR') {
-      const members = await prisma.user.findMany({
-        where: { gestorId: fromId },
-        select: { id: true },
-      })
-      targetUserIds = members.map(m => m.id)
+      const members = await db.findMany('user', { where: { gestorId: fromId } }) as any[]
+      targetUserIds = members.map((m: any) => m.id)
     } else if (toId === 'all' && req.userRole === 'ADMIN') {
-      const users = await prisma.user.findMany({
-        where: { id: { not: fromId } },
-        select: { id: true },
-      })
-      targetUserIds = users.map(u => u.id)
+      const users = await db.findMany('user', { where: { id: { not: fromId } } }) as any[]
+      targetUserIds = users.map((u: any) => u.id)
     } else if (toRole && req.userRole === 'ADMIN') {
       const validRoles = ['ADMIN', 'GESTOR', 'ATENDENTE']
       if (!validRoles.includes(toRole)) {
         return res.status(400).json({ error: 'Perfil inválido' })
       }
-      const users = await prisma.user.findMany({
-        where: { role: toRole as any, id: { not: fromId } },
-        select: { id: true },
-      })
-      targetUserIds = users.map(u => u.id)
+      const users = await db.findMany('user', { where: { role: toRole as any, id: { not: fromId } } }) as any[]
+      targetUserIds = users.map((u: any) => u.id)
     } else if (toId && toId !== 'all') {
-      const targetUser = await prisma.user.findUnique({ where: { id: toId }, select: { id: true, gestorId: true } })
+      const targetUser = await db.findUnique('user', { id: toId }) as any
       if (!targetUser) return res.status(404).json({ error: 'Usuário não encontrado' })
 
       if (req.userRole === 'GESTOR' && targetUser.gestorId !== fromId) {
@@ -91,42 +71,22 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
       return res.status(400).json({ error: 'Nenhum destinatário encontrado' })
     }
 
-    const notifs = await prisma.notification.createMany({
-      data: targetUserIds.map(userId => ({
-        fromId,
-        toId: userId,
-        titulo,
-        mensagem,
-      })),
-    })
-
-    // Dual-write notifications to MySQL
-    if (prismaMysql) {
-      try {
-        await prismaMysql.notification.createMany({
-          data: targetUserIds.map(userId => ({
-            fromId,
-            toId: userId,
-            titulo,
-            mensagem,
-          })),
-        })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL notifications createMany failed:', error?.message)
-      }
-    }
+    await db.createMany('notification', targetUserIds.map(userId => ({
+      fromId,
+      toId: userId,
+      titulo,
+      mensagem,
+    })))
 
     // Send email alerts asynchronously (fire-and-forget)
-    prisma.user.findMany({
+    const users = await db.findMany('user', {
       where: { id: { in: targetUserIds } },
-      select: { id: true, email: true, nome: true },
-    }).then(users => {
-      for (const u of users) {
-        sendNotificationAlertEmail(u.email, u.nome || u.email, titulo).catch(() => {})
-      }
-    }).catch(() => {})
+    }) as any[]
+    for (const u of users) {
+      sendNotificationAlertEmail(u.email, u.nome || u.email, titulo).catch(() => {})
+    }
 
-    res.status(201).json({ success: true, sent: notifs.count })
+    res.status(201).json({ success: true, sent: targetUserIds.length })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao enviar notificação' })
@@ -139,27 +99,11 @@ router.put('/:id/read', authenticate, async (req: any, res) => {
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID invalido' })
 
-    const notif = await prisma.notification.findUnique({ where: { id } })
+    const notif = await db.findUnique('notification', { id }) as any
     if (!notif) return res.status(404).json({ error: 'Notificación no encontrada' })
     if (notif.toId !== req.userId) return res.status(403).json({ error: 'Sem permissao' })
 
-    const updated = await prisma.notification.update({
-      where: { id },
-      data: { lida: true },
-    })
-
-    // Dual-write notification read to MySQL
-    if (prismaMysql) {
-      try {
-        await prismaMysql.notification.update({
-          where: { id },
-          data: { lida: true },
-        })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL notification read failed:', error?.message)
-      }
-    }
-
+    const updated = await db.update('notification', { id }, { lida: true })
     res.json(updated)
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -170,23 +114,7 @@ router.put('/:id/read', authenticate, async (req: any, res) => {
 // PUT /api/notifications/read-all
 router.put('/read-all', authenticate, async (req: any, res) => {
   try {
-    await prisma.notification.updateMany({
-      where: { toId: req.userId, lida: false },
-      data: { lida: true },
-    })
-
-    // Dual-write read-all to MySQL
-    if (prismaMysql) {
-      try {
-        await prismaMysql.notification.updateMany({
-          where: { toId: req.userId, lida: false },
-          data: { lida: true },
-        })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL notifications read-all failed:', error?.message)
-      }
-    }
-
+    await db.updateMany('notification', { toId: req.userId, lida: false }, { lida: true })
     res.json({ success: true })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)

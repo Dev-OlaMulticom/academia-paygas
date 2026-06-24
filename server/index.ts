@@ -121,25 +121,14 @@ app.use('/api/import-export', importExportRoutes)
 app.use('/api/admin/dashboard', adminDashboardRoutes)
 
 app.get('/api/health', async (_req, res) => {
-  const checks: Record<string, any> = { status: 'ok' }
-  try {
-    const { prisma } = await import('./lib/prisma')
-    await prisma.$queryRaw`SELECT 1`
-    checks.postgresql = 'connected'
-  } catch {
-    checks.postgresql = 'disconnected'
-    checks.status = 'degraded'
-  }
-  try {
-    const { checkMysqlHealth } = await import('./lib/prisma-mysql')
-    const mysqlOk = await checkMysqlHealth()
-    checks.mysql = mysqlOk ? 'connected' : 'not_configured'
-  } catch {
-    checks.mysql = 'not_configured'
-  }
-  checks.nodeEnv = process.env.NODE_ENV || 'undefined'
-  checks.timestamp = new Date().toISOString()
-  res.json(checks)
+  const { db } = await import('./lib/db')
+  const health = await db.healthCheck()
+  res.json({
+    status: health.postgresql === 'connected' ? 'ok' : 'degraded',
+    ...health,
+    nodeEnv: process.env.NODE_ENV || 'undefined',
+    timestamp: new Date().toISOString(),
+  })
 })
 
 app.get('/api/config', (req, res) => {

@@ -1,8 +1,7 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
-import { prisma } from '../lib/prisma'
-import { prismaMysql } from '../lib/prisma-mysql'
+import { db } from '../lib/db'
 import { authenticate, authorize, AuthRequest } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
 import { Role } from '@prisma/client'
@@ -14,7 +13,7 @@ const router = Router()
 
 // Helper: check if gestor owns the user
 async function gestorOwnsUser(gestorId: string, userId: string): Promise<boolean> {
-  const user = await prisma.user.findUnique({ where: { id: userId }, select: { gestorId: true } })
+  const user = await db.findUnique('user', { id: userId }) as any
   return user?.gestorId === gestorId
 }
 
@@ -30,20 +29,16 @@ router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequ
       : {}
 
     const [users, total] = await Promise.all([
-      prisma.user.findMany({
+      db.findMany('user', {
         where,
-        include: {
-          _count: { select: { progressos: true, certificates: true } },
-          gestor: { select: { id: true, nome: true } },
-        },
         orderBy: { nome: 'asc' },
         skip,
         take: limit,
       }),
-      prisma.user.count({ where }),
+      db.count('user', where),
     ])
 
-    const usersWithXp = users.map(u => ({
+    const usersWithXp = (users as any[]).map((u: any) => ({
       id: u.id,
       email: u.email,
       nome: u.nome,
@@ -55,8 +50,8 @@ router.get('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequ
       gestorNome: u.gestor?.nome || null,
       xp: u.xp,
       level: u.level,
-      progressCount: u._count.progressos,
-      certCount: u._count.certificates,
+      progressCount: u._count?.progressos || 0,
+      certCount: u._count?.certificates || 0,
     }))
 
     res.json({
@@ -87,7 +82,7 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
       return res.status(400).json({ error: 'Role inválido' })
     }
 
-    const exists = await prisma.user.findUnique({ where: { email } })
+    const exists = await db.findUnique('user', { email })
     if (exists) return res.status(409).json({ error: 'Email já cadastrado' })
 
     if (req.userRole === 'GESTOR' && role !== 'ATENDENTE') {
@@ -111,38 +106,15 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
     const verificationToken = crypto.randomBytes(32).toString('hex')
     const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
-    const user = await prisma.user.create({
-      data: {
-        email,
-        nome,
-        senha: hashedPassword,
-        role: role as Role,
-        gestorId: finalGestorId,
-        tokenVerificacao: verificationToken,
-        tokenExpiry,
-      },
-      select: { id: true, email: true, nome: true, role: true, emailVerificado: true, createdAt: true },
-    })
-
-    // Dual-write user create to MySQL
-    if (prismaMysql) {
-      try {
-        await prismaMysql.user.create({
-          data: {
-            id: user.id,
-            email,
-            nome,
-            senha: hashedPassword,
-            role: role as any,
-            gestorId: finalGestorId,
-            tokenVerificacao: verificationToken,
-            tokenExpiry,
-          },
-        })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL user create failed:', error?.message)
-      }
-    }
+    const user = await db.create('user', {
+      email,
+      nome,
+      senha: hashedPassword,
+      role: role as Role,
+      gestorId: finalGestorId,
+      tokenVerificacao: verificationToken,
+      tokenExpiry,
+    }) as any
 
     await logActivity(req.userId!, 'Criar Usuario', `Criou ${role}: ${nome} (${email})`)
     await awardPointsIfNotAwarded(req.userId!, 'MODULE_OPEN', `USER_CREATE:${user.id}`)
@@ -151,7 +123,14 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
       console.error('Erro ao enviar email de verificacao:', err)
     })
 
-    res.status(201).json(user)
+    res.status(201).json({
+      id: user.id,
+      email: user.email,
+      nome: user.nome,
+      role: user.role,
+      emailVerificado: user.emailVerificado,
+      createdAt: user.createdAt,
+    })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao criar usuário' })
@@ -170,7 +149,7 @@ router.put('/change-password', authenticate, async (req: AuthRequest, res) => {
       return res.status(400).json({ error: 'Nova senha deve ter pelo menos 8 caracteres' })
     }
 
-    const user = await prisma.user.findUnique({ where: { id: req.userId } })
+    const user = await db.findUnique('user', { id: req.userId! }) as any
     if (!user) {
       return res.status(404).json({ error: 'Usuário não encontrado' })
     }
@@ -181,22 +160,7 @@ router.put('/change-password', authenticate, async (req: AuthRequest, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 12)
-    await prisma.user.update({
-      where: { id: req.userId },
-      data: { senha: hashedPassword },
-    })
-
-    // Dual-write password change to MySQL
-    if (prismaMysql) {
-      try {
-        await prismaMysql.user.update({
-          where: { id: req.userId },
-          data: { senha: hashedPassword },
-        })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL password change failed:', error?.message)
-      }
-    }
+    await db.update('user', { id: req.userId! }, { senha: hashedPassword })
 
     await logActivity(req.userId!, 'Alterar Senha', 'Senha alterada com sucesso')
     res.json({ message: 'Senha alterada com sucesso' })
@@ -229,31 +193,16 @@ router.put('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthR
     if (role) updateData.role = role as Role
     if (gestorId !== undefined) updateData.gestorId = gestorId || null
 
-    const user = await prisma.user.update({
-      where: { id },
-      data: updateData,
-      select: { id: true, email: true, nome: true, role: true, gestorId: true },
-    })
-
-    // Dual-write user update to MySQL
-    if (prismaMysql) {
-      try {
-        const mysqlUpdateData: any = {}
-        if (nome) mysqlUpdateData.nome = nome
-        if (email) mysqlUpdateData.email = email
-        if (role) mysqlUpdateData.role = role
-        if (gestorId !== undefined) mysqlUpdateData.gestorId = gestorId || null
-        await prismaMysql.user.update({
-          where: { id },
-          data: mysqlUpdateData,
-        })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL user update failed:', error?.message)
-      }
-    }
+    const user = await db.update('user', { id }, updateData) as any
 
     await logActivity(req.userId!, 'Editar Usuario', `Editou usuario: ${user.nome}`)
-    res.json(user)
+    res.json({
+      id: user.id,
+      email: user.email,
+      nome: user.nome,
+      role: user.role,
+      gestorId: user.gestorId,
+    })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao atualizar usuário' })
@@ -272,17 +221,8 @@ router.delete('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: Au
       if (!isOwn) return res.status(403).json({ error: 'Sem permissão para excluir este usuario' })
     }
 
-    const user = await prisma.user.findUnique({ where: { id }, select: { nome: true, email: true } })
-    await prisma.user.delete({ where: { id } })
-
-    // Dual-write user delete to MySQL
-    if (prismaMysql) {
-      try {
-        await prismaMysql.user.delete({ where: { id } })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL user delete failed:', error?.message)
-      }
-    }
+    const user = await db.findUnique('user', { id }) as any
+    await db.delete('user', { id })
 
     await logActivity(req.userId!, 'Excluir Usuario', `Excluiu usuario: ${user?.nome} (${user?.email})`)
     res.json({ success: true })
@@ -296,58 +236,53 @@ router.delete('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: Au
 router.get('/equipe', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
   try {
     if (req.userRole === 'GESTOR') {
-      // GESTOR sees only their team
-      const members = await prisma.user.findMany({
+      const members = await db.findMany('user', {
         where: { gestorId: req.userId },
-        include: {
-          _count: { select: { progressos: true, certificates: true } },
-        },
-      })
+      }) as any[]
 
-      const result = members.map(m => ({
+      const result = members.map((m: any) => ({
         id: m.id,
         nome: m.nome,
         email: m.email,
         role: m.role,
         xp: m.xp,
         level: m.level,
-        certCount: m._count.certificates,
-        progressCount: m._count.progressos,
+        certCount: m._count?.certificates || 0,
+        progressCount: m._count?.progressos || 0,
       }))
 
       return res.json(result)
     }
 
     // ADMIN sees all teams grouped by gestor
-    const gestores = await prisma.user.findMany({
+    const gestores = await db.findMany('user', {
       where: { role: 'GESTOR' },
-      include: {
-        atendentes: {
-          include: {
-            _count: { select: { progressos: true, certificates: true } },
-          },
-        },
-      },
       orderBy: { nome: 'asc' },
-    })
+    }) as any[]
 
-    const teams = gestores.map(g => ({
-      gestor: {
-        id: g.id,
-        nome: g.nome,
-        email: g.email,
-      },
-      membros: g.atendentes.map(a => ({
-        id: a.id,
-        nome: a.nome,
-        email: a.email,
-        role: a.role,
-        xp: a.xp,
-        level: a.level,
-        certCount: a._count.certificates,
-        progressCount: a._count.progressos,
-      })),
-      totalMembros: g.atendentes.length,
+    const teams = await Promise.all(gestores.map(async (g: any) => {
+      const atendentes = await db.findMany('user', {
+        where: { gestorId: g.id },
+      }) as any[]
+
+      return {
+        gestor: {
+          id: g.id,
+          nome: g.nome,
+          email: g.email,
+        },
+        membros: atendentes.map((a: any) => ({
+          id: a.id,
+          nome: a.nome,
+          email: a.email,
+          role: a.role,
+          xp: a.xp,
+          level: a.level,
+          certCount: a._count?.certificates || 0,
+          progressCount: a._count?.progressos || 0,
+        })),
+        totalMembros: atendentes.length,
+      }
     }))
 
     res.json(teams)
@@ -360,120 +295,28 @@ router.get('/equipe', authenticate, authorize('ADMIN', 'GESTOR'), async (req: Au
 // GET /api/usuarios/equipe/detalhe - Detailed team progress for GESTOR
 router.get('/equipe/detalhe', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
   try {
-    if (req.userRole === 'GESTOR') {
-      const members = await prisma.user.findMany({
-        where: { gestorId: req.userId },
-        select: {
-          id: true,
-          nome: true,
-          email: true,
-          role: true,
-          xp: true,
-          lastLogin: true,
-          progressos: {
-            include: {
-              modulo: { select: { id: true, titulo: true } },
-              aula: { select: { id: true, titulo: true, moduloId: true } },
-            },
-          },
-        },
-      })
+    const allUsers = req.userRole === 'GESTOR'
+      ? await db.findMany('user', { where: { gestorId: req.userId } }) as any[]
+      : await db.findMany('user', { where: { role: 'ATENDENTE' } }) as any[]
 
-      const modulos = await prisma.modulo.findMany({
-        select: {
-          id: true,
-          titulo: true,
-          aulas: { select: { id: true, titulo: true, licoes: { select: { id: true, titulo: true } } } },
-        },
-      })
+    const modulos = await db.findMany('modulo', {
+      orderBy: { ordem: 'asc' },
+    }) as any[]
 
-      const result = members.map((m) => {
-        const progressoByModulo = new Map<string, { total: number; concluidas: number; aulas: any[] }>()
+    const result = await Promise.all(allUsers.map(async (m: any) => {
+      const progressos = await db.findMany('progresso', {
+        where: { userId: m.id },
+      }) as any[]
 
-        for (const mod of modulos) {
-          const aulaProgress = mod.aulas.map((a) => {
-            const prog = m.progressos.find((p) => p.aulaId === a.id)
-            return {
-              id: a.id,
-              titulo: a.titulo,
-              concluido: prog?.concluido || false,
-              licoes: a.licoes.map((l) => ({
-                id: l.id,
-                titulo: l.titulo,
-              })),
-            }
-          })
-          const concluidas = aulaProgress.filter((a) => a.concluido).length
-          progressoByModulo.set(mod.id, {
-            total: mod.aulas.length,
-            concluidas,
-            aulas: aulaProgress,
-          })
-        }
-
-        return {
-          id: m.id,
-          nome: m.nome,
-          email: m.email,
-          role: m.role,
-          xp: m.xp,
-          lastLogin: m.lastLogin,
-          modulos: modulos.map((mod) => ({
-            id: mod.id,
-            titulo: mod.titulo,
-            totalAulas: progressoByModulo.get(mod.id)?.total || 0,
-            aulasConcluidas: progressoByModulo.get(mod.id)?.concluidas || 0,
-            aulas: progressoByModulo.get(mod.id)?.aulas || [],
-          })),
-        }
-      })
-
-      return res.json(result)
-    }
-
-    // ADMIN: return all users with progress
-    const allUsers = await prisma.user.findMany({
-      where: { role: 'ATENDENTE' },
-      select: {
-        id: true,
-        nome: true,
-        email: true,
-        role: true,
-        xp: true,
-        lastLogin: true,
-        gestorId: true,
-        progressos: {
-          include: {
-            modulo: { select: { id: true, titulo: true } },
-            aula: { select: { id: true, titulo: true, moduloId: true } },
-          },
-        },
-      },
-    })
-
-    const modulos = await prisma.modulo.findMany({
-      select: {
-        id: true,
-        titulo: true,
-        aulas: { select: { id: true, titulo: true, licoes: { select: { id: true, titulo: true } } } },
-      },
-    })
-
-    const result = allUsers.map((m) => {
-      const progressoByModulo = new Map<string, { total: number; concluidas: number; aulas: any[] }>()
+      const progressoByModulo = new Map<string, { total: number; concluidas: number }>()
 
       for (const mod of modulos) {
-        const aulaProgress = mod.aulas.map((a) => {
-          const prog = m.progressos.find((p) => p.aulaId === a.id)
-          return {
-            id: a.id,
-            titulo: a.titulo,
-            concluido: prog?.concluido || false,
-            licoes: a.licoes.map((l) => ({ id: l.id, titulo: l.titulo })),
-          }
-        })
-        const concluidas = aulaProgress.filter((a) => a.concluido).length
-        progressoByModulo.set(mod.id, { total: mod.aulas.length, concluidas, aulas: aulaProgress })
+        const aulas = await db.findMany('aula', {
+          where: { moduloId: mod.id },
+        }) as any[]
+        const aulaIds = aulas.map((a: any) => a.id)
+        const concluidas = progressos.filter((p: any) => aulaIds.includes(p.aulaId) && p.concluido).length
+        progressoByModulo.set(mod.id, { total: aulas.length, concluidas })
       }
 
       return {
@@ -484,15 +327,14 @@ router.get('/equipe/detalhe', authenticate, authorize('ADMIN', 'GESTOR'), async 
         xp: m.xp,
         lastLogin: m.lastLogin,
         gestorId: m.gestorId,
-        modulos: modulos.map((mod) => ({
+        modulos: modulos.map((mod: any) => ({
           id: mod.id,
           titulo: mod.titulo,
           totalAulas: progressoByModulo.get(mod.id)?.total || 0,
           aulasConcluidas: progressoByModulo.get(mod.id)?.concluidas || 0,
-          aulas: progressoByModulo.get(mod.id)?.aulas || [],
         })),
       }
-    })
+    }))
 
     res.json(result)
   } catch (error) {
@@ -504,9 +346,9 @@ router.get('/equipe/detalhe', authenticate, authorize('ADMIN', 'GESTOR'), async 
 // GET /api/usuarios/equipe/stats - Team stats for admin
 router.get('/equipe/stats', authenticate, authorize('ADMIN'), async (req: AuthRequest, res) => {
   try {
-    const totalGestores = await prisma.user.count({ where: { role: 'GESTOR' } })
-    const totalAtendentes = await prisma.user.count({ where: { role: 'ATENDENTE' } })
-    const totalAtendentesComGestor = await prisma.user.count({ where: { role: 'ATENDENTE', gestorId: { not: null } } })
+    const totalGestores = await db.count('user', { role: 'GESTOR' })
+    const totalAtendentes = await db.count('user', { role: 'ATENDENTE' })
+    const totalAtendentesComGestor = await db.count('user', { role: 'ATENDENTE', gestorId: { not: null } })
     const totalAtendentesSemGestor = totalAtendentes - totalAtendentesComGestor
 
     res.json({
@@ -527,7 +369,7 @@ router.post('/:id/validate-account', authenticate, authorize('ADMIN', 'GESTOR'),
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID invalido' })
 
-    const user = await prisma.user.findUnique({ where: { id } })
+    const user = await db.findUnique('user', { id }) as any
     if (!user) return res.status(404).json({ error: 'Usuario nao encontrado' })
 
     if (req.userRole === 'GESTOR' && user.gestorId !== req.userId) {
@@ -539,22 +381,11 @@ router.post('/:id/validate-account', authenticate, authorize('ADMIN', 'GESTOR'),
       return res.json({ message: 'Conta já validada anteriormente' })
     }
 
-    await prisma.user.update({
-      where: { id },
-      data: { emailVerificado: true, tokenVerificacao: null, tokenExpiry: null },
+    await db.update('user', { id }, {
+      emailVerificado: true,
+      tokenVerificacao: null,
+      tokenExpiry: null,
     })
-
-    // Dual-write account validation to MySQL
-    if (prismaMysql) {
-      try {
-        await prismaMysql.user.update({
-          where: { id },
-          data: { emailVerificado: true, tokenVerificacao: null, tokenExpiry: null },
-        })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL validate account failed:', error?.message)
-      }
-    }
 
     await logActivity(req.userId!, 'Validar Conta', `Validou conta de: ${user.nome}`)
     await awardPointsIfNotAwarded(req.userId!, 'LESSON_COMPLETE', `VALIDATE_ACCOUNT:${id}`)
@@ -572,7 +403,7 @@ router.post('/:id/resend-verification', authenticate, authorize('ADMIN', 'GESTOR
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID invalido' })
 
-    const user = await prisma.user.findUnique({ where: { id } })
+    const user = await db.findUnique('user', { id }) as any
     if (!user) return res.status(404).json({ error: 'Usuario nao encontrado' })
 
     if (req.userRole === 'GESTOR' && user.gestorId !== req.userId) {
@@ -586,22 +417,7 @@ router.post('/:id/resend-verification', authenticate, authorize('ADMIN', 'GESTOR
     const verificationToken = crypto.randomBytes(32).toString('hex')
     const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000)
 
-    await prisma.user.update({
-      where: { id },
-      data: { tokenVerificacao: verificationToken, tokenExpiry },
-    })
-
-    // Dual-write verification token to MySQL
-    if (prismaMysql) {
-      try {
-        await prismaMysql.user.update({
-          where: { id },
-          data: { tokenVerificacao: verificationToken, tokenExpiry },
-        })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL resend verification failed:', error?.message)
-      }
-    }
+    await db.update('user', { id }, { tokenVerificacao: verificationToken, tokenExpiry })
 
     await sendVerificationEmail(user.email, user.nome, verificationToken)
     await logActivity(req.userId!, 'Reenviar Verificacao', `Reenviou verificacao para: ${user.nome}`)

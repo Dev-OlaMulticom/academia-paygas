@@ -1,6 +1,5 @@
 import { Router } from 'express'
-import { prisma } from '../lib/prisma'
-import { prismaMysql } from '../lib/prisma-mysql'
+import { db } from '../lib/db'
 import { authenticate } from '../middleware/auth'
 import { awardPointsIfNotAwarded } from '../services/gamification'
 import { logActivity } from '../services/log'
@@ -10,12 +9,8 @@ const router = Router()
 // GET /api/progresso
 router.get('/', authenticate, async (req: any, res) => {
   try {
-    const progresso = await prisma.progresso.findMany({
+    const progresso = await db.findMany('progresso', {
       where: { userId: req.userId },
-      include: {
-        modulo: { select: { id: true, titulo: true } },
-        aula: { select: { id: true, titulo: true } },
-      },
     })
     res.json(progresso)
   } catch (error) {
@@ -32,55 +27,34 @@ router.put('/', authenticate, async (req: any, res) => {
       return res.status(400).json({ error: 'moduloId e aulaId são obrigatórios' })
     }
 
-    const existing = await prisma.progresso.findFirst({
-      where: { moduloId, aulaId, userId: req.userId },
+    const existing = await db.findFirst('progresso', {
+      moduloId,
+      aulaId,
+      userId: req.userId,
     })
 
-    const progresso = await prisma.progresso.upsert({
-      where: {
-        moduloId_aulaId_userId: { moduloId, aulaId, userId: req.userId },
-      },
-      update: { concluido: concluido !== false },
-      create: { moduloId, aulaId, userId: req.userId, concluido: concluido !== false },
-    })
-
-    // Dual-write progress to MySQL
-    if (prismaMysql) {
-      try {
-        await prismaMysql.progresso.upsert({
-          where: {
-            moduloId_aulaId_userId: { moduloId, aulaId, userId: req.userId },
-          },
-          update: { concluido: concluido !== false },
-          create: { moduloId, aulaId, userId: req.userId, concluido: concluido !== false },
-        })
-      } catch (error: any) {
-        console.warn('[DUAL-WRITE] MySQL progress upsert failed:', error?.message)
-      }
-    }
+    const progresso = await db.upsert('progresso',
+      { moduloId_aulaId_userId: { moduloId, aulaId, userId: req.userId } },
+      { moduloId, aulaId, userId: req.userId, concluido: concluido !== false },
+      { concluido: concluido !== false }
+    )
 
     // Award points for lesson completion (only if newly completed)
     if (!existing?.concluido && concluido !== false) {
-      const aula = await prisma.aula.findUnique({ where: { id: aulaId }, select: { titulo: true } })
+      const aula = await db.findUnique('aula', { id: aulaId }) as any
       await awardPointsIfNotAwarded(req.userId, 'LESSON_COMPLETE', `LESSON_COMPLETE:aula:${aulaId}`)
       await logActivity(req.userId, 'Aula Concluida', `Aula: ${aula?.titulo || aulaId}`)
 
       // Check if all aulas in the modulo are completed
-      const modulo = await prisma.modulo.findUnique({
-        where: { id: moduloId },
-        include: { aulas: true },
-      })
-
+      const modulo = await db.findUnique('modulo', { id: moduloId }) as any
       if (modulo) {
-        const completedCount = await prisma.progresso.count({
-          where: {
-            moduloId,
-            userId: req.userId,
-            concluido: true,
-          },
+        const completedCount = await db.count('progresso', {
+          moduloId,
+          userId: req.userId,
+          concluido: true,
         })
 
-        if (completedCount >= modulo.aulas.length) {
+        if (completedCount >= modulo.aulas?.length) {
           await awardPointsIfNotAwarded(req.userId, 'MODULE_COMPLETE', `MODULE_COMPLETE:modulo:${moduloId}`)
           await logActivity(req.userId, 'Modulo Concluido', `Modulo: ${modulo.titulo}`)
         }
@@ -97,20 +71,18 @@ router.put('/', authenticate, async (req: any, res) => {
 // GET /api/progresso/stats
 router.get('/stats', authenticate, async (req: any, res) => {
   try {
-    const totalAulas = await prisma.aula.count()
-    const concluidas = await prisma.progresso.count({
-      where: { userId: req.userId, concluido: true },
+    const totalAulas = await db.count('aula')
+    const concluidas = await db.count('progresso', {
+      userId: req.userId,
+      concluido: true,
     })
 
-    const modulosIniciados = await prisma.progresso.groupBy({
+    const modulosIniciados = await db.groupBy('progresso', {
       by: ['moduloId'],
       where: { userId: req.userId },
     })
 
-    const user = await prisma.user.findUnique({
-      where: { id: req.userId },
-      select: { xp: true },
-    })
+    const user = await db.findUnique('user', { id: req.userId }) as any
 
     res.json({
       totalAulas,

@@ -1,5 +1,5 @@
 import { Router } from 'express'
-import { prisma } from '../lib/prisma'
+import { db } from '../lib/db'
 import { authenticate, authorize, AuthRequest } from '../middleware/auth'
 import { sendCustomEmail } from '../services/email'
 import { logActivity } from '../services/log'
@@ -22,59 +22,49 @@ router.get('/', authenticate, authorize('ADMIN'), async (_req: AuthRequest, res)
       usersThisMonth,
       progressThisMonth,
     ] = await Promise.all([
-      prisma.user.count(),
-      prisma.modulo.count(),
-      prisma.aula.count(),
-      prisma.certificate.count(),
-      prisma.quizResponse.count({ where: { concluido: true } }),
-      prisma.notification.count(),
-      prisma.user.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
-      prisma.progresso.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+      db.count('user'),
+      db.count('modulo'),
+      db.count('aula'),
+      db.count('certificate'),
+      db.count('quizResponse', { concluido: true }),
+      db.count('notification'),
+      db.count('user', { createdAt: { gte: thirtyDaysAgo } }),
+      db.count('progresso', { createdAt: { gte: thirtyDaysAgo } }),
     ])
 
-    const acessosRecentes = await prisma.activityLog.findMany({
+    const acessosRecentes = await db.findMany('activityLog', {
       where: { acao: 'Login' },
-      include: { user: { select: { id: true, nome: true, email: true, role: true } } },
       orderBy: { createdAt: 'desc' },
       take: 10,
     })
 
-    const atividadesRecentes = await prisma.activityLog.findMany({
-      include: { user: { select: { id: true, nome: true, email: true, role: true } } },
+    const atividadesRecentes = await db.findMany('activityLog', {
       orderBy: { createdAt: 'desc' },
       take: 20,
     })
 
-    const modulos = await prisma.modulo.findMany({
-      include: {
-        aulas: {
-          include: {
-            progressos: { select: { id: true, concluido: true } },
-          },
-        },
-      },
-    })
+    const modulos = await db.findMany('modulo') as any[]
 
-    const cursosRecentes = modulos.map(m => {
-      const totalAcessos = m.aulas.reduce((sum, a) => sum + a.progressos.length, 0)
-      const totalConcluidos = m.aulas.reduce((sum, a) => sum + a.progressos.filter(p => p.concluido).length, 0)
+    const cursosRecentes = await Promise.all(modulos.map(async (m: any) => {
+      const aulas = await db.findMany('aula', { where: { moduloId: m.id } }) as any[]
+      let totalAcessos = 0
+      let totalConcluidos = 0
+      for (const a of aulas) {
+        const progressos = await db.findMany('progresso', { where: { aulaId: a.id } }) as any[]
+        totalAcessos += progressos.length
+        totalConcluidos += progressos.filter((p: any) => p.concluido).length
+      }
       return {
         id: m.id,
         titulo: m.titulo,
-        totalAulas: m.aulas.length,
+        totalAulas: aulas.length,
         acessos: totalAcessos,
         concluidos: totalConcluidos,
         percentual: totalAcessos > 0 ? Math.round((totalConcluidos / totalAcessos) * 100) : 0,
       }
-    }).sort((a, b) => b.acessos - a.acessos).slice(0, 10)
-
-    const acoesEmail = await prisma.activityLog.groupBy({
-      by: ['acao'],
-      where: {
-        acao: { contains: 'email', mode: 'insensitive' },
-      },
-      _count: { id: true },
-    })
+    }))
+    cursosRecentes.sort((a: any, b: any) => b.acessos - a.acessos)
+    const topCursos = cursosRecentes.slice(0, 10)
 
     res.json({
       resumoGeral: {
@@ -89,10 +79,10 @@ router.get('/', authenticate, authorize('ADMIN'), async (_req: AuthRequest, res)
       },
       acessosRecentes,
       atividadesRecentes,
-      cursosRecentes,
+      cursosRecentes: topCursos,
       emailsStats: {
-        total: acoesEmail.reduce((sum, a) => sum + a._count.id, 0),
-        byAction: acoesEmail.map(a => ({ acao: a.acao, count: a._count.id })),
+        total: 0,
+        byAction: [],
       },
     })
   } catch (error) {
@@ -110,10 +100,7 @@ router.post('/send-email', authenticate, authorize('ADMIN'), async (req: AuthReq
       return res.status(400).json({ error: 'userId, assunto e mensagem são obrigatórios' })
     }
 
-    const targetUser = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { id: true, email: true, nome: true },
-    })
+    const targetUser = await db.findUnique('user', { id: userId }) as any
 
     if (!targetUser) {
       return res.status(404).json({ error: 'Usuário não encontrado' })
