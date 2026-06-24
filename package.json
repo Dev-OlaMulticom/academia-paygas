@@ -18,6 +18,7 @@
     "db:generate": "npx prisma generate",
     "db:migrate": "npx prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
+    "db:reset-admin": "tsx prisma/reset-admin.ts",
     "db:reset": "prisma migrate reset --force && pnpm db:seed",
     "db:push": "prisma db push",
     "cpanel:build": "npx prisma generate && npx vite build && npx tsc --project tsconfig.server.json"

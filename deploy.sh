@@ -525,6 +525,21 @@ fi
 
 echo ""
 
+# ─── 7b. Resetear contraseña admin (garantizar acceso) ────
+echo "=== [7b/10] Verificando acceso admin ==="
+
+if [ -f prisma/reset-admin.ts ]; then
+    if npx tsx prisma/reset-admin.ts 2>&1; then
+        log_ok "Admin password verificado/resetado (admin@paygas.com.br)"
+    else
+        log_warn "No se pudo resetear admin (no critico, seed lo maneja)"
+    fi
+else
+    log_warn "prisma/reset-admin.ts no encontrado, omitiendo"
+fi
+
+echo ""
+
 # ─── 8. Compilar ─────────────────────────────────────────
 echo "=== [8/10] Compilando proyecto ==="
 

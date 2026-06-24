@@ -13,7 +13,7 @@ async function main() {
   // ============ USERS ============
   const admin = await prisma.user.upsert({
     where: { email: 'admin@paygas.com.br' },
-    update: {},
+    update: { senha: defaultPassword, role: 'ADMIN', emailVerificado: true },
     create: { email: 'admin@paygas.com.br', nome: 'Administrador PayGas', senha: defaultPassword, role: 'ADMIN', emailVerificado: true },
   })
   const gestor = await prisma.user.upsert({
