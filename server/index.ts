@@ -124,20 +124,24 @@ app.use('/api/import-export', importExportRoutes)
 app.use('/api/admin/dashboard', adminDashboardRoutes)
 
 app.get('/api/health', async (_req, res) => {
-  const { db } = await import('./lib/db')
   const { dbRegistry } = await import('./config/databases')
-  const health = await db.healthCheck()
-  const registryHealth = dbRegistry.getHealthSummary()
 
   const primary = dbRegistry.getPrimary()
   const healthyCount = dbRegistry.getHealthy().length
   const totalCount = dbRegistry.getAll().length
+  const registryHealth = dbRegistry.getHealthSummary()
+
+  // Use cached health status from registry (non-blocking)
+  // Don't run live queries here — the background health checker handles that
+  const supabaseStatus = registryHealth['PG_1']?.status || registryHealth['supabase']?.status || 'unknown'
+  const nhostStatus = registryHealth['PG_2']?.status || registryHealth['nhost']?.status || 'not_configured'
 
   res.json({
-    status: health.supabase === 'connected' || healthyCount > 0 ? 'ok' : 'degraded',
+    status: healthyCount > 0 ? 'ok' : 'degraded',
     primary: primary?.name || 'unknown',
     databases: {
-      ...health,
+      supabase: supabaseStatus,
+      nhost: nhostStatus,
       registry: registryHealth,
     },
     summary: {

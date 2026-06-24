@@ -2,18 +2,11 @@
  * Data Access Layer (DAL) — Multi-Database with Failover
  *
  * Architecture:
- *   Reads:  Primary → fallback to any healthy database (failover)
- *   Writes: All healthy databases in parallel (best-effort, never blocks)
+ *   Reads:  Primary PG → fallback to any healthy PG
+ *   Writes: Primary PG first (authoritative), then fire-and-forget to all backups
  *
- * Three-tier redundancy:
- *   1. Supabase / PG_URL_1 (primary)
- *   2. Nhost / PG_URL_2 (backup PostgreSQL)
- *   3. MySQL (backup, different engine)
- *
- * If a database is down:
- *   - Reads: automatically failover to next healthy database
- *   - Writes: skip the down database, log warning, continue
- *   - Background sync: recovers data when database comes back online
+ * KEY RULE: No backup write ever blocks the main operation.
+ * If a backup is down, data is saved to primary and synced later.
  *
  * Usage:
  *   import { db } from '../lib/db'
@@ -21,35 +14,30 @@
  *   await db.create('user', { email, nome, senha })
  */
 import { prisma } from './prisma'
-import { prismaNhost } from './prisma-nhost'
-import { prismaMysql } from './prisma-mysql'
-import { MODELS, type ModelDelegates } from './db-models'
+import { getModelDelegates } from './db-models'
+import { dbRegistry } from '../config/databases'
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-type ModelDelegate = any
-
-function getModel(name: string): ModelDelegates {
-  const model = MODELS[name]
-  if (!model) throw new Error(`[DB] Unknown model: "${name}". Available: ${Object.keys(MODELS).join(', ')}`)
-  return model
-}
-
-function warnBackup(backup: string, operation: string, model: string, error: any) {
-  console.warn(`[DUAL-WRITE] ${backup} ${operation} failed on ${model}:`, error?.message || error)
+function getModel(name: string) {
+  try {
+    return getModelDelegates(name)
+  } catch (error: any) {
+    throw new Error(`[DB] Unknown model: "${name}". ${error.message}`)
+  }
 }
 
 /**
- * Get the primary PG client with failover.
- * If primary (pg) is disconnected, try nhost as fallback.
+ * Fire-and-forget write to a backup database.
+ * Never blocks the main operation. Errors are logged only.
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-function getReadClient(model: ModelDelegates): any {
-  // Try primary first
-  if (model.pg) return model.pg
-  // Fallback to nhost if primary is unavailable
-  if (model.nhost) return model.nhost
-  // Last resort: this should never happen (would mean all PG databases are down)
-  throw new Error('[DB] All PostgreSQL databases are unavailable')
+function fireAndForget(
+  backupName: string,
+  operation: string,
+  modelName: string,
+  promise: Promise<any>
+): void {
+  promise.catch((error) => {
+    console.warn(`[DUAL-WRITE] ${backupName} ${operation} failed on ${modelName}:`, error?.message || error)
+  })
 }
 
 export const db = {
@@ -57,26 +45,18 @@ export const db = {
 
   async create(modelName: string, data: Record<string, any>) {
     const model = getModel(modelName)
-    const readClient = getReadClient(model)
 
-    // Write to primary (or fallback) — this is the authoritative write
-    const result = await readClient.create({ data })
+    // Authoritative write — must succeed
+    const result = await model.primary.create({ data })
 
-    // Best-effort writes to backup databases
-    if (model.nhost && model.nhost !== readClient) {
-      try {
-        await model.nhost.create({ data })
-      } catch (error) {
-        warnBackup('Nhost', 'create', modelName, error)
-      }
+    // Fire-and-forget to all PG backups — never block
+    for (let i = 0; i < model.backups.length; i++) {
+      fireAndForget(`PG_${i + 2}`, 'create', modelName, model.backups[i].create({ data }))
     }
 
+    // Fire-and-forget to MySQL — never block
     if (model.mysql) {
-      try {
-        await model.mysql.create({ data })
-      } catch (error) {
-        warnBackup('MySQL', 'create', modelName, error)
-      }
+      fireAndForget('MySQL', 'create', modelName, model.mysql.create({ data }))
     }
 
     return result
@@ -84,24 +64,15 @@ export const db = {
 
   async createMany(modelName: string, data: Record<string, any>[]) {
     const model = getModel(modelName)
-    const readClient = getReadClient(model)
 
-    const result = await readClient.createMany({ data })
+    const result = await model.primary.createMany({ data })
 
-    if (model.nhost && model.nhost !== readClient) {
-      try {
-        await model.nhost.createMany({ data })
-      } catch (error) {
-        warnBackup('Nhost', 'createMany', modelName, error)
-      }
+    for (let i = 0; i < model.backups.length; i++) {
+      fireAndForget(`PG_${i + 2}`, 'createMany', modelName, model.backups[i].createMany({ data }))
     }
 
     if (model.mysql) {
-      try {
-        await model.mysql.createMany({ data })
-      } catch (error) {
-        warnBackup('MySQL', 'createMany', modelName, error)
-      }
+      fireAndForget('MySQL', 'createMany', modelName, model.mysql.createMany({ data }))
     }
 
     return result
@@ -111,16 +82,13 @@ export const db = {
 
   async findUnique(modelName: string, where: Record<string, any>, include?: Record<string, any>) {
     const model = getModel(modelName)
-    const readClient = getReadClient(model)
 
     try {
-      return await readClient.findUnique({ where, ...(include ? { include } : {}) })
+      return await model.primary.findUnique({ where, ...(include ? { include } : {}) })
     } catch (error) {
-      // If primary fails, try fallback
-      if (model.nhost && model.nhost !== readClient) {
-        try {
-          return await model.nhost.findUnique({ where, ...(include ? { include } : {}) })
-        } catch { /* both failed */ }
+      // Failover to backup PGs
+      for (const backup of model.backups) {
+        try { return await backup.findUnique({ where, ...(include ? { include } : {}) }) } catch { /* try next */ }
       }
       throw error
     }
@@ -128,15 +96,12 @@ export const db = {
 
   async findFirst(modelName: string, where: Record<string, any>, include?: Record<string, any>, orderBy?: Record<string, any>) {
     const model = getModel(modelName)
-    const readClient = getReadClient(model)
 
     try {
-      return await readClient.findFirst({ where, ...(include ? { include } : {}), ...(orderBy ? { orderBy } : {}) })
+      return await model.primary.findFirst({ where, ...(include ? { include } : {}), ...(orderBy ? { orderBy } : {}) })
     } catch (error) {
-      if (model.nhost && model.nhost !== readClient) {
-        try {
-          return await model.nhost.findFirst({ where, ...(include ? { include } : {}), ...(orderBy ? { orderBy } : {}) })
-        } catch { /* both failed */ }
+      for (const backup of model.backups) {
+        try { return await backup.findFirst({ where, ...(include ? { include } : {}), ...(orderBy ? { orderBy } : {}) }) } catch { /* try next */ }
       }
       throw error
     }
@@ -151,15 +116,12 @@ export const db = {
     take?: number
   } = {}) {
     const model = getModel(modelName)
-    const readClient = getReadClient(model)
 
     try {
-      return await readClient.findMany(options)
+      return await model.primary.findMany(options)
     } catch (error) {
-      if (model.nhost && model.nhost !== readClient) {
-        try {
-          return await model.nhost.findMany(options)
-        } catch { /* both failed */ }
+      for (const backup of model.backups) {
+        try { return await backup.findMany(options) } catch { /* try next */ }
       }
       throw error
     }
@@ -167,15 +129,12 @@ export const db = {
 
   async count(modelName: string, where?: Record<string, any>) {
     const model = getModel(modelName)
-    const readClient = getReadClient(model)
 
     try {
-      return await readClient.count({ ...(where ? { where } : {}) })
+      return await model.primary.count({ ...(where ? { where } : {}) })
     } catch (error) {
-      if (model.nhost && model.nhost !== readClient) {
-        try {
-          return await model.nhost.count({ ...(where ? { where } : {}) })
-        } catch { /* both failed */ }
+      for (const backup of model.backups) {
+        try { return await backup.count({ ...(where ? { where } : {}) }) } catch { /* try next */ }
       }
       throw error
     }
@@ -192,15 +151,12 @@ export const db = {
     }
   ) {
     const model = getModel(modelName)
-    const readClient = getReadClient(model)
 
     try {
-      return await readClient.groupBy(options as any)
+      return await model.primary.groupBy(options as any)
     } catch (error) {
-      if (model.nhost && model.nhost !== readClient) {
-        try {
-          return await model.nhost.groupBy(options as any)
-        } catch { /* both failed */ }
+      for (const backup of model.backups) {
+        try { return await backup.groupBy(options as any) } catch { /* try next */ }
       }
       throw error
     }
@@ -210,24 +166,15 @@ export const db = {
 
   async update(modelName: string, where: Record<string, any>, data: Record<string, any>) {
     const model = getModel(modelName)
-    const readClient = getReadClient(model)
 
-    const result = await readClient.update({ where, data })
+    const result = await model.primary.update({ where, data })
 
-    if (model.nhost && model.nhost !== readClient) {
-      try {
-        await model.nhost.update({ where, data })
-      } catch (error) {
-        warnBackup('Nhost', 'update', modelName, error)
-      }
+    for (let i = 0; i < model.backups.length; i++) {
+      fireAndForget(`PG_${i + 2}`, 'update', modelName, model.backups[i].update({ where, data }))
     }
 
     if (model.mysql) {
-      try {
-        await model.mysql.update({ where, data })
-      } catch (error) {
-        warnBackup('MySQL', 'update', modelName, error)
-      }
+      fireAndForget('MySQL', 'update', modelName, model.mysql.update({ where, data }))
     }
 
     return result
@@ -235,24 +182,15 @@ export const db = {
 
   async updateMany(modelName: string, where: Record<string, any>, data: Record<string, any>) {
     const model = getModel(modelName)
-    const readClient = getReadClient(model)
 
-    const result = await readClient.updateMany({ where, data })
+    const result = await model.primary.updateMany({ where, data })
 
-    if (model.nhost && model.nhost !== readClient) {
-      try {
-        await model.nhost.updateMany({ where, data })
-      } catch (error) {
-        warnBackup('Nhost', 'updateMany', modelName, error)
-      }
+    for (let i = 0; i < model.backups.length; i++) {
+      fireAndForget(`PG_${i + 2}`, 'updateMany', modelName, model.backups[i].updateMany({ where, data }))
     }
 
     if (model.mysql) {
-      try {
-        await model.mysql.updateMany({ where, data })
-      } catch (error) {
-        warnBackup('MySQL', 'updateMany', modelName, error)
-      }
+      fireAndForget('MySQL', 'updateMany', modelName, model.mysql.updateMany({ where, data }))
     }
 
     return result
@@ -267,24 +205,15 @@ export const db = {
     updateData: Record<string, any>
   ) {
     const model = getModel(modelName)
-    const readClient = getReadClient(model)
 
-    const result = await readClient.upsert({ where, create: createData, update: updateData })
+    const result = await model.primary.upsert({ where, create: createData, update: updateData })
 
-    if (model.nhost && model.nhost !== readClient) {
-      try {
-        await model.nhost.upsert({ where, create: createData, update: updateData })
-      } catch (error) {
-        warnBackup('Nhost', 'upsert', modelName, error)
-      }
+    for (let i = 0; i < model.backups.length; i++) {
+      fireAndForget(`PG_${i + 2}`, 'upsert', modelName, model.backups[i].upsert({ where, create: createData, update: updateData }))
     }
 
     if (model.mysql) {
-      try {
-        await model.mysql.upsert({ where, create: createData, update: updateData })
-      } catch (error) {
-        warnBackup('MySQL', 'upsert', modelName, error)
-      }
+      fireAndForget('MySQL', 'upsert', modelName, model.mysql.upsert({ where, create: createData, update: updateData }))
     }
 
     return result
@@ -294,24 +223,15 @@ export const db = {
 
   async delete(modelName: string, where: Record<string, any>) {
     const model = getModel(modelName)
-    const readClient = getReadClient(model)
 
-    const result = await readClient.delete({ where })
+    const result = await model.primary.delete({ where })
 
-    if (model.nhost && model.nhost !== readClient) {
-      try {
-        await model.nhost.delete({ where })
-      } catch (error) {
-        warnBackup('Nhost', 'delete', modelName, error)
-      }
+    for (let i = 0; i < model.backups.length; i++) {
+      fireAndForget(`PG_${i + 2}`, 'delete', modelName, model.backups[i].delete({ where }))
     }
 
     if (model.mysql) {
-      try {
-        await model.mysql.delete({ where })
-      } catch (error) {
-        warnBackup('MySQL', 'delete', modelName, error)
-      }
+      fireAndForget('MySQL', 'delete', modelName, model.mysql.delete({ where }))
     }
 
     return result
@@ -319,24 +239,15 @@ export const db = {
 
   async deleteMany(modelName: string, where: Record<string, any>) {
     const model = getModel(modelName)
-    const readClient = getReadClient(model)
 
-    const result = await readClient.deleteMany({ where })
+    const result = await model.primary.deleteMany({ where })
 
-    if (model.nhost && model.nhost !== readClient) {
-      try {
-        await model.nhost.deleteMany({ where })
-      } catch (error) {
-        warnBackup('Nhost', 'deleteMany', modelName, error)
-      }
+    for (let i = 0; i < model.backups.length; i++) {
+      fireAndForget(`PG_${i + 2}`, 'deleteMany', modelName, model.backups[i].deleteMany({ where }))
     }
 
     if (model.mysql) {
-      try {
-        await model.mysql.deleteMany({ where })
-      } catch (error) {
-        warnBackup('MySQL', 'deleteMany', modelName, error)
-      }
+      fireAndForget('MySQL', 'deleteMany', modelName, model.mysql.deleteMany({ where }))
     }
 
     return result
@@ -344,10 +255,6 @@ export const db = {
 
   // ==================== TRANSACTION ====================
 
-  /**
-   * Execute a transaction on the primary PostgreSQL only.
-   * Backup databases do not support cross-operation transactions.
-   */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async transaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
     return prisma.$transaction(fn as any) as Promise<T>
@@ -361,29 +268,20 @@ export const db = {
 
   // ==================== HEALTH CHECK ====================
 
-  async healthCheck(): Promise<{ supabase: string; nhost: string; mysql: string }> {
-    const result = { supabase: 'disconnected', nhost: 'not_configured', mysql: 'not_configured' }
+  async healthCheck(): Promise<Record<string, string>> {
+    const result: Record<string, string> = {}
+    const entries = dbRegistry.getAll()
 
-    try {
-      await prisma.$queryRaw`SELECT 1`
-      result.supabase = 'connected'
-    } catch { /* keep disconnected */ }
-
-    if (prismaNhost) {
-      try {
-        await prismaNhost.$queryRaw`SELECT 1`
-        result.nhost = 'connected'
-      } catch {
-        result.nhost = 'disconnected'
+    for (const entry of entries) {
+      if (!entry.client) {
+        result[entry.name] = 'no_client'
+        continue
       }
-    }
-
-    if (prismaMysql) {
       try {
-        await prismaMysql.$queryRaw`SELECT 1`
-        result.mysql = 'connected'
+        await entry.client.$queryRaw`SELECT 1`
+        result[entry.name] = 'connected'
       } catch {
-        result.mysql = 'disconnected'
+        result[entry.name] = 'disconnected'
       }
     }
 

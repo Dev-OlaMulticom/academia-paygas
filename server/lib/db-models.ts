@@ -1,111 +1,72 @@
 /**
  * Model configuration for the Data Access Layer.
  *
- * Three-tier redundancy:
- *   1. Supabase / PG_URL_1 (primary)
- *   2. Nhost / PG_URL_2 (backup PostgreSQL)
- *   3. MySQL (backup, different engine)
+ * Uses the database registry (server/config/databases.ts) for all PG connections.
+ * Each PG_URL_* from env becomes a write target. MySQL stays separate.
  *
- * Each model maps to PG, Nhost, and MySQL delegate references.
- * Adding a new database means adding one line per model here.
+ * Architecture:
+ *   PG_URL_1, PG_URL_2, ... → dynamically discovered via registry
+ *   MYSQL_URL → separate MySQL client
+ *
+ * Adding a new PG database = just add PG_URL_N to .env. DAL auto-discovers it.
  */
-import { prisma } from './prisma'
-import { prismaNhost } from './prisma-nhost'
+import { dbRegistry, type DatabaseEntry } from '../config/databases'
 import { prismaMysql } from './prisma-mysql'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ModelDelegate = any
 
 export interface ModelDelegates {
-  pg: ModelDelegate
-  nhost: ModelDelegate | null
-  mysql: ModelDelegate | null
+  primary: ModelDelegate       // First healthy PG (for reads)
+  backups: ModelDelegate[]     // All other healthy PGs (fire-and-forget writes)
+  mysql: ModelDelegate | null  // MySQL backup
 }
 
-export const MODELS: Record<string, ModelDelegates> = {
-  user: {
-    pg: prisma.user,
-    nhost: prismaNhost ? (prismaNhost as any).user : null,
-    mysql: prismaMysql ? (prismaMysql as any).user : null,
-  },
-  modulo: {
-    pg: prisma.modulo,
-    nhost: prismaNhost ? (prismaNhost as any).modulo : null,
-    mysql: prismaMysql ? (prismaMysql as any).modulo : null,
-  },
-  aula: {
-    pg: prisma.aula,
-    nhost: prismaNhost ? (prismaNhost as any).aula : null,
-    mysql: prismaMysql ? (prismaMysql as any).aula : null,
-  },
-  licao: {
-    pg: prisma.licao,
-    nhost: prismaNhost ? (prismaNhost as any).licao : null,
-    mysql: prismaMysql ? (prismaMysql as any).licao : null,
-  },
-  quiz: {
-    pg: prisma.quiz,
-    nhost: prismaNhost ? (prismaNhost as any).quiz : null,
-    mysql: prismaMysql ? (prismaMysql as any).quiz : null,
-  },
-  quizPergunta: {
-    pg: prisma.quizPergunta,
-    nhost: prismaNhost ? (prismaNhost as any).quizPergunta : null,
-    mysql: prismaMysql ? (prismaMysql as any).quizPergunta : null,
-  },
-  quizResponse: {
-    pg: prisma.quizResponse,
-    nhost: prismaNhost ? (prismaNhost as any).quizResponse : null,
-    mysql: prismaMysql ? (prismaMysql as any).quizResponse : null,
-  },
-  progresso: {
-    pg: prisma.progresso,
-    nhost: prismaNhost ? (prismaNhost as any).progresso : null,
-    mysql: prismaMysql ? (prismaMysql as any).progresso : null,
-  },
-  certificate: {
-    pg: prisma.certificate,
-    nhost: prismaNhost ? (prismaNhost as any).certificate : null,
-    mysql: prismaMysql ? (prismaMysql as any).certificate : null,
-  },
-  notification: {
-    pg: prisma.notification,
-    nhost: prismaNhost ? (prismaNhost as any).notification : null,
-    mysql: prismaMysql ? (prismaMysql as any).notification : null,
-  },
-  activityLog: {
-    pg: prisma.activityLog,
-    nhost: prismaNhost ? (prismaNhost as any).activityLog : null,
-    mysql: prismaMysql ? (prismaMysql as any).activityLog : null,
-  },
-  pointsTransaction: {
-    pg: prisma.pointsTransaction,
-    nhost: prismaNhost ? (prismaNhost as any).pointsTransaction : null,
-    mysql: prismaMysql ? (prismaMysql as any).pointsTransaction : null,
-  },
-  forumPost: {
-    pg: prisma.forumPost,
-    nhost: prismaNhost ? (prismaNhost as any).forumPost : null,
-    mysql: prismaMysql ? (prismaMysql as any).forumPost : null,
-  },
-  moduleConfig: {
-    pg: prisma.moduleConfig,
-    nhost: prismaNhost ? (prismaNhost as any).moduleConfig : null,
-    mysql: prismaMysql ? (prismaMysql as any).moduleConfig : null,
-  },
-  xPConfig: {
-    pg: prisma.xPConfig,
-    nhost: prismaNhost ? (prismaNhost as any).xPConfig : null,
-    mysql: prismaMysql ? (prismaMysql as any).xPConfig : null,
-  },
-  conquista: {
-    pg: prisma.conquista,
-    nhost: prismaNhost ? (prismaNhost as any).conquista : null,
-    mysql: prismaMysql ? (prismaMysql as any).conquista : null,
-  },
-  userConquista: {
-    pg: prisma.userConquista,
-    nhost: prismaNhost ? (prismaNhost as any).userConquista : null,
-    mysql: prismaMysql ? (prismaMysql as any).userConquista : null,
-  },
+/**
+ * Lazily resolve model delegates from the registry.
+ * Registry clients are PrismaClients — we access model via (client as any)[modelName]
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+const delegateCache = new Map<string, ModelDelegates>()
+
+function getRegistryClientModel(entry: DatabaseEntry, modelName: string): ModelDelegate | null {
+  if (!entry.client) return null
+  // PrismaClient delegates are accessed as client.user, client.modulo, etc.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (entry.client as any)[modelName] || null
 }
+
+export function getModelDelegates(modelName: string): ModelDelegates {
+  const cached = delegateCache.get(modelName)
+  if (cached) return cached
+
+  const allEntries = dbRegistry.getAll()
+  if (allEntries.length === 0) {
+    throw new Error('[DB] No databases registered. Set PG_URL_1 or DATABASE_URL')
+  }
+
+  // Primary = first registered (PG_URL_1)
+  const primaryEntry = allEntries[0]
+  const primary = getRegistryClientModel(primaryEntry, modelName)
+
+  // Backups = all other PGs
+  const backups: ModelDelegate[] = []
+  for (let i = 1; i < allEntries.length; i++) {
+    const delegate = getRegistryClientModel(allEntries[i], modelName)
+    if (delegate) backups.push(delegate)
+  }
+
+  // MySQL backup
+  const mysql = prismaMysql ? (prismaMysql as any)[modelName] || null : null
+
+  const result: ModelDelegates = { primary, backups, mysql }
+  delegateCache.set(modelName, result)
+  return result
+}
+
+// Backward compatibility export — used by db.ts getReadClient
+export const MODELS = new Proxy({} as Record<string, ModelDelegates>, {
+  get(_target, prop: string) {
+    return getModelDelegates(prop)
+  },
+})

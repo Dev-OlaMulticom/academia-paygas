@@ -22,7 +22,9 @@ function createMysqlClient(): any | null {
       user: parsed.username || 'root',
       password: parsed.password || '',
       database: parsed.pathname.replace('/', '') || undefined,
-      connectionLimit: 5,
+      connectionLimit: 2,
+      connectTimeout: 2000,
+      acquireTimeout: 2000,
     })
 
     return new MysqlPrismaClient({
