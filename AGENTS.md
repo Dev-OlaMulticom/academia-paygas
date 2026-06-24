@@ -145,6 +145,23 @@ Models are configured in `server/lib/db-models.ts`. Each model maps PG, Nhost, a
 
 AES-256-GCM payloads between client and server. Client fetches key from `GET /api/config` before login. See `src/lib/crypto.ts` (client) and `server/middleware/encryption.ts` (server).
 
+### Email Service (High Reliability & Failover)
+
+ Centralized email dispatch via `server/services/email.ts`.
+- **Primary SMTP**: Gmail SMTP (`smtp.gmail.com:587`, TLS) using `dev.olamulticom@gmail.com`.
+- **Backup SMTP**: Resend SMTP (`smtp.resend.com:465`, SSL) with API key credentials.
+- **Auto-fallback & Multi-Try**: Failures with Gmail automatically fallback to Resend.
+- **BCC & Reply-To Compliance**: Every outgoing email is blind-copied (BCC) to `email@academia.paygas.com.br` and sets the Reply-To header to `email@academia.paygas.com.br`.
+- **Audit/Monitoring Pipeline**: For every successfully dispatched email, a copy of the notification metadata is forwarded to `onboarding@resend.dev` via Resend for central monitoring and tracking.
+- **Non-silent errors**: `sendEmail()` returns an `EmailResult` object containing `{ success, messageId, error }` instead of failing silently, ensuring callers (auth registration, certificate creation, etc.) can detect and handle dispatch issues.
+
+### Quiz Editor (Dedicated Full-Page Admin)
+
+Located at `/cms/:moduloId/quiz/:aulaId` (`src/pages/QuizEditorPage.tsx`), replacing the old modal-based editor for superior UX.
+- **Layout**: Two-column layout with a scrollable list of questions on the left, and an active question editor form/metadata configurator on the right. Fully responsive for mobile stacking.
+- **Metadata Management**: Edit title, minimum passing grade (0-10, with real-time feedback on how many correct answers are required based on total questions), and auto-certificate generation.
+- **Question CRUD**: Dynamically create, edit, reorder, and delete quiz questions (A/B/C/D choices with correct answer indicator).
+
 ### Auth & Authorization
 
 **Authentication**: JWT + bcryptjs. Three roles: `ADMIN`, `GESTOR`, `ATENDENTE`. GESTOR is restricted to their own team members. Tokens verified via `server/middleware/auth.ts`.

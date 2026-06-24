@@ -24,6 +24,7 @@ import { AdminDashboardPage } from './pages/AdminDashboardPage'
 import { XPConfigPage } from './pages/XPConfigPage'
 import { TermosPage } from './pages/TermosPage'
 import { PrivacidadePage } from './pages/PrivacidadePage'
+import { QuizEditorPage } from './pages/QuizEditorPage'
 import './index.css'
 
 function RoleRoute({ user, allowedRoles, children }: { user: any; allowedRoles: string[]; children: React.ReactNode }) {
@@ -91,6 +92,11 @@ export default function App() {
                   <Route path="/cms/criar-modulo" element={
                     <RoleRoute user={user} allowedRoles={['ADMIN']}>
                       <CriarModuloPage user={user!} />
+                    </RoleRoute>
+                  } />
+                  <Route path="/cms/:moduloId/quiz/:aulaId" element={
+                    <RoleRoute user={user} allowedRoles={['ADMIN']}>
+                      <QuizEditorPage user={user!} />
                     </RoleRoute>
                   } />
                   <Route path="/usuarios" element={

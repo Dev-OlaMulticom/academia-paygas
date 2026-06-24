@@ -213,6 +213,15 @@ class ApiClient {
     await this.request(`/cms/${id}`, { method: 'DELETE' })
   }
 
+  async getModulo(id: string) {
+    return this.request<any>(`/cms/${id}`)
+  }
+
+  async getAula(moduloId: string, aulaId: string) {
+    const aulas = await this.getAulas(moduloId)
+    return aulas.find((a: any) => a.id === aulaId) || null
+  }
+
   // ==================== AULAS ====================
 
   async getAulas(moduloId: string) {

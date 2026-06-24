@@ -70,7 +70,7 @@ Curso (tabla: "Modulo" en la base de datos)
 | Base de datos (backup) | MySQL (mariadb driver) | - |
 | Auth | JWT + bcryptjs | - |
 | Autorizacion | CASL | 7.x |
-| Email | Nodemailer | 9.x |
+| Email | Nodemailer (Gmail primary + Resend backup) | 9.x |
 | Seguridad | Helmet + express-rate-limit | 8.x |
 
 ### Dependencias Clave
@@ -97,12 +97,12 @@ Curso (tabla: "Modulo" en la base de datos)
 | **Gestion de Usuarios** | CRUD usuarios, equipos, validacion de cuentas | Activo |
 | **Cursos (LMS)** | Crear/editar cursos, aulas, licoes via CMS | Activo |
 | **Aprendizaje** | Ver cursos, completar aulas, ver licoes | Activo |
-| **Cuestionarios** | Quizzes con evaluacion automatica, reintentos | Activo |
+| **Cuestionarios** | Quizzes con evaluacion automatica, reintentos, editor full-page dos columnas | Activo |
 | **Certificados** | Auto-generacion o aprobacion manual por gestor | Activo |
 | **Gamificacion** | XP, niveles, leaderboard, conquistas | Activo |
 | **Foro** | Publicar, comentar, likes | Activo |
 | **Analitica** | Estadisticas de usuarios, modulos, personas, mapa | Activo |
-| **Notificaciones** | In-app y email (Nodemailer) | Activo |
+| **Notificaciones** | In-app y email (Gmail primary + Resend backup, BCC/Reply-To, monitoring) | Activo |
 | **Dashboard** | Vista resumen para admin y gestores | Activo |
 | **Activacion de Modulos** | Admin activa/desactiva secciones del sidebar | Activo |
 | **Encriptacion** | AES-256-GCM para payloads cliente-servidor | Activo |
@@ -155,6 +155,49 @@ MYSQL_URL="mysql://..."           # MySQL (opcional, backup)
 ```
 
 Si `MYSQL_URL` no esta definido, `prismaMysql` es `null` y toda operacion dual-write se omite.
+
+---
+
+## Servicio de Email (Alta Confiabilidad & Failover)
+
+Servicio centralizado de envio de emails via `server/services/email.ts`.
+
+### Arquitectura
+
+```
+┌─────────────────────────────────────────┐
+│           Email Service                  │
+│  sendEmail() → EmailResult {            │
+│    success, messageId, error            │
+│  }                                       │
+├─────────────────────────────────────────┤
+│  1. Primary SMTP: Gmail (smtp.gmail.com:587, TLS)
+│  2. Backup SMTP: Resend (smtp.resend.com:465, SSL)
+│  3. Auto-fallback: Gmail falla → Resend
+│  4. BCC: email@academia.paygas.com.br
+│  5. Reply-To: email@academia.paygas.com.br
+│  6. Monitoring: copia a onboarding@resend.dev
+└─────────────────────────────────────────┘
+```
+
+### Caracteristicas
+
+- **No silent failures**: `sendEmail()` retorna `{ success, messageId, error }` — todos los callers pueden detectar fallos.
+- **Multi-Try**: Reintentos con backoff exponencial antes de fallback.
+- **BCC & Reply-To**: Todos los emails incluyen BCC y Reply-To a `email@academia.paygas.com.br` para auditoria.
+- **Monitoring**: Cada email exitoso envia una copia metadata a `onboarding@resend.dev` para tracking central.
+- **Configuracion**:
+```bash
+# .env
+SMTP_HOST="smtp.gmail.com"
+SMTP_PORT="587"
+SMTP_USER="dev.olamulticom@gmail.com"
+SMTP_PASS="app-password"
+SMTP_FROM="academia@paygas.com.br"
+SMTP_BCC="email@academia.paygas.com.br"
+SMTP_REPLY_TO="email@academia.paygas.com.br"
+SMTP_MONITOR_EMAIL="onboarding@resend.dev"
+```
 
 ---
 
@@ -715,7 +758,14 @@ SMTP_PASS="password"
 |--------|------|-------------|-----|
 | POST | `/api/modulos/:moduloId/quiz` | Crear quiz | Admin |
 | GET | `/api/modulos/:moduloId/quiz/:aulaId` | Obtener quiz | Autenticado |
+| PUT | `/api/quiz/:quizId` | Editar quiz (titulo, notaMinima, autoCert) | Admin |
+| DELETE | `/api/quiz/:quizId` | Eliminar quiz | Admin |
+| POST | `/api/quiz/:quizId/pergunta` | Agregar pregunta | Admin |
+| PUT | `/api/quiz/pergunta/:perguntaId` | Editar pregunta | Admin |
+| DELETE | `/api/quiz/pergunta/:perguntaId` | Eliminar pregunta | Admin |
 | POST | `/api/modulos/quiz/:quizId/responder` | Enviar respuestas | Autenticado |
+
+**Quiz Editor UI:** Ruta frontend `/cms/:moduloId/quiz/:aulaId` (`src/pages/QuizEditorPage.tsx`) — editor full-page dos columnas (lista de preguntas + formulario de edicion).
 
 ### Progreso y Certificados
 
