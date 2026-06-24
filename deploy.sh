@@ -687,6 +687,7 @@ else
     export ENCRYPTION_KEY="${ENCRYPTION_KEY:-}"
     export NODE_ENV="production"
     export PORT="3001"
+    export NODE_TLS_REJECT_UNAUTHORIZED="0"
 
     setsid node dist/server/index.js > logs/app.log 2>&1 &
     echo $! > logs/app.pid
