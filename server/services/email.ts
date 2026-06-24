@@ -13,32 +13,49 @@ interface EmailOptions {
 }
 
 let transporter: nodemailer.Transporter | null = null
+let backupTransporter: nodemailer.Transporter | null = null
 
-function initializeTransporter() {
+function initializeTransporter(): nodemailer.Transporter | null {
   if (transporter) return transporter
 
-  // Validate required SMTP configuration
   const requiredEnvVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS']
   const missing = requiredEnvVars.filter(v => !process.env[v])
 
   if (missing.length > 0) {
     console.warn(`⚠️  SMTP configuration incomplete. Missing: ${missing.join(', ')}`)
-    console.warn('Email sending will be disabled.')
     return null
   }
 
   transporter = nodemailer.createTransport({
     host: process.env.SMTP_HOST,
     port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: process.env.SMTP_SECURE === 'true', // true for 465, false for other ports
+    secure: process.env.SMTP_SECURE === 'true',
     auth: {
       user: process.env.SMTP_USER,
       pass: process.env.SMTP_PASS,
     },
   })
 
-  console.log('✅ SMTP transporter configured successfully')
+  console.log(`✅ SMTP primary: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}`)
   return transporter
+}
+
+function initializeBackupTransporter(): nodemailer.Transporter | null {
+  if (backupTransporter) return backupTransporter
+  if (!process.env.SMTP_BACKUP_HOST) return null
+
+  backupTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_BACKUP_HOST,
+    port: parseInt(process.env.SMTP_BACKUP_PORT || '465', 10),
+    secure: process.env.SMTP_BACKUP_SECURE === 'true',
+    auth: {
+      user: process.env.SMTP_BACKUP_USER,
+      pass: process.env.SMTP_BACKUP_PASS,
+    },
+  })
+
+  console.log(`✅ SMTP backup: ${process.env.SMTP_BACKUP_HOST}:${process.env.SMTP_BACKUP_PORT}`)
+  return backupTransporter
 }
 
 export interface EmailResult {
@@ -47,41 +64,56 @@ export interface EmailResult {
   error?: string
 }
 
-const VALID_FROM = 'email@academia.paygas.com.br'
 
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
-  const MAX_RETRIES = 3
-  const from = process.env.SMTP_FROM || VALID_FROM
+  const from = process.env.SMTP_FROM || 'Academia PayGas <dev.olamulticom@gmail.com>'
+  const MAX_RETRIES = 2
 
+  const mailOptions = {
+    from,
+    to: options.to,
+    subject: options.subject,
+    html: options.html || '',
+    text: options.text || '',
+  }
+
+  // Try primary SMTP
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const transport = initializeTransporter()
-      if (!transport) {
-        const msg = 'SMTP not configured'
-        console.warn(`⚠️  ${msg}, email not sent to ${options.to}`)
-        return { success: false, error: msg }
-      }
-
-      const mailOptions = {
-        from,
-        to: options.to,
-        subject: options.subject,
-        html: options.html || '',
-        text: options.text || '',
-      }
+      if (!transport) break
 
       const result = await transport.sendMail(mailOptions)
-      console.log(`✅ Email sent [OK] to=${options.to} id=${result.messageId}`)
+      console.log(`✅ Email sent [PRIMARY] to=${options.to} id=${result.messageId}`)
       return { success: true, messageId: result.messageId }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
-      console.error(`❌ Email FAIL [attempt ${attempt}/${MAX_RETRIES}] to=${options.to} subject="${options.subject}" error=${msg}`)
-      if (attempt < MAX_RETRIES) {
-        await new Promise(r => setTimeout(r, 1000 * attempt))
-      }
+      console.warn(`⚠️  Email PRIMARY attempt ${attempt}/${MAX_RETRIES} failed: ${msg}`)
+      if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 1000))
     }
   }
-  return { success: false, error: `Failed after ${MAX_RETRIES} attempts` }
+
+  // Fallback to backup SMTP
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const backup = initializeBackupTransporter()
+      if (!backup) {
+        console.error(`❌ No SMTP transport available. Primary failed, backup not configured.`)
+        return { success: false, error: 'No SMTP transport available' }
+      }
+
+      const result = await backup.sendMail(mailOptions)
+      console.log(`✅ Email sent [BACKUP] to=${options.to} id=${result.messageId}`)
+      return { success: true, messageId: result.messageId }
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error)
+      console.warn(`⚠️  Email BACKUP attempt ${attempt}/${MAX_RETRIES} failed: ${msg}`)
+      if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 1000))
+    }
+  }
+
+  console.error(`❌ Email FAILED all attempts to=${options.to} subject="${options.subject}"`)
+  return { success: false, error: 'All SMTP attempts failed' }
 }
 
 /**
