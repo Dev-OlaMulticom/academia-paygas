@@ -24,6 +24,7 @@ import conquistasRoutes from './routes/conquistas'
 import logsRoutes from './routes/logs'
 import xpconfigRoutes from './routes/xpconfig'
 import importExportRoutes from './routes/import-export'
+import adminDashboardRoutes from './routes/admin-dashboard'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -117,6 +118,7 @@ app.use('/api/admin/modules', modulesRoutes)
 app.use('/api/logs', logsRoutes)
 app.use('/api/xp-config', xpconfigRoutes)
 app.use('/api/import-export', importExportRoutes)
+app.use('/api/admin/dashboard', adminDashboardRoutes)
 
 app.get('/api/health', async (_req, res) => {
   const checks: Record<string, string> = { status: 'ok' }

@@ -518,6 +518,19 @@ class ApiClient {
     return this.request<any>(`/logs/stats${qs ? `?${qs}` : ''}`)
   }
 
+  // ==================== ADMIN DASHBOARD ====================
+
+  async getAdminDashboard() {
+    return this.request<any>('/admin/dashboard')
+  }
+
+  async sendCustomEmail(userId: string, assunto: string, mensagem: string) {
+    return this.request<{ success: boolean; message: string }>('/admin/dashboard/send-email', {
+      method: 'POST',
+      body: JSON.stringify({ userId, assunto, mensagem }),
+    })
+  }
+
   // ==================== XP CONFIG ====================
 
   async getXPConfig() {

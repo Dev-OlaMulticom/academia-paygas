@@ -173,6 +173,17 @@ export async function sendNotificationEmail(
 }
 
 /**
+ * Send custom email from admin
+ */
+export async function sendCustomEmail(to: string, subject: string, htmlBody: string) {
+  return sendEmail({
+    to,
+    subject,
+    html: htmlBody,
+  })
+}
+
+/**
  * Check if SMTP is configured
  */
 export function isEmailConfigured(): { configured: boolean; host?: string; port?: number } {

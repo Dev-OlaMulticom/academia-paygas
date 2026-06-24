@@ -100,6 +100,11 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
           {(isAdmin || isGestor) && (
             <div className="sidebar-section">
               <div className="sidebar-section-label">Gestão</div>
+              {isAdmin && (
+                <button id="nav-admin-dashboard" className={`nav-item ${currentPath === '/admin-dashboard' ? 'active' : ''}`} onClick={() => navigate('/admin-dashboard')}>
+                  <i className="icon-bar-chart-3 nav-icon" /> Dashboard Admin
+                </button>
+              )}
               {isModuleEnabled('cms') && (
                 <button id="nav-cms" className={`nav-item ${currentPath === '/cms' ? 'active' : ''}`} onClick={() => navigate('/cms')}>
                   <i className="icon-file-edit nav-icon" /> Gestão de Conteúdo
