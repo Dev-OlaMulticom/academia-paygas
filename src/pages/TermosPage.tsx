@@ -1,6 +1,6 @@
 export function TermosPage() {
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--gray-50)', overflowY: 'auto', padding: '24px' }}>
+    <div style={{ height: '100vh', background: 'var(--gray-50)', overflowY: 'auto', padding: '24px' }}>
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '32px', boxShadow: 'var(--shadow)' }}>
           <div style={{ marginBottom: '8px' }}>
