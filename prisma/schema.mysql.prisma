@@ -1,0 +1,340 @@
+// MySQL schema for dual-write redundancy
+// Generate with: npx prisma generate --schema=prisma/schema.mysql.prisma
+
+generator client {
+  provider = "prisma-client-js"
+  output   = "../prisma/generated/mysql"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  ADMIN
+  GESTOR
+  ATENDENTE
+}
+
+enum CertificateStatus {
+  PENDING
+  APPROVED
+  ISSUED
+}
+
+enum AulaTipo {
+  VIDEO
+  PDF
+  TEXTO
+}
+
+model User {
+  id               String    @id @default(cuid())
+  email            String    @unique
+  nome             String
+  senha            String
+  role             Role
+  xp               Float     @default(0)
+  level            Int       @default(1)
+  avatarUrl        String?
+  state            String?
+  emailVerificado  Boolean   @default(false)
+  tokenVerificacao String?
+  tokenExpiry      DateTime?
+  tokenRecuperacao String?
+  tokenRecuperacaoExpiry DateTime?
+  gestorId         String?
+  gestor           User?     @relation("GestorAtendentes", fields: [gestorId], references: [id])
+  atendentes       User[]    @relation("GestorAtendentes")
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  lastLogin        DateTime?
+
+  progressos        Progresso[]
+  quizResponses     QuizResponse[]
+  certificates      Certificate[]
+  sentNotifications Notification[] @relation("SentNotifications")
+  receivedNotifications Notification[] @relation("ReceivedNotifications")
+  activityLogs      ActivityLog[]
+  pointsTransactions PointsTransaction[]
+  forumPosts        ForumPost[]
+  conquistas        UserConquista[]
+
+  @@index([gestorId])
+}
+
+model Modulo {
+  id               String   @id @default(cuid())
+  titulo           String
+  descricao        String
+  ordem            Int
+  icone            String?
+  videoUrl         String?
+  videoInicio      Int?
+  videoFim         Int?
+  obrigatorio      Boolean  @default(false)
+  autoCertificado  Boolean  @default(false)
+  certificadoTemplate String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  aulas        Aula[]
+  progressos   Progresso[]
+  certificates Certificate[]
+}
+
+model Aula {
+  id          String    @id @default(cuid())
+  moduloId    String
+  titulo      String
+  descricao   String
+  ordem       Int
+  tipo        AulaTipo  @default(VIDEO)
+  videoUrl    String?
+  pdfUrl      String?
+  videoInicio Int?
+  videoFim    Int?
+  duracaoMin  Int?
+  obrigatorio Boolean   @default(false)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  modulo     Modulo     @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  quiz       Quiz?
+  progressos Progresso[]
+  licoes     Licao[]
+
+  @@index([moduloId])
+}
+
+model Licao {
+  id        String    @id @default(cuid())
+  aulaId    String
+  titulo    String
+  conteudo  String?
+  tipo      AulaTipo  @default(TEXTO)
+  ordem     Int
+  duracaoMin Int?
+  inicioSeg Int?
+  fimSeg    Int?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  aula      Aula      @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+
+  @@index([aulaId])
+}
+
+model Quiz {
+  id          String   @id @default(cuid())
+  aulaId      String   @unique
+  titulo      String
+  notaMinima  Int      @default(7)
+  autoGerarCertificado Boolean @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  aula        Aula          @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+  perguntas   QuizPergunta[]
+  responses   QuizResponse[]
+
+  @@index([aulaId])
+}
+
+model QuizPergunta {
+  id      String   @id @default(cuid())
+  quizId  String
+  pergunta String
+  opcaoA  String
+  opcaoB  String
+  opcaoC  String?
+  opcaoD  String?
+  correta String
+  ordem   Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quiz    Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+
+  @@index([quizId])
+}
+
+model QuizResponse {
+  id        String   @id @default(cuid())
+  quizId    String
+  userId    String
+  nota      Int
+  total     Int
+  concluido Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  quiz      Quiz @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([quizId, userId])
+  @@index([quizId])
+  @@index([userId])
+}
+
+model Progresso {
+  id        String   @id @default(cuid())
+  moduloId  String
+  aulaId    String
+  userId    String
+  concluido Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  modulo    Modulo @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+  aula      Aula   @relation(fields: [aulaId], references: [id], onDelete: Cascade)
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([moduloId, aulaId, userId])
+  @@index([moduloId])
+  @@index([aulaId])
+  @@index([userId])
+}
+
+model Certificate {
+  id          String            @id @default(cuid())
+  userId      String
+  moduloId    String
+  status      CertificateStatus @default(PENDING)
+  pdfUrl      String?
+  htmlContent String?
+  aprovadoPor String?
+  aprovadoEm  DateTime?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  user        User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  modulo      Modulo @relation(fields: [moduloId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, moduloId])
+  @@index([userId])
+  @@index([moduloId])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  fromId    String
+  toId      String
+  titulo    String
+  mensagem  String
+  lida      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  from      User @relation("SentNotifications", fields: [fromId], references: [id], onDelete: Cascade)
+  to        User @relation("ReceivedNotifications", fields: [toId], references: [id], onDelete: Cascade)
+
+  @@index([fromId])
+  @@index([toId])
+}
+
+model ActivityLog {
+  id        String   @id @default(cuid())
+  userId    String
+  acao      String
+  detalhes  String?
+  createdAt DateTime @default(now())
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model PointsTransaction {
+  id        String        @id @default(cuid())
+  userId    String
+  action    PointsAction
+  points    Float
+  details   String?
+  createdAt DateTime      @default(now())
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+enum PointsAction {
+  LOGIN
+  MODULE_OPEN
+  LESSON_VIEW
+  LESSON_COMPLETE
+  MODULE_COMPLETE
+  QUIZ_CORRECT
+  QUIZ_PASS
+  CERTIFICATE
+}
+
+model ForumPost {
+  id        String   @id @default(cuid())
+  titulo    String
+  conteudo  String
+  tags      String?
+  likes     Int      @default(0)
+  replies   Int      @default(0)
+  autorId   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  autor User @relation(fields: [autorId], references: [id], onDelete: Cascade)
+
+  @@index([autorId])
+}
+
+model ModuleConfig {
+  id        String   @id @default(cuid())
+  key       String   @unique
+  label     String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model XPConfig {
+  id          String   @id @default(cuid())
+  action      String   @unique
+  label       String
+  points      Float    @default(0)
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Conquista {
+  id              String   @id @default(cuid())
+  titulo          String
+  descricao       String
+  icone           String   @default("🏆")
+  cor             String   @default("#F47C20")
+  pontosMinimos   Int      @default(0)
+  xpRecompensa    Int      @default(0)
+  ativo           Boolean  @default(true)
+  ordem           Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  conquistas UserConquista[]
+
+  @@index([ativo])
+  @@index([pontosMinimos])
+}
+
+model UserConquista {
+  id          String   @id @default(cuid())
+  userId      String
+  conquistaId String
+  dataConquista DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conquista Conquista @relation(fields: [conquistaId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, conquistaId])
+  @@index([userId])
+  @@index([conquistaId])
+}

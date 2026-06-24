@@ -2,6 +2,7 @@ import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { prisma } from '../lib/prisma'
+import { prismaMysql } from '../lib/prisma-mysql'
 import { authenticate, authorize, AuthRequest } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
 import { Role } from '@prisma/client'
@@ -123,6 +124,26 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
       select: { id: true, email: true, nome: true, role: true, emailVerificado: true, createdAt: true },
     })
 
+    // Dual-write user create to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.user.create({
+          data: {
+            id: user.id,
+            email,
+            nome,
+            senha: hashedPassword,
+            role: role as any,
+            gestorId: finalGestorId,
+            tokenVerificacao: verificationToken,
+            tokenExpiry,
+          },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL user create failed:', error?.message)
+      }
+    }
+
     await logActivity(req.userId!, 'Criar Usuario', `Criou ${role}: ${nome} (${email})`)
     await awardPointsIfNotAwarded(req.userId!, 'MODULE_OPEN', `USER_CREATE:${user.id}`)
 
@@ -165,6 +186,18 @@ router.put('/change-password', authenticate, async (req: AuthRequest, res) => {
       data: { senha: hashedPassword },
     })
 
+    // Dual-write password change to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.user.update({
+          where: { id: req.userId },
+          data: { senha: hashedPassword },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL password change failed:', error?.message)
+      }
+    }
+
     await logActivity(req.userId!, 'Alterar Senha', 'Senha alterada com sucesso')
     res.json({ message: 'Senha alterada com sucesso' })
   } catch (error) {
@@ -202,6 +235,23 @@ router.put('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthR
       select: { id: true, email: true, nome: true, role: true, gestorId: true },
     })
 
+    // Dual-write user update to MySQL
+    if (prismaMysql) {
+      try {
+        const mysqlUpdateData: any = {}
+        if (nome) mysqlUpdateData.nome = nome
+        if (email) mysqlUpdateData.email = email
+        if (role) mysqlUpdateData.role = role
+        if (gestorId !== undefined) mysqlUpdateData.gestorId = gestorId || null
+        await prismaMysql.user.update({
+          where: { id },
+          data: mysqlUpdateData,
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL user update failed:', error?.message)
+      }
+    }
+
     await logActivity(req.userId!, 'Editar Usuario', `Editou usuario: ${user.nome}`)
     res.json(user)
   } catch (error) {
@@ -224,6 +274,15 @@ router.delete('/:id', authenticate, authorize('ADMIN', 'GESTOR'), async (req: Au
 
     const user = await prisma.user.findUnique({ where: { id }, select: { nome: true, email: true } })
     await prisma.user.delete({ where: { id } })
+
+    // Dual-write user delete to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.user.delete({ where: { id } })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL user delete failed:', error?.message)
+      }
+    }
 
     await logActivity(req.userId!, 'Excluir Usuario', `Excluiu usuario: ${user?.nome} (${user?.email})`)
     res.json({ success: true })
@@ -485,6 +544,18 @@ router.post('/:id/validate-account', authenticate, authorize('ADMIN', 'GESTOR'),
       data: { emailVerificado: true, tokenVerificacao: null, tokenExpiry: null },
     })
 
+    // Dual-write account validation to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.user.update({
+          where: { id },
+          data: { emailVerificado: true, tokenVerificacao: null, tokenExpiry: null },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL validate account failed:', error?.message)
+      }
+    }
+
     await logActivity(req.userId!, 'Validar Conta', `Validou conta de: ${user.nome}`)
     await awardPointsIfNotAwarded(req.userId!, 'LESSON_COMPLETE', `VALIDATE_ACCOUNT:${id}`)
 
@@ -519,6 +590,18 @@ router.post('/:id/resend-verification', authenticate, authorize('ADMIN', 'GESTOR
       where: { id },
       data: { tokenVerificacao: verificationToken, tokenExpiry },
     })
+
+    // Dual-write verification token to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.user.update({
+          where: { id },
+          data: { tokenVerificacao: verificationToken, tokenExpiry },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL resend verification failed:', error?.message)
+      }
+    }
 
     await sendVerificationEmail(user.email, user.nome, verificationToken)
     await logActivity(req.userId!, 'Reenviar Verificacao', `Reenviou verificacao para: ${user.nome}`)

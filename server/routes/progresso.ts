@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
+import { prismaMysql } from '../lib/prisma-mysql'
 import { authenticate } from '../middleware/auth'
 import { awardPointsIfNotAwarded } from '../services/gamification'
 import { logActivity } from '../services/log'
@@ -42,6 +43,21 @@ router.put('/', authenticate, async (req: any, res) => {
       update: { concluido: concluido !== false },
       create: { moduloId, aulaId, userId: req.userId, concluido: concluido !== false },
     })
+
+    // Dual-write progress to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.progresso.upsert({
+          where: {
+            moduloId_aulaId_userId: { moduloId, aulaId, userId: req.userId },
+          },
+          update: { concluido: concluido !== false },
+          create: { moduloId, aulaId, userId: req.userId, concluido: concluido !== false },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL progress upsert failed:', error?.message)
+      }
+    }
 
     // Award points for lesson completion (only if newly completed)
     if (!existing?.concluido && concluido !== false) {

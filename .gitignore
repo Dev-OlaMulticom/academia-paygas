@@ -1,6 +1,7 @@
 node_modules
 .next
 /src/generated/prisma
+prisma/generated/mysql
 
 # SSL certificates (never commit)
 server/certs/

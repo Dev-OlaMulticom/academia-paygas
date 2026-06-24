@@ -1,4 +1,5 @@
 import { prisma } from '../lib/prisma'
+import { prismaMysql } from '../lib/prisma-mysql'
 import { PointsAction } from '@prisma/client'
 
 // Default XP values — used as fallback if DB config is not available
@@ -61,6 +62,23 @@ export async function awardPoints(
     }),
   ])
 
+  // Dual-write to MySQL
+  if (prismaMysql) {
+    try {
+      await prismaMysql.$transaction([
+        prismaMysql.pointsTransaction.create({
+          data: { userId, action, points, details },
+        }),
+        prismaMysql.user.update({
+          where: { id: userId },
+          data: { xp: { increment: points } },
+        }),
+      ])
+    } catch (error: any) {
+      console.warn('[DUAL-WRITE] MySQL awardPoints failed:', error?.message)
+    }
+  }
+
   // Recalculate and persist level
   const updated = await prisma.user.findUnique({
     where: { id: userId },
@@ -72,6 +90,18 @@ export async function awardPoints(
       where: { id: userId },
       data: { level: newLevel },
     })
+
+    // Dual-write level update to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.user.update({
+          where: { id: userId },
+          data: { level: newLevel },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL level update failed:', error?.message)
+      }
+    }
   }
 
   return points

@@ -3,6 +3,7 @@ import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
 import crypto from 'crypto'
 import { prisma } from '../lib/prisma'
+import { prismaMysql } from '../lib/prisma-mysql'
 import { JWT_SECRET, authenticate, AuthRequest } from '../middleware/auth'
 import { sendPasswordResetEmail, isEmailConfigured } from '../services/email'
 import { awardLoginPointsDaily } from '../services/gamification'
@@ -34,6 +35,18 @@ router.post('/login', async (req, res) => {
       where: { id: user.id },
       data: { lastLogin: new Date() },
     })
+
+    // Dual-write login timestamp to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.user.update({
+          where: { id: user.id },
+          data: { lastLogin: new Date() },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL login update failed:', error?.message)
+      }
+    }
 
     // Award login points (max once per day)
     await awardLoginPointsDaily(user.id)
@@ -108,6 +121,22 @@ router.get('/verify-email', async (req, res) => {
       },
     })
 
+    // Dual-write email verification to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.user.update({
+          where: { id: user.id },
+          data: {
+            emailVerificado: true,
+            tokenVerificacao: null,
+            tokenExpiry: null,
+          },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL email verify failed:', error?.message)
+      }
+    }
+
     res.json({ message: 'Email verificado com sucesso!' })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -141,6 +170,18 @@ router.post('/forgot-password', async (req, res) => {
       where: { id: user.id },
       data: { tokenRecuperacao: code, tokenRecuperacaoExpiry: expiry },
     })
+
+    // Dual-write recovery token to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.user.update({
+          where: { id: user.id },
+          data: { tokenRecuperacao: code, tokenRecuperacaoExpiry: expiry },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL forgot-password token failed:', error?.message)
+      }
+    }
 
     await sendPasswordResetEmail(user.email, user.nome || user.email, code).catch((err) => {
       console.error('[AUTH] Erro ao enviar email de redefinicao:', err)
@@ -183,6 +224,17 @@ router.post('/reset-password', async (req, res) => {
         where: { id: user.id },
         data: { tokenRecuperacao: null, tokenRecuperacaoExpiry: null },
       })
+      // Dual-write expired token clear to MySQL
+      if (prismaMysql) {
+        try {
+          await prismaMysql.user.update({
+            where: { id: user.id },
+            data: { tokenRecuperacao: null, tokenRecuperacaoExpiry: null },
+          })
+        } catch (error: any) {
+          console.warn('[DUAL-WRITE] MySQL token clear failed:', error?.message)
+        }
+      }
       return res.status(400).json({ error: 'Código expirado. Solicite um novo.' })
     }
 
@@ -191,6 +243,18 @@ router.post('/reset-password', async (req, res) => {
       where: { id: user.id },
       data: { senha: hashedPassword, tokenRecuperacao: null, tokenRecuperacaoExpiry: null },
     })
+
+    // Dual-write password reset to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.user.update({
+          where: { id: user.id },
+          data: { senha: hashedPassword, tokenRecuperacao: null, tokenRecuperacaoExpiry: null },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL password reset failed:', error?.message)
+      }
+    }
 
     await logActivity(user.id, 'Senha Redefinida', 'Senha redefinida via recuperacao')
 

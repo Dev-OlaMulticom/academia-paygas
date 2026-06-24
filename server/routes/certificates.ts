@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
+import { prismaMysql } from '../lib/prisma-mysql'
 import { authenticate, authorize } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
 import { logActivity } from '../services/log'
@@ -75,6 +76,22 @@ router.post('/', authenticate, async (req: any, res) => {
       create: { userId: req.userId, moduloId, status: certStatus },
       include: { modulo: { select: { titulo: true } } },
     })
+
+    // Dual-write certificate to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.certificate.upsert({
+          where: {
+            userId_moduloId: { userId: req.userId, moduloId },
+          },
+          update: {},
+          create: { userId: req.userId, moduloId, status: certStatus as any },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL certificate upsert failed:', error?.message)
+      }
+    }
+
     await logActivity(req.userId, 'Certificado Solicitado', `Modulo: ${cert.modulo.titulo}`)
     res.status(201).json(cert)
   } catch (error) {
@@ -100,6 +117,19 @@ router.put('/:id/approve', authenticate, authorize('ADMIN'), async (req: any, re
       data: { status: 'APPROVED', aprovadoPor: req.userId, aprovadoEm: new Date() },
       include: { user: { select: { nome: true } }, modulo: { select: { titulo: true } } },
     })
+
+    // Dual-write certificate approval to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.certificate.update({
+          where: { id },
+          data: { status: 'APPROVED', aprovadoPor: req.userId, aprovadoEm: new Date() },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL certificate approve failed:', error?.message)
+      }
+    }
+
     await logActivity(req.userId!, 'Certificado Aprovado', `Modulo: ${cert.modulo.titulo} — User: ${cert.user.nome}`)
     res.json(cert)
   } catch (error) {
@@ -125,6 +155,19 @@ router.put('/:id/issue', authenticate, authorize('ADMIN'), async (req: any, res)
       data: { status: 'ISSUED' },
       include: { user: { select: { nome: true } }, modulo: { select: { titulo: true } } },
     })
+
+    // Dual-write certificate issuance to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.certificate.update({
+          where: { id },
+          data: { status: 'ISSUED' },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL certificate issue failed:', error?.message)
+      }
+    }
+
     await logActivity(req.userId!, 'Certificado Emitido', `Modulo: ${cert.modulo.titulo} — User: ${cert.user.nome}`)
     res.json(cert)
   } catch (error) {

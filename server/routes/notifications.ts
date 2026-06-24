@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
+import { prismaMysql } from '../lib/prisma-mysql'
 import { authenticate, authorize, AuthRequest } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
 import { sendNotificationAlertEmail } from '../services/email'
@@ -99,6 +100,22 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
       })),
     })
 
+    // Dual-write notifications to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.notification.createMany({
+          data: targetUserIds.map(userId => ({
+            fromId,
+            toId: userId,
+            titulo,
+            mensagem,
+          })),
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL notifications createMany failed:', error?.message)
+      }
+    }
+
     // Send email alerts asynchronously (fire-and-forget)
     prisma.user.findMany({
       where: { id: { in: targetUserIds } },
@@ -130,6 +147,19 @@ router.put('/:id/read', authenticate, async (req: any, res) => {
       where: { id },
       data: { lida: true },
     })
+
+    // Dual-write notification read to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.notification.update({
+          where: { id },
+          data: { lida: true },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL notification read failed:', error?.message)
+      }
+    }
+
     res.json(updated)
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
@@ -144,6 +174,19 @@ router.put('/read-all', authenticate, async (req: any, res) => {
       where: { toId: req.userId, lida: false },
       data: { lida: true },
     })
+
+    // Dual-write read-all to MySQL
+    if (prismaMysql) {
+      try {
+        await prismaMysql.notification.updateMany({
+          where: { toId: req.userId, lida: false },
+          data: { lida: true },
+        })
+      } catch (error: any) {
+        console.warn('[DUAL-WRITE] MySQL notifications read-all failed:', error?.message)
+      }
+    }
+
     res.json({ success: true })
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
