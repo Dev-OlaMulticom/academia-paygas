@@ -97,6 +97,24 @@ class ApiClient {
     return response
   }
 
+  async forgotPassword(email: string) {
+    return this.request<{ message: string }>('/auth/forgot-password', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    })
+  }
+
+  async resetPassword(email: string, code: string, newPassword: string, confirmPassword: string) {
+    return this.request<{ message: string }>('/auth/reset-password', {
+      method: 'POST',
+      body: JSON.stringify({ email, code, newPassword, confirmPassword }),
+    })
+  }
+
+  async getEmailStatus() {
+    return this.request<{ configured: boolean; host?: string; port?: number }>('/auth/email-status')
+  }
+
   async getMe() {
     const token = this.token
     if (!token) throw new Error('Não autenticado')

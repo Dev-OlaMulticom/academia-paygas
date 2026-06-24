@@ -173,6 +173,62 @@ export async function sendNotificationEmail(
 }
 
 /**
+ * Check if SMTP is configured
+ */
+export function isEmailConfigured(): { configured: boolean; host?: string; port?: number } {
+  const requiredEnvVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS']
+  const missing = requiredEnvVars.filter(v => !process.env[v])
+  if (missing.length > 0) {
+    return { configured: false }
+  }
+  return {
+    configured: true,
+    host: process.env.SMTP_HOST,
+    port: parseInt(process.env.SMTP_PORT || '587', 10),
+  }
+}
+
+/**
+ * Send password reset code email
+ */
+export async function sendPasswordResetEmail(to: string, userName: string, code: string) {
+  const appUrl = process.env.APP_URL || 'https://academia.paygas.com.br'
+
+  return sendEmail({
+    to,
+    subject: '🔑 Redefinir senha - Academia PayGas',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="UTF-8"></head>
+      <body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;margin:0;">
+        <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
+          <div style="background:linear-gradient(135deg,#dc2626 0%,#b91c1c 100%);color:white;padding:30px;text-align:center;">
+            <h1 style="margin:0;font-size:22px;">Academia PayGas</h1>
+            <p style="margin:5px 0 0;font-size:14px;">Redefinição de Senha</p>
+          </div>
+          <div style="padding:30px;text-align:center;">
+            <h2 style="margin:0 0 8px;color:#333;">Olá, ${userName}!</h2>
+            <p style="color:#555;font-size:15px;margin:0 0 20px;">Você solicitou a redefinição da sua senha. Use o código abaixo:</p>
+            <div style="background:#f9f9f9;border-radius:8px;padding:20px;margin:0 0 24px;">
+              <p style="margin:0;color:#333;font-size:32px;font-weight:bold;letter-spacing:8px;">${code}</p>
+              <p style="margin:8px 0 0;color:#888;font-size:12px;">Este código expira em 15 minutos</p>
+            </div>
+            <p style="color:#666;font-size:13px;margin:0 0 16px;">Se você não solicitou esta redefinição, ignore este email. Sua senha permanecerá inalterada.</p>
+            <a href="${appUrl}/login" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">Ir para o Login</a>
+          </div>
+          <div style="background:#f8f9fa;padding:16px;text-align:center;color:#999;font-size:11px;">
+            <p style="margin:0;">Este é um email automático. Por favor, não responda.</p>
+            <p style="margin:4px 0 0;">© 2026 Academia PayGas</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  })
+}
+
+/**
  * Send email verification link
  */
 export async function sendVerificationEmail(to: string, userName: string, token: string) {

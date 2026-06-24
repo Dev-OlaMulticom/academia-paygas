@@ -1,10 +1,10 @@
 import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import jwt from 'jsonwebtoken'
-import _crypto from 'crypto'
+import crypto from 'crypto'
 import { prisma } from '../lib/prisma'
 import { JWT_SECRET, authenticate, AuthRequest } from '../middleware/auth'
-import { sendVerificationEmail as _sendVerificationEmail } from '../services/email'
+import { sendPasswordResetEmail, isEmailConfigured } from '../services/email'
 import { awardLoginPointsDaily } from '../services/gamification'
 import { logActivity } from '../services/log'
 
@@ -112,6 +112,92 @@ router.get('/verify-email', async (req, res) => {
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao verificar email' })
+  }
+})
+
+// GET /api/auth/email-status — check if SMTP is configured
+router.get('/email-status', (_req, res) => {
+  res.json(isEmailConfigured())
+})
+
+// POST /api/auth/forgot-password — send reset code to email
+router.post('/forgot-password', async (req, res) => {
+  try {
+    const { email } = req.body
+    if (!email) {
+      return res.status(400).json({ error: 'Email é obrigatório' })
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user) {
+      // Silently succeed to prevent email enumeration
+      return res.json({ message: 'Se o email estiver cadastrado, você receberá um código de redefinição.' })
+    }
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString()
+    const expiry = new Date(Date.now() + 15 * 60 * 1000) // 15 minutes
+
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { tokenRecuperacao: code, tokenRecuperacaoExpiry: expiry },
+    })
+
+    await sendPasswordResetEmail(user.email, user.nome || user.email, code).catch((err) => {
+      console.error('[AUTH] Erro ao enviar email de redefinicao:', err)
+    })
+
+    await logActivity(user.id, 'Solicitacao Reset Senha', `Email: ${user.email}`)
+
+    res.json({ message: 'Se o email estiver cadastrado, você receberá um código de redefinição.' })
+  } catch (error) {
+    console.error('[AUTH FORGOT PASSWORD ERROR]', error)
+    res.status(500).json({ error: 'Erro interno do servidor' })
+  }
+})
+
+// POST /api/auth/reset-password — verify code and set new password
+router.post('/reset-password', async (req, res) => {
+  try {
+    const { email, code, newPassword, confirmPassword } = req.body
+
+    if (!email || !code || !newPassword || !confirmPassword) {
+      return res.status(400).json({ error: 'Todos os campos são obrigatórios' })
+    }
+
+    if (newPassword !== confirmPassword) {
+      return res.status(400).json({ error: 'As senhas não coincidem' })
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'A senha deve ter pelo menos 8 caracteres' })
+    }
+
+    const user = await prisma.user.findUnique({ where: { email } })
+    if (!user || user.tokenRecuperacao !== code) {
+      return res.status(400).json({ error: 'Código inválido ou email incorreto' })
+    }
+
+    if (user.tokenRecuperacaoExpiry && new Date() > user.tokenRecuperacaoExpiry) {
+      // Clear expired token
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { tokenRecuperacao: null, tokenRecuperacaoExpiry: null },
+      })
+      return res.status(400).json({ error: 'Código expirado. Solicite um novo.' })
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 12)
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { senha: hashedPassword, tokenRecuperacao: null, tokenRecuperacaoExpiry: null },
+    })
+
+    await logActivity(user.id, 'Senha Redefinida', 'Senha redefinida via recuperacao')
+
+    res.json({ message: 'Senha redefinida com sucesso! Você já pode fazer login.' })
+  } catch (error) {
+    console.error('[AUTH RESET PASSWORD ERROR]', error)
+    res.status(500).json({ error: 'Erro interno do servidor' })
   }
 })
 
