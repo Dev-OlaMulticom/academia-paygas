@@ -29,6 +29,9 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
+    "@casl/ability": "^7.0.0",
+    "@casl/prisma": "^2.0.1",
+    "@casl/react": "^7.0.0",
     "@hookform/resolvers": "^3.9.1",
     "@prisma/adapter-mariadb": "^7.8.0",
     "@prisma/adapter-pg": "^7.8.0",
@@ -97,6 +100,7 @@
     "zustand": "^5.0.1"
   },
   "devDependencies": {
+    "@casl/angular": "^10.0.0",
     "@eslint/js": "^10.0.1",
     "@tailwindcss/postcss": "^4.2.0",
     "@types/bcryptjs": "^2.4.6",
