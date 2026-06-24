@@ -1,6 +1,6 @@
 # AGENTS.md — Academia PayGas
 
-Corporate LMS for PayGas gas station employees. React SPA + Express API + PostgreSQL.
+Corporate LMS for PayGas gas station employees. React SPA + Express API + PostgreSQL (primary) + MySQL (backup).
 
 ## Commands
 
@@ -13,7 +13,7 @@ pnpm dev:client          # Vite on :5173
 pnpm dev:server          # tsx watch server/index.ts on :3001
 
 # Build (required before deploy or start)
-pnpm build               # prisma generate + vite build + tsc server
+pnpm build               # prisma generate (PG+MySQL) + vite build + tsc server
 
 # Build individual
 npx vite build            # frontend only
@@ -25,11 +25,16 @@ pnpm start               # node dist/server/index.js
 # Lint
 pnpm lint                # eslint .
 
-# Database
-npx prisma generate      # generate client
+# Database - PostgreSQL (primary)
+npx prisma generate      # generate PG client
 npx prisma migrate deploy
 pnpm db:seed             # tsx prisma/seed.ts (test users)
 pnpm db:reset            # reset + seed
+
+# Database - MySQL (backup)
+npx prisma generate --schema=prisma/schema.mysql.prisma  # generate MySQL client
+pnpx db:generate:mysql   # same as above
+pnpx db:sync-mysql       # initial sync PG → MySQL (runs pg-dump + mysql import)
 
 # Deploy (cPanel/production)
 ./deploy.sh              # auto-detects nginx, compiles, restarts
@@ -79,17 +84,75 @@ All under `/api/`. Key route files in `server/routes/`:
 
 ### Database
 
-Prisma 7 + PostgreSQL. Schema: `prisma/schema.prisma`. Seed: `prisma/seed.ts`.
+**Dual-database architecture**: PostgreSQL (primary, source of truth) + MySQL (backup, failover).
+
+- **PostgreSQL**: Prisma 7 + `@prisma/adapter-pg`. Schema: `prisma/schema.prisma`. 17 models.
+- **MySQL**: Prisma 7 + `@prisma/adapter-mariadb`. Schema: `prisma/schema.mysql.prisma`. Same 17 models, separate generator.
+- **MySQL client output**: `prisma/generated/mysql/` (in `.gitignore`)
+- **Data sync**: `prisma/sync-mysql.ts` — initial PG→MySQL data copy. After that, dual-write keeps them in sync.
 
 **Naming gotcha:** The DB table is `Modulo` but the frontend/CMS calls it "Curso". The field `moduloId` is `cursoId` in frontend context. This is cosmetic only — the schema is not changing.
+
+### Data Access Layer (DAL)
+
+All database access goes through `server/lib/db.ts`. Never call `prisma.*` directly in routes.
+
+```ts
+import { db } from '../lib/db'
+
+// CRUD operations (dual-write to PG + MySQL)
+await db.create('user', { email, nome, senha })
+await db.findUnique('user', { id: '123' })
+await db.update('user', { id: '123' }, { nome: 'New' })
+await db.upsert('progresso', { ... }, { ... }, { ... })
+await db.delete('user', { id: '123' })
+
+// Reads always use PostgreSQL
+await db.findMany('modulo', { where: { ativo: true } })
+
+// Health check returns both databases
+await db.healthCheck() // { postgresql: 'connected', mysql: 'connected' }
+```
+
+Models are configured in `server/lib/db-models.ts`. Each model maps PG and MySQL delegates. MySQL is `null` when `MYSQL_URL` is not set — dual-write gracefully degrades.
 
 ### Encryption
 
 AES-256-GCM payloads between client and server. Client fetches key from `GET /api/config` before login. See `src/lib/crypto.ts` (client) and `server/middleware/encryption.ts` (server).
 
-### Auth
+### Auth & Authorization
 
-JWT + bcryptjs. Three roles: `ADMIN`, `GESTOR`, `ATENDENTE`. GESTOR is restricted to their own team members. Tokens verified via `server/middleware/auth.ts`.
+**Authentication**: JWT + bcryptjs. Three roles: `ADMIN`, `GESTOR`, `ATENDENTE`. GESTOR is restricted to their own team members. Tokens verified via `server/middleware/auth.ts`.
+
+**Authorization**: CASL-based RBAC/ABAC. All permission logic centralized in `server/auth/casl/`.
+
+```
+server/auth/casl/
+  actions.ts          # CASL action constants (create, read, update, delete, manage, ...)
+  subjects.ts         # CASL subject constants (User, Modulo, Team, Message, ...)
+  ability.ts          # AppAbility type definition
+  defineAbility.ts    # Central ability builder — merges all policies
+  policies/
+    user.policy.ts    # User entity permissions
+    team.policy.ts    # Team aggregate permissions
+    message.policy.ts # Notification permissions
+```
+
+**Middleware** (`server/middleware/auth.ts`) supports both patterns:
+```ts
+// Role-based (backward compat)
+router.get('/users', authenticate, authorize('ADMIN', 'GESTOR'), handler)
+
+// CASL ability-based (preferred for new code)
+router.post('/users', authenticate, authorize('create', 'User'), handler)
+router.put('/users/:id', authenticate, authorize('update', 'User'), handler)
+```
+
+**Frontend permissions** (`src/hooks/useAbility.ts`):
+```tsx
+const { can, cannot, isAdmin, isGestor } = useAbility()
+if (can('delete', 'User')) { /* show delete button */ }
+```
 
 ### Gamification / XP
 
@@ -114,11 +177,43 @@ Level = `Math.floor(xp / 2000) + 1`. `awardPointsIfNotAwarded` deduplicates by (
 
 All user actions are logged to the `ActivityLog` table via the shared `logActivity(userId, acao, detalhes)` service (`server/services/log.ts`). ADMIN can view logs at `/logs` with filters by user, action type, and date range.
 
+## Database Tables (17 models)
+
+| Table | Description |
+|-------|-------------|
+| `User` | Usuarios del sistema (email, nome, senha, role, xp, level) |
+| `Modulo` | Cursos/modules del LMS (titulo, descricao, ordem,视频Url) |
+| `Aula` | Secciones dentro de un modulo (titulo, tipo: VIDEO/PDF/TEXTO) |
+| `Licao` | Contenido individual (video, texto, PDF) |
+| `Quiz` | Cuestionarios por aula (1:1 con Aula) |
+| `QuizPergunta` | Preguntas del quiz (opcaoA/B/C/D, correta) |
+| `QuizResponse` | Respuestas de usuarios a quizzes |
+| `Progresso` | Progreso de usuario por aula |
+| `Certificate` | Certificados (PENDING/APPROVED/ISSUED) |
+| `Notification` | Notificaciones in-app (from/to) |
+| `ActivityLog` | Audit log de acciones |
+| `PointsTransaction` | Transacciones XP |
+| `ForumPost` | Posts del foro |
+| `ModuleConfig` | Config de modulos del sidebar (enabled/disabled) |
+| `XPConfig` | Config de puntos XP por accion |
+| `Conquista` | Logros/achievements |
+| `UserConquista` | Relacion usuario-conquista |
+
+### Enums
+
+| Enum | Values |
+|------|--------|
+| `Role` | ADMIN, GESTOR, ATENDENTE |
+| `CertificateStatus` | PENDING, APPROVED, ISSUED |
+| `AulaTipo` | VIDEO, PDF, TEXTO |
+| `PointsAction` | LOGIN, MODULE_OPEN, LESSON_VIEW, LESSON_COMPLETE, MODULE_COMPLETE, QUIZ_CORRECT, QUIZ_PASS, CERTIFICATE |
+
 ## Environment
 
 Copy `.env.example` to `.env`. Key vars:
 
 - `DATABASE_URL` — required, PostgreSQL connection string
+- `MYSQL_URL` — optional, MySQL connection string for backup
 - `JWT_SECRET` — optional, auto-generated if weak/missing
 - `ENCRYPTION_KEY` — optional, auto-generated if missing
 - `ALLOWED_ORIGINS` — required, comma-separated CORS origins
@@ -133,9 +228,13 @@ Copy `.env.example` to `.env`. Key vars:
 
 ## Gotchas
 
-- `pnpm build` must run `prisma generate` before vite/tsc — the build script chains this automatically.
+- `pnpm build` must run `prisma generate` (PG + MySQL) before vite/tsc — the build script chains this automatically.
 - `.htaccess` does nothing on nginx (production server). The nginx snippet in `deploy.sh` replaces its functionality.
 - Vite dev server proxies `/api` to `https://localhost:3001` (note: `secure: false` for self-signed certs).
 - `app.js` and `Passengerfile.json` exist for Phusion Passenger but are NOT used by `deploy.sh`.
 - No `typecheck` command — run `npx tsc --noEmit` for frontend or check server with `npx tsc --project tsconfig.server.json --noEmit` if needed.
 - Prisma migrations live in `prisma/migrations/`. Use `prisma migrate dev` to create new ones locally.
+- MySQL client is generated to `prisma/generated/mysql/` — this path is in `.gitignore`.
+- `prisma-mysql.ts` uses `path.resolve(__dirname, ...)` for dynamic require because compiled output (`dist/server/lib/`) is deeper than source (`server/lib/`).
+- When `MYSQL_URL` is not set, `prismaMysql` is `null` and all dual-write operations silently skip MySQL.
+- The `authorize()` middleware supports both role-based (`authorize('ADMIN','GESTOR')`) and CASL ability-based (`authorize('create','User')`) patterns. Detects which by checking if first arg is a known CASL action.
