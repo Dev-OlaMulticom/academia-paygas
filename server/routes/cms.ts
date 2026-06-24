@@ -486,7 +486,9 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
           const titulo = 'Quiz Aprovado'
           const mensagem = `${quizUser.nome} aprovou no quiz "${quiz.titulo}" com nota ${nota}/10.`
           db.create('notification', { fromId: req.userId, toId: gestor.id, titulo, mensagem }).catch(() => {})
-          sendNotificationAlertEmail(gestor.email, gestor.nome || gestor.email, titulo).catch(() => {})
+          sendNotificationAlertEmail(gestor.email, gestor.nome || gestor.email, titulo).then(r => {
+            if (!r.success) console.warn(`[EMAIL] Falha ao enviar quiz-notify para ${gestor.email}: ${r.error}`)
+          })
         }
       }
     } else {

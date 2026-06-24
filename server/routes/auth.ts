@@ -140,8 +140,8 @@ router.post('/forgot-password', async (req, res) => {
       tokenRecuperacaoExpiry: expiry,
     })
 
-    await sendPasswordResetEmail(user.email, user.nome || user.email, code).catch((err) => {
-      console.error('[AUTH] Erro ao enviar email de redefinicao:', err)
+    await sendPasswordResetEmail(user.email, user.nome || user.email, code).then(r => {
+      if (!r.success) console.warn(`[AUTH] Falha email reset para ${user.email}: ${r.error}`)
     })
 
     await logActivity(user.id, 'Solicitacao Reset Senha', `Email: ${user.email}`)

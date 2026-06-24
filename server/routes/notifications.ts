@@ -83,7 +83,9 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
       where: { id: { in: targetUserIds } },
     }) as any[]
     for (const u of users) {
-      sendNotificationAlertEmail(u.email, u.nome || u.email, titulo).catch(() => {})
+      sendNotificationAlertEmail(u.email, u.nome || u.email, titulo).then(r => {
+        if (!r.success) console.warn(`[EMAIL] Falha notif para ${u.email}: ${r.error}`)
+      })
     }
 
     res.status(201).json({ success: true, sent: targetUserIds.length })

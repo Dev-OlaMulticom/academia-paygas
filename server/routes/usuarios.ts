@@ -119,8 +119,8 @@ router.post('/', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthReq
     await logActivity(req.userId!, 'Criar Usuario', `Criou ${role}: ${nome} (${email})`)
     await awardPointsIfNotAwarded(req.userId!, 'MODULE_OPEN', `USER_CREATE:${user.id}`)
 
-    sendVerificationEmail(email, nome, verificationToken).catch(err => {
-      console.error('Erro ao enviar email de verificacao:', err)
+    sendVerificationEmail(email, nome, verificationToken).then(r => {
+      if (!r.success) console.warn(`[EMAIL] Falha verificacao para ${email}: ${r.error}`)
     })
 
     res.status(201).json({
@@ -419,8 +419,8 @@ router.post('/:id/resend-verification', authenticate, authorize('ADMIN', 'GESTOR
 
     await db.update('user', { id }, { tokenVerificacao: verificationToken, tokenExpiry })
 
-    await sendVerificationEmail(user.email, user.nome, verificationToken)
-    await logActivity(req.userId!, 'Reenviar Verificacao', `Reenviou verificacao para: ${user.nome}`)
+    const emailResult = await sendVerificationEmail(user.email, user.nome, verificationToken)
+    await logActivity(req.userId!, 'Reenviar Verificacao', `Reenviou verificacao para: ${user.nome} | email: ${emailResult.success ? 'OK' : emailResult.error}`)
 
     res.json({ message: 'Email de verificacao reenviado!' })
   } catch (error) {

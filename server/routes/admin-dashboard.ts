@@ -129,13 +129,14 @@ router.post('/send-email', authenticate, authorize('ADMIN'), async (req: AuthReq
       </html>
     `
 
-    const sent = await sendCustomEmail(targetUser.email, assunto, htmlBody)
+    const result = await sendCustomEmail(targetUser.email, assunto, htmlBody)
 
-    if (sent) {
+    if (result.success) {
       await logActivity(req.userId!, 'Email Enviado', `Para: ${targetUser.email} | Assunto: ${assunto}`)
       res.json({ success: true, message: `Email enviado para ${targetUser.email}` })
     } else {
-      res.status(500).json({ success: false, error: 'Falha ao enviar email. Verifique a configuração SMTP.' })
+      console.error(`[ADMIN EMAIL] Falha envio para ${targetUser.email}: ${result.error}`)
+      res.status(500).json({ success: false, error: `Falha ao enviar email: ${result.error}` })
     }
   } catch (error) {
     console.error('[ADMIN SEND EMAIL ERROR]', error)

@@ -41,19 +41,29 @@ function initializeTransporter() {
   return transporter
 }
 
-export async function sendEmail(options: EmailOptions): Promise<boolean> {
+export interface EmailResult {
+  success: boolean
+  messageId?: string
+  error?: string
+}
+
+const VALID_FROM = 'email@academia.paygas.com.br'
+
+export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
   const MAX_RETRIES = 3
+  const from = process.env.SMTP_FROM || VALID_FROM
 
   for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
     try {
       const transport = initializeTransporter()
       if (!transport) {
-        console.warn('⚠️  SMTP not configured, email not sent')
-        return false
+        const msg = 'SMTP not configured'
+        console.warn(`⚠️  ${msg}, email not sent to ${options.to}`)
+        return { success: false, error: msg }
       }
 
       const mailOptions = {
-        from: process.env.SMTP_FROM || 'noreply@academia-paygas.com',
+        from,
         to: options.to,
         subject: options.subject,
         html: options.html || '',
@@ -61,19 +71,17 @@ export async function sendEmail(options: EmailOptions): Promise<boolean> {
       }
 
       const result = await transport.sendMail(mailOptions)
-      console.log(`✅ Email sent: ${result.messageId}`)
-      return true
+      console.log(`✅ Email sent [OK] to=${options.to} id=${result.messageId}`)
+      return { success: true, messageId: result.messageId }
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
+      console.error(`❌ Email FAIL [attempt ${attempt}/${MAX_RETRIES}] to=${options.to} subject="${options.subject}" error=${msg}`)
       if (attempt < MAX_RETRIES) {
-        console.warn(`⚠️  Email attempt ${attempt}/${MAX_RETRIES} failed: ${msg}. Retrying...`)
         await new Promise(r => setTimeout(r, 1000 * attempt))
-      } else {
-        console.error(`❌ Error sending email after ${MAX_RETRIES} attempts: ${msg}`)
       }
     }
   }
-  return false
+  return { success: false, error: `Failed after ${MAX_RETRIES} attempts` }
 }
 
 /**
