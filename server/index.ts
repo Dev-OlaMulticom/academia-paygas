@@ -25,6 +25,7 @@ import logsRoutes from './routes/logs'
 import xpconfigRoutes from './routes/xpconfig'
 import importExportRoutes from './routes/import-export'
 import adminDashboardRoutes from './routes/admin-dashboard'
+import { startNhostKeepAlive } from './services/nhost-keepalive'
 
 const app = express()
 const PORT = process.env.PORT || 3001
@@ -213,6 +214,11 @@ if (require.main === module) {
 
   // Log startup completion
   console.log(`[${new Date().toISOString()}] Server initialization complete, PID: ${process.pid}`)
+
+  // Start Nhost keep-alive to prevent free-tier database from pausing
+  if (process.env.NODE_ENV === 'production') {
+    startNhostKeepAlive()
+  }
 }
 
 export default app
