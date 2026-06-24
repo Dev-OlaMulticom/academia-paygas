@@ -125,7 +125,7 @@ app.get('/api/health', async (_req, res) => {
   const { db } = await import('./lib/db')
   const health = await db.healthCheck()
   res.json({
-    status: health.postgresql === 'connected' ? 'ok' : 'degraded',
+    status: health.supabase === 'connected' ? 'ok' : 'degraded',
     ...health,
     nodeEnv: process.env.NODE_ENV || 'undefined',
     timestamp: new Date().toISOString(),

@@ -84,12 +84,13 @@ All under `/api/`. Key route files in `server/routes/`:
 
 ### Database
 
-**Dual-database architecture**: PostgreSQL (primary, source of truth) + MySQL (backup, failover).
+**Triple-redundancy architecture**: Supabase PostgreSQL (primary, source of truth) + Nhost PostgreSQL (backup) + MySQL (backup, failover).
 
-- **PostgreSQL**: Prisma 7 + `@prisma/adapter-pg`. Schema: `prisma/schema.prisma`. 17 models.
-- **MySQL**: Prisma 7 + `@prisma/adapter-mariadb`. Schema: `prisma/schema.mysql.prisma`. Same 17 models, separate generator.
+- **Supabase PostgreSQL**: Prisma 7 + `@prisma/adapter-pg`. Schema: `prisma/schema.prisma`. 17 models. `DATABASE_URL` env var.
+- **Nhost PostgreSQL**: Same schema as Supabase. Prisma 7 + `@prisma/adapter-pg`. `NHOST_URL` env var. Dual-write target (best-effort).
+- **MySQL**: Prisma 7 + `@prisma/adapter-mariadb`. Schema: `prisma/schema.mysql.prisma`. Same 17 models, separate generator. `MYSQL_URL` env var.
 - **MySQL client output**: `prisma/generated/mysql/` (in `.gitignore`)
-- **Data sync**: `prisma/sync-mysql.ts` — initial PG→MySQL data copy. After that, dual-write keeps them in sync.
+- **Data sync**: On first deploy, if backup DB is empty, `deploy.sh` syncs from Supabase automatically.
 
 **Naming gotcha:** The DB table is `Modulo` but the frontend/CMS calls it "Curso". The field `moduloId` is `cursoId` in frontend context. This is cosmetic only — the schema is not changing.
 
@@ -100,21 +101,21 @@ All database access goes through `server/lib/db.ts`. Never call `prisma.*` direc
 ```ts
 import { db } from '../lib/db'
 
-// CRUD operations (dual-write to PG + MySQL)
+// CRUD operations (dual-write to Nhost + MySQL)
 await db.create('user', { email, nome, senha })
 await db.findUnique('user', { id: '123' })
 await db.update('user', { id: '123' }, { nome: 'New' })
 await db.upsert('progresso', { ... }, { ... }, { ... })
 await db.delete('user', { id: '123' })
 
-// Reads always use PostgreSQL
+// Reads always use Supabase (primary)
 await db.findMany('modulo', { where: { ativo: true } })
 
-// Health check returns both databases
-await db.healthCheck() // { postgresql: 'connected', mysql: 'connected' }
+// Health check returns all three databases
+await db.healthCheck() // { supabase: 'connected', nhost: 'connected', mysql: 'connected' }
 ```
 
-Models are configured in `server/lib/db-models.ts`. Each model maps PG and MySQL delegates. MySQL is `null` when `MYSQL_URL` is not set — dual-write gracefully degrades.
+Models are configured in `server/lib/db-models.ts`. Each model maps PG, Nhost, and MySQL delegates. Nhost and MySQL are `null` when their URL env vars are not set — dual-write gracefully degrades.
 
 ### Encryption
 
@@ -213,6 +214,7 @@ All user actions are logged to the `ActivityLog` table via the shared `logActivi
 Copy `.env.example` to `.env`. Key vars:
 
 - `DATABASE_URL` — required, PostgreSQL connection string
+- `NHOST_URL` — optional, Nhost PostgreSQL backup connection string
 - `MYSQL_URL` — optional, MySQL connection string for backup
 - `JWT_SECRET` — optional, auto-generated if weak/missing
 - `ENCRYPTION_KEY` — optional, auto-generated if missing
@@ -237,4 +239,5 @@ Copy `.env.example` to `.env`. Key vars:
 - MySQL client is generated to `prisma/generated/mysql/` — this path is in `.gitignore`.
 - `prisma-mysql.ts` uses `path.resolve(__dirname, ...)` for dynamic require because compiled output (`dist/server/lib/`) is deeper than source (`server/lib/`).
 - When `MYSQL_URL` is not set, `prismaMysql` is `null` and all dual-write operations silently skip MySQL.
+- When `NHOST_URL` is not set, `prismaNhost` is `null` and all dual-write operations silently skip Nhost.
 - The `authorize()` middleware supports both role-based (`authorize('ADMIN','GESTOR')`) and CASL ability-based (`authorize('create','User')`) patterns. Detects which by checking if first arg is a known CASL action.

@@ -571,6 +571,54 @@ fi
 
 echo ""
 
+# ─── 7a2. Nhost: initial sync if empty ──────────────────────
+echo "=== [7a2/10] Configurando Nhost (backup PostgreSQL) ==="
+
+if [ -n "${NHOST_URL:-}" ]; then
+    log_ok "NHOST_URL configurada"
+
+    # Check if Nhost has data
+    NHOST_USER_COUNT=$(NODE_TLS_REJECT_UNAUTHORIZED=0 npx tsx -e "
+        const { Client } = require('pg');
+        const c = new Client({ connectionString: process.env.NHOST_URL, ssl: { rejectUnauthorized: false } });
+        c.connect().then(() => c.query('SELECT COUNT(*)::int as c FROM \"User\"'))
+          .then(r => { console.log(r.rows[0].c); c.end(); })
+          .catch(() => { console.log('-1'); c.end(); });
+    " 2>/dev/null || echo "-1")
+
+    if [ "$NHOST_USER_COUNT" = "0" ]; then
+        log_ok "Nhost vacio, sincronizando desde Supabase..."
+        NODE_TLS_REJECT_UNAUTHORIZED=0 npx tsx -e "
+            const { Client } = require('pg');
+            const supa = new Client(process.env.DATABASE_URL);
+            const nhost = new Client({ connectionString: process.env.NHOST_URL, ssl: { rejectUnauthorized: false } });
+            async function main() {
+                await supa.connect(); await nhost.connect();
+                const tables = ['User','Modulo','Aula','Licao','Quiz','QuizPergunta','QuizResponse','Progresso','Certificate','Notification','ActivityLog','PointsTransaction','ForumPost','ModuleConfig','XPConfig','Conquista','UserConquista'];
+                for (const t of tables) {
+                    const r = await supa.query('SELECT * FROM \"' + t + '\"');
+                    for (const row of r.rows) {
+                        const keys = Object.keys(row);
+                        const vals = keys.map((k,i) => '\$'+(i+1));
+                        await nhost.query('INSERT INTO \"'+t+'\" ('+keys.map(k=>'\"'+k+'\"').join(',')+') VALUES ('+vals.join(',')+') ON CONFLICT DO NOTHING', keys.map(k=>row[k]));
+                    }
+                    if (r.rows.length > 0) console.log(t + ': ' + r.rows.length);
+                }
+                await supa.end(); await nhost.end();
+            }
+            main().catch(e => { console.error(e.message); process.exit(1); });
+        " 2>&1 && log_ok "Nhost sincronizado desde Supabase" || log_warn "Sync Nhost fallo (no critico, dual-write lo maneja)"
+    elif [ "$NHOST_USER_COUNT" = "-1" ]; then
+        log_warn "No se pudo verificar Nhost (no critico)"
+    else
+        log_ok "Nhost ya tiene $NHOST_USER_COUNT usuarios (sync omitido, dual-write mantiene)"
+    fi
+else
+    log_warn "NHOST_URL no configurada, omitiendo Nhost"
+fi
+
+echo ""
+
 # ─── 7b. Resetear contraseña admin (garantizar acceso) ────
 echo "=== [7b/10] Verificando acceso admin ==="
 
@@ -682,6 +730,7 @@ else
 
     # Export all critical env vars so child process inherits them
     export DATABASE_URL="${DATABASE_URL:-}"
+    export NHOST_URL="${NHOST_URL:-}"
     export MYSQL_URL="${MYSQL_URL:-}"
     export JWT_SECRET="${JWT_SECRET:-}"
     export ENCRYPTION_KEY="${ENCRYPTION_KEY:-}"

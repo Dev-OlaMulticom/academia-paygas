@@ -1,9 +1,11 @@
 /**
  * Data Access Layer (DAL)
  *
- * Centralizes all database operations across multiple databases.
- * PostgreSQL is the source of truth. MySQL is a redundant backup.
- * MySQL failures are logged but never block the application.
+ * Centralizes all database operations across three databases.
+ * Supabase PostgreSQL is the source of truth.
+ * Nhost PostgreSQL is backup/redundancy (third-tier backup).
+ * MySQL is backup/redundancy (second-tier backup).
+ * Nhost and MySQL failures are logged but never block the application.
  *
  * Usage:
  *   import { db } from '../lib/db'
@@ -17,6 +19,7 @@
  *   )
  */
 import { prisma } from './prisma'
+import { prismaNhost } from './prisma-nhost'
 import { prismaMysql } from './prisma-mysql'
 import { MODELS, type ModelDelegates } from './db-models'
 
@@ -26,23 +29,31 @@ function getModel(name: string): ModelDelegates {
   return model
 }
 
-function warnMySQL(operation: string, model: string, error: any) {
-  console.warn(`[DUAL-WRITE] MySQL ${operation} failed on ${model}:`, error?.message || error)
+function warnBackup(backup: string, operation: string, model: string, error: any) {
+  console.warn(`[DUAL-WRITE] ${backup} ${operation} failed on ${model}:`, error?.message || error)
 }
 
 export const db = {
   // ==================== CREATE ====================
 
   async create(modelName: string, data: Record<string, any>) {
-    const { pg, mysql } = getModel(modelName)
+    const { pg, nhost, mysql } = getModel(modelName)
 
     const result = await pg.create({ data })
+
+    if (nhost) {
+      try {
+        await nhost.create({ data })
+      } catch (error) {
+        warnBackup('Nhost', 'create', modelName, error)
+      }
+    }
 
     if (mysql) {
       try {
         await mysql.create({ data })
       } catch (error) {
-        warnMySQL('create', modelName, error)
+        warnBackup('MySQL', 'create', modelName, error)
       }
     }
 
@@ -50,15 +61,23 @@ export const db = {
   },
 
   async createMany(modelName: string, data: Record<string, any>[]) {
-    const { pg, mysql } = getModel(modelName)
+    const { pg, nhost, mysql } = getModel(modelName)
 
     const result = await pg.createMany({ data })
+
+    if (nhost) {
+      try {
+        await nhost.createMany({ data })
+      } catch (error) {
+        warnBackup('Nhost', 'createMany', modelName, error)
+      }
+    }
 
     if (mysql) {
       try {
         await mysql.createMany({ data })
       } catch (error) {
-        warnMySQL('createMany', modelName, error)
+        warnBackup('MySQL', 'createMany', modelName, error)
       }
     }
 
@@ -111,15 +130,23 @@ export const db = {
   // ==================== UPDATE ====================
 
   async update(modelName: string, where: Record<string, any>, data: Record<string, any>) {
-    const { pg, mysql } = getModel(modelName)
+    const { pg, nhost, mysql } = getModel(modelName)
 
     const result = await pg.update({ where, data })
+
+    if (nhost) {
+      try {
+        await nhost.update({ where, data })
+      } catch (error) {
+        warnBackup('Nhost', 'update', modelName, error)
+      }
+    }
 
     if (mysql) {
       try {
         await mysql.update({ where, data })
       } catch (error) {
-        warnMySQL('update', modelName, error)
+        warnBackup('MySQL', 'update', modelName, error)
       }
     }
 
@@ -127,15 +154,23 @@ export const db = {
   },
 
   async updateMany(modelName: string, where: Record<string, any>, data: Record<string, any>) {
-    const { pg, mysql } = getModel(modelName)
+    const { pg, nhost, mysql } = getModel(modelName)
 
     const result = await pg.updateMany({ where, data })
+
+    if (nhost) {
+      try {
+        await nhost.updateMany({ where, data })
+      } catch (error) {
+        warnBackup('Nhost', 'updateMany', modelName, error)
+      }
+    }
 
     if (mysql) {
       try {
         await mysql.updateMany({ where, data })
       } catch (error) {
-        warnMySQL('updateMany', modelName, error)
+        warnBackup('MySQL', 'updateMany', modelName, error)
       }
     }
 
@@ -150,15 +185,23 @@ export const db = {
     createData: Record<string, any>,
     updateData: Record<string, any>
   ) {
-    const { pg, mysql } = getModel(modelName)
+    const { pg, nhost, mysql } = getModel(modelName)
 
     const result = await pg.upsert({ where, create: createData, update: updateData })
+
+    if (nhost) {
+      try {
+        await nhost.upsert({ where, create: createData, update: updateData })
+      } catch (error) {
+        warnBackup('Nhost', 'upsert', modelName, error)
+      }
+    }
 
     if (mysql) {
       try {
         await mysql.upsert({ where, create: createData, update: updateData })
       } catch (error) {
-        warnMySQL('upsert', modelName, error)
+        warnBackup('MySQL', 'upsert', modelName, error)
       }
     }
 
@@ -168,15 +211,23 @@ export const db = {
   // ==================== DELETE ====================
 
   async delete(modelName: string, where: Record<string, any>) {
-    const { pg, mysql } = getModel(modelName)
+    const { pg, nhost, mysql } = getModel(modelName)
 
     const result = await pg.delete({ where })
+
+    if (nhost) {
+      try {
+        await nhost.delete({ where })
+      } catch (error) {
+        warnBackup('Nhost', 'delete', modelName, error)
+      }
+    }
 
     if (mysql) {
       try {
         await mysql.delete({ where })
       } catch (error) {
-        warnMySQL('delete', modelName, error)
+        warnBackup('MySQL', 'delete', modelName, error)
       }
     }
 
@@ -184,15 +235,23 @@ export const db = {
   },
 
   async deleteMany(modelName: string, where: Record<string, any>) {
-    const { pg, mysql } = getModel(modelName)
+    const { pg, nhost, mysql } = getModel(modelName)
 
     const result = await pg.deleteMany({ where })
+
+    if (nhost) {
+      try {
+        await nhost.deleteMany({ where })
+      } catch (error) {
+        warnBackup('Nhost', 'deleteMany', modelName, error)
+      }
+    }
 
     if (mysql) {
       try {
         await mysql.deleteMany({ where })
       } catch (error) {
-        warnMySQL('deleteMany', modelName, error)
+        warnBackup('MySQL', 'deleteMany', modelName, error)
       }
     }
 
@@ -202,8 +261,8 @@ export const db = {
   // ==================== TRANSACTION ====================
 
   /**
-   * Execute a transaction on PostgreSQL only.
-   * MySQL does not support cross-operation transactions through this layer.
+   * Execute a transaction on PostgreSQL (Supabase) only.
+   * Nhost and MySQL do not support cross-operation transactions through this layer.
    */
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async transaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
@@ -218,13 +277,22 @@ export const db = {
 
   // ==================== HEALTH CHECK ====================
 
-  async healthCheck(): Promise<{ postgresql: string; mysql: string }> {
-    const result = { postgresql: 'disconnected', mysql: 'not_configured' }
+  async healthCheck(): Promise<{ supabase: string; nhost: string; mysql: string }> {
+    const result = { supabase: 'disconnected', nhost: 'not_configured', mysql: 'not_configured' }
 
     try {
       await prisma.$queryRaw`SELECT 1`
-      result.postgresql = 'connected'
+      result.supabase = 'connected'
     } catch { /* keep disconnected */ }
+
+    if (prismaNhost) {
+      try {
+        await prismaNhost.$queryRaw`SELECT 1`
+        result.nhost = 'connected'
+      } catch {
+        result.nhost = 'disconnected'
+      }
+    }
 
     if (prismaMysql) {
       try {
