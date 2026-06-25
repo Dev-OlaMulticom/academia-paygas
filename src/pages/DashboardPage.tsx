@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { XP_PER_LEVEL } from '../lib/constants'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 
 interface DashboardPageProps {
@@ -74,85 +75,120 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
       </div>
 
       <div className="cards-grid">
-        <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#FEF3C7' }}><i className="icon-book-open icon-lg" /></div>
-          <div className="stat-card-val">{dashData?.totalModulos || 0}</div>
-          <div className="stat-card-label">Módulos Disponíveis</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#DCFCE7' }}><i className="icon-check-circle icon-lg" /></div>
-          <div className="stat-card-val">{dashData?.aulasConcluidas || 0}</div>
-          <div className="stat-card-label">Aulas Concluidas</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#E6EEF9' }}><i className="icon-award icon-lg" /></div>
-          <div className="stat-card-val">{dashData?.totalCertificados || 0}</div>
-          <div className="stat-card-label">Certificados</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#F3E8FF' }}><i className="icon-trophy icon-lg" /></div>
-          <div className="stat-card-val">{dashData?.totalQuizzes || 0}</div>
-          <div className="stat-card-label">Quizzes Aprovados</div>
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="stat-card stat-card--static">
+              <span className="stat-card-info">i</span>
+              <div className="stat-card-icon" style={{ background: '#FEF3C7' }}><i className="icon-book-open icon-lg" /></div>
+              <div className="stat-card-val">{dashData?.totalModulos || 0}</div>
+              <div className="stat-card-label">Modulos Disponiveis</div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            Quantidade total de modulos/cursos disponiveis para voce estudar
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="stat-card stat-card--static">
+              <span className="stat-card-info">i</span>
+              <div className="stat-card-icon" style={{ background: '#DCFCE7' }}><i className="icon-check-circle icon-lg" /></div>
+              <div className="stat-card-val">{dashData?.aulasConcluidas || 0}</div>
+              <div className="stat-card-label">Aulas Concluidas</div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            Total de aulas que voce ja finalizou com sucesso
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="stat-card stat-card--static">
+              <span className="stat-card-info">i</span>
+              <div className="stat-card-icon" style={{ background: '#E6EEF9' }}><i className="icon-award icon-lg" /></div>
+              <div className="stat-card-val">{dashData?.totalCertificados || 0}</div>
+              <div className="stat-card-label">Certificados</div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            Certificados obtidos ao completar modulos com quiz aprovado
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="stat-card stat-card--static">
+              <span className="stat-card-info">i</span>
+              <div className="stat-card-icon" style={{ background: '#F3E8FF' }}><i className="icon-trophy icon-lg" /></div>
+              <div className="stat-card-val">{dashData?.totalQuizzes || 0}</div>
+              <div className="stat-card-label">Quizzes Aprovados</div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="top">
+            Quizzes em que voce atingiu a nota minima (7/10)
+          </TooltipContent>
+        </Tooltip>
       </div>
 
       <div className="section-title">Acoes Rapidas</div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px', marginBottom: '24px' }}>
-        <button
-          onClick={() => navigate(user?.role === 'ADMIN' ? '/cms' : '/modulos')}
-          style={{
-            padding: '20px',
-            background: 'white',
-            border: '2px solid var(--gray-200)',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            textAlign: 'left',
-            transition: 'border-color 0.2s',
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.borderColor = '#667eea'}
-          onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--gray-200)'}
-        >
-          <i className="icon-book-open icon-lg" style={{ color: '#667eea' }} />
-          <div style={{ fontWeight: 'bold', marginTop: '8px' }}>Continuar Estudando</div>
-          <div style={{ fontSize: '12px', color: 'var(--gray-500)' }}>Acessar módulos</div>
-        </button>
-        <button
-          onClick={() => navigate('/certificados')}
-          style={{
-            padding: '20px',
-            background: 'white',
-            border: '2px solid var(--gray-200)',
-            borderRadius: '12px',
-            cursor: 'pointer',
-            textAlign: 'left',
-            transition: 'border-color 0.2s',
-          }}
-          onMouseEnter={(e) => e.currentTarget.style.borderColor = '#f47c20'}
-          onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--gray-200)'}
-        >
-          <i className="icon-award icon-lg" style={{ color: '#f47c20' }} />
-          <div style={{ fontWeight: 'bold', marginTop: '8px' }}>Meus Certificados</div>
-          <div style={{ fontSize: '12px', color: 'var(--gray-500)' }}>{dashData?.totalCertificados || 0} conquistas</div>
-        </button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              className="quick-action-card"
+              onClick={() => navigate(user?.role === 'ADMIN' ? '/cms' : '/modulos')}
+              style={{ '--qa-color': '#667eea' } as React.CSSProperties}
+            >
+              <div className="qa-icon" style={{ background: '#EEF2FF' }}>
+                <i className="icon-book-open" style={{ color: '#667eea' }} />
+              </div>
+              <div className="qa-title">Continuar Estudando</div>
+              <div className="qa-desc">Acessar trilhas de aprendizado</div>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            {user?.role === 'ADMIN' ? 'Gerenciar conteudo e modulos do sistema' : 'Acessar os cursos e trilhas disponiveis para seu aprendizado'}
+          </TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button
+              className="quick-action-card"
+              onClick={() => navigate('/certificados')}
+            >
+              <div className="qa-icon" style={{ background: '#FEF3C7' }}>
+                <i className="icon-award" style={{ color: '#D97706' }} />
+              </div>
+              <div className="qa-title">Meus Certificados</div>
+              <div className="qa-desc">{dashData?.totalCertificados || 0} conquistas</div>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">
+            Visualizar e baixar seus certificados de conclusao
+          </TooltipContent>
+        </Tooltip>
+
         {user?.role !== 'ATENDENTE' && (
-          <button
-            onClick={() => navigate('/relatorios')}
-            style={{
-              padding: '20px',
-              background: 'white',
-              border: '2px solid var(--gray-200)',
-              borderRadius: '12px',
-              cursor: 'pointer',
-              textAlign: 'left',
-              transition: 'border-color 0.2s',
-            }}
-            onMouseEnter={(e) => e.currentTarget.style.borderColor = '#10b981'}
-            onMouseLeave={(e) => e.currentTarget.style.borderColor = 'var(--gray-200)'}
-          >
-            <i className="icon-bar-chart-3 icon-lg" style={{ color: '#10b981' }} />
-            <div style={{ fontWeight: 'bold', marginTop: '8px' }}>Ver Relatorios</div>
-            <div style={{ fontSize: '12px', color: 'var(--gray-500)' }}>Acompanhar progresso</div>
-          </button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className="quick-action-card"
+                onClick={() => navigate('/relatorios')}
+              >
+                <div className="qa-icon" style={{ background: '#DCFCE7' }}>
+                  <i className="icon-bar-chart-3" style={{ color: '#16A34A' }} />
+                </div>
+                <div className="qa-title">Ver Relatorios</div>
+                <div className="qa-desc">Acompanhar progresso da equipe</div>
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">
+              Acompanhar o progresso e desempenho da sua equipe em tempo real
+            </TooltipContent>
+          </Tooltip>
         )}
       </div>
     </div>

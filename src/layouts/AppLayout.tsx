@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import type { User } from '../hooks/useAuth'
 import { PERSONAS } from '../data/constants'
 import { APP_VERSION } from '../lib/constants'
@@ -56,9 +57,14 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
   return (
     <div id="screen-app" className="active">
       <header className="app-header">
-        <Button id="btn-menu" variant="ghost" size="icon" className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)} title="Menu">
-          <i className="icon-menu icon-md" />
-        </Button>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button id="btn-menu" variant="ghost" size="icon" className="menu-toggle" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              <i className="icon-menu icon-md" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="bottom">Abrir/fechar menu de navegacao</TooltipContent>
+        </Tooltip>
         <div className="header-logo">
           <div className="header-logo-icon">PG</div>
           <div>
@@ -67,10 +73,15 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
           </div>
         </div>
         <div className="header-right">
-          <Button id="btn-notif" variant="ghost" size="icon" className="header-notif" onClick={() => navigate('/notif')} title="Notificações">
-            <i className="icon-bell icon-md" />
-            {unreadCount > 0 && <span className="notif-dot"></span>}
-          </Button>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button id="btn-notif" variant="ghost" size="icon" className="header-notif" onClick={() => navigate('/notif')}>
+                <i className="icon-bell icon-md" />
+                {unreadCount > 0 && <span className="notif-dot"></span>}
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="bottom">{unreadCount > 0 ? `${unreadCount} notificacao(es) nao lida(s)` : 'Ver notificacoes'}</TooltipContent>
+          </Tooltip>
         </div>
       </header>
       <div className="app-body">
@@ -79,75 +90,141 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
           <div className="sidebar-section">
             <div className="sidebar-section-label">Principal</div>
             {isModuleEnabled('dashboard') && (
-              <button id="nav-dashboard" className={`nav-item ${currentPath === '/' ? 'active' : ''}`} onClick={() => navigate('/')}>
-                <i className="icon-home nav-icon" /> Dashboard
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button id="nav-dashboard" className={`nav-item ${currentPath === '/' ? 'active' : ''}`} onClick={() => { setSidebarOpen(false); navigate('/'); }}>
+                    <i className="icon-home nav-icon" /> Dashboard
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Visao geral do seu progresso e atividades</TooltipContent>
+              </Tooltip>
             )}
             {isModuleEnabled('trilhas') && (
-              <button id="nav-trilhas" className={`nav-item ${currentPath === '/modulos' || currentPath.startsWith('/modulo/') ? 'active' : ''}`} onClick={() => navigate('/modulos')}>
-                <i className="icon-book-open nav-icon" /> Trilhas de Aprendizado
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button id="nav-trilhas" className={`nav-item ${currentPath === '/modulos' || currentPath.startsWith('/modulo/') ? 'active' : ''}`} onClick={() => { setSidebarOpen(false); navigate('/modulos'); }}>
+                    <i className="icon-book-open nav-icon" /> Trilhas de Aprendizado
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Cursos e trilhas de aprendizado disponiveis</TooltipContent>
+              </Tooltip>
             )}
             {isModuleEnabled('certificados') && (
-              <button id="nav-certificados" className={`nav-item ${currentPath === '/certificados' ? 'active' : ''}`} onClick={() => navigate('/certificados')}>
-                <i className="icon-trophy nav-icon" /> Certificados
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button id="nav-certificados" className={`nav-item ${currentPath === '/certificados' ? 'active' : ''}`} onClick={() => { setSidebarOpen(false); navigate('/certificados'); }}>
+                    <i className="icon-trophy nav-icon" /> Certificados
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Certificados conquistados ao completar modulos</TooltipContent>
+              </Tooltip>
             )}
-            <button id="nav-conquistas" className={`nav-item ${currentPath === '/conquistas' ? 'active' : ''}`} onClick={() => navigate('/conquistas')}>
-              <i className="icon-star nav-icon" /> Conquistas
-            </button>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button id="nav-conquistas" className={`nav-item ${currentPath === '/conquistas' ? 'active' : ''}`} onClick={() => { setSidebarOpen(false); navigate('/conquistas'); }}>
+                  <i className="icon-star nav-icon" /> Conquistas
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">Suas conquistas e recompensas por estudo</TooltipContent>
+            </Tooltip>
           </div>
           {(isAdmin || isGestor) && (
             <div className="sidebar-section">
-              <div className="sidebar-section-label">Gestão</div>
+              <div className="sidebar-section-label">Gestao</div>
               {isAdmin && (
-                <button id="nav-admin-dashboard" className={`nav-item ${currentPath === '/admin-dashboard' ? 'active' : ''}`} onClick={() => navigate('/admin-dashboard')}>
-                  <i className="icon-bar-chart-3 nav-icon" /> Dashboard Admin
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button id="nav-admin-dashboard" className={`nav-item ${currentPath === '/admin-dashboard' ? 'active' : ''}`} onClick={() => { setSidebarOpen(false); navigate('/admin-dashboard'); }}>
+                      <i className="icon-bar-chart-3 nav-icon" /> Dashboard Admin
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Painel administrativo com metricas gerais do sistema</TooltipContent>
+                </Tooltip>
               )}
               {isModuleEnabled('cms') && (
-                <button id="nav-cms" className={`nav-item ${currentPath === '/cms' ? 'active' : ''}`} onClick={() => navigate('/cms')}>
-                  <i className="icon-file-edit nav-icon" /> Gestão de Conteúdo
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button id="nav-cms" className={`nav-item ${currentPath === '/cms' ? 'active' : ''}`} onClick={() => { setSidebarOpen(false); navigate('/cms'); }}>
+                      <i className="icon-file-edit nav-icon" /> Gestao de Conteudo
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Criar e gerenciar modulos, aulas e quizzes</TooltipContent>
+                </Tooltip>
               )}
               {isModuleEnabled('equipe') && isAdmin && (
-                <button id="nav-equipe" className={`nav-item ${currentPath === '/equipe' ? 'active' : ''}`} onClick={() => navigate('/equipe')}>
-                  <i className="icon-users nav-icon" /> Equipes
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button id="nav-equipe" className={`nav-item ${currentPath === '/equipe' ? 'active' : ''}`} onClick={() => { setSidebarOpen(false); navigate('/equipe'); }}>
+                      <i className="icon-users nav-icon" /> Equipes
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Gerenciar equipes e membros do posto</TooltipContent>
+                </Tooltip>
               )}
               {isModuleEnabled('usuarios') && (
-                <button id="nav-usuarios" className={`nav-item ${currentPath === '/usuarios' ? 'active' : ''}`} onClick={() => navigate('/usuarios')}>
-                  <i className="icon-user-cog nav-icon" /> {isAdmin ? 'Usuários' : 'Meu Time'}
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button id="nav-usuarios" className={`nav-item ${currentPath === '/usuarios' ? 'active' : ''}`} onClick={() => { setSidebarOpen(false); navigate('/usuarios'); }}>
+                      <i className="icon-user-cog nav-icon" /> {isAdmin ? 'Usuarios' : 'Meu Time'}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">{isAdmin ? 'Gerenciar todos os usuarios do sistema' : 'Ver membros da sua equipe e progresso'}</TooltipContent>
+                </Tooltip>
               )}
               {isModuleEnabled('relatorios') && (
-                <button id="nav-relatorios" className={`nav-item ${currentPath === '/relatorios' ? 'active' : ''}`} onClick={() => navigate('/relatorios')}>
-                  <i className="icon-bar-chart-3 nav-icon" /> Relatórios
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button id="nav-relatorios" className={`nav-item ${currentPath === '/relatorios' ? 'active' : ''}`} onClick={() => { setSidebarOpen(false); navigate('/relatorios'); }}>
+                      <i className="icon-bar-chart-3 nav-icon" /> Relatorios
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Relatorios de desempenho e progresso da equipe</TooltipContent>
+                </Tooltip>
               )}
               {isAdmin && (
-                <button id="nav-logs" className={`nav-item ${currentPath === '/logs' ? 'active' : ''}`} onClick={() => navigate('/logs')}>
-                  <i className="icon-clipboard nav-icon" /> Logs de Atividade
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button id="nav-logs" className={`nav-item ${currentPath === '/logs' ? 'active' : ''}`} onClick={() => { setSidebarOpen(false); navigate('/logs'); }}>
+                      <i className="icon-clipboard nav-icon" /> Logs de Atividade
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Historico de acoes dos usuarios no sistema</TooltipContent>
+                </Tooltip>
               )}
               {isAdmin && (
-                <button id="nav-xp-config" className={`nav-item ${currentPath === '/xp-config' ? 'active' : ''}`} onClick={() => navigate('/xp-config')}>
-                  <i className="icon-zap nav-icon" /> Configuração de XP
-                </button>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button id="nav-xp-config" className={`nav-item ${currentPath === '/xp-config' ? 'active' : ''}`} onClick={() => { setSidebarOpen(false); navigate('/xp-config'); }}>
+                      <i className="icon-zap nav-icon" /> Configuracao de XP
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">Configurar pontos e recompensas por acao</TooltipContent>
+                </Tooltip>
               )}
             </div>
           )}
           <div className="sidebar-section">
             <div className="sidebar-section-label">Suporte</div>
             {isModuleEnabled('notificacoes') && (
-              <button id="nav-notif" className={`nav-item ${currentPath === '/notif' ? 'active' : ''}`} onClick={() => navigate('/notif')}>
-                <i className="icon-bell nav-icon" /> Notificações
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button id="nav-notif" className={`nav-item ${currentPath === '/notif' ? 'active' : ''}`} onClick={() => { setSidebarOpen(false); navigate('/notif'); }}>
+                    <i className="icon-bell nav-icon" /> Notificacoes
+                    {unreadCount > 0 && <span className="nav-badge">{unreadCount}</span>}
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Mensagens e alertas importantes para voce</TooltipContent>
+              </Tooltip>
             )}
             {isModuleEnabled('perfil') && (
-              <button id="nav-perfil" className={`nav-item ${currentPath === '/perfil' ? 'active' : ''}`} onClick={() => navigate('/perfil')}>
-                <i className="icon-user nav-icon" /> Meu Perfil
-              </button>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button id="nav-perfil" className={`nav-item ${currentPath === '/perfil' ? 'active' : ''}`} onClick={() => { setSidebarOpen(false); navigate('/perfil'); }}>
+                    <i className="icon-user nav-icon" /> Meu Perfil
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">Editar seus dados pessoais e senha</TooltipContent>
+              </Tooltip>
             )}
           </div>
           <div className="sidebar-footer">

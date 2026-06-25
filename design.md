@@ -1,8 +1,12 @@
-# Design System - Academia PayGas V26
+# Design System - Academia PayGas V27
 
 ## Visao Geral
 
-O design system da Academia PayGas define os padroes visuais, componentes e interacoes utilizados em toda a plataforma. Versao atual: **V26 - Edicao Nacional**.
+O design system da Academia PayGas define os padroes visuais, componentes e interacoes utilizados em toda a plataforma. Versao atual: **V27 - Cores Unificadas**.
+
+### Regra de Ouro: Cor Primaria
+
+> **TODOS os elementos visuais devem usar `--pg-orange (#F47C20)` como cor primaria.** Seja em solid, gradiente ou gradient, o laranja PayGas sempre deve ter prioridade. Nenhuma outra cor deve substitui-lo em botoes de acao principal, headers de email, ou elementos de destaque.
 
 ---
 
@@ -138,6 +142,66 @@ Labels:
 - Valor: 26px / 800
 - Label: 12px / var(--gray-500)
 - Trend: 11px / var(--pg-green) ou var(--pg-red)
+
+#### Stat Card Variants
+
+**Clickable (navega para outra pagina)**
+```css
+.stat-card--clickable {
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.stat-card--clickable:hover {
+  border-color: var(--pg-orange);
+  box-shadow: 0 0 0 3px var(--pg-orange-lt), var(--shadow-md);
+  transform: translateY(-2px);
+}
+```
+
+**Static (informativo, sem acao)**
+```css
+.stat-card--static {
+  position: relative;
+  border-left: 3px solid var(--gray-300);
+}
+.stat-card--static .stat-card-info {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--gray-100);
+  color: var(--gray-400);
+  font-size: 10px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-style: italic;
+}
+```
+- Indicador `[i]` no canto superior direito
+- Tooltip Radix UI explica o conteudo ao hover
+
+#### Quick Action Card
+```css
+.quick-action-card {
+  padding: 20px;
+  background: white;
+  border: 2px solid var(--gray-200);
+  border-radius: 12px;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+}
+.quick-action-card:hover {
+  box-shadow: var(--shadow-md);
+  transform: translateY(-2px);
+}
+```
+- Sub-elementos: `.qa-icon`, `.qa-title`, `.qa-desc`
+- Usado no Dashboard para "Acoes Rapidas"
 
 #### Track Card
 ```css
@@ -283,7 +347,35 @@ text-decoration: underline
 5. **Links**: Usar variante `link` para acoes que se comportam como links
 6. **Consistencia**: Todos os botoes de acao principal devem seguir o padrao btn-primary
 
-### 3.3 Badges
+### 3.3 Tooltips
+
+O sistema utiliza **Radix UI Tooltip** (`@radix-ui/react-tooltip`) para tooltips explicativos em toda a plataforma.
+
+#### Componente
+```tsx
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+
+<Tooltip>
+  <TooltipTrigger asChild>
+    <button>Acao</button>
+  </TooltipTrigger>
+  <TooltipContent side="right">Descricao da acao</TooltipContent>
+</Tooltip>
+```
+
+#### Onde aplicar Tooltips
+
+| Elemento | Posicao | Descricao |
+|----------|---------|-----------|
+| Sidebar nav-items | `side="right"` | Explica a secao de navegacao |
+| Header buttons | `side="bottom"` | Explica a funcao do botao |
+| Stat cards (static) | `side="top"` | Explica a metrica exibida |
+| Quick action cards | `side="bottom"` | Explica para onde navega |
+
+#### Regra
+Todo elemento interativo ou informativo que nao e auto-explicativo DEVE ter um tooltip. Priorize claridade e simplicidade.
+
+### 3.4 Badges
 
 | Classe | Background | Cor | Uso |
 |--------|-----------|-----|-----|
@@ -293,7 +385,7 @@ text-decoration: underline
 | `.badge-locked` | var(--gray-100) | var(--gray-400) | Bloqueado |
 | `.badge-required` | var(--pg-red-lt) | var(--pg-red) | Obrigatorio |
 
-### 3.4 Status Pills
+### 3.5 Status Pills
 
 | Classe | Background | Cor |
 |--------|-----------|-----|
@@ -302,7 +394,7 @@ text-decoration: underline
 | `.pill-gray` | var(--gray-100) | var(--gray-500) |
 | `.pill-blue` | var(--pg-blue-lt) | var(--pg-blue) |
 
-### 3.5 Tabelas
+### 3.6 Tabelas
 
 ```css
 .table-wrap {
@@ -315,7 +407,7 @@ th: 11px / 700 / uppercase / var(--gray-500)
 td: 13px / var(--gray-700)
 ```
 
-### 3.6 Formularios
+### 3.7 Formularios
 
 ```css
 .form-field { margin-bottom: 12px; }
@@ -324,7 +416,7 @@ td: 13px / var(--gray-700)
 .form-input:focus: border-color: var(--pg-orange)
 ```
 
-### 3.7 Progress Bar
+### 3.8 Progress Bar
 
 ```css
 .track-prog-bar {
@@ -342,7 +434,7 @@ td: 13px / var(--gray-700)
 }
 ```
 
-### 3.8 Notifications
+### 3.9 Notifications
 
 ```css
 .notif-item {
@@ -356,7 +448,7 @@ td: 13px / var(--gray-700)
 }
 ```
 
-### 3.9 AI Panel
+### 3.10 AI Panel
 
 ```css
 .ai-panel {
@@ -373,7 +465,7 @@ td: 13px / var(--gray-700)
 .ai-msg.user { background: var(--pg-orange); color: #fff; align-self: flex-end; }
 ```
 
-### 3.10 Gamification
+### 3.11 Gamification
 
 #### Trophy Card
 ```css
@@ -391,7 +483,54 @@ td: 13px / var(--gray-700)
 .trophy-card.locked { opacity: .4; }
 ```
 
-### 3.11 Sandbox (Admin Profile)
+### 3.12 Emails
+
+Todos os emails transacionais devem seguir o padrao visual unificado com `--pg-orange` como cor primaria.
+
+#### Template Base
+```html
+<!-- Header: gradiente laranja -->
+<div style="background:linear-gradient(135deg,#F47C20 0%,#C45E0A 100%);color:white;padding:30px;text-align:center;">
+  <h1>Academia PayGas</h1>
+  <p>Subtitulo do email</p>
+</div>
+
+<!-- Botao de acao: laranja solido -->
+<a href="..." style="background:#F47C20;color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;">
+  Acao
+</a>
+```
+
+#### Regras de Cores para Emails
+
+| Elemento | Cor | Exemplo |
+|----------|-----|---------|
+| Header gradiente | `linear-gradient(135deg, #F47C20, #C45E0A)` | Todos os emails |
+| Botao primario | `#F47C20` (solid) | Confirmar, Acessar, Enviar |
+| Link de texto | `#F47C20` | Links inline no corpo |
+| Fundo da pagina | `#f4f4f4` | Body background |
+| Card | `#fff` | Container principal |
+
+#### Template de Verificacao de Email
+- Header: gradiente orange `#F47C20` → `#C45E0A`
+- Botao "Confirmar Meu Email": `#F47C20`
+- Link alternativo: cor `#F47C20`
+
+#### Template de Redefinicao de Senha
+- Header: gradiente orange `#F47C20` → `#C45E0A`
+- Botao "Ir para o Login": `#F47C20`
+
+#### Template de Notificacao
+- Header: gradiente orange `#F47C20` → `#C45E0A`
+- Botao "Ir para a Academia": `#F47C20`
+
+#### Template de Certificado
+- Botao "Ver Certificado": `#F47C20`
+
+#### Template de Boas-vindas
+- Botao "Acessar Academia": `#F47C20`
+
+### 3.13 Sandbox (Admin Profile)
 
 Bloque visible solo para ADMIN en `/perfil` que muestra usuarios de prueba del seed. Misma estructura visual que los demas bloques del perfil.
 
@@ -451,9 +590,9 @@ O sistema utiliza **emojis** como icones principais:
 
 ```css
 @media(max-width: 768px) {
-  .sidebar { display: none; }
+  .sidebar { /* Mobile: sidebar visivel como accordion */ }
   .lesson-layout { grid-template-columns: 1fr; }
-  .lesson-sidebar { display: none; }
+  .lesson-content { display: none; } /* Conteudo vive dentro do accordion */
   .ai-panel { display: none; }
 }
 
@@ -461,6 +600,34 @@ O sistema utiliza **emojis** como icones principais:
   .login-panel { width: 100%; min-width: 0; }
   .login-bg { display: none; }
 }
+```
+
+### Mobile Accordion (Ate 768px)
+
+Em dispositivos moveis, o sidebar de aulas se transforma em um **acordeon vertical**:
+
+```
+┌─────────────────────────┐
+│ 📚 Modulo: Seguranca    │
+│ 3/5 aulas concluidas    │
+├─────────────────────────┤
+│ ▶ 1. Introducao    PDF  │  ← accordion header
+├─────────────────────────┤
+│ ▼ 2. EPIs          Video│  ← accordion aberto
+│ ┌───────────────────┐   │
+│ │ [Video Player]    │   │  ← conteudo expandido
+│ │ Descricao...      │   │
+│ │ ┌───────────────┐ │   │
+│ │ │ INICIAR QUIZ  │ │   │  ← botao grande
+│ │ └───────────────┘ │   │
+│ └───────────────────┘   │
+├─────────────────────────┤
+│ 🔒 3. Protetor  PDF     │  ← locked
+├─────────────────────────┤
+│ 📝 Todos os Quizzes (2) │  ← accordion
+├─────────────────────────┤
+│ 📜 Meu Certificado  ✓   │  ← accordion
+└─────────────────────────┘
 ```
 
 ### Grid Responsivo
@@ -526,8 +693,13 @@ transition: .8s;   /* Region bars */
 
 | Arquivo | Descricao | Linhas |
 |---------|-----------|--------|
-| `src/index.css` | Design system completo | ~2233 |
-| `src/App.tsx` | Componentes React | ~1273 |
-| `styles/globals.css` | Config Tailwind (nao utilizado) | 125 |
+| `src/index.css` | Design system completo | ~2971 |
+| `src/App.tsx` | Componentes React | ~136 |
+| `src/pages/DashboardPage.tsx` | Dashboard com tooltips | ~160 |
+| `src/pages/ModulosPage.tsx` | Pagina de modulo com accordion mobile | ~976 |
+| `src/layouts/AppLayout.tsx` | Layout com tooltips sidebar | ~173 |
+| `server/services/email.ts` | Templates de email (orange) | ~349 |
+| `src/pages/VerificarEmailPage.tsx` | Verificacao de email (orange) | ~132 |
+| `src/components/ui/tooltip.tsx` | Componente Tooltip (Radix) | ~61 |
 
 **Nota:** O sistema atual utiliza CSS vanilla customizado em vez de Tailwind utility classes, apesar do Tailwind estar configurado no projeto.

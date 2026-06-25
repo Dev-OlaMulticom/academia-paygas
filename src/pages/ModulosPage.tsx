@@ -14,6 +14,16 @@ function slugify(text: string): string {
     .replace(/(^-|-$)+/g, '')
 }
 
+function useIsMobile(breakpoint = 768) {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth <= breakpoint)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth <= breakpoint)
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [breakpoint])
+  return isMobile
+}
+
 export function ModulosPage() {
   const navigate = useNavigate()
   const { moduloNombre } = useParams<{ moduloNombre: string }>()
@@ -37,6 +47,9 @@ export function ModulosPage() {
   const [quizAnswers, setQuizAnswers] = useState<Record<string, Record<string, string>>>({})
   const [quizSubmittedMap, setQuizSubmittedMap] = useState<Record<string, boolean>>({})
   const [quizResultMap, setQuizResultMap] = useState<Record<string, any>>({})
+  const [expandedMobileLesson, setExpandedMobileLesson] = useState<number | null>(0)
+  const [expandedMobileExtra, setExpandedMobileExtra] = useState<string | null>(null)
+  const isMobile = useIsMobile()
 
   const loadModulo = async () => {
     if (!moduloNombre) return
@@ -505,35 +518,147 @@ export function ModulosPage() {
             const locked = lesson.obrigatorio && !completed && !canAdvanceToLesson(i)
             const canClick = !locked || completed
             const isActive = i === currentLesson && !showAllQuizzes && !showCertificate
+            const isExpanded = isMobile && expandedMobileLesson === i
+            const tipoLabel = lesson.tipo === 'PDF' ? 'PDF' : lesson.tipo === 'TEXTO' ? 'Texto' : lesson.videoUrl ? 'Vídeo' : 'Conteúdo'
+            const tipoBadgeClass = lesson.tipo === 'PDF' ? 'pdf' : lesson.tipo === 'TEXTO' ? 'texto' : lesson.videoUrl ? 'video' : 'default'
+
+            const handleLessonClick = () => {
+              if (isMobile) {
+                setExpandedMobileLesson(isExpanded ? null : i)
+                setExpandedMobileExtra(null)
+                if (!isExpanded) {
+                  setShowAllQuizzes(false)
+                  setShowCertificate(false)
+                  setCurrentLesson(i)
+                  resetLessonState()
+                }
+              } else {
+                if (!canClick) return
+                setShowAllQuizzes(false)
+                setShowCertificate(false)
+                setCurrentLesson(i)
+                resetLessonState()
+              }
+            }
 
             return (
               <div
                 key={lesson.id || i}
                 className={`lesson-item ${isActive ? 'active' : ''} ${completed ? 'done' : ''}`}
-                onClick={() => {
-                  if (!canClick) return
-                  setShowAllQuizzes(false)
-                  setShowCertificate(false)
-                  setCurrentLesson(i)
-                  resetLessonState()
-                }}
-                style={!canClick ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+                style={!canClick && !isMobile ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
               >
-                <div className="lesson-num">
-                  {completed ? <i className="icon-check icon-sm" /> : locked ? <i className="icon-lock icon-sm" /> : i + 1}
+                <div className="lesson-item-header" onClick={handleLessonClick}>
+                  <div className="lesson-num">
+                    {completed ? <i className="icon-check icon-sm" /> : locked ? <i className="icon-lock icon-sm" /> : i + 1}
+                  </div>
+                  <div className="lesson-item-info">
+                    <b>{lesson.titulo}</b>
+                    <span>
+                      {tipoLabel}
+                      {lesson.licoes && lesson.licoes.length > 0 ? ` · ${lesson.licoes.length} ${pluralize(lesson.licoes.length, 'lição')}` : ''}
+                    </span>
+                  </div>
+                  {completed && !isMobile && <span className="lesson-check"><i className="icon-check icon-sm" /></span>}
+                  {locked && !completed && !isMobile && <span style={{ color: 'var(--gray-400)', fontSize: '14px' }}><i className="icon-lock icon-sm" /></span>}
+                  {isMobile && (
+                    <>
+                      <span className={`lesson-item-type-badge ${tipoBadgeClass}`}>
+                        {lesson.tipo === 'PDF' ? <i className="icon-file-text" style={{ fontSize: '10px' }} /> : lesson.videoUrl ? <i className="icon-play" style={{ fontSize: '10px' }} /> : <i className="icon-file" style={{ fontSize: '10px' }} />}
+                        {tipoLabel}
+                      </span>
+                      {completed && <span className="lesson-check"><i className="icon-check icon-sm" /></span>}
+                      {locked && !completed && <span style={{ color: 'var(--gray-400)', fontSize: '14px' }}><i className="icon-lock icon-sm" /></span>}
+                      <i className={`icon-chevron-${isExpanded ? 'up' : 'down'} icon-sm lesson-item-chevron ${isExpanded ? 'expanded' : ''}`} />
+                    </>
+                  )}
                 </div>
-                <div className="lesson-item-info">
-                  <b>{lesson.titulo}</b>
-                  <span>
-                    {lesson.tipo === 'PDF' ? 'PDF' : lesson.tipo === 'TEXTO' ? 'Texto' : lesson.videoUrl ? 'Vídeo' : 'Conteúdo'}
-                    {lesson.licoes && lesson.licoes.length > 0 ? ` · ${lesson.licoes.length} ${pluralize(lesson.licoes.length, 'lição')}` : ''}
-                    {!lesson.licoes || lesson.licoes.length === 0 ? (
-                      lesson.videoInicio || lesson.videoFim ? ` · ${lesson.videoInicio || 0}s-${lesson.videoFim || 'fim'}s` : ''
-                    ) : ''}
-                  </span>
-                </div>
-                {completed && <span className="lesson-check"><i className="icon-check icon-sm" /></span>}
-                {locked && !completed && <span style={{ color: 'var(--gray-400)', fontSize: '14px' }}><i className="icon-lock icon-sm" /></span>}
+
+                {isMobile && isExpanded && (
+                  <div className="lesson-item-accordion-body">
+                    {lesson.tipo === 'PDF' && lesson.pdfUrl ? (
+                      <div className="lesson-video">
+                        <PDFViewer url={lesson.pdfUrl} />
+                      </div>
+                    ) : lesson.videoUrl ? (
+                      <div className="lesson-video">
+                        <VideoPlayer
+                          key={`${lesson.id}-${lesson.videoInicio}`}
+                          url={lesson.videoUrl}
+                          startAt={lesson.videoInicio || 0}
+                          endAt={lesson.videoFim || undefined}
+                          onTimeUpdate={(time) => {
+                            if (lesson.videoFim && time >= lesson.videoFim) {
+                              handleVideoEnd()
+                            }
+                          }}
+                        />
+                      </div>
+                    ) : (
+                      <div className="lesson-video">
+                        <div className="lesson-video-placeholder">
+                          <div className="play-btn"><i className="icon-file-text icon-xl" /></div>
+                          <p>{lesson.tipo === 'TEXTO' ? 'Conteúdo de Texto' : 'Conteúdo da Aula'}</p>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="lesson-desc">{lesson.descricao || 'Conteúdo da aula.'}</div>
+
+                    <div className="lesson-meta-tags">
+                      <span className="lesson-meta-tag">{tipoLabel}</span>
+                      {lesson.licoes && lesson.licoes.length > 0 && (
+                        <span className="lesson-meta-tag">{lesson.licoes.length} {pluralize(lesson.licoes.length, 'lição')}</span>
+                      )}
+                      {completed && <span className="lesson-meta-tag completed">✓ Concluído</span>}
+                      {lesson.obrigatorio && <span className="lesson-meta-tag required">Obrigatório</span>}
+                    </div>
+
+                    {lesson.quiz && (
+                      <div style={{ padding: '12px', background: '#FFF3E0', borderRadius: '8px', borderLeft: '4px solid #FF9800', marginBottom: '12px', fontSize: '13px' }}>
+                        <b>📝 Esta aula contém um quiz</b>
+                        <p style={{ fontSize: '12px', color: 'var(--gray-600)', margin: '4px 0 0' }}>
+                          Nota mínima: {lesson.quiz.notaMinima ?? 7}/10.
+                        </p>
+                      </div>
+                    )}
+
+                    {!completed ? (
+                      lesson.quiz ? (
+                        <button className="lesson-quiz-btn-mobile" onClick={() => {
+                          setCurrentLesson(i)
+                          setShowAllQuizzes(false)
+                          setShowCertificate(false)
+                          handleConcluir()
+                        }}>
+                          Iniciar Quiz <i className="icon-chevron-right icon-sm" />
+                        </button>
+                      ) : (
+                        <button className="lesson-next-btn-mobile" onClick={() => {
+                          setCurrentLesson(i)
+                          setShowAllQuizzes(false)
+                          setShowCertificate(false)
+                          handleConcluir()
+                        }}>
+                          Próximo <i className="icon-chevron-right icon-sm" />
+                        </button>
+                      )
+                    ) : (
+                      i < lessons.length - 1 ? (
+                        <button className="lesson-next-btn-mobile" onClick={() => {
+                          setExpandedMobileLesson(i + 1)
+                          setCurrentLesson(i + 1)
+                          resetLessonState()
+                        }}>
+                          Próxima Aula <i className="icon-chevron-right icon-sm" />
+                        </button>
+                      ) : allCompleted ? (
+                        <button className="lesson-next-btn-mobile" style={{ background: '#2E7D32' }} onClick={() => navigate('/modulos')}>
+                          <i className="icon-check-circle icon-sm" /> Finalizar Módulo
+                        </button>
+                      ) : null
+                    )}
+                  </div>
+                )}
               </div>
             )
           })}
@@ -552,28 +677,57 @@ export function ModulosPage() {
             <div
               className={`sidebar-extra-item ${showAllQuizzes ? 'active' : ''}`}
               onClick={() => {
-                setShowAllQuizzes(!showAllQuizzes)
-                setShowCertificate(false)
-                resetLessonState()
+                if (isMobile) {
+                  setExpandedMobileExtra(expandedMobileExtra === 'quizzes' ? null : 'quizzes')
+                  setExpandedMobileLesson(null)
+                  setShowAllQuizzes(true)
+                  setShowCertificate(false)
+                  resetLessonState()
+                } else {
+                  setShowAllQuizzes(!showAllQuizzes)
+                  setShowCertificate(false)
+                  resetLessonState()
+                }
               }}
             >
               <i className="icon-file-text icon-sm" />
               <span>Todos os Quizzes</span>
               <span className="sidebar-extra-badge">{quizzesWithLesson.length}</span>
+              {isMobile && <i className={`icon-chevron-${expandedMobileExtra === 'quizzes' ? 'up' : 'down'} icon-sm extra-chevron ${expandedMobileExtra === 'quizzes' ? 'expanded' : ''}`} />}
             </div>
+            {isMobile && expandedMobileExtra === 'quizzes' && (
+              <div className="sidebar-extra-accordion-body">
+                {renderAllQuizzes()}
+              </div>
+            )}
             <div
               className={`sidebar-extra-item ${showCertificate ? 'active' : ''}`}
               onClick={() => {
-                setShowCertificate(!showCertificate)
-                setShowAllQuizzes(false)
-                resetLessonState()
-                loadCertificate()
+                if (isMobile) {
+                  setExpandedMobileExtra(expandedMobileExtra === 'certificate' ? null : 'certificate')
+                  setExpandedMobileLesson(null)
+                  setShowCertificate(true)
+                  setShowAllQuizzes(false)
+                  resetLessonState()
+                  loadCertificate()
+                } else {
+                  setShowCertificate(!showCertificate)
+                  setShowAllQuizzes(false)
+                  resetLessonState()
+                  loadCertificate()
+                }
               }}
             >
               <i className="icon-award icon-sm" />
               <span>Meu Certificado</span>
               {hasCertificate && <span className="sidebar-extra-check">✓</span>}
+              {isMobile && <i className={`icon-chevron-${expandedMobileExtra === 'certificate' ? 'up' : 'down'} icon-sm extra-chevron ${expandedMobileExtra === 'certificate' ? 'expanded' : ''}`} />}
             </div>
+            {isMobile && expandedMobileExtra === 'certificate' && (
+              <div className="sidebar-extra-accordion-body">
+                {renderCertificateTab()}
+              </div>
+            )}
           </div>
         </div>
 

@@ -156,7 +156,7 @@ export async function sendCertificateEmail(to: string, userName: string, moduloN
       <h2>Parabéns ${userName}! 🎉</h2>
       <p>Você completou o módulo <strong>${moduloName}</strong>.</p>
       <p>Seu certificado foi emitido com sucesso!</p>
-      <p><a href="${process.env.APP_URL || 'https://academia.paygas.com.br'}/certificados" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ver Certificado</a></p>
+      <p><a href="${process.env.APP_URL || 'https://academia.paygas.com.br'}/certificados" style="background: #F47C20; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ver Certificado</a></p>
     `,
   })
 }
@@ -172,7 +172,7 @@ export async function sendWelcomeEmail(to: string, userName: string, loginUrl: s
       <h2>Bem-vindo ${userName}! 👋</h2>
       <p>Sua conta foi criada com sucesso na Academia PayGas.</p>
       <p>Você já pode começar seus módulos de aprendizagem.</p>
-      <p><a href="${loginUrl}" style="background: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Acessar Academia</a></p>
+      <p><a href="${loginUrl}" style="background: #F47C20; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Acessar Academia</a></p>
     `,
   })
 }
@@ -199,9 +199,9 @@ export async function sendNotificationAlertEmail(
       <head><meta charset="UTF-8"></head>
       <body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;margin:0;">
         <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
-          <div style="background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);color:white;padding:30px;text-align:center;">
+          <div style="background:linear-gradient(135deg,#F47C20 0%,#C45E0A 100%);color:white;padding:30px;text-align:center;">
             <h1 style="margin:0;font-size:22px;">Academia PayGas</h1>
-            <p style="margin:5px 0 0;font-size:14px;">Nova Notificação</p>
+            <p style="margin:5px 0 0;font-size:14px;">Nova Notificacao</p>
           </div>
           <div style="padding:30px;text-align:center;">
             <h2 style="margin:0 0 8px;color:#333;">Olá, ${userName}!</h2>
@@ -210,7 +210,7 @@ export async function sendNotificationAlertEmail(
               <p style="margin:0;color:#333;font-weight:bold;font-size:14px;">${titulo}</p>
               <p style="margin:6px 0 0;color:#888;font-size:12px;">${dateStr} às ${timeStr}</p>
             </div>
-            <a href="${appUrl}" style="background:linear-gradient(135deg,#f59e0b,#d97706);color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">Ir para a Academia</a>
+            <a href="${appUrl}" style="background:#F47C20;color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">Ir para a Academia</a>
           </div>
           <div style="background:#f8f9fa;padding:16px;text-align:center;color:#999;font-size:11px;">
             <p style="margin:0;">Este é um email automático. Por favor, não responda.</p>
@@ -283,9 +283,9 @@ export async function sendPasswordResetEmail(to: string, userName: string, code:
       <head><meta charset="UTF-8"></head>
       <body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;margin:0;">
         <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
-          <div style="background:linear-gradient(135deg,#dc2626 0%,#b91c1c 100%);color:white;padding:30px;text-align:center;">
+          <div style="background:linear-gradient(135deg,#F47C20 0%,#C45E0A 100%);color:white;padding:30px;text-align:center;">
             <h1 style="margin:0;font-size:22px;">Academia PayGas</h1>
-            <p style="margin:5px 0 0;font-size:14px;">Redefinição de Senha</p>
+            <p style="margin:5px 0 0;font-size:14px;">Redefinicao de Senha</p>
           </div>
           <div style="padding:30px;text-align:center;">
             <h2 style="margin:0 0 8px;color:#333;">Olá, ${userName}!</h2>
@@ -295,7 +295,7 @@ export async function sendPasswordResetEmail(to: string, userName: string, code:
               <p style="margin:8px 0 0;color:#888;font-size:12px;">Este código expira em 15 minutos</p>
             </div>
             <p style="color:#666;font-size:13px;margin:0 0 16px;">Se você não solicitou esta redefinição, ignore este email. Sua senha permanecerá inalterada.</p>
-            <a href="${appUrl}/login" style="background:linear-gradient(135deg,#dc2626,#b91c1c);color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">Ir para o Login</a>
+            <a href="${appUrl}/login" style="background:#F47C20;color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">Ir para o Login</a>
           </div>
           <div style="background:#f8f9fa;padding:16px;text-align:center;color:#999;font-size:11px;">
             <p style="margin:0;">Este é um email automático. Por favor, não responda.</p>
@@ -323,7 +323,7 @@ export async function sendVerificationEmail(to: string, userName: string, token:
       <head><meta charset="UTF-8"></head>
       <body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;">
         <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
-          <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:30px;text-align:center;">
+          <div style="background:linear-gradient(135deg,#F47C20 0%,#C45E0A 100%);color:white;padding:30px;text-align:center;">
             <h1 style="margin:0;">Academia PayGas</h1>
             <p style="margin:5px 0 0;">Verificacao de Email</p>
           </div>
@@ -331,10 +331,10 @@ export async function sendVerificationEmail(to: string, userName: string, token:
             <h2>Ola, ${userName}!</h2>
             <p>Voce foi cadastrado na <strong>Academia PayGas</strong>. Para ativar sua conta, clique no botao abaixo:</p>
             <div style="text-align:center;margin:30px 0;">
-              <a href="${verifyUrl}" style="background:#667eea;color:white;padding:14px 30px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;">Confirmar Meu Email</a>
+              <a href="${verifyUrl}" style="background:#F47C20;color:white;padding:14px 30px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;">Confirmar Meu Email</a>
             </div>
             <p style="color:#666;font-size:13px;">Se o botao nao funcionar, copie e cole o link abaixo no seu navegador:</p>
-            <p style="word-break:break-all;color:#667eea;font-size:12px;">${verifyUrl}</p>
+            <p style="word-break:break-all;color:#F47C20;font-size:12px;">${verifyUrl}</p>
             <p style="color:#666;font-size:13px;">Se voce nao solicitou este cadastro, ignore este email.</p>
           </div>
           <div style="background:#f8f9fa;padding:20px;text-align:center;color:#666;font-size:12px;">

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
 import { useToast, useConfirm } from '../components/Toast'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 const ICONES = ['🏆', '🎯', '🚀', '⭐', '👑', '🔥', '📊', '🤝', '💎', '🎖️', '🏅', '⚡', '🌟', '🎓', '💪']
 const CORES = ['#F47C20', '#16A34A', '#0A2E6E', '#DC2626', '#8B5CF6', '#06B6D4', '#EC4899', '#D97706', '#14B8A6', '#3B82F6']
@@ -148,22 +149,40 @@ export function ConquistasPage({ user }: ConquistasPageProps) {
       </div>
 
       <div className="cards-grid">
-        <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#FEF3C7' }}><i className="icon-trophy icon-lg" /></div>
-          <div className="stat-card-val">{conquistas.length}</div>
-          <div className="stat-card-label">Total de Conquistas</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#DCFCE7' }}><i className="icon-check icon-lg" /></div>
-          <div className="stat-card-val">{totalAtivas}</div>
-          <div className="stat-card-label">Ativas</div>
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="stat-card stat-card--static">
+              <span className="stat-card-info">i</span>
+              <div className="stat-card-icon" style={{ background: '#FEF3C7' }}><i className="icon-trophy icon-lg" /></div>
+              <div className="stat-card-val">{conquistas.length}</div>
+              <div className="stat-card-label">Total de Conquistas</div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>Quantidade total de conquistas disponiveis no sistema</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="stat-card stat-card--static">
+              <span className="stat-card-info">i</span>
+              <div className="stat-card-icon" style={{ background: '#DCFCE7' }}><i className="icon-check icon-lg" /></div>
+              <div className="stat-card-val">{totalAtivas}</div>
+              <div className="stat-card-label">Ativas</div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>Conquistas ativas que podem ser desbloqueadas</TooltipContent>
+        </Tooltip>
         {!canManage && (
-          <div className="stat-card">
-            <div className="stat-card-icon" style={{ background: '#E6EEF9' }}><i className="icon-star icon-lg" /></div>
-            <div className="stat-card-val">{totalConquistadas}</div>
-            <div className="stat-card-label">Conquistadas</div>
-          </div>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <div className="stat-card stat-card--static">
+                <span className="stat-card-info">i</span>
+                <div className="stat-card-icon" style={{ background: '#E6EEF9' }}><i className="icon-star icon-lg" /></div>
+                <div className="stat-card-val">{totalConquistadas}</div>
+                <div className="stat-card-label">Conquistadas</div>
+              </div>
+            </TooltipTrigger>
+            <TooltipContent>Conquistas que voce ja desbloqueou</TooltipContent>
+          </Tooltip>
         )}
       </div>
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 
 interface RelatoriosPageProps {
@@ -95,26 +96,50 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
       {/* Gamification Stats */}
       <div className="section-title">Gamificacao</div>
       <div className="cards-grid" style={{ marginBottom: '24px' }}>
-        <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#FEF0E6' }}><i className="icon-zap icon-lg" /></div>
-          <div className="stat-card-val">{stats?.xp || 0}</div>
-          <div className="stat-card-label">XP Total</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#E6EEF9' }}><i className="icon-bar-chart-3 icon-lg" /></div>
-          <div className="stat-card-val">{stats?.aulasConcluidas || 0}</div>
-          <div className="stat-card-label">Aulas Concluidas</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#DCFCE7' }}><i className="icon-check-circle icon-lg" /></div>
-          <div className="stat-card-val">{stats?.totalQuizzes || 0}</div>
-          <div className="stat-card-label">Quizzes Aprovados</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-card-icon" style={{ background: '#FEF3C7' }}><i className="icon-award icon-lg" /></div>
-          <div className="stat-card-val">{stats?.totalCertificados || 0}</div>
-          <div className="stat-card-label">Certificados</div>
-        </div>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="stat-card stat-card--static">
+              <span className="stat-card-info">i</span>
+              <div className="stat-card-icon" style={{ background: '#FEF0E6' }}><i className="icon-zap icon-lg" /></div>
+              <div className="stat-card-val">{stats?.xp || 0}</div>
+              <div className="stat-card-label">XP Total</div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>Pontos de experiencia acumulados por completar atividades</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="stat-card stat-card--static">
+              <span className="stat-card-info">i</span>
+              <div className="stat-card-icon" style={{ background: '#E6EEF9' }}><i className="icon-bar-chart-3 icon-lg" /></div>
+              <div className="stat-card-val">{stats?.aulasConcluidas || 0}</div>
+              <div className="stat-card-label">Aulas Concluidas</div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>Numero de aulas finalizadas com sucesso</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="stat-card stat-card--static">
+              <span className="stat-card-info">i</span>
+              <div className="stat-card-icon" style={{ background: '#DCFCE7' }}><i className="icon-check-circle icon-lg" /></div>
+              <div className="stat-card-val">{stats?.totalQuizzes || 0}</div>
+              <div className="stat-card-label">Quizzes Aprovados</div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>Quizzes em que a nota minima foi atingida</TooltipContent>
+        </Tooltip>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="stat-card stat-card--static">
+              <span className="stat-card-info">i</span>
+              <div className="stat-card-icon" style={{ background: '#FEF3C7' }}><i className="icon-award icon-lg" /></div>
+              <div className="stat-card-val">{stats?.totalCertificados || 0}</div>
+              <div className="stat-card-label">Certificados</div>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent>Certificados obtidos ao completar modulos</TooltipContent>
+        </Tooltip>
       </div>
 
       {/* Points Breakdown */}

@@ -38,7 +38,7 @@ export function VerificarEmailPage() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+      background: 'linear-gradient(135deg, #F47C20 0%, #C45E0A 100%)',
       fontFamily: 'Arial, sans-serif',
       padding: '20px',
     }}>
@@ -67,7 +67,7 @@ export function VerificarEmailPage() {
             <button
               onClick={() => navigate('/login')}
               style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: 'linear-gradient(135deg, #F47C20 0%, #C45E0A 100%)',
                 color: 'white',
                 border: 'none',
                 padding: '12px 32px',
@@ -90,7 +90,7 @@ export function VerificarEmailPage() {
             <button
               onClick={() => navigate('/login')}
               style={{
-                background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                background: 'linear-gradient(135deg, #F47C20 0%, #C45E0A 100%)',
                 color: 'white',
                 border: 'none',
                 padding: '12px 32px',
