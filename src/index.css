@@ -4791,3 +4791,40 @@ tr:hover td {
 .media-open-btn i {
   font-size: 18px;
 }
+
+/* QUIZ STEP NAVIGATION */
+.quiz-step-indicator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.quiz-step-text {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--gray-500);
+  white-space: nowrap;
+}
+
+.quiz-step-bar {
+  flex: 1;
+  height: 4px;
+  background: var(--gray-200);
+  border-radius: 2px;
+  overflow: hidden;
+}
+
+.quiz-step-fill {
+  height: 100%;
+  background: var(--pg-orange);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
+.quiz-step-nav {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+}

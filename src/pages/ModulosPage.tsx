@@ -47,6 +47,8 @@ export function ModulosPage() {
   const [quizAnswers, setQuizAnswers] = useState<Record<string, Record<string, string>>>({})
   const [quizSubmittedMap, setQuizSubmittedMap] = useState<Record<string, boolean>>({})
   const [quizResultMap, setQuizResultMap] = useState<Record<string, any>>({})
+  const [quizStep, setQuizStep] = useState<Record<string, number>>({})
+  const [desktopQuizStep, setDesktopQuizStep] = useState(0)
   const [expandedMobileLesson, setExpandedMobileLesson] = useState<number | null>(0)
   const [expandedMobileExtra, setExpandedMobileExtra] = useState<string | null>(null)
   const [mediaModal, setMediaModal] = useState<{ url: string; type: 'pdf' | 'video'; title: string } | null>(null)
@@ -148,6 +150,7 @@ export function ModulosPage() {
     setQuizSubmitted(false)
     setQuizResult(null)
     setVideoEnded(false)
+    setDesktopQuizStep(0)
   }
 
   const handleConcluir = async () => {
@@ -358,6 +361,9 @@ export function ModulosPage() {
     const inlineResult = quizResultMap[quiz.id]
     const answers = quizAnswers[quiz.id] || {}
     const isCurrentQuiz = showQuiz && currentLesson === lessonIndex
+    const perguntas = quiz.perguntas || []
+    const currentStep = quizStep[quiz.id] || 0
+    const isLastStep = currentStep === perguntas.length - 1
 
     if (!isCurrentQuiz && !isSubmitted) return null
     if (!canOpenQuiz(lessonIndex)) return null
@@ -381,42 +387,75 @@ export function ModulosPage() {
           </div>
         )}
 
-        {quiz.perguntas?.map((pergunta: any, qIndex: number) => (
-          <div key={qIndex} style={{ marginBottom: '12px' }}>
-            <p style={{ fontWeight: '600', marginBottom: '8px', fontSize: '13px' }}>{qIndex + 1}. {pergunta.pergunta}</p>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-              {[pergunta.opcaoA, pergunta.opcaoB, pergunta.opcaoC, pergunta.opcaoD].filter(Boolean).map((opt: string, oIndex: number) => {
-                const letter = ['A', 'B', 'C', 'D'][oIndex]
-                const isSelected = answers[pergunta.id] === letter
-                const isCorrect = isSubmitted && letter === pergunta.correta
-                const isWrong = isSubmitted && isSelected && letter !== pergunta.correta
-                return (
-                  <label key={oIndex} className={`quiz-opt ${isSelected ? 'selected' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'wrong' : ''}`}>
-                    <input type="radio" name={`acc-${quiz.id}-${pergunta.id}`} checked={isSelected} onChange={() => handleInlineAnswer(quiz.id, pergunta.id, letter)} disabled={isSubmitted} />
-                    <span className="quiz-letter">{letter}</span>
-                    {opt}
-                  </label>
-                )
-              })}
+        {!isSubmitted && (
+          <div className="quiz-step-indicator">
+            <span className="quiz-step-text">{currentStep + 1} / {perguntas.length}</span>
+            <div className="quiz-step-bar">
+              <div className="quiz-step-fill" style={{ width: `${((currentStep + 1) / perguntas.length) * 100}%` }} />
             </div>
+          </div>
+        )}
+
+        {!isSubmitted && perguntas[currentStep] && (() => {
+          const pergunta = perguntas[currentStep]
+          const letter = null
+          return (
+            <div style={{ marginBottom: '12px' }}>
+              <p style={{ fontWeight: '600', marginBottom: '8px', fontSize: '13px' }}>{currentStep + 1}. {pergunta.pergunta}</p>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                {[pergunta.opcaoA, pergunta.opcaoB, pergunta.opcaoC, pergunta.opcaoD].filter(Boolean).map((opt: string, oIndex: number) => {
+                  const l = ['A', 'B', 'C', 'D'][oIndex]
+                  const isSelected = answers[pergunta.id] === l
+                  return (
+                    <label key={oIndex} className={`quiz-opt ${isSelected ? 'selected' : ''}`}>
+                      <input type="radio" name={`acc-${quiz.id}-${pergunta.id}`} checked={isSelected} onChange={() => handleInlineAnswer(quiz.id, pergunta.id, l)} />
+                      <span className="quiz-letter">{l}</span>
+                      {opt}
+                    </label>
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })()}
+
+        {isSubmitted && perguntas.map((pergunta: any, qIndex: number) => (
+          <div key={qIndex} style={{ marginBottom: '8px', fontSize: '12px' }}>
+            <span style={{ color: answers[pergunta.id] === pergunta.correta ? 'var(--pg-green)' : 'var(--pg-red)', fontWeight: 600 }}>
+              {answers[pergunta.id] === pergunta.correta ? '✓' : '✗'} {qIndex + 1}. {pergunta.pergunta.substring(0, 50)}{pergunta.pergunta.length > 50 ? '...' : ''}
+            </span>
           </div>
         ))}
 
-        <div className="quiz-submit-row">
-          {!isSubmitted ? (
-            <button className="btn-primary" style={{ flex: 1 }} onClick={() => handleInlineSubmit(quiz)} disabled={Object.keys(answers).length < (quiz.perguntas?.length || 0)}>
-              Enviar Respostas
-            </button>
-          ) : !inlineResult?.passed && (
-            <button className="btn-secondary" style={{ flex: 1 }} onClick={() => {
-              setQuizSubmittedMap(prev => ({ ...prev, [quiz.id]: false }))
-              setQuizResultMap(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
-              setQuizAnswers(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
-            }}>
-              Tentar Novamente
-            </button>
-          )}
-        </div>
+        {!isSubmitted && (
+          <div className="quiz-step-nav">
+            {currentStep > 0 && (
+              <button className="btn-secondary" onClick={() => setQuizStep(prev => ({ ...prev, [quiz.id]: currentStep - 1 }))}>
+                <i className="icon-arrow-left icon-sm" /> Anterior
+              </button>
+            )}
+            {isLastStep ? (
+              <button className="btn-primary" style={{ flex: 1 }} onClick={() => handleInlineSubmit(quiz)} disabled={Object.keys(answers).length < perguntas.length}>
+                Enviar Respostas
+              </button>
+            ) : (
+              <button className="btn-primary" style={{ flex: 1 }} onClick={() => setQuizStep(prev => ({ ...prev, [quiz.id]: currentStep + 1 }))} disabled={!answers[perguntas[currentStep]?.id]}>
+                Proxima <i className="icon-chevron-right icon-sm" />
+              </button>
+            )}
+          </div>
+        )}
+
+        {isSubmitted && !inlineResult?.passed && (
+          <button className="btn-secondary" style={{ width: '100%' }} onClick={() => {
+            setQuizSubmittedMap(prev => ({ ...prev, [quiz.id]: false }))
+            setQuizResultMap(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
+            setQuizAnswers(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
+            setQuizStep(prev => ({ ...prev, [quiz.id]: 0 }))
+          }}>
+            Tentar Novamente
+          </button>
+        )}
       </div>
     )
   }
@@ -483,44 +522,72 @@ export function ModulosPage() {
                                 setQuizSubmittedMap(prev => ({ ...prev, [quiz.id]: false }))
                                 setQuizResultMap(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
                                 setQuizAnswers(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
+                                setQuizStep(prev => ({ ...prev, [quiz.id]: 0 }))
                               }}>Tentar Novamente</button>
                             </div>
                           )}
                         </div>
                       )}
-                      <div className="quiz-questions-mt">
-                        {quiz.perguntas?.map((pergunta: any, qIndex: number) => (
-                          <div key={qIndex} className="quiz-question-item">
-                            <p className="quiz-question-text">{qIndex + 1}. {pergunta.pergunta}</p>
-                            <div className="quiz-options">
-                              {[pergunta.opcaoA, pergunta.opcaoB, pergunta.opcaoC, pergunta.opcaoD].filter(Boolean).map((opt: string, oIndex: number) => {
-                                const letter = ['A', 'B', 'C', 'D'][oIndex]
-                                const isSelected = answers[pergunta.id] === letter
-                                const isCorrect = isSubmitted && letter === pergunta.correta
-                                const isWrong = isSubmitted && isSelected && letter !== pergunta.correta
-                                return (
-                                  <label key={oIndex} className={`quiz-opt ${isSelected ? 'selected' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'wrong' : ''}`}>
-                                    <input type="radio" name={`inline-${quiz.id}-${pergunta.id}`} checked={isSelected} onChange={() => handleInlineAnswer(quiz.id, pergunta.id, letter)} disabled={isSubmitted} />
-                                    <span className="quiz-letter">{letter}</span>
-                                    {opt}
-                                  </label>
-                                )
-                              })}
+                      {!isSubmitted && (() => {
+                        const perguntas = quiz.perguntas || []
+                        const step = quizStep[quiz.id] || 0
+                        const isLast = step === perguntas.length - 1
+                        const pergunta = perguntas[step]
+                        if (!pergunta) return null
+                        return (
+                          <>
+                            <div className="quiz-step-indicator">
+                              <span className="quiz-step-text">{step + 1} / {perguntas.length}</span>
+                              <div className="quiz-step-bar">
+                                <div className="quiz-step-fill" style={{ width: `${((step + 1) / perguntas.length) * 100}%` }} />
+                              </div>
                             </div>
-                          </div>
-                        ))}
-                      </div>
-                      <div className="quiz-submit-row">
-                        {!isSubmitted ? (
-                          <button className="btn-primary quiz-submit-btn" onClick={() => handleInlineSubmit(quiz)} disabled={Object.keys(answers).length < (quiz.perguntas?.length || 0)}>Enviar Respostas</button>
-                        ) : !inlineResult?.passed && (
-                          <button className="btn-secondary quiz-submit-btn" onClick={() => {
-                            setQuizSubmittedMap(prev => ({ ...prev, [quiz.id]: false }))
-                            setQuizResultMap(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
-                            setQuizAnswers(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
-                          }}>Tentar Novamente</button>
-                        )}
-                      </div>
+                            <div className="quiz-questions-mt">
+                              <div className="quiz-question-item">
+                                <p className="quiz-question-text">{step + 1}. {pergunta.pergunta}</p>
+                                <div className="quiz-options">
+                                  {[pergunta.opcaoA, pergunta.opcaoB, pergunta.opcaoC, pergunta.opcaoD].filter(Boolean).map((opt: string, oIndex: number) => {
+                                    const letter = ['A', 'B', 'C', 'D'][oIndex]
+                                    const isSelected = answers[pergunta.id] === letter
+                                    return (
+                                      <label key={oIndex} className={`quiz-opt ${isSelected ? 'selected' : ''}`}>
+                                        <input type="radio" name={`inline-${quiz.id}-${pergunta.id}`} checked={isSelected} onChange={() => handleInlineAnswer(quiz.id, pergunta.id, letter)} />
+                                        <span className="quiz-letter">{letter}</span>
+                                        {opt}
+                                      </label>
+                                    )
+                                  })}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="quiz-step-nav">
+                              {step > 0 && (
+                                <button className="btn-secondary" onClick={() => setQuizStep(prev => ({ ...prev, [quiz.id]: step - 1 }))}>
+                                  <i className="icon-arrow-left icon-sm" /> Anterior
+                                </button>
+                              )}
+                              {isLast ? (
+                                <button className="btn-primary quiz-submit-btn" style={{ flex: 1 }} onClick={() => handleInlineSubmit(quiz)} disabled={Object.keys(answers).length < perguntas.length}>
+                                  Enviar Respostas
+                                </button>
+                              ) : (
+                                <button className="btn-primary quiz-submit-btn" style={{ flex: 1 }} onClick={() => setQuizStep(prev => ({ ...prev, [quiz.id]: step + 1 }))} disabled={!answers[perguntas[step]?.id]}>
+                                  Proxima <i className="icon-chevron-right icon-sm" />
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        )
+                      })()}
+                      {isSubmitted && quiz.perguntas?.map((pergunta: any, qIndex: number) => (
+                        <div key={qIndex} className="quiz-breakdown-item" style={{ marginBottom: '6px' }}>
+                          <span className="quiz-breakdown-icon" style={{ color: answers[pergunta.id] === pergunta.correta ? 'var(--pg-green)' : 'var(--pg-red)' }}>
+                            {answers[pergunta.id] === pergunta.correta ? '✓' : '✗'}
+                          </span>
+                          <span className="quiz-breakdown-text">{qIndex + 1}. {pergunta.pergunta.substring(0, 50)}{pergunta.pergunta.length > 50 ? '...' : ''}</span>
+                          <span className="quiz-breakdown-answer">{answers[pergunta.id] === pergunta.correta ? pergunta.correta : `${answers[pergunta.id] || '-'} → ${pergunta.correta}`}</span>
+                        </div>
+                      ))}
                     </div>
                   )}
                 </div>
@@ -961,13 +1028,14 @@ export function ModulosPage() {
                   </div>
                   <div className="quiz-result-actions">
                     {!quizResult.passed && (
-                      <button className="btn-secondary" onClick={() => { setQuizSubmitted(false); setQuizResult(null); setSelectedAnswers({}) }}>Tentar Novamente</button>
+                      <button className="btn-secondary" onClick={() => { setQuizSubmitted(false); setQuizResult(null); setSelectedAnswers({}); setDesktopQuizStep(0) }}>Tentar Novamente</button>
                     )}
                     {quizResult.passed && (
                       <button className="btn-primary" onClick={() => {
                         setShowQuiz(false)
                         setQuizSubmitted(false)
                         setQuizResult(null)
+                        setDesktopQuizStep(0)
                         if (current?.quiz?.autoGerarCertificado) {
                           loadCertificate()
                           setShowCertificate(true)
@@ -982,37 +1050,63 @@ export function ModulosPage() {
                 </div>
               )}
 
-              <div className="quiz-questions-mt" style={{ marginTop: '20px' }}>
-                {current?.quiz?.perguntas?.map((pergunta: any, qIndex: number) => (
-                  <div key={qIndex} style={{ marginBottom: '20px', padding: '16px', background: '#f9f9f9', borderRadius: '8px' }}>
-                    <p style={{ fontWeight: '600', marginBottom: '12px' }}>{qIndex + 1}. {pergunta.pergunta}</p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {[pergunta.opcaoA, pergunta.opcaoB, pergunta.opcaoC, pergunta.opcaoD].filter(Boolean).map((opt: string, oIndex: number) => {
-                        const letter = ['A', 'B', 'C', 'D'][oIndex]
-                        const isSelected = selectedAnswers[pergunta.id] === letter
-                        const isCorrect = quizSubmitted && letter === pergunta.correta
-                        const isWrong = quizSubmitted && isSelected && letter !== pergunta.correta
-                        return (
-                          <label key={oIndex} className={`quiz-opt ${isSelected ? 'selected' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'wrong' : ''}`}>
-                            <input type="radio" name={`q${pergunta.id}`} checked={isSelected} onChange={() => handleAnswerQuiz(pergunta.id, letter)} disabled={quizSubmitted} />
-                            <span className="quiz-letter">{letter}</span>
-                            {opt}
-                          </label>
-                        )
-                      })}
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="lesson-actions">
-                {!quizSubmitted ? (
+              {!quizSubmitted && (() => {
+                const perguntas = current?.quiz?.perguntas || []
+                const step = desktopQuizStep
+                const isLast = step === perguntas.length - 1
+                const pergunta = perguntas[step]
+                if (!pergunta) return null
+                return (
                   <>
-                    <button className="btn-primary" onClick={handleSubmitQuiz} disabled={Object.keys(selectedAnswers).length < (current?.quiz?.perguntas?.length || 0)}>Enviar Respostas</button>
-                    <button className="btn-secondary" onClick={() => { setShowQuiz(false); setSelectedAnswers({}) }}>Cancelar</button>
+                    <div className="quiz-step-indicator">
+                      <span className="quiz-step-text">{step + 1} / {perguntas.length}</span>
+                      <div className="quiz-step-bar">
+                        <div className="quiz-step-fill" style={{ width: `${((step + 1) / perguntas.length) * 100}%` }} />
+                      </div>
+                    </div>
+                    <div className="quiz-questions-mt" style={{ marginTop: '16px' }}>
+                      <div style={{ padding: '16px', background: '#f9f9f9', borderRadius: '8px' }}>
+                        <p style={{ fontWeight: '600', marginBottom: '12px' }}>{step + 1}. {pergunta.pergunta}</p>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                          {[pergunta.opcaoA, pergunta.opcaoB, pergunta.opcaoC, pergunta.opcaoD].filter(Boolean).map((opt: string, oIndex: number) => {
+                            const letter = ['A', 'B', 'C', 'D'][oIndex]
+                            const isSelected = selectedAnswers[pergunta.id] === letter
+                            return (
+                              <label key={oIndex} className={`quiz-opt ${isSelected ? 'selected' : ''}`}>
+                                <input type="radio" name={`q${pergunta.id}`} checked={isSelected} onChange={() => handleAnswerQuiz(pergunta.id, letter)} />
+                                <span className="quiz-letter">{letter}</span>
+                                {opt}
+                              </label>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="quiz-step-nav">
+                      {step > 0 && (
+                        <button className="btn-secondary" onClick={() => setDesktopQuizStep(step - 1)}>
+                          <i className="icon-arrow-left icon-sm" /> Anterior
+                        </button>
+                      )}
+                      {isLast ? (
+                        <button className="btn-primary" style={{ flex: 1 }} onClick={handleSubmitQuiz} disabled={Object.keys(selectedAnswers).length < perguntas.length}>
+                          Enviar Respostas
+                        </button>
+                      ) : (
+                        <button className="btn-primary" style={{ flex: 1 }} onClick={() => setDesktopQuizStep(step + 1)} disabled={!selectedAnswers[pergunta.id]}>
+                          Proxima <i className="icon-chevron-right icon-sm" />
+                        </button>
+                      )}
+                    </div>
                   </>
+                )
+              })()}
+
+              <div className="lesson-actions" style={{ marginTop: '12px' }}>
+                {!quizSubmitted ? (
+                  <button className="btn-secondary" onClick={() => { setShowQuiz(false); setSelectedAnswers({}); setDesktopQuizStep(0) }}>Cancelar</button>
                 ) : (
-                  <button className="btn-secondary" onClick={() => { setShowQuiz(false); setQuizSubmitted(false); setQuizResult(null) }}>Voltar a Aula</button>
+                  <button className="btn-secondary" onClick={() => { setShowQuiz(false); setQuizSubmitted(false); setQuizResult(null); setDesktopQuizStep(0) }}>Voltar a Aula</button>
                 )}
               </div>
             </div>
