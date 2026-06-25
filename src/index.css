@@ -2407,11 +2407,11 @@ a {
 .lesson-cons-header { display: flex; align-items: center; gap: 10px; padding: 10px 12px; cursor: pointer; transition: background 0.15s; }
 .lesson-cons-header.default { background: #fff; }
 .lesson-cons-header.expanded { background: var(--gray-50); }
-.lesson-cons-icon { color: var(--pg-red); }
+.lesson-cons-icon { color: var(--pg-red); flex-shrink: 0; }
 .lesson-cons-info { flex: 1; min-width: 0; }
 .lesson-cons-name { font-weight: 500; font-size: 13px; }
 .lesson-cons-meta { font-size: 11px; color: var(--gray-500); }
-.lesson-cons-chevron { color: var(--gray-400); }
+.lesson-cons-chevron { color: var(--gray-400); flex-shrink: 0; }
 .lesson-cons-body { padding: 0 12px 12px; border-top: 1px solid var(--gray-100); }
 .lesson-cons-video { margin-top: 8px; border-radius: 6px; overflow: hidden; }
 .lesson-cons-text { margin-top: 8px; padding: 12px; background: #f9f9f9; border-radius: 6px; font-size: 14px; line-height: 1.6; white-space: pre-wrap; }
@@ -2940,12 +2940,18 @@ a {
 
 .lesson-item {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 16px;
+  flex-direction: column;
+  padding: 0;
   border-bottom: 1px solid var(--gray-100);
   cursor: pointer;
   transition: .12s;
+}
+
+.lesson-item-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
 }
 
 .lesson-item:hover {
@@ -4367,25 +4373,8 @@ tr:hover td {
     border-bottom: 1px solid var(--gray-200);
   }
 
-  .lesson-item {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 0;
-    padding: 0;
-    border-bottom: 1px solid var(--gray-100);
-  }
-
   .lesson-item-header {
-    display: flex;
-    align-items: center;
-    gap: 10px;
     padding: 14px 16px;
-    cursor: pointer;
-    transition: background 0.15s;
-  }
-
-  .lesson-item-header:hover {
-    background: var(--gray-50);
   }
 
   .lesson-item.active .lesson-item-header {
@@ -4654,9 +4643,14 @@ tr:hover td {
 .media-modal-body {
   flex: 1;
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: center;
   min-height: 400px;
+  overflow: hidden;
+}
+
+.media-modal-body .pdf-viewer-wrapper {
+  width: 100%;
 }
 
 .media-modal-body iframe,

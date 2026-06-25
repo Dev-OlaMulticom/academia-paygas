@@ -123,6 +123,25 @@ export function ModulosPage() {
     return true
   }
 
+  const areAllQuizzesPassed = () => {
+    const quizLessons = lessons.filter(l => l.quiz)
+    if (quizLessons.length === 0) return false
+    return quizLessons.every(l => {
+      const result = allQuizResults[l.quiz.id]
+      return result?.concluido
+    })
+  }
+
+  const canOpenQuiz = (lessonIndex: number) => {
+    for (let i = 0; i < lessonIndex; i++) {
+      if (lessons[i].quiz) {
+        const result = allQuizResults[lessons[i].quiz.id]
+        if (!result?.concluido) return false
+      }
+    }
+    return true
+  }
+
   const resetLessonState = () => {
     setShowQuiz(false)
     setSelectedAnswers({})
@@ -255,12 +274,23 @@ export function ModulosPage() {
   }
 
   const renderCertificateTab = () => {
-    if (!hasCertificate) {
+    const quizzesPassed = areAllQuizzesPassed()
+    if (!hasCertificate || !quizzesPassed) {
+      const quizLessons = lessons.filter(l => l.quiz)
+      const pendingCount = quizLessons.filter(l => {
+        const result = allQuizResults[l.quiz.id]
+        return !result?.concluido
+      }).length
       return (
         <div className="empty-state section-padding">
           <div className="empty-icon">📜</div>
-          <p className="empty-msg">Nenhum certificado disponivel</p>
-          <p className="empty-desc">Complete todas as aulas e aprove nos quizzes para gerar seu certificado.</p>
+          <p className="empty-msg">{!hasCertificate ? 'Nenhum certificado disponivel' : 'Certificado bloqueado'}</p>
+          <p className="empty-desc">
+            {!hasCertificate
+              ? 'Complete todas as aulas e aprove nos quizzes para gerar seu certificado.'
+              : `Aprove em ${pendingCount} ${pluralize(pendingCount, 'quiz')} pendente${pendingCount !== 1 ? 's' : ''} para desbloquear seu certificado.`
+            }
+          </p>
         </div>
       )
     }
@@ -330,6 +360,7 @@ export function ModulosPage() {
     const isCurrentQuiz = showQuiz && currentLesson === lessonIndex
 
     if (!isCurrentQuiz && !isSubmitted) return null
+    if (!canOpenQuiz(lessonIndex)) return null
 
     return (
       <div className="quiz-in-accordion">
@@ -408,18 +439,25 @@ export function ModulosPage() {
               const isSubmitted = quizSubmittedMap[quiz.id]
               const inlineResult = quizResultMap[quiz.id]
               const answers = quizAnswers[quiz.id] || {}
-              const cardClass = passed ? 'passed' : isExpanded ? 'expanded' : 'default'
+              const lessonIdx = lessons.indexOf(lesson)
+              const quizAccessible = canOpenQuiz(lessonIdx)
+              const cardClass = passed ? 'passed' : isExpanded ? 'expanded' : quizAccessible ? 'default' : 'default'
 
               return (
                 <div key={quiz.id} className={`quiz-card ${cardClass}`}>
-                  <div className="quiz-card-header" onClick={() => setExpandedQuizId(isExpanded ? null : quiz.id)}>
+                  <div className="quiz-card-header" onClick={() => {
+                    if (!quizAccessible && !passed) return
+                    setExpandedQuizId(isExpanded ? null : quiz.id)
+                  }}>
                     <div className="quiz-card-row">
                       <div>
                         <div className="quiz-card-title">📝 {quiz.titulo}</div>
                         <div className="quiz-card-meta">Aula: {lesson.titulo} · {quiz.perguntas?.length || 0} perguntas · Nota minima: {quiz.notaMinima ?? 7}/10</div>
                       </div>
                       <div className="quiz-card-right">
-                        {result ? (
+                        {!quizAccessible && !passed ? (
+                          <span className="quiz-badge-not-started"><i className="icon-lock icon-sm" /> Bloqueado</span>
+                        ) : result ? (
                           <span className={passed ? 'quiz-badge-passed' : 'quiz-badge-failed'}>{passed ? `✓ ${result.nota}/10` : `✗ ${result.nota}/10`}</span>
                         ) : (
                           <span className="quiz-badge-not-started">Nao resolvido</span>
@@ -544,7 +582,7 @@ export function ModulosPage() {
             </div>
             <div className="media-modal-body">
               {mediaModal.type === 'pdf' ? (
-                <iframe src={mediaModal.url} title={mediaModal.title} />
+                <PDFViewer url={mediaModal.url} />
               ) : (
                 <iframe src={mediaModal.url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')} title={mediaModal.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
               )}
@@ -578,6 +616,7 @@ export function ModulosPage() {
             const tipoBadgeClass = lesson.tipo === 'PDF' ? 'pdf' : lesson.tipo === 'TEXTO' ? 'texto' : lesson.videoUrl ? 'video' : 'default'
 
             const handleLessonClick = () => {
+              if (!canClick) return
               if (isMobile) {
                 setExpandedMobileLesson(isExpanded ? null : i)
                 setExpandedMobileExtra(null)
@@ -588,7 +627,6 @@ export function ModulosPage() {
                   resetLessonState()
                 }
               } else {
-                if (!canClick) return
                 setShowAllQuizzes(false)
                 setShowCertificate(false)
                 setCurrentLesson(i)
@@ -597,7 +635,7 @@ export function ModulosPage() {
             }
 
             return (
-              <div key={lesson.id || i} className={`lesson-item ${isActive ? 'active' : ''} ${completed ? 'done' : ''}`} style={!canClick && !isMobile ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}>
+              <div key={lesson.id || i} className={`lesson-item ${isActive ? 'active' : ''} ${completed ? 'done' : ''} ${locked && !completed ? 'locked' : ''}`} style={!canClick ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}>
                 <div className="lesson-item-header" onClick={handleLessonClick}>
                   <div className="lesson-num">
                     {completed ? <i className="icon-check icon-sm" /> : locked ? <i className="icon-lock icon-sm" /> : i + 1}
@@ -639,7 +677,7 @@ export function ModulosPage() {
                       {lesson.obrigatorio && <span className="lesson-meta-tag required">Obrigatorio</span>}
                     </div>
 
-                    {lesson.quiz && !completed && !showQuiz && (
+                    {lesson.quiz && !completed && !showQuiz && canOpenQuiz(i) && (
                       <div className="lesson-quiz-alert">
                         <b>📝 Esta aula contem um quiz</b>
                         <p className="lesson-quiz-alert-p">Nota minima: {lesson.quiz.notaMinima ?? 7}/10.</p>
@@ -661,9 +699,15 @@ export function ModulosPage() {
                         )}
                         {!completed ? (
                           lesson.quiz ? (
-                            <button className="btn-primary" onClick={() => { setCurrentLesson(i); setShowQuiz(true) }}>
-                              Iniciar Quiz <i className="icon-chevron-right icon-sm" />
-                            </button>
+                            canOpenQuiz(i) ? (
+                              <button className="btn-primary" onClick={() => { setCurrentLesson(i); setShowQuiz(true) }}>
+                                Iniciar Quiz <i className="icon-chevron-right icon-sm" />
+                              </button>
+                            ) : (
+                              <button className="btn-primary" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                                <i className="icon-lock icon-sm" /> Quiz bloqueado
+                              </button>
+                            )
                           ) : (
                             <button className="btn-primary" onClick={() => { setCurrentLesson(i); handleConcluir() }}>
                               Proximo <i className="icon-chevron-right icon-sm" />
@@ -756,7 +800,7 @@ export function ModulosPage() {
             }}>
               <i className="icon-award icon-sm" />
               <span>Meu Certificado</span>
-              {hasCertificate && <span className="sidebar-extra-check">✓</span>}
+              {hasCertificate && areAllQuizzesPassed() && <span className="sidebar-extra-check">✓</span>}
               {isMobile && <i className={`icon-chevron-${expandedMobileExtra === 'certificate' ? 'up' : 'down'} icon-sm extra-chevron ${expandedMobileExtra === 'certificate' ? 'expanded' : ''}`} />}
             </div>
             {isMobile && expandedMobileExtra === 'certificate' && (
@@ -844,7 +888,7 @@ export function ModulosPage() {
                     </div>
                   </div>
                 )}
-                {current?.quiz && (
+                {current?.quiz && canOpenQuiz(currentLesson) && (
                   <div className="lesson-quiz-warning">
                     <b>📝 Esta aula contem um quiz</b>
                     <p className="lesson-quiz-warning-p">Ao concluir, voce sera direcionado para responder as perguntas. Nota minima: {current.quiz.notaMinima ?? 7}/10.</p>
@@ -854,12 +898,18 @@ export function ModulosPage() {
                   {!current?.concluido ? (
                     <>
                       {current?.quiz ? (
-                        <>
-                          <button className="btn-primary lesson-action-btn" onClick={handleConcluir}>Iniciar Quiz <i className="icon-chevron-right icon-sm" /></button>
-                          {!current?.obrigatorio && currentLesson < lessons.length - 1 && (
-                            <button className="btn-secondary lesson-action-btn" onClick={handleAvanzar}>Pular <i className="icon-chevron-right icon-sm" /></button>
-                          )}
-                        </>
+                        canOpenQuiz(currentLesson) ? (
+                          <>
+                            <button className="btn-primary lesson-action-btn" onClick={handleConcluir}>Iniciar Quiz <i className="icon-chevron-right icon-sm" /></button>
+                            {!current?.obrigatorio && currentLesson < lessons.length - 1 && (
+                              <button className="btn-secondary lesson-action-btn" onClick={handleAvanzar}>Pular <i className="icon-chevron-right icon-sm" /></button>
+                            )}
+                          </>
+                        ) : (
+                          <button className="btn-primary lesson-action-btn" disabled style={{ opacity: 0.5, cursor: 'not-allowed' }}>
+                            <i className="icon-lock icon-sm" /> Complete os quizzes anteriores primeiro
+                          </button>
+                        )
                       ) : (
                         <button className="btn-primary lesson-action-btn" onClick={handleConcluir}>Proximo <i className="icon-chevron-right icon-sm" /></button>
                       )}
