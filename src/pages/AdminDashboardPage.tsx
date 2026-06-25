@@ -1,28 +1,9 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
 import type { User } from '../hooks/useAuth'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 interface AdminDashboardPageProps {
   user: User
-}
-
-function StatInfo({ val, label, tip }: { val: number; label: string; tip: string }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="stat-info">
-      <div className="stat-info-top">
-        <div className="stat-card-val" style={{ fontSize: '24px' }}>{val}</div>
-        <Tooltip open={open} onOpenChange={setOpen}>
-          <TooltipTrigger asChild>
-            <button className="stat-info-trigger" onClick={() => setOpen(true)} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>i</button>
-          </TooltipTrigger>
-          <TooltipContent side="top" onPointerDownOutside={() => setOpen(false)}>{tip}</TooltipContent>
-        </Tooltip>
-      </div>
-      <div className="stat-card-label">{label}</div>
-    </div>
-  )
 }
 
 export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
@@ -50,9 +31,7 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
     }
   }, [])
 
-  useEffect(() => {
-    loadData()
-  }, [loadData])
+  useEffect(() => { loadData() }, [loadData])
 
   const handleSendEmail = async () => {
     if (!emailForm.userId || !emailForm.assunto || !emailForm.mensagem) {
@@ -77,16 +56,16 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
     return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
   }
 
-  const roleColor = (role: string) => {
-    if (role === 'ADMIN') return 'var(--pg-red)'
-    if (role === 'GESTOR') return 'var(--pg-gold)'
-    return 'var(--pg-green)'
+  const roleClass = (role: string) => {
+    if (role === 'ADMIN') return 'admin'
+    if (role === 'GESTOR') return 'gestor'
+    return 'atendente'
   }
 
   if (loading) {
     return (
       <div className="page active">
-        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--gray-400)' }}>Carregando...</div>
+        <div className="admin-loading">Carregando...</div>
       </div>
     )
   }
@@ -94,7 +73,7 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
   if (!data) {
     return (
       <div className="page active">
-        <div style={{ padding: '60px', textAlign: 'center', color: 'var(--gray-400)' }}>Erro ao carregar dados</div>
+        <div className="admin-loading">Erro ao carregar dados</div>
       </div>
     )
   }
@@ -118,78 +97,70 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
         </div>
       </div>
 
-      {/* Stats Cards */}
-      <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '20px' }}>
-        <StatInfo val={resumoGeral.totalUsers} label="Usuarios" tip="Total de usuarios cadastrados no sistema" />
-        <StatInfo val={resumoGeral.totalModulos} label="Modulos" tip="Modulos/cursos criados na plataforma" />
-        <StatInfo val={resumoGeral.totalAulas} label="Aulas" tip="Total de aulas disponiveis em todos os modulos" />
-        <StatInfo val={resumoGeral.totalCertificates} label="Certificados" tip="Certificados emitidos para usuarios" />
-        <StatInfo val={resumoGeral.quizzesAprovados} label="Quizzes Aprovados" tip="Quizzes com nota minima atingida pelos usuarios" />
-        <StatInfo val={emailsStats.total} label="Emails Enviados" tip="Total de emails de notificacao enviados pelo sistema" />
+      <div className="admin-stats-grid">
+        {[
+          { val: resumoGeral.totalUsers, label: 'Usuarios' },
+          { val: resumoGeral.totalModulos, label: 'Modulos' },
+          { val: resumoGeral.totalAulas, label: 'Aulas' },
+          { val: resumoGeral.totalCertificates, label: 'Certificados' },
+          { val: resumoGeral.quizzesAprovados, label: 'Quizzes Aprovados' },
+          { val: emailsStats.total, label: 'Emails Enviados' },
+        ].map((item, i) => (
+          <div key={i} className="stat-info">
+            <div className="stat-info-top">
+              <div className="stat-card-val" style={{ fontSize: '24px' }}>{item.val}</div>
+            </div>
+            <div className="stat-card-label">{item.label}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Tabs */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '16px', background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '4px', overflowX: 'auto' }}>
+      <div className="admin-tabs">
         {tabs.map(t => (
           <button
             key={t.key}
+            className={`admin-tab-btn ${activeTab === t.key ? 'active' : ''}`}
             onClick={() => setActiveTab(t.key as any)}
-            style={{
-              padding: '8px 16px',
-              border: 'none',
-              borderRadius: '6px',
-              cursor: 'pointer',
-              fontSize: '13px',
-              fontWeight: activeTab === t.key ? 600 : 400,
-              background: activeTab === t.key ? 'var(--pg-orange)' : 'transparent',
-              color: activeTab === t.key ? '#fff' : 'var(--gray-600)',
-              transition: 'all 0.2s',
-              whiteSpace: 'nowrap',
-            }}
           >
             {t.label}
           </button>
         ))}
       </div>
 
-      {/* Tab Content */}
-      <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
+      <div className="admin-tab-content">
 
-        {/* RESUMO */}
         {activeTab === 'resumo' && (
-          <div style={{ padding: '20px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+          <div className="admin-section-pad">
+            <div className="admin-resumo-grid">
               <div>
-                <div className="section-title" style={{ marginBottom: '12px' }}>Acessos Recentes</div>
+                <div className="section-title section-mb">Acessos Recentes</div>
                 {acessosRecentes.length === 0 ? (
-                  <div style={{ color: 'var(--gray-400)', fontSize: '13px' }}>Nenhum acesso registrado</div>
+                  <div className="admin-empty">Nenhum acesso registrado</div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div className="admin-log-list">
                     {acessosRecentes.slice(0, 5).map((log: any) => (
-                      <div key={log.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '8px', background: '#f8fafc' }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '13px', fontWeight: 500 }}>{log.user?.nome || log.user?.email}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>{formatDate(log.createdAt)}</div>
+                      <div key={log.id} className="admin-log-item">
+                        <div className="admin-log-item-body">
+                          <div className="admin-log-item-title">{log.user?.nome || log.user?.email}</div>
+                          <div className="admin-log-item-sub">{formatDate(log.createdAt)}</div>
                         </div>
-                        <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: roleColor(log.user?.role || ''), color: '#fff' }}>
-                          {log.user?.role}
-                        </span>
+                        <span className={`admin-role-badge ${roleClass(log.user?.role || '')}`}>{log.user?.role}</span>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
               <div>
-                <div className="section-title" style={{ marginBottom: '12px' }}>Atividade Recente</div>
+                <div className="section-title section-mb">Atividade Recente</div>
                 {atividadesRecentes.length === 0 ? (
-                  <div style={{ color: 'var(--gray-400)', fontSize: '13px' }}>Nenhuma atividade</div>
+                  <div className="admin-empty">Nenhuma atividade</div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <div className="admin-log-list">
                     {atividadesRecentes.slice(0, 5).map((log: any) => (
-                      <div key={log.id} style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '8px 12px', borderRadius: '8px', background: '#f8fafc' }}>
-                        <div style={{ flex: 1 }}>
-                          <div style={{ fontSize: '13px', fontWeight: 500 }}>{log.acao}</div>
-                          <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>{log.user?.nome} — {formatDate(log.createdAt)}</div>
+                      <div key={log.id} className="admin-log-item">
+                        <div className="admin-log-item-body">
+                          <div className="admin-log-item-title">{log.acao}</div>
+                          <div className="admin-log-item-sub">{log.user?.nome} — {formatDate(log.createdAt)}</div>
                         </div>
                       </div>
                     ))}
@@ -200,29 +171,24 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
           </div>
         )}
 
-        {/* ACESSOS */}
         {activeTab === 'acessos' && (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <div className="admin-table-wrap">
+            <table className="admin-table">
               <thead>
-                <tr style={{ background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)' }}>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--gray-600)' }}>Data/Hora</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--gray-600)' }}>Usuario</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--gray-600)' }}>Email</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--gray-600)' }}>Role</th>
+                <tr>
+                  <th>Data/Hora</th>
+                  <th>Usuario</th>
+                  <th>Email</th>
+                  <th>Role</th>
                 </tr>
               </thead>
               <tbody>
                 {acessosRecentes.map((log: any) => (
-                  <tr key={log.id} style={{ borderBottom: '1px solid var(--gray-100)' }}>
-                    <td style={{ padding: '10px 16px', color: 'var(--gray-600)', whiteSpace: 'nowrap' }}>{formatDate(log.createdAt)}</td>
-                    <td style={{ padding: '10px 16px', fontWeight: 500 }}>{log.user?.nome || '—'}</td>
-                    <td style={{ padding: '10px 16px', color: 'var(--gray-500)' }}>{log.user?.email}</td>
-                    <td style={{ padding: '10px 16px' }}>
-                      <span style={{ fontSize: '10px', fontWeight: 600, padding: '2px 8px', borderRadius: '4px', background: roleColor(log.user?.role || ''), color: '#fff' }}>
-                        {log.user?.role}
-                      </span>
-                    </td>
+                  <tr key={log.id}>
+                    <td className="date-col">{formatDate(log.createdAt)}</td>
+                    <td className="name-col">{log.user?.nome || '—'}</td>
+                    <td className="email-col">{log.user?.email}</td>
+                    <td><span className={`admin-role-badge ${roleClass(log.user?.role || '')}`}>{log.user?.role}</span></td>
                   </tr>
                 ))}
               </tbody>
@@ -230,30 +196,27 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
           </div>
         )}
 
-        {/* ATIVIDADES */}
         {activeTab === 'atividades' && (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <div className="admin-table-wrap">
+            <table className="admin-table">
               <thead>
-                <tr style={{ background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)' }}>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--gray-600)' }}>Data/Hora</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--gray-600)' }}>Usuario</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--gray-600)' }}>Acao</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--gray-600)' }}>Detalhes</th>
+                <tr>
+                  <th>Data/Hora</th>
+                  <th>Usuario</th>
+                  <th>Acao</th>
+                  <th>Detalhes</th>
                 </tr>
               </thead>
               <tbody>
                 {atividadesRecentes.map((log: any) => (
-                  <tr key={log.id} style={{ borderBottom: '1px solid var(--gray-100)' }}>
-                    <td style={{ padding: '10px 16px', color: 'var(--gray-600)', whiteSpace: 'nowrap' }}>{formatDate(log.createdAt)}</td>
-                    <td style={{ padding: '10px 16px' }}>
-                      <div style={{ fontWeight: 500 }}>{log.user?.nome || '—'}</div>
-                      <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>{log.user?.email}</div>
+                  <tr key={log.id}>
+                    <td className="date-col">{formatDate(log.createdAt)}</td>
+                    <td>
+                      <div className="name-col">{log.user?.nome || '—'}</div>
+                      <div className="admin-log-item-sub">{log.user?.email}</div>
                     </td>
-                    <td style={{ padding: '10px 16px', fontWeight: 500, color: 'var(--gray-700)' }}>{log.acao}</td>
-                    <td style={{ padding: '10px 16px', color: 'var(--gray-500)', fontSize: '12px', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {log.detalhes || '—'}
-                    </td>
+                    <td className="action-col">{log.acao}</td>
+                    <td className="detail-col">{log.detalhes || '—'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -261,24 +224,23 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
           </div>
         )}
 
-        {/* CURSOS */}
         {activeTab === 'cursos' && (
-          <div style={{ padding: '20px' }}>
-            <div className="section-title" style={{ marginBottom: '14px' }}>Modulos com Mais Atividade</div>
+          <div className="admin-section-pad">
+            <div className="section-title section-mb-lg">Modulos com Mais Atividade</div>
             {cursosRecentes.length === 0 ? (
-              <div style={{ color: 'var(--gray-400)', fontSize: '13px' }}>Nenhum modulo com atividade</div>
+              <div className="admin-empty">Nenhum modulo com atividade</div>
             ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div className="admin-log-list" style={{ gap: '12px' }}>
                 {cursosRecentes.map((curso: any) => (
-                  <div key={curso.id} style={{ padding: '14px 16px', borderRadius: '8px', background: '#f8fafc', border: '1px solid var(--gray-100)' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                      <div style={{ fontWeight: 600, fontSize: '14px', color: 'var(--gray-900)' }}>{curso.titulo}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--gray-500)' }}>{curso.concluidos} / {curso.totalAulas} aulas</div>
+                  <div key={curso.id} className="admin-curso-card">
+                    <div className="admin-curso-header">
+                      <div className="admin-curso-title">{curso.titulo}</div>
+                      <div className="admin-curso-count">{curso.concluidos} / {curso.totalAulas} aulas</div>
                     </div>
-                    <div style={{ background: 'var(--gray-200)', borderRadius: '6px', height: '8px', overflow: 'hidden' }}>
-                      <div style={{ width: `${curso.percentual}%`, height: '100%', background: 'var(--pg-orange)', borderRadius: '6px', transition: 'width 0.5s ease' }} />
+                    <div className="admin-bar">
+                      <div className="admin-bar-fill" style={{ width: `${curso.percentual}%` }} />
                     </div>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '6px', fontSize: '11px', color: 'var(--gray-400)' }}>
+                    <div className="admin-curso-footer">
                       <span>{curso.acessos} acessos</span>
                       <span>{curso.percentual}% concluido</span>
                     </div>
@@ -289,18 +251,13 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
           </div>
         )}
 
-        {/* ENVIAR EMAIL */}
         {activeTab === 'email' && (
-          <div style={{ padding: '24px', maxWidth: '600px' }}>
-            <div className="section-title" style={{ marginBottom: '16px' }}>Enviar Email para Usuario</div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+          <div className="admin-email-section">
+            <div className="section-title section-mb-lg">Enviar Email para Usuario</div>
+            <div className="admin-email-form">
               <div className="form-field">
                 <label className="form-label">Destinatario</label>
-                <select
-                  className="form-input"
-                  value={emailForm.userId}
-                  onChange={(e) => setEmailForm(prev => ({ ...prev, userId: e.target.value }))}
-                >
+                <select className="form-input" value={emailForm.userId} onChange={(e) => setEmailForm(prev => ({ ...prev, userId: e.target.value }))}>
                   <option value="">Selecione um usuario...</option>
                   {users.map((u: any) => (
                     <option key={u.id} value={u.id}>{u.nome || u.email} ({u.email})</option>
@@ -309,42 +266,18 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
               </div>
               <div className="form-field">
                 <label className="form-label">Assunto</label>
-                <input
-                  className="form-input"
-                  type="text"
-                  placeholder="Ex: Informacao importante..."
-                  value={emailForm.assunto}
-                  onChange={(e) => setEmailForm(prev => ({ ...prev, assunto: e.target.value }))}
-                />
+                <input className="form-input" type="text" placeholder="Ex: Informacao importante..." value={emailForm.assunto} onChange={(e) => setEmailForm(prev => ({ ...prev, assunto: e.target.value }))} />
               </div>
               <div className="form-field">
                 <label className="form-label">Mensagem</label>
-                <textarea
-                  className="form-input"
-                  rows={6}
-                  placeholder="Digite a mensagem do email..."
-                  value={emailForm.mensagem}
-                  onChange={(e) => setEmailForm(prev => ({ ...prev, mensagem: e.target.value }))}
-                  style={{ resize: 'vertical', minHeight: '120px' }}
-                />
+                <textarea className="form-input admin-textarea" rows={6} placeholder="Digite a mensagem do email..." value={emailForm.mensagem} onChange={(e) => setEmailForm(prev => ({ ...prev, mensagem: e.target.value }))} />
               </div>
               {emailMsg && (
-                <div style={{
-                  padding: '10px 14px',
-                  borderRadius: '8px',
-                  fontSize: '13px',
-                  background: emailMsg.includes('sucesso') || emailMsg.includes('enviado') ? '#DCFCE7' : '#FEE2E2',
-                  color: emailMsg.includes('sucesso') || emailMsg.includes('enviado') ? '#166534' : '#991B1B',
-                }}>
+                <div className={`admin-email-msg ${emailMsg.includes('sucesso') || emailMsg.includes('enviado') ? 'success' : 'error'}`}>
                   {emailMsg}
                 </div>
               )}
-              <button
-                className="btn-primary"
-                onClick={handleSendEmail}
-                disabled={sending}
-                style={{ alignSelf: 'flex-start' }}
-              >
+              <button className="btn-primary admin-submit-btn" onClick={handleSendEmail} disabled={sending}>
                 {sending ? 'Enviando...' : 'Enviar Email'}
               </button>
             </div>

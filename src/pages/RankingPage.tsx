@@ -56,7 +56,7 @@ export function RankingPage() {
           return (
             <div
               key={r.userId || i}
-              className="ranking-item"
+              className={`ranking-item ${isMe ? 'me' : ''}`}
               style={{
                 background: isMe ? 'var(--pg-orange-lt)' : '#fff',
                 border: `1px solid ${isMe ? 'var(--pg-orange)' : 'var(--gray-200)'}`,
@@ -78,23 +78,16 @@ export function RankingPage() {
                 <b>
                   {r.nome}
                   {isMe && (
-                    <span style={{
-                      fontSize: '11px',
-                      background: 'var(--pg-orange)',
-                      color: '#fff',
-                      padding: '2px 6px',
-                      borderRadius: '10px',
-                      marginLeft: '6px',
-                    }}>
+                    <span className="rank-you-badge">
                       Você
                     </span>
                   )}
                 </b>
                 <span>{r.cargo} · {r.estado}</span>
               </div>
-              <div style={{ textAlign: 'right' }}>
+              <div className="rank-xp-info">
                 <div className="rank-xp">{(r.xp || 0).toLocaleString('pt-BR')}</div>
-                <div style={{ fontSize: '10px', color: 'var(--gray-400)' }}>XP</div>
+                <div className="rank-xp-label">XP</div>
               </div>
             </div>
           )

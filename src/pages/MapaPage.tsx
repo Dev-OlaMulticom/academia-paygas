@@ -42,28 +42,28 @@ export function MapaPage() {
         </div>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '16px', marginBottom: '24px' }}>
+      <div className="cards-grid nat-grid section-mb-xl">
         {regions.map((r, i) => (
           <div key={i} className="region-card">
-            <div style={{ fontSize: '28px', marginBottom: '6px' }}>{r.icon}</div>
+            <div className="mapa-region-icon">{r.icon}</div>
             <div className="region-count">{r.users.toLocaleString('pt-BR')}</div>
             <div className="region-name">{r.name}</div>
             <div className="region-pct">{total > 0 ? Math.round(r.users / total * 100) : 0}% do Brasil · {r.growth}</div>
-            <div className="track-prog-bar" style={{ marginTop: '8px' }}>
+            <div className="track-prog-bar section-mb">
               <div className="track-prog-fill" style={{ width: `${r.pct}%` }}></div>
             </div>
-            <div style={{ fontSize: '11px', color: 'var(--gray-400)', marginTop: '4px' }}>{r.pct}% engajamento</div>
+            <div className="mapa-region-pct">{r.pct}% engajamento</div>
           </div>
         ))}
       </div>
 
-      <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '24px', marginBottom: '24px' }}>
-        <div className="section-title" style={{ marginBottom: '16px' }}>Engajamento por Região</div>
+      <div className="nat-section section-mb-xl">
+        <div className="section-title nat-section-title-lg">Engajamento por Região</div>
         {regions.map((r, i) => (
-          <div key={i} style={{ marginBottom: '14px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>
+          <div key={i} className="nat-region-row">
+            <div className="nat-region-header mapa-region-header-bold">
               <span>{r.icon} {r.name}</span>
-              <span style={{ color: 'var(--gray-500)' }}>{r.pct}% · {r.users.toLocaleString('pt-BR')} usuários · <span style={{ color: 'var(--pg-green)' }}>{r.growth}</span></span>
+              <span className="mapa-engajamento-stats">{r.pct}% · {r.users.toLocaleString('pt-BR')} usuários · <span className="mapa-engajamento-growth">{r.growth}</span></span>
             </div>
             <div className="nat-bar">
               <div className="nat-bar-fill" style={{ width: `${r.pct}%`, background: BAR_COLORS[i] }}>{r.pct}%</div>
@@ -72,8 +72,8 @@ export function MapaPage() {
         ))}
       </div>
 
-      <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '24px' }}>
-        <div className="section-title" style={{ marginBottom: '16px' }}>Top Municípios</div>
+      <div className="nat-section">
+        <div className="section-title nat-section-title-lg">Top Municípios</div>
         <div className="table-wrap">
           <table>
             <thead>
@@ -87,7 +87,7 @@ export function MapaPage() {
             </thead>
             <tbody>
               {municipios.length === 0 ? (
-                <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--gray-400)' }}>Nenhum dado disponível</td></tr>
+                <tr><td colSpan={5} className="nat-municipio-empty">Nenhum dado disponível</td></tr>
               ) : municipios.map((m, i) => {
                 const maxUsuarios = Math.max(...municipios.map(x => x.usuarios))
                 const pct = maxUsuarios > 0 ? Math.round((m.usuarios / maxUsuarios) * 100) : 0

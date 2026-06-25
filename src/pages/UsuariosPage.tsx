@@ -170,9 +170,9 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
         <button className="btn-primary" onClick={() => setShowCreateModal(true)}>+ Novo Usuario</button>
       </div>
       <div className="cards-grid">
-        <div className="stat-card"><div className="stat-card-icon" style={{ background: '#E6EEF9' }}><i className="icon-users icon-lg" /></div><div className="stat-card-val">{usuarios.length}</div><div className="stat-card-label">Total de Usuarios</div></div>
-        <div className="stat-card"><div className="stat-card-icon" style={{ background: '#DCFCE7' }}><i className="icon-check icon-lg" /></div><div className="stat-card-val">{usuarios.filter(u => u.emailVerificado).length}</div><div className="stat-card-label">Contas Verificadas</div></div>
-        <div className="stat-card"><div className="stat-card-icon" style={{ background: '#FEF3C7' }}><i className="icon-alert-triangle icon-lg" /></div><div className="stat-card-val">{usuarios.filter(u => !u.emailVerificado).length}</div><div className="stat-card-label">Pendente Verificacao</div></div>
+        <div className="stat-card"><div className="stat-card-icon user-stat-blue"><i className="icon-users icon-lg" /></div><div className="stat-card-val">{usuarios.length}</div><div className="stat-card-label">Total de Usuarios</div></div>
+        <div className="stat-card"><div className="stat-card-icon user-stat-green"><i className="icon-check icon-lg" /></div><div className="stat-card-val">{usuarios.filter(u => u.emailVerificado).length}</div><div className="stat-card-label">Contas Verificadas</div></div>
+        <div className="stat-card"><div className="stat-card-icon user-stat-yellow"><i className="icon-alert-triangle icon-lg" /></div><div className="stat-card-val">{usuarios.filter(u => !u.emailVerificado).length}</div><div className="stat-card-label">Pendente Verificacao</div></div>
       </div>
       <div className="table-wrap">
         <table>
@@ -186,46 +186,46 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
               usuarios.map((u) => (
                 <tr key={u.id}>
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                      <div className="user-avatar" style={{ width: '30px', height: '30px', fontSize: '10px', flexShrink: 0, background: PERSONAS[u.role as keyof typeof PERSONAS]?.color || '#999' }}>
+                    <div className="user-row">
+                      <div className="user-avatar user-avatar-sm" style={{ background: PERSONAS[u.role as keyof typeof PERSONAS]?.color || '#999' }}>
                         {u.nome?.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
                       </div>
                       <b>{u.nome}</b>
                     </div>
                   </td>
-                  <td style={{ color: 'var(--gray-500)' }}>{u.email}</td>
+                  <td className="user-td-email">{u.email}</td>
                   <td><span className="track-badge badge-new" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{getPersonaIcon(u.role)} {PERSONAS[u.role as keyof typeof PERSONAS]?.label}</span></td>
-                  <td style={{ color: 'var(--gray-500)', fontSize: '12px' }}>
+                  <td className="user-td-gestor">
                     {u.role === 'ATENDENTE' ? (u.gestorNome || getGestorName(u.gestorId)) : '—'}
                   </td>
                   <td>
                     {u.emailVerificado ? (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#16a34a', fontSize: '12px', fontWeight: 600 }}>
+                      <span className="user-status-ok">
                         <i className="icon-check-circle icon-xs" /> Verificado
                       </span>
                     ) : (
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', color: '#d97706', fontSize: '12px', fontWeight: 600 }}>
+                      <span className="user-status-pending">
                         <i className="icon-clock icon-xs" /> Pendente
                       </span>
                     )}
                   </td>
-                  <td><b style={{ color: 'var(--pg-orange)' }}>{u.xp || 0}</b></td>
-                  <td style={{ color: 'var(--gray-500)', fontSize: '12px' }}>{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('pt-BR') : 'Nunca'}</td>
-                  <td style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
-                    <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingUser({ ...u })}><i className="icon-pencil icon-xs" /> Editar</button>
+                  <td><b className="user-xp">{u.xp || 0}</b></td>
+                  <td className="user-td-last">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('pt-BR') : 'Nunca'}</td>
+                  <td className="user-actions">
+                    <button className="btn-secondary user-action-btn" onClick={() => setEditingUser({ ...u })}><i className="icon-pencil icon-xs" /> Editar</button>
                     {canValidate && !u.emailVerificado && (
                       <>
-                        <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: '#16a34a', borderColor: '#16a34a', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleValidateAccount(u.id, u.nome)}><i className="icon-check icon-xs" /> Validar</button>
-                        <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: '#2563eb', borderColor: '#2563eb', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleResendVerification(u.id, u.nome)}><i className="icon-mail icon-xs" /> Reenviar</button>
+                        <button className="btn-secondary user-action-btn user-action-green" onClick={() => handleValidateAccount(u.id, u.nome)}><i className="icon-check icon-xs" /> Validar</button>
+                        <button className="btn-secondary user-action-btn user-action-blue" onClick={() => handleResendVerification(u.id, u.nome)}><i className="icon-mail icon-xs" /> Reenviar</button>
                       </>
                     )}
-                    {isAdmin && <button className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDelete(u.id)}><i className="icon-trash-2 icon-xs" /></button>}
+                    {isAdmin && <button className="btn-secondary user-action-btn user-action-red" onClick={() => handleDelete(u.id)}><i className="icon-trash-2 icon-xs" /></button>}
                   </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={8} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '40px' }}>
+                <td colSpan={8} className="cms-table-empty">
                   {loading ? 'Carregando...' : 'Dados nao carregados'}
                 </td>
               </tr>
@@ -235,58 +235,55 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
       </div>
 
       {isGestor && equipeDetalhe.length > 0 && (
-        <div style={{ marginTop: '24px' }}>
-          <div className="section-title" style={{ marginBottom: '14px' }}>Progresso Detalhado da Equipe</div>
+        <div className="user-equipe-section">
+          <div className="section-title user-equipe-title">Progresso Detalhado da Equipe</div>
           {equipeDetalhe.map((member) => (
-            <div key={member.id} style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', marginBottom: '12px', overflow: 'hidden' }}>
-              <div
-                style={{ padding: '14px 20px', display: 'flex', alignItems: 'center', gap: '12px', cursor: 'pointer', userSelect: 'none' }}
-                onClick={() => setExpandedUser(expandedUser === member.id ? null : member.id)}
-              >
-                <div className="user-avatar" style={{ width: '36px', height: '36px', fontSize: '13px', flexShrink: 0, background: 'var(--pg-gold)', color: '#fff' }}>
+            <div key={member.id} className="user-equipe-card">
+              <div className="user-equipe-header" onClick={() => setExpandedUser(expandedUser === member.id ? null : member.id)}>
+                <div className="user-avatar user-equipe-avatar">
                   {member.nome?.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <b style={{ fontSize: '14px', color: 'var(--gray-900)' }}>{member.nome}</b>
-                  <div style={{ fontSize: '12px', color: 'var(--gray-400)' }}>{member.email}</div>
+                <div className="user-equipe-info">
+                  <b className="user-equipe-name">{member.nome}</b>
+                  <div className="user-equipe-email">{member.email}</div>
                 </div>
-                <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--pg-orange)' }}>{member.xp || 0}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--gray-400)' }}>XP</div>
+                <div className="user-equipe-stats">
+                  <div className="user-equipe-stat">
+                    <div className="user-equipe-stat-val" style={{ color: 'var(--pg-orange)' }}>{member.xp || 0}</div>
+                    <div className="user-equipe-stat-label">XP</div>
                   </div>
-                  <div style={{ textAlign: 'center' }}>
-                    <div style={{ fontSize: '16px', fontWeight: 700, color: 'var(--pg-green)' }}>
+                  <div className="user-equipe-stat">
+                    <div className="user-equipe-stat-val" style={{ color: 'var(--pg-green)' }}>
                       {member.modulos?.filter((m: any) => m.aulasConcluidas === m.totalAulas && m.totalAulas > 0).length || 0}
                     </div>
-                    <div style={{ fontSize: '10px', color: 'var(--gray-400)' }}>Concluídos</div>
+                    <div className="user-equipe-stat-label">Concluídos</div>
                   </div>
                   <i className={expandedUser === member.id ? 'icon-chevron-up icon-sm' : 'icon-chevron-down icon-sm'} style={{ color: 'var(--gray-400)' }} />
                 </div>
               </div>
 
               {expandedUser === member.id && (
-                <div style={{ borderTop: '1px solid var(--gray-100)', padding: '20px' }}>
+                <div className="user-equipe-body">
                   {member.modulos?.map((mod: any) => {
                     const percentual = mod.totalAulas > 0 ? Math.round((mod.aulasConcluidas / mod.totalAulas) * 100) : 0
                     return (
-                      <div key={mod.id} style={{ marginBottom: '16px' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                          <b style={{ fontSize: '13px', color: 'var(--gray-700)' }}>{mod.titulo}</b>
-                          <span style={{ fontSize: '12px', color: percentual === 100 ? 'var(--pg-green)' : 'var(--gray-500)', fontWeight: 600 }}>
+                      <div key={mod.id} className="user-equipe-mod">
+                        <div className="user-equipe-mod-header">
+                          <b className="user-equipe-mod-title">{mod.titulo}</b>
+                          <span className="user-equipe-mod-pct" style={{ color: percentual === 100 ? 'var(--pg-green)' : 'var(--gray-500)' }}>
                             {mod.aulasConcluidas}/{mod.totalAulas} aulas ({percentual}%)
                           </span>
                         </div>
-                        <div className="track-prog-bar" style={{ marginBottom: '10px' }}>
+                        <div className="track-prog-bar user-equipe-mod-bar">
                           <div className={`track-prog-fill ${percentual === 100 ? 'done' : ''}`} style={{ width: `${percentual}%` }} />
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingLeft: '12px' }}>
+                        <div className="user-equipe-aulas">
                           {mod.aulas?.map((aula: any) => (
-                            <div key={aula.id} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px' }}>
+                            <div key={aula.id} className="user-equipe-aula">
                               <i className={aula.concluido ? 'icon-check-circle icon-xs' : 'icon-circle icon-xs'} style={{ color: aula.concluido ? 'var(--pg-green)' : 'var(--gray-300)' }} />
-                              <span style={{ color: aula.concluido ? 'var(--gray-700)' : 'var(--gray-400)' }}>{aula.titulo}</span>
+                              <span className="user-equipe-aula-name" style={{ color: aula.concluido ? 'var(--gray-700)' : 'var(--gray-400)' }}>{aula.titulo}</span>
                               {aula.licoes?.length > 0 && (
-                                <span style={{ fontSize: '10px', color: 'var(--gray-300)' }}>({aula.licoes.length} lições)</span>
+                                <span className="user-equipe-aula-licoes">({aula.licoes.length} lições)</span>
                               )}
                             </div>
                           ))}
@@ -302,9 +299,9 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
       )}
 
       {showCreateModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '24px', width: '400px', maxWidth: '90%' }}>
-            <h3 style={{ marginBottom: '16px' }}>{isGestor ? 'Novo Atendente' : 'Novo Usuario'}</h3>
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <h3 className="modal-title-mb">{isGestor ? 'Novo Atendente' : 'Novo Usuario'}</h3>
             <div className="form-field"><label className="form-label">Nome Completo</label><input className="form-input" value={newUser.nome} onChange={e => setNewUser({ ...newUser, nome: e.target.value })} /></div>
             <div className="form-field"><label className="form-label">E-mail</label><input className="form-input" type="email" value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} /></div>
             <div className="form-field"><label className="form-label">Senha</label><input className="form-input" type="password" value={newUser.senha} onChange={e => setNewUser({ ...newUser, senha: e.target.value })} /></div>
@@ -331,14 +328,14 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
               </div>
             )}
             {isGestor && (
-              <div style={{ padding: '10px 12px', borderRadius: 'var(--radius)', background: '#f0fdf4', border: '1px solid #bbf7d0', fontSize: '13px', color: '#166534', marginBottom: '8px' }}>
+              <div className="modal-gestor-note">
                 O atendente sera automaticamente associado a sua equipe.
               </div>
             )}
-            <p style={{ fontSize: '12px', color: '#666', marginTop: '8px' }}>
+            <p className="modal-hint">
               Um email de verificacao sera enviado para o usuario ativar a conta.
             </p>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+            <div className="modal-actions">
               <button className="btn-primary" onClick={handleCreate}>Criar e Enviar Verificacao</button>
               <button className="btn-secondary" onClick={() => setShowCreateModal(false)}>Cancelar</button>
             </div>
@@ -347,9 +344,9 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
       )}
 
       {editingUser && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '24px', width: '400px', maxWidth: '90%' }}>
-            <h3 style={{ marginBottom: '16px' }}>Editar Usuario</h3>
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <h3 className="modal-title-mb">Editar Usuario</h3>
             <div className="form-field"><label className="form-label">Nome</label><input className="form-input" value={editingUser.nome} onChange={e => setEditingUser({ ...editingUser, nome: e.target.value })} /></div>
             <div className="form-field"><label className="form-label">E-mail</label><input className="form-input" type="email" value={editingUser.email} onChange={e => setEditingUser({ ...editingUser, email: e.target.value })} /></div>
             <div className="form-field">
@@ -371,7 +368,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
                 </select>
               </div>
             )}
-            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+            <div className="modal-actions">
               <button className="btn-primary" onClick={handleEdit}>Salvar</button>
               <button className="btn-secondary" onClick={() => setEditingUser(null)}>Cancelar</button>
             </div>

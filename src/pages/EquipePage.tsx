@@ -40,23 +40,18 @@ export function EquipePage({ user }: EquipePageProps) {
     return (
       <tr key={i}>
         <td>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div className="user-avatar" style={{ width: '32px', height: '32px', fontSize: '11px', background: PERSONAS.ATENDENTE?.color || '#8b5cf6' }}>
+          <div className="eq-avatar">
+            <div className="user-avatar eq-avatar-img" style={{ background: PERSONAS.ATENDENTE?.color || '#8b5cf6' }}>
               {member.nome.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
             </div>
             <div>
-              <b style={{ fontSize: '13px' }}>{member.nome}</b>
-              <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>{member.email}</div>
+              <b className="eq-name">{member.nome}</b>
+              <div className="eq-email">{member.email}</div>
             </div>
           </div>
         </td>
         <td>
-          <span style={{
-            display: 'inline-flex', alignItems: 'center', gap: '4px',
-            padding: '2px 8px', borderRadius: '12px',
-            background: 'var(--pg-blue-lt)', color: 'var(--pg-blue)',
-            fontSize: '12px', fontWeight: 'bold',
-          }}>
+          <span className="eq-level-badge">
             Lv. {level}
           </span>
         </td>
@@ -65,10 +60,10 @@ export function EquipePage({ user }: EquipePageProps) {
             <div className="progress-mini">
               <div className={`progress-mini-fill ${(member.progress || 0) === 100 ? 'done' : ''}`} style={{ width: (member.progress || 0) + '%' }}></div>
             </div>
-            <span style={{ fontSize: '12px', fontWeight: '600', minWidth: '32px' }}>{member.progress || 0}%</span>
+            <span className="eq-progress-pct">{member.progress || 0}%</span>
           </div>
         </td>
-        <td><span style={{ fontWeight: '600', color: 'var(--pg-orange)' }}>{memberXp} XP</span></td>
+        <td><span className="eq-xp">{memberXp} XP</span></td>
         <td><span className={`status-pill ${(member.certCount || 0) > 0 ? 'pill-green' : 'pill-gray'}`}>{(member.certCount || 0) > 0 ? <><i className="icon-check icon-xs" />{member.certCount}</> : 'Pendente'}</span></td>
         <td><span className={`status-pill ${member.ativo !== false ? 'pill-green' : 'pill-gray'}`}>{member.ativo !== false ? 'Ativo' : 'Inativo'}</span></td>
       </tr>
@@ -134,26 +129,17 @@ export function EquipePage({ user }: EquipePageProps) {
         </div>
       ) : (
         teams.map((team: any, idx: number) => (
-          <div key={team.gestor?.id || idx} style={{ marginBottom: '32px' }}>
+          <div key={team.gestor?.id || idx} className="eq-team-section">
             {team.gestor && (
-              <div style={{
-                display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px',
-                padding: '12px 16px', borderRadius: 'var(--radius)',
-                background: 'var(--pg-gold-lt)',
-                border: '1px solid var(--pg-gold)',
-              }}>
-                <div className="user-avatar" style={{ background: PERSONAS.GESTOR?.color || 'var(--pg-gold)', width: '36px', height: '36px', fontSize: '12px' }}>
+              <div className="eq-team-header">
+                <div className="user-avatar eq-team-avatar" style={{ background: PERSONAS.GESTOR?.color || 'var(--pg-gold)' }}>
                   {team.gestor.nome?.split(' ').map((n: string) => n[0]).slice(0, 2).join('') || '?'}
                 </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: '15px' }}>{team.gestor.nome}</div>
-                  <div style={{ fontSize: '12px', color: 'var(--gray-600)' }}>{team.gestor.email}</div>
+                <div className="eq-team-info">
+                  <div className="eq-team-name">{team.gestor.nome}</div>
+                  <div className="eq-team-email">{team.gestor.email}</div>
                 </div>
-                <span style={{
-                  padding: '4px 12px', borderRadius: '16px',
-                  background: 'var(--pg-gold)', color: '#fff',
-                  fontSize: '12px', fontWeight: 700,
-                }}>
+                <span className="eq-team-count">
                   {team.totalMembros} atendente(s)
                 </span>
               </div>
@@ -166,7 +152,7 @@ export function EquipePage({ user }: EquipePageProps) {
                 </table>
               </div>
             ) : (
-              <div style={{ padding: '16px', color: 'var(--gray-400)', fontSize: '13px', textAlign: 'center' }}>
+              <div className="eq-team-empty">
                 Nenhum atendente nesta equipe
               </div>
             )}

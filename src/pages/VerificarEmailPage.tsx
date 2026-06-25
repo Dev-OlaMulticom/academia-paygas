@@ -33,50 +33,22 @@ export function VerificarEmailPage() {
   }, [searchParams])
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'linear-gradient(135deg, #F47C20 0%, #C45E0A 100%)',
-      fontFamily: 'Arial, sans-serif',
-      padding: '20px',
-    }}>
-      <div style={{
-        background: 'white',
-        borderRadius: '16px',
-        padding: '48px',
-        maxWidth: '460px',
-        width: '100%',
-        textAlign: 'center',
-        boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
-      }}>
+    <div className="verify-page">
+      <div className="verify-card">
         {status === 'loading' && (
           <>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>⏳</div>
-            <h2 style={{ color: '#333', marginBottom: '8px' }}>Verificando...</h2>
-            <p style={{ color: '#666' }}>Aguarde enquanto verificamos seu email.</p>
+            <div className="verify-icon">⏳</div>
+            <h2 className="verify-title loading">Verificando...</h2>
+            <p className="verify-desc">Aguarde enquanto verificamos seu email.</p>
           </>
         )}
 
         {status === 'success' && (
           <>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>✅</div>
-            <h2 style={{ color: '#16a34a', marginBottom: '8px' }}>Email Verificado!</h2>
-            <p style={{ color: '#666', marginBottom: '24px' }}>{message}</p>
-            <button
-              onClick={() => navigate('/login')}
-              style={{
-                background: 'linear-gradient(135deg, #F47C20 0%, #C45E0A 100%)',
-                color: 'white',
-                border: 'none',
-                padding: '12px 32px',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-              }}
-            >
+            <div className="verify-icon">✅</div>
+            <h2 className="verify-title success">Email Verificado!</h2>
+            <p className="verify-desc">{message}</p>
+            <button className="verify-btn-primary" onClick={() => navigate('/login')}>
               Acessar a Plataforma
             </button>
           </>
@@ -84,22 +56,10 @@ export function VerificarEmailPage() {
 
         {status === 'already' && (
           <>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>ℹ️</div>
-            <h2 style={{ color: '#2563eb', marginBottom: '8px' }}>Ja Verificado</h2>
-            <p style={{ color: '#666', marginBottom: '24px' }}>{message}</p>
-            <button
-              onClick={() => navigate('/login')}
-              style={{
-                background: 'linear-gradient(135deg, #F47C20 0%, #C45E0A 100%)',
-                color: 'white',
-                border: 'none',
-                padding: '12px 32px',
-                borderRadius: '8px',
-                fontSize: '16px',
-                fontWeight: 'bold',
-                cursor: 'pointer',
-              }}
-            >
+            <div className="verify-icon">ℹ️</div>
+            <h2 className="verify-title already">Ja Verificado</h2>
+            <p className="verify-desc">{message}</p>
+            <button className="verify-btn-primary" onClick={() => navigate('/login')}>
               Fazer Login
             </button>
           </>
@@ -107,21 +67,10 @@ export function VerificarEmailPage() {
 
         {status === 'error' && (
           <>
-            <div style={{ fontSize: '48px', marginBottom: '16px' }}>❌</div>
-            <h2 style={{ color: '#dc2626', marginBottom: '8px' }}>Erro na Verificacao</h2>
-            <p style={{ color: '#666', marginBottom: '24px' }}>{message}</p>
-            <button
-              onClick={() => navigate('/login')}
-              style={{
-                background: '#666',
-                color: 'white',
-                border: 'none',
-                padding: '12px 32px',
-                borderRadius: '8px',
-                fontSize: '16px',
-                cursor: 'pointer',
-              }}
-            >
+            <div className="verify-icon">❌</div>
+            <h2 className="verify-title error">Erro na Verificacao</h2>
+            <p className="verify-desc">{message}</p>
+            <button className="verify-btn-secondary" onClick={() => navigate('/login')}>
               Voltar ao Login
             </button>
           </>

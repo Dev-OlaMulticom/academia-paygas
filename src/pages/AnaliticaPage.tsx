@@ -24,7 +24,7 @@ export function AnaliticaPage() {
         <div className="page-header">
           <div className="page-title">Analytics</div>
         </div>
-        <p style={{ color: 'var(--gray-400)' }}>Carregando dados...</p>
+        <p className="anal-loading">Carregando dados...</p>
       </div>
     )
   }
@@ -65,7 +65,7 @@ export function AnaliticaPage() {
               </thead>
               <tbody>
                 {modules.length === 0 ? (
-                  <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--gray-400)' }}>Nenhum dado disponível</td></tr>
+                  <tr><td colSpan={3} className="anal-table-empty">Nenhum dado disponível</td></tr>
                 ) : modules.map((m, i) => (
                   <tr key={i}>
                     <td><b>{m.titulo}</b></td>
@@ -98,12 +98,12 @@ export function AnaliticaPage() {
               </thead>
               <tbody>
                 {personas.length === 0 ? (
-                  <tr><td colSpan={3} style={{ textAlign: 'center', color: 'var(--gray-400)' }}>Nenhum dado disponível</td></tr>
+                  <tr><td colSpan={3} className="anal-table-empty">Nenhum dado disponível</td></tr>
                 ) : personas.map((p, i) => (
                   <tr key={i}>
                     <td>{p.persona}</td>
                     <td><b>{p.users.toLocaleString('pt-BR')}</b></td>
-                    <td><b style={{ color: 'var(--pg-orange)' }}>{p.xp.toLocaleString('pt-BR')}</b></td>
+                    <td><b className="anal-xp-val">{p.xp.toLocaleString('pt-BR')}</b></td>
                   </tr>
                 ))}
               </tbody>

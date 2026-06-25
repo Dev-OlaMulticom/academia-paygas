@@ -689,17 +689,80 @@ transition: .8s;   /* Region bars */
 
 ---
 
-## 8. Arquivos
+## 8. Regra: Zero Inline Styles
+
+> **NENHUM componente deve usar `style={{...}}` no JSX.** Todo estilo deve ser definido em `src/index.css` usando classes CSS.
+
+### 8.1 Excecao: Valores Dinamicos
+
+O unico caso permitido para inline styles sao valores que mudam em tempo de execucao:
+
+```tsx
+// PERMITIDO - valor dinamico
+<div style={{ width: `${percent}%` }} />
+<div style={{ background: item.color }} />
+<div style={{ opacity: isActive ? 1 : 0.5 }} />
+
+// PROIBIDO - valor estatico
+<div style={{ padding: '20px', background: '#fff' }} />
+<button style={{ color: 'var(--pg-orange)' }}>Acao</button>
+```
+
+### 8.2 Convencao de Nomes de Classes
+
+Todas as classes CSS usam **nomes em portugues** seguindo o padrao:
+
+| Prefixo | Descricao | Exemplo |
+|---------|-----------|---------|
+| `admin-` | Dashboard administrativo | `.admin-stats-grid`, `.admin-tab-btn` |
+| `rel-` | Pagina de relatorios | `.rel-action-grid`, `.rel-level-badge` |
+| `conq-` | Pagina de conquistas | `.conq-meta`, `.conq-progress-bar` |
+| `cert-` | Pagina de certificados | `.cert-card`, `.cert-template-preview` |
+| `notif-` | Notificacoes | `.notif-unread-dot`, `.notif-modal` |
+| `login-` | Pagina de login | `.login-alert`, `.login-back-btn` |
+| `verify-` | Verificacao de email | `.verify-page`, `.verify-btn-primary` |
+| `gamif-` | Card de gamificacao | `.gamif-card`, `.gamif-bar-fill` |
+| `stat-` | Cards de metricas | `.stat-info`, `.stat-card-icon` |
+| `modal-` | Modais genericos | `.modal-overlay`, `.modal-card` |
+| `form-` | Formularios | `.form-field`, `.form-grid-2` |
+
+### 8.3 Classes Utilitarias Recentes
+
+| Classe | Uso |
+|--------|-----|
+| `.modal-overlay` | Overlay de modal (fixo, inset:0, z-index:1000) |
+| `.modal-card` | Container do modal (branco, border-radius, padding) |
+| `.modal-footer` | Footer do modal (flex, gap:8px) |
+| `.form-grid-2` | Grid de 2 colunas para formularios |
+| `.section-mb` | margin-bottom: 12px |
+| `.section-mb-lg` | margin-bottom: 16px |
+| `.section-mb-xl` | margin-bottom: 24px |
+| `.admin-loading` | Estado de carregamento |
+| `.admin-empty` | Estado vazio |
+| `.admin-table` | Tabela completa |
+| `.admin-tab-btn.active` | Tab ativa (laranja) |
+| `.login-alert.error` | Alerta de erro (vermelho) |
+| `.login-alert.success` | Alerta de sucesso (verde) |
+
+### 8.4 Regra de Ouro: Cor Primaria
+
+> **TODOS os elementos visuais devem usar `--pg-orange (#F47C20)` como cor primaria.** Seja em solid, gradiente ou gradient, o laranja PayGas sempre deve ter prioridade. Nenhuma outra cor deve substitui-lo em botoes de acao principal, headers de email, ou elementos de destaque.
+
+---
+
+## 9. Arquivos
 
 | Arquivo | Descricao | Linhas |
 |---------|-----------|--------|
-| `src/index.css` | Design system completo | ~2971 |
+| `src/index.css` | Design system completo (~3400 linhas) | ~3400 |
 | `src/App.tsx` | Componentes React | ~136 |
-| `src/pages/DashboardPage.tsx` | Dashboard com tooltips | ~160 |
+| `src/pages/DashboardPage.tsx` | Dashboard com gamificacao | ~120 |
 | `src/pages/ModulosPage.tsx` | Pagina de modulo com accordion mobile | ~976 |
-| `src/layouts/AppLayout.tsx` | Layout com tooltips sidebar | ~173 |
+| `src/layouts/AppLayout.tsx` | Layout principal | ~174 |
 | `server/services/email.ts` | Templates de email (orange) | ~349 |
-| `src/pages/VerificarEmailPage.tsx` | Verificacao de email (orange) | ~132 |
-| `src/components/ui/tooltip.tsx` | Componente Tooltip (Radix) | ~61 |
+| `src/pages/VerificarEmailPage.tsx` | Verificacao de email (orange) | ~70 |
+| `src/pages/AdminDashboardPage.tsx` | Dashboard admin (CSS classes) | ~200 |
+| `src/pages/LoginPage.tsx` | Login com recuperacao (CSS classes) | ~170 |
+| `src/pages/NotifPage.tsx` | Notificacoes (CSS classes) | ~140 |
 
-**Nota:** O sistema atual utiliza CSS vanilla customizado em vez de Tailwind utility classes, apesar do Tailwind estar configurado no projeto.
+**Nota:** O sistema atual utiliza CSS vanilla customizado em vez de Tailwind utility classes, apesar do Tailwind estar configurado no projeto. Todos os estilos estao em `src/index.css` — nenhum inline style e usado nos componentes (exceto valores dinamicos).

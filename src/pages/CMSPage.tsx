@@ -296,40 +296,40 @@ export function CMSPage({ user }: CMSPageProps) {
           </div>
         </div>
         {view === 'modulos' ? (
-          <div style={{ display: 'flex', gap: '8px' }}>
-            {isAdmin && <button id="btn-import-export-toggle" className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px' }} onClick={() => setShowImportExport(!showImportExport)}><i className="icon-download icon-xs" /> Importar/Exportar</button>}
+          <div className="cms-header-actions">
+            {isAdmin && <button id="btn-import-export-toggle" className="btn-secondary cms-import-btn" onClick={() => setShowImportExport(!showImportExport)}><i className="icon-download icon-xs" /> Importar/Exportar</button>}
             {isAdmin && <button id="btn-novo-curso" className="btn-primary" onClick={() => navigate('/cms/criar-modulo')}>+ Novo Curso</button>}
           </div>
         ) : (
           <>
-            <button id="btn-voltar-cursos" className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => setView('modulos')}><i className="icon-arrow-left icon-sm" /> Voltar aos Cursos</button>
+            <button id="btn-voltar-cursos" className="btn-secondary cms-back-btn" onClick={() => setView('modulos')}><i className="icon-arrow-left icon-sm" /> Voltar aos Cursos</button>
             {isAdmin && <button id="btn-nova-aula" className="btn-primary" onClick={() => setShowAulaModal(true)}>+ Nova Aula</button>}
           </>
         )}
       </div>
 
       {showImportExport && view === 'modulos' && (
-        <div style={{ background: '#f8f9fa', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '16px', marginBottom: '16px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+        <div className="cms-import-section">
+          <div className="cms-import-header">
             <h4 style={{ margin: 0 }}>Importar / Exportar Dados</h4>
-            <button className="btn-secondary" style={{ padding: '4px 8px', fontSize: '11px' }} onClick={() => setShowImportExport(false)}>Fechar</button>
+            <button className="btn-secondary cms-import-close" onClick={() => setShowImportExport(false)}>Fechar</button>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+          <div className="cms-import-grid">
             {(['cursos', 'aulas', 'licoes', 'quiz'] as const).map(type => (
-              <div key={type} style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: '8px', padding: '12px' }}>
-                <div style={{ fontWeight: 600, marginBottom: '8px', textTransform: 'capitalize' }}>{type}</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <button className="btn-secondary" style={{ fontSize: '11px' }} onClick={() => handleExport(type)} disabled={importing}>
+              <div key={type} className="cms-import-card">
+                <div className="cms-import-card-title">{type}</div>
+                <div className="cms-import-card-actions">
+                  <button className="btn-secondary cms-import-card-btn" onClick={() => handleExport(type)} disabled={importing}>
                     <i className="icon-download icon-xs" /> Exportar CSV
                   </button>
-                  <button className="btn-secondary" style={{ fontSize: '11px' }} onClick={() => handleImport(type)} disabled={importing}>
+                  <button className="btn-secondary cms-import-card-btn" onClick={() => handleImport(type)} disabled={importing}>
                     <i className="icon-upload icon-xs" /> Importar CSV
                   </button>
                 </div>
               </div>
             ))}
           </div>
-          <div style={{ marginTop: '12px', padding: '10px', background: '#e8f4fd', borderRadius: '6px', fontSize: '12px', color: '#1a5276' }}>
+          <div className="cms-import-hint">
             <b>Formato dos arquivos CSV:</b> Use o botão "Exportar CSV" para baixar o formato correto. Ao importar, registros duplicados (mesmo título) são ignorados automaticamente.
           </div>
         </div>
@@ -346,18 +346,18 @@ export function CMSPage({ user }: CMSPageProps) {
                 modulos.map((mod) => (
                   <tr key={mod.id}>
                     <td><b>{mod.icone || '📚'} {mod.titulo}</b></td>
-                    <td style={{ color: 'var(--gray-500)', fontSize: '13px' }}>{mod.descricao || '—'}</td>
+                    <td className="cms-table-td-desc">{mod.descricao || '—'}</td>
                     <td>{mod._count?.aulas || 0} {pluralize(mod._count?.aulas || 0, 'aula')}</td>
-                    <td style={{ display: 'flex', gap: '6px' }}>
-                      <button id={`btn-mod-aulas-${mod.id}`} className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => { setSelectedModulo(mod); setView('aulas') }}><i className="icon-book-open icon-xs" /> Aulas</button>
-                      {                       isAdmin && <button id={`btn-mod-editar-${mod.id}`} className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => setEditingMod({ ...mod, obrigatorio: mod.obrigatorio || false, autoCertificado: mod.autoCertificado || false })}><i className="icon-pencil icon-xs" /> Editar</button>}
-                      {isAdmin && <button id={`btn-mod-excluir-${mod.id}`} className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDeleteModulo(mod.id)}><i className="icon-trash-2 icon-xs" /></button>}
+                    <td className="cms-table-td-actions">
+                      <button id={`btn-mod-aulas-${mod.id}`} className="btn-secondary cms-table-action-btn" onClick={() => { setSelectedModulo(mod); setView('aulas') }}><i className="icon-book-open icon-xs" /> Aulas</button>
+                      {isAdmin && <button id={`btn-mod-editar-${mod.id}`} className="btn-secondary cms-table-action-btn" onClick={() => setEditingMod({ ...mod, obrigatorio: mod.obrigatorio || false, autoCertificado: mod.autoCertificado || false })}><i className="icon-pencil icon-xs" /> Editar</button>}
+                      {isAdmin && <button id={`btn-mod-excluir-${mod.id}`} className="btn-secondary cms-table-action-btn cms-table-action-red" onClick={() => handleDeleteModulo(mod.id)}><i className="icon-trash-2 icon-xs" /></button>}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={4} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '40px' }}>
+                  <td colSpan={4} className="cms-table-empty">
                     Dados não carregados
                   </td>
                 </tr>
@@ -376,22 +376,22 @@ export function CMSPage({ user }: CMSPageProps) {
                 aulas.map((aula) => (
                   <tr key={aula.id}>
                     <td><b>{aula.titulo}</b></td>
-                    <td><span className={`track-badge ${aula.tipo === 'VIDEO' ? 'badge-new' : 'badge-blue'}`} style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{aula.tipo === 'VIDEO' ? <><i className="icon-video icon-xs" /> Vídeo</> : <><i className="icon-file-text icon-xs" /> PDF</>}</span></td>
-                    <td style={{ fontSize: '12px', color: 'var(--gray-500)', maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{aula.videoUrl || aula.pdfUrl || '—'}</td>
+                    <td><span className={`track-badge ${aula.tipo === 'VIDEO' ? 'badge-new' : 'badge-blue'} cms-badge-video`}>{aula.tipo === 'VIDEO' ? <><i className="icon-video icon-xs" /> Vídeo</> : <><i className="icon-file-text icon-xs" /> PDF</>}</span></td>
+                    <td className="cms-td-url">{aula.videoUrl || aula.pdfUrl || '—'}</td>
                     <td>
                       {isAdmin && (
-                        <button id={`btn-aula-quiz-${aula.id}`} className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px', background: aula.quiz ? '#E8F5E9' : undefined, borderColor: aula.quiz ? '#4CAF50' : undefined, color: aula.quiz ? '#2E7D32' : undefined }} onClick={() => handleOpenQuiz(aula)}>
+                        <button id={`btn-aula-quiz-${aula.id}`} className={`btn-secondary cms-quiz-btn ${aula.quiz ? 'has-quiz' : ''}`} onClick={() => handleOpenQuiz(aula)}>
                           <i className="icon-help-circle icon-xs" /> {aula.quiz ? `${aula.quiz.perguntas?.length || 0} ${pluralize(aula.quiz.perguntas?.length || 0, 'pergunta')}` : 'Criar Quiz'}
                         </button>
                       )}
                       {!isAdmin && aula.quiz && (
-                        <span style={{ fontSize: '11px', color: 'var(--gray-500)' }}>
+                        <span className="cms-quiz-count">
                           {aula.quiz.perguntas?.length || 0} {pluralize(aula.quiz.perguntas?.length || 0, 'pergunta')}
                         </span>
                       )}
                     </td>
-                    <td style={{ display: 'flex', gap: '6px' }}>
-                      {isAdmin && <button id={`btn-aula-editar-${aula.id}`} className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => {
+                    <td className="cms-table-td-actions">
+                      {isAdmin && <button id={`btn-aula-editar-${aula.id}`} className="btn-secondary cms-table-action-btn" onClick={() => {
                         const licoes = (aula.licoes || []).map((l: any) => ({
                           id: l.id,
                           titulo: l.titulo || '',
@@ -401,13 +401,13 @@ export function CMSPage({ user }: CMSPageProps) {
                         }))
                         setEditingAula({ ...aula, microLessons: licoes })
                       }}><i className="icon-pencil icon-xs" /> Editar</button>}
-                      {isAdmin && <button id={`btn-aula-excluir-${aula.id}`} className="btn-secondary" style={{ padding: '5px 10px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => handleDeleteAula(aula.id)}><i className="icon-trash-2 icon-xs" /></button>}
+                      {isAdmin && <button id={`btn-aula-excluir-${aula.id}`} className="btn-secondary cms-table-action-btn cms-table-action-red" onClick={() => handleDeleteAula(aula.id)}><i className="icon-trash-2 icon-xs" /></button>}
                     </td>
                   </tr>
                 ))
               ) : (
                 <tr>
-                  <td colSpan={5} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '40px' }}>
+                  <td colSpan={5} className="cms-table-empty">
                     Dados não carregados
                   </td>
                 </tr>
@@ -417,22 +417,21 @@ export function CMSPage({ user }: CMSPageProps) {
         </div>
       )}
 
-      {/* Modal Editar Curso */}
       {editingMod && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '24px', width: '700px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ marginBottom: '16px' }}>Editar Curso</h3>
+        <div className="modal-overlay">
+          <div className="modal-card-lg">
+            <h3 className="modal-title-mb">Editar Curso</h3>
             <div className="form-field"><label className="form-label">Título</label><input id="mod-edit-titulo" className="form-input" value={editingMod.titulo} onChange={e => setEditingMod({ ...editingMod, titulo: e.target.value })} /></div>
             <div className="form-field">
               <label className="form-label">Ícone / Emoji</label>
               <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <button id="mod-edit-icone-btn" type="button" className="btn-secondary" style={{ fontSize: '24px', width: '48px', height: '48px', display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setEditingMod({ ...editingMod, _showEmoji: !editingMod._showEmoji })}>
+                <button id="mod-edit-icone-btn" type="button" className="btn-secondary cms-emoji-btn" onClick={() => setEditingMod({ ...editingMod, _showEmoji: !editingMod._showEmoji })}>
                   {editingMod.icone || '📚'}
                 </button>
                 {editingMod._showEmoji && (
-                  <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap', padding: '8px', background: '#f9f9f9', borderRadius: '8px', border: '1px solid var(--gray-200)' }}>
+                  <div className="cms-emoji-picker">
                     {EMOJI_OPTIONS.map(em => (
-                      <button key={em} type="button" style={{ fontSize: '20px', background: editingMod.icone === em ? '#e3f2fd' : 'transparent', border: editingMod.icone === em ? '2px solid #1976d2' : '2px solid transparent', borderRadius: '6px', cursor: 'pointer', padding: '4px' }} onClick={() => setEditingMod({ ...editingMod, icone: em, _showEmoji: false })}>
+                      <button key={em} type="button" className={`cms-emoji-opt ${editingMod.icone === em ? 'selected' : 'default'}`} onClick={() => setEditingMod({ ...editingMod, icone: em, _showEmoji: false })}>
                         {em}
                       </button>
                     ))}
@@ -455,7 +454,7 @@ export function CMSPage({ user }: CMSPageProps) {
                 <option value="true">Sim (Automático ao concluir)</option>
               </select>
             </div>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+            <div className="modal-actions">
               <button id="mod-edit-salvar" className="btn-primary" onClick={handleEditModulo}>Salvar</button>
               <button id="mod-edit-cancelar" className="btn-secondary" onClick={() => setEditingMod(null)}>Cancelar</button>
             </div>
@@ -463,12 +462,11 @@ export function CMSPage({ user }: CMSPageProps) {
         </div>
       )}
 
-      {/* Modal Criar Aula */}
       {showAulaModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '24px', width: '900px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ marginBottom: '16px' }}>Nova Aula</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+        <div className="modal-overlay">
+          <div className="modal-card-xl">
+            <h3 className="modal-title-mb">Nova Aula</h3>
+            <div className="cms-grid-2">
               <div>
                 <div className="form-field"><label className="form-label">Título</label><input className="form-input" value={newAula.titulo} onChange={e => setNewAula({ ...newAula, titulo: e.target.value })} /></div>
                 <div className="form-field">
@@ -498,54 +496,39 @@ export function CMSPage({ user }: CMSPageProps) {
                     {newAula.microLessons.map((ml, i) => {
                       const { maxMinutes, maxSeconds } = getMaxTime(newAula.duration, ml.hours)
                       return (
-                      <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'flex-end' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '11px', color: 'var(--gray-500)' }}>Hora</label>
-                          <select
-                            className="form-select"
-                            style={{ width: '70px', padding: '6px', fontSize: '13px' }}
-                            value={ml.hours}
-                            onChange={e => updateMicroLesson(i, 'hours', parseInt(e.target.value) || 0)}
-                          >
+                      <div key={i} className="cms-micro-row">
+                        <div className="cms-micro-col">
+                          <label className="cms-micro-label">Hora</label>
+                          <select className="form-select cms-micro-select" value={ml.hours} onChange={e => updateMicroLesson(i, 'hours', parseInt(e.target.value) || 0)}>
                             {Array.from({ length: newAula.duration.hours + 1 }, (_, i) => i).map(h => (
                               <option key={h} value={h}>{h}</option>
                             ))}
                           </select>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '11px', color: 'var(--gray-500)' }}>Min</label>
-                          <select
-                            className="form-select"
-                            style={{ width: '70px', padding: '6px', fontSize: '13px' }}
-                            value={ml.minutes}
-                            onChange={e => updateMicroLesson(i, 'minutes', parseInt(e.target.value) || 0)}
-                          >
+                        <div className="cms-micro-col">
+                          <label className="cms-micro-label">Min</label>
+                          <select className="form-select cms-micro-select" value={ml.minutes} onChange={e => updateMicroLesson(i, 'minutes', parseInt(e.target.value) || 0)}>
                             {Array.from({ length: maxMinutes + 1 }, (_, i) => i).map(m => (
                               <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
                             ))}
                           </select>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '11px', color: 'var(--gray-500)' }}>Seg</label>
-                          <select
-                            className="form-select"
-                            style={{ width: '70px', padding: '6px', fontSize: '13px' }}
-                            value={ml.seconds}
-                            onChange={e => updateMicroLesson(i, 'seconds', parseInt(e.target.value) || 0)}
-                          >
+                        <div className="cms-micro-col">
+                          <label className="cms-micro-label">Seg</label>
+                          <select className="form-select cms-micro-select" value={ml.seconds} onChange={e => updateMicroLesson(i, 'seconds', parseInt(e.target.value) || 0)}>
                             {Array.from({ length: (ml.minutes < maxMinutes ? 60 : maxSeconds) + 1 }, (_, i) => i).map(s => (
                               <option key={s} value={s}>{s.toString().padStart(2, '0')}</option>
                             ))}
                           </select>
                         </div>
-                        <div style={{ flex: 1 }}>
+                        <div className="cms-micro-title-input">
                           <input className="form-input" placeholder="Título do ponto" value={ml.titulo} onChange={e => updateMicroLesson(i, 'titulo', e.target.value)} />
                         </div>
-                        <button className="btn-secondary" style={{ padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => removeMicroLesson(i)}><i className="icon-x icon-sm" /></button>
+                        <button className="btn-secondary cms-micro-remove" onClick={() => removeMicroLesson(i)}><i className="icon-x icon-sm" /></button>
                       </div>
                       )
                     })}
-                    <button className="btn-secondary" style={{ width: '100%' }} onClick={addMicroLesson}>+ Adicionar Ponto</button>
+                    <button className="btn-secondary cms-micro-add" onClick={addMicroLesson}>+ Adicionar Ponto</button>
                   </div>
                 )}
               </div>
@@ -567,7 +550,7 @@ export function CMSPage({ user }: CMSPageProps) {
                     {newAula.pdfUrl ? (
                       <PDFViewer url={newAula.pdfUrl} />
                     ) : (
-                      <div style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '40px', border: '2px dashed var(--gray-200)', borderRadius: 'var(--radius)' }}>
+                      <div className="cms-pdf-placeholder">
                         Insira a URL do PDF para visualizar a prévia
                       </div>
                     )}
@@ -575,7 +558,7 @@ export function CMSPage({ user }: CMSPageProps) {
                 )}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+            <div className="cms-modal-actions">
               <button className="btn-primary" onClick={handleCreateAula}>Criar</button>
               <button className="btn-secondary" onClick={() => setShowAulaModal(false)}>Cancelar</button>
             </div>
@@ -583,12 +566,11 @@ export function CMSPage({ user }: CMSPageProps) {
         </div>
       )}
 
-      {/* Modal Editar Aula */}
       {editingAula && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '24px', width: '900px', maxWidth: '95%', maxHeight: '90vh', overflowY: 'auto' }}>
-            <h3 style={{ marginBottom: '16px' }}>Editar Aula</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+        <div className="modal-overlay">
+          <div className="modal-card-xl">
+            <h3 className="modal-title-mb">Editar Aula</h3>
+            <div className="cms-grid-2">
               <div>
                 <div className="form-field"><label className="form-label">Título</label><input className="form-input" value={editingAula.titulo} onChange={e => setEditingAula({ ...editingAula, titulo: e.target.value })} /></div>
                 <div className="form-field">
@@ -619,72 +601,57 @@ export function CMSPage({ user }: CMSPageProps) {
                       const dur = editingAula.duration || { hours: 0, minutes: 0, seconds: 0 }
                       const { maxMinutes, maxSeconds } = getMaxTime(dur, ml.hours || 0)
                       return (
-                      <div key={i} style={{ display: 'flex', gap: '8px', marginBottom: '8px', alignItems: 'flex-end' }}>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '11px', color: 'var(--gray-500)' }}>Hora</label>
-                          <select
-                            className="form-select"
-                            style={{ width: '70px', padding: '6px', fontSize: '13px' }}
-                            value={ml.hours || 0}
-                            onChange={e => {
-                              const updated = [...(editingAula.microLessons || [])]
-                              updated[i] = { ...updated[i], hours: parseInt(e.target.value) || 0 }
-                              setEditingAula({ ...editingAula, microLessons: updated })
-                            }}
-                          >
+                      <div key={i} className="cms-micro-row">
+                        <div className="cms-micro-col">
+                          <label className="cms-micro-label">Hora</label>
+                          <select className="form-select cms-micro-select" value={ml.hours || 0} onChange={e => {
+                            const updated = [...(editingAula.microLessons || [])]
+                            updated[i] = { ...updated[i], hours: parseInt(e.target.value) || 0 }
+                            setEditingAula({ ...editingAula, microLessons: updated })
+                          }}>
                             {Array.from({ length: dur.hours + 1 }, (_, i) => i).map(h => (
                               <option key={h} value={h}>{h}</option>
                             ))}
                           </select>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '11px', color: 'var(--gray-500)' }}>Min</label>
-                          <select
-                            className="form-select"
-                            style={{ width: '70px', padding: '6px', fontSize: '13px' }}
-                            value={ml.minutes || 0}
-                            onChange={e => {
-                              const updated = [...(editingAula.microLessons || [])]
-                              updated[i] = { ...updated[i], minutes: parseInt(e.target.value) || 0 }
-                              setEditingAula({ ...editingAula, microLessons: updated })
-                            }}
-                          >
+                        <div className="cms-micro-col">
+                          <label className="cms-micro-label">Min</label>
+                          <select className="form-select cms-micro-select" value={ml.minutes || 0} onChange={e => {
+                            const updated = [...(editingAula.microLessons || [])]
+                            updated[i] = { ...updated[i], minutes: parseInt(e.target.value) || 0 }
+                            setEditingAula({ ...editingAula, microLessons: updated })
+                          }}>
                             {Array.from({ length: maxMinutes + 1 }, (_, i) => i).map(m => (
                               <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
                             ))}
                           </select>
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                          <label style={{ fontSize: '11px', color: 'var(--gray-500)' }}>Seg</label>
-                          <select
-                            className="form-select"
-                            style={{ width: '70px', padding: '6px', fontSize: '13px' }}
-                            value={ml.seconds || 0}
-                            onChange={e => {
-                              const updated = [...(editingAula.microLessons || [])]
-                              updated[i] = { ...updated[i], seconds: parseInt(e.target.value) || 0 }
-                              setEditingAula({ ...editingAula, microLessons: updated })
-                            }}
-                          >
+                        <div className="cms-micro-col">
+                          <label className="cms-micro-label">Seg</label>
+                          <select className="form-select cms-micro-select" value={ml.seconds || 0} onChange={e => {
+                            const updated = [...(editingAula.microLessons || [])]
+                            updated[i] = { ...updated[i], seconds: parseInt(e.target.value) || 0 }
+                            setEditingAula({ ...editingAula, microLessons: updated })
+                          }}>
                             {Array.from({ length: ((ml.minutes || 0) < maxMinutes ? 60 : maxSeconds) + 1 }, (_, i) => i).map(s => (
                               <option key={s} value={s}>{s.toString().padStart(2, '0')}</option>
                             ))}
                           </select>
                         </div>
-                        <div style={{ flex: 1 }}>
+                        <div className="cms-micro-title-input">
                           <input className="form-input" placeholder="Título do ponto" value={ml.titulo} onChange={e => {
                             const updated = [...(editingAula.microLessons || [])]
                             updated[i] = { ...updated[i], titulo: e.target.value }
                             setEditingAula({ ...editingAula, microLessons: updated })
                           }} />
                         </div>
-                        <button className="btn-secondary" style={{ padding: '5px 10px', display: 'inline-flex', alignItems: 'center', gap: '4px' }} onClick={() => {
+                        <button className="btn-secondary cms-micro-remove" onClick={() => {
                           setEditingAula({ ...editingAula, microLessons: (editingAula.microLessons || []).filter((_: any, idx: number) => idx !== i) })
                         }}><i className="icon-x icon-sm" /></button>
                       </div>
                       )
                     })}
-                    <button className="btn-secondary" style={{ width: '100%' }} onClick={() => {
+                    <button className="btn-secondary cms-micro-add" onClick={() => {
                       setEditingAula({ ...editingAula, microLessons: [...(editingAula.microLessons || []), { hours: 0, minutes: 0, seconds: 0, titulo: '' }] })
                     }}>+ Adicionar Ponto</button>
                   </div>
@@ -708,7 +675,7 @@ export function CMSPage({ user }: CMSPageProps) {
                     {editingAula.pdfUrl ? (
                       <PDFViewer url={editingAula.pdfUrl} />
                     ) : (
-                      <div style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '40px', border: '2px dashed var(--gray-200)', borderRadius: 'var(--radius)' }}>
+                      <div className="cms-pdf-placeholder">
                         Insira a URL do PDF para visualizar a prévia
                       </div>
                     )}
@@ -716,7 +683,7 @@ export function CMSPage({ user }: CMSPageProps) {
                 )}
               </div>
             </div>
-            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+            <div className="cms-modal-actions">
               <button className="btn-primary" onClick={handleEditAula}>Salvar</button>
               <button className="btn-secondary" onClick={() => setEditingAula(null)}>Cancelar</button>
             </div>

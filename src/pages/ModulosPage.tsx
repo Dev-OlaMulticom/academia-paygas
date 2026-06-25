@@ -233,14 +233,14 @@ export function ModulosPage() {
       <div className="page active">
         <div className="page-header">
           <div>
-            <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }} onClick={() => navigate('/modulos')}><i className="icon-arrow-left icon-sm" /> Voltar</button>
+            <button className="btn-secondary back-btn" onClick={() => navigate('/modulos')}><i className="icon-arrow-left icon-sm" /> Voltar</button>
             <div className="page-title">Acesso restrito</div>
           </div>
         </div>
         <div className="empty-state">
           <div className="empty-icon">🔒</div>
-          <p style={{ fontWeight: 600, marginBottom: '8px' }}>Você precisa ser associado a um Gestor de Posto</p>
-          <p style={{ color: 'var(--gray-500)', fontSize: '14px' }}>Aguarde a aprovação do seu gestor.</p>
+          <p className="empty-msg">Você precisa ser associado a um Gestor de Posto</p>
+          <p className="empty-desc">Aguarde a aprovação do seu gestor.</p>
         </div>
       </div>
     )
@@ -251,7 +251,7 @@ export function ModulosPage() {
       <div className="page active">
         <div className="page-header">
           <div>
-            <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }} onClick={() => navigate('/modulos')}><i className="icon-arrow-left icon-sm" /> Voltar</button>
+            <button className="btn-secondary back-btn" onClick={() => navigate('/modulos')}><i className="icon-arrow-left icon-sm" /> Voltar</button>
             <div className="page-title">Módulo não encontrado</div>
           </div>
         </div>
@@ -262,10 +262,10 @@ export function ModulosPage() {
   const renderCertificateTab = () => {
     if (!hasCertificate) {
       return (
-        <div className="empty-state" style={{ padding: '40px' }}>
+        <div className="empty-state section-padding">
           <div className="empty-icon">📜</div>
-          <p style={{ fontWeight: 600, marginBottom: '8px' }}>Nenhum certificado disponível</p>
-          <p style={{ color: 'var(--gray-500)', fontSize: '14px' }}>Complete todas as aulas e aprov nos quizzes para gerar seu certificado.</p>
+          <p className="empty-msg">Nenhum certificado disponível</p>
+          <p className="empty-desc">Complete todas as aulas e aprov nos quizzes para gerar seu certificado.</p>
         </div>
       )
     }
@@ -276,26 +276,26 @@ export function ModulosPage() {
     const nome = user?.nome || 'Usuário'
 
     return (
-      <div style={{ padding: '24px' }}>
-        <h3 style={{ marginBottom: '16px' }}>📜 Seu Certificado</h3>
-        <div className="cert-card" style={{ maxWidth: '700px', margin: '0 auto' }}>
+      <div className="section-padding">
+        <h3 className="section-title-mb">📜 Seu Certificado</h3>
+        <div className="cert-card cert-max-w">
           <div className="cert-header">
             <h3>ACADEMIA PAYGAS</h3>
             <h2>{icone} {titulo}</h2>
           </div>
           <div className="cert-body">
-            <p style={{ fontSize: '14px', color: 'var(--gray-500)', marginBottom: '10px' }}>Certificamos que</p>
+            <p className="cert-body-text">Certificamos que</p>
             <div className="cert-name">{nome}</div>
-            <p style={{ fontSize: '14px', color: 'var(--gray-600)', marginTop: '16px' }}>
+            <p className="cert-body-text-green">
               concluiu o módulo de <strong>{titulo}</strong> com sucesso.
             </p>
-            <div className="cert-footer" style={{ marginTop: '24px' }}>
-              <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>{new Date().toLocaleDateString('pt-BR')}</span>
+            <div className="cert-footer cert-footer-mt">
+              <span className="cert-date">{new Date().toLocaleDateString('pt-BR')}</span>
               <div className="cert-seal">PG</div>
             </div>
           </div>
         </div>
-        <div style={{ textAlign: 'center', marginTop: '16px' }}>
+        <div className="cert-download-center">
           <button className="btn-primary" onClick={() => navigate('/certificados')}>
             <i className="icon-download icon-sm" /> Ver meus certificados
           </button>
@@ -338,14 +338,14 @@ export function ModulosPage() {
 
   const renderAllQuizzes = () => {
     return (
-      <div style={{ padding: '24px' }}>
-        <h3 style={{ marginBottom: '16px' }}>📝 Todos os Quizzes</h3>
+      <div className="quizzes-section">
+        <h3 className="quizzes-title">📝 Todos os Quizzes</h3>
         {quizzesWithLesson.length === 0 ? (
-          <div className="empty-state" style={{ padding: '24px' }}>
-            <p style={{ color: 'var(--gray-500)' }}>Nenhum quiz disponível neste módulo.</p>
+          <div className="empty-state quizzes-empty-p">
+            <p className="quizzes-empty-text">Nenhum quiz disponível neste módulo.</p>
           </div>
         ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="quizzes-list">
             {quizzesWithLesson.map((lesson) => {
               const quiz = lesson.quiz
               const result = allQuizResults[quiz.id]
@@ -355,60 +355,49 @@ export function ModulosPage() {
               const inlineResult = quizResultMap[quiz.id]
               const answers = quizAnswers[quiz.id] || {}
 
+              const cardClass = passed ? 'passed' : isExpanded ? 'expanded' : 'default'
+
               return (
-                <div key={quiz.id} style={{
-                  border: `1px solid ${passed ? '#4CAF50' : isExpanded ? '#F47C20' : 'var(--gray-200)'}`,
-                  borderRadius: '8px',
-                  background: passed ? '#F1F8E9' : '#fff',
-                  transition: 'all 0.15s',
-                  overflow: 'hidden',
-                }}>
-                  <div style={{
-                    padding: '16px',
-                    cursor: 'pointer',
-                  }} onClick={() => setExpandedQuizId(isExpanded ? null : quiz.id)}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div key={quiz.id} className={`quiz-card ${cardClass}`}>
+                  <div className="quiz-card-header" onClick={() => setExpandedQuizId(isExpanded ? null : quiz.id)}>
+                    <div className="quiz-card-row">
                       <div>
-                        <div style={{ fontWeight: 600, fontSize: '14px' }}>📝 {quiz.titulo}</div>
-                        <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '4px' }}>
+                        <div className="quiz-card-title">📝 {quiz.titulo}</div>
+                        <div className="quiz-card-meta">
                           Aula: {lesson.titulo} · {quiz.perguntas?.length || 0} perguntas · Nota mínima: {quiz.notaMinima ?? 7}/10
                         </div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <div className="quiz-card-right">
                         {result ? (
-                          <span style={{
-                            padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600,
-                            background: passed ? '#DCFCE7' : '#FEE2E2',
-                            color: passed ? '#166534' : '#991B1B',
-                          }}>
+                          <span className={passed ? 'quiz-badge-passed' : 'quiz-badge-failed'}>
                             {passed ? `✓ ${result.nota}/10` : `✗ ${result.nota}/10`}
                           </span>
                         ) : (
-                          <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', background: 'var(--gray-100)', color: 'var(--gray-500)' }}>
+                          <span className="quiz-badge-not-started">
                             Não resolvido
                           </span>
                         )}
-                        <i className={`icon-chevron-${isExpanded ? 'up' : 'down'} icon-sm`} style={{ color: 'var(--gray-400)' }} />
+                        <i className={`icon-chevron-${isExpanded ? 'up' : 'down'} icon-sm quiz-chevron-gray`} />
                       </div>
                     </div>
                   </div>
 
                   {isExpanded && (
-                    <div style={{ padding: '0 16px 16px', borderTop: '1px solid var(--gray-100)' }}>
+                    <div className="quiz-expanded-body">
                       {inlineResult && (
-                        <div className={`quiz-result-banner ${inlineResult.passed ? 'passed' : 'failed'}`} style={{ marginTop: '12px' }}>
+                        <div className={`quiz-result-banner ${inlineResult.passed ? 'passed' : 'failed'} quiz-result-header-mt`}>
                           <div className="quiz-result-header">
                             <span className="quiz-result-icon">{inlineResult.passed ? '🎉' : '❌'}</span>
                             <div>
-                              <h3 style={{ margin: 0 }}>{inlineResult.passed ? 'Aprovado!' : 'Reprovado'}</h3>
-                              <p style={{ margin: '4px 0 0', fontSize: '14px', opacity: 0.8 }}>
+                              <h3 className="quiz-result-h3">{inlineResult.passed ? 'Aprovado!' : 'Reprovado'}</h3>
+                              <p className="quiz-result-sub">
                                 Nota: {inlineResult.nota}/10 ({inlineResult.correct}/{inlineResult.total} corretas)
                               </p>
                             </div>
                           </div>
                           {!inlineResult.passed && (
-                            <div style={{ marginTop: '8px' }}>
-                              <button className="btn-secondary" style={{ padding: '6px 14px', fontSize: '12px' }} onClick={() => {
+                            <div className="quiz-retry-mt">
+                              <button className="btn-secondary quiz-retry-btn" onClick={() => {
                                 setQuizSubmittedMap(prev => ({ ...prev, [quiz.id]: false }))
                                 setQuizResultMap(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
                                 setQuizAnswers(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
@@ -420,11 +409,11 @@ export function ModulosPage() {
                         </div>
                       )}
 
-                      <div style={{ marginTop: '12px' }}>
+                      <div className="quiz-questions-mt">
                         {quiz.perguntas?.map((pergunta: any, qIndex: number) => (
-                          <div key={qIndex} style={{ marginBottom: '16px', padding: '14px', background: '#f9f9f9', borderRadius: '8px' }}>
-                            <p style={{ fontWeight: '600', marginBottom: '10px', fontSize: '14px' }}>{qIndex + 1}. {pergunta.pergunta}</p>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          <div key={qIndex} className="quiz-question-item">
+                            <p className="quiz-question-text">{qIndex + 1}. {pergunta.pergunta}</p>
+                            <div className="quiz-options">
                               {[pergunta.opcaoA, pergunta.opcaoB, pergunta.opcaoC, pergunta.opcaoD].filter(Boolean).map((opt: string, oIndex: number) => {
                                 const letter = ['A', 'B', 'C', 'D'][oIndex]
                                 const isSelected = answers[pergunta.id] === letter
@@ -449,18 +438,17 @@ export function ModulosPage() {
                         ))}
                       </div>
 
-                      <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                      <div className="quiz-submit-row">
                         {!isSubmitted ? (
                           <button
-                            className="btn-primary"
-                            style={{ padding: '8px 20px', fontSize: '13px' }}
+                            className="btn-primary quiz-submit-btn"
                             onClick={() => handleInlineSubmit(quiz)}
                             disabled={Object.keys(answers).length < (quiz.perguntas?.length || 0)}
                           >
                             Enviar Respostas
                           </button>
                         ) : !inlineResult?.passed && (
-                          <button className="btn-secondary" style={{ padding: '8px 20px', fontSize: '13px' }} onClick={() => {
+                          <button className="btn-secondary quiz-submit-btn" onClick={() => {
                             setQuizSubmittedMap(prev => ({ ...prev, [quiz.id]: false }))
                             setQuizResultMap(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
                             setQuizAnswers(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
@@ -501,7 +489,7 @@ export function ModulosPage() {
 
       <div className="page-header">
         <div>
-          <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', marginBottom: '8px' }} onClick={() => navigate(-1)}><i className="icon-arrow-left icon-sm" /> Voltar</button>
+          <button className="btn-secondary back-btn" onClick={() => navigate(-1)}><i className="icon-arrow-left icon-sm" /> Voltar</button>
           <div className="page-title">{modulo.titulo}</div>
           <div className="page-subtitle">{lessons.length} {pluralize(lessons.length, 'aula')}{modulo.autoCertificado ? ' · Certificado automático' : ''}</div>
         </div>
@@ -559,15 +547,15 @@ export function ModulosPage() {
                     </span>
                   </div>
                   {completed && !isMobile && <span className="lesson-check"><i className="icon-check icon-sm" /></span>}
-                  {locked && !completed && !isMobile && <span style={{ color: 'var(--gray-400)', fontSize: '14px' }}><i className="icon-lock icon-sm" /></span>}
+                  {locked && !completed && !isMobile && <span className="lesson-locked-icon"><i className="icon-lock icon-sm" /></span>}
                   {isMobile && (
                     <>
                       <span className={`lesson-item-type-badge ${tipoBadgeClass}`}>
-                        {lesson.tipo === 'PDF' ? <i className="icon-file-text" style={{ fontSize: '10px' }} /> : lesson.videoUrl ? <i className="icon-play" style={{ fontSize: '10px' }} /> : <i className="icon-file" style={{ fontSize: '10px' }} />}
+                        {lesson.tipo === 'PDF' ? <i className="icon-file-text lesson-type-icon" /> : lesson.videoUrl ? <i className="icon-play lesson-type-icon" /> : <i className="icon-file lesson-type-icon" />}
                         {tipoLabel}
                       </span>
                       {completed && <span className="lesson-check"><i className="icon-check icon-sm" /></span>}
-                      {locked && !completed && <span style={{ color: 'var(--gray-400)', fontSize: '14px' }}><i className="icon-lock icon-sm" /></span>}
+                      {locked && !completed && <span className="lesson-locked-icon"><i className="icon-lock icon-sm" /></span>}
                       <i className={`icon-chevron-${isExpanded ? 'up' : 'down'} icon-sm lesson-item-chevron ${isExpanded ? 'expanded' : ''}`} />
                     </>
                   )}
@@ -614,9 +602,9 @@ export function ModulosPage() {
                     </div>
 
                     {lesson.quiz && (
-                      <div style={{ padding: '12px', background: '#FFF3E0', borderRadius: '8px', borderLeft: '4px solid #FF9800', marginBottom: '12px', fontSize: '13px' }}>
+                      <div className="lesson-quiz-alert">
                         <b>📝 Esta aula contém um quiz</b>
-                        <p style={{ fontSize: '12px', color: 'var(--gray-600)', margin: '4px 0 0' }}>
+                        <p className="lesson-quiz-alert-p">
                           Nota mínima: {lesson.quiz.notaMinima ?? 7}/10.
                         </p>
                       </div>
@@ -652,7 +640,7 @@ export function ModulosPage() {
                           Próxima Aula <i className="icon-chevron-right icon-sm" />
                         </button>
                       ) : allCompleted ? (
-                        <button className="lesson-next-btn-mobile" style={{ background: '#2E7D32' }} onClick={() => navigate('/modulos')}>
+                        <button className="lesson-next-btn-mobile completed-finalize-btn" onClick={() => navigate('/modulos')}>
                           <i className="icon-check-circle icon-sm" /> Finalizar Módulo
                         </button>
                       ) : null
@@ -664,11 +652,11 @@ export function ModulosPage() {
           })}
 
           {allCompleted && (
-            <div style={{ padding: '16px', textAlign: 'center', background: '#E8F5E9', borderRadius: '8px', marginTop: '12px' }}>
-              <i className="icon-check-circle icon-lg" style={{ color: '#2E7D32' }} />
-              <p style={{ color: '#2E7D32', fontWeight: 600, marginTop: '8px' }}>Módulo Concluído!</p>
+            <div className="completed-banner">
+              <i className="icon-check-circle icon-lg completed-banner-icon" />
+              <p className="completed-banner-text">Módulo Concluído!</p>
               {modulo.autoCertificado && (
-                <p style={{ color: '#1B5E20', fontSize: '12px', marginTop: '4px' }}>Certificado gerado automaticamente.</p>
+                <p className="completed-auto-cert">Certificado gerado automaticamente.</p>
               )}
             </div>
           )}
@@ -761,7 +749,7 @@ export function ModulosPage() {
                   <div className="lesson-video-placeholder">
                     <div className="play-btn"><i className="icon-file-text icon-xl" /></div>
                     <p>Conteúdo de Texto</p>
-                    <small style={{ opacity: .5 }}>{current?.titulo}</small>
+                    <small className="lesson-text-placeholder">{current?.titulo}</small>
                   </div>
                 </div>
               ) : (
@@ -769,7 +757,7 @@ export function ModulosPage() {
                   <div className="lesson-video-placeholder">
                     <div className="play-btn"><i className="icon-file-text icon-xl" /></div>
                     <p>Conteúdo da Aula</p>
-                    <small style={{ opacity: .5 }}>{current?.titulo || 'Material de leitura'}</small>
+                    <small className="lesson-text-placeholder">{current?.titulo || 'Material de leitura'}</small>
                   </div>
                 </div>
               )}
@@ -785,55 +773,55 @@ export function ModulosPage() {
                   {current?.videoInicio || current?.videoFim ? (
                     <span className="lesson-tag">⏱ {current.videoInicio || 0}s – {current.videoFim || 'fim'}s</span>
                   ) : null}
-                  {current?.concluido && <span className="lesson-tag" style={{ background: '#E8F5E9', color: '#2E7D32' }}>✓ Concluído</span>}
-                  {current?.obrigatorio && <span className="lesson-tag" style={{ background: '#FFF3E0', color: '#E65100' }}>Obrigatório</span>}
+                  {current?.concluido && <span className="lesson-tag lesson-tags-concluido">✓ Concluído</span>}
+                  {current?.obrigatorio && <span className="lesson-tag lesson-tags-obrigatorio">Obrigatório</span>}
                 </div>
                 <div className="lesson-text">
                   {current?.descricao || 'Conteúdo da aula.'}
                 </div>
                 {current?.licoes && current.licoes.length > 0 && (
-                  <div style={{ marginTop: '16px' }}>
-                    <h3 style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '8px' }}>
+                  <div className="lesson-cons-section">
+                    <h3 className="lesson-cons-title">
                       Lições ({current.licoes.length})
                     </h3>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    <div className="lesson-cons-list">
                       {[...current.licoes].sort((a: any, b: any) => a.ordem - b.ordem).map((licao: any) => {
                         const isExpanded = expandedLicao === licao.id
                         const tipoIcon = licao.tipo === 'VIDEO' ? 'icon-play' : licao.tipo === 'PDF' ? 'icon-file-text' : 'icon-file'
                         const tipoLabel = licao.tipo === 'VIDEO' ? 'Video' : licao.tipo === 'PDF' ? 'PDF' : 'Texto'
 
                         return (
-                          <div key={licao.id} style={{ border: '1px solid var(--gray-200)', borderRadius: '8px', overflow: 'hidden' }}>
+                          <div key={licao.id} className="lesson-cons-item">
                             <div
                               onClick={() => setExpandedLicao(isExpanded ? null : licao.id)}
-                              style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', cursor: 'pointer', background: isExpanded ? 'var(--gray-50)' : '#fff', transition: 'background 0.15s' }}
+                              className={`lesson-cons-header ${isExpanded ? 'expanded' : 'default'}`}
                             >
-                              <i className={`${tipoIcon} icon-sm`} style={{ color: 'var(--pg-red)' }} />
-                              <div style={{ flex: 1, minWidth: 0 }}>
-                                <div style={{ fontWeight: 500, fontSize: '13px' }}>{licao.titulo}</div>
-                                <div style={{ fontSize: '11px', color: 'var(--gray-500)' }}>
+                              <i className={`${tipoIcon} icon-sm lesson-cons-icon`} />
+                              <div className="lesson-cons-info">
+                                <div className="lesson-cons-name">{licao.titulo}</div>
+                                <div className="lesson-cons-meta">
                                   {tipoLabel}
                                   {licao.duracaoMin ? ` · ${licao.duracaoMin} min` : ''}
                                 </div>
                               </div>
-                              <i className={`icon-chevron-${isExpanded ? 'up' : 'down'} icon-sm`} style={{ color: 'var(--gray-400)' }} />
+                              <i className={`icon-chevron-${isExpanded ? 'up' : 'down'} icon-sm lesson-cons-chevron`} />
                             </div>
                             {isExpanded && (
-                              <div style={{ padding: '0 12px 12px', borderTop: '1px solid var(--gray-100)' }}>
+                              <div className="lesson-cons-body">
                                 {licao.tipo === 'VIDEO' && licao.conteudo ? (
-                                  <div style={{ marginTop: '8px', borderRadius: '6px', overflow: 'hidden' }}>
+                                  <div className="lesson-cons-video">
                                     <VideoPlayer key={licao.id} url={licao.conteudo} startAt={licao.inicioSeg || 0} endAt={licao.fimSeg || undefined} />
                                   </div>
                                 ) : licao.tipo === 'PDF' && licao.conteudo ? (
-                                  <div style={{ marginTop: '8px' }}>
+                                  <div className="lesson-cons-video">
                                     <PDFViewer url={licao.conteudo} />
                                   </div>
                                 ) : licao.tipo === 'TEXTO' && licao.conteudo ? (
-                                  <div style={{ marginTop: '8px', padding: '12px', background: '#f9f9f9', borderRadius: '6px', fontSize: '14px', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>
+                                  <div className="lesson-cons-text">
                                     {licao.conteudo}
                                   </div>
                                 ) : (
-                                  <div style={{ marginTop: '8px', padding: '12px', background: '#f9f9f9', borderRadius: '6px', color: 'var(--gray-500)', fontSize: '13px' }}>
+                                  <div className="lesson-cons-empty">
                                     Sem conteúdo disponível
                                   </div>
                                 )}
@@ -846,9 +834,9 @@ export function ModulosPage() {
                   </div>
                 )}
                 {current?.quiz && (
-                  <div style={{ padding: '12px 16px', background: '#FFF3E0', borderRadius: '8px', borderLeft: '4px solid #FF9800', marginBottom: '16px' }}>
+                  <div className="lesson-quiz-warning">
                     <b>📝 Esta aula contém um quiz</b>
-                    <p style={{ fontSize: '13px', color: 'var(--gray-600)', margin: '4px 0 0' }}>
+                    <p className="lesson-quiz-warning-p">
                       Ao concluir, você será direcionado para responder as perguntas. Nota mínima: {current.quiz.notaMinima ?? 7}/10.
                     </p>
                   </div>
@@ -858,17 +846,17 @@ export function ModulosPage() {
                     <>
                       {current?.quiz ? (
                         <>
-                          <button className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }} onClick={handleConcluir}>
+                          <button className="btn-primary lesson-action-btn" onClick={handleConcluir}>
                             Iniciar Quiz <i className="icon-chevron-right icon-sm" />
                           </button>
                           {!current?.obrigatorio && currentLesson < lessons.length - 1 && (
-                            <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }} onClick={handleAvanzar}>
+                            <button className="btn-secondary lesson-action-btn" onClick={handleAvanzar}>
                               Pular <i className="icon-chevron-right icon-sm" />
                             </button>
                           )}
                         </>
                       ) : (
-                        <button className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }} onClick={handleConcluir}>
+                        <button className="btn-primary lesson-action-btn" onClick={handleConcluir}>
                           Próximo <i className="icon-chevron-right icon-sm" />
                         </button>
                       )}
@@ -876,19 +864,19 @@ export function ModulosPage() {
                   ) : (
                     <>
                       {currentLesson < lessons.length - 1 && (
-                        <button className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px' }} onClick={handleAvanzar}>
+                        <button className="btn-primary lesson-action-btn" onClick={handleAvanzar}>
                           <span>Próxima Aula</span><i className="icon-chevron-right icon-sm" />
                         </button>
                       )}
                       {isLastLesson && allCompleted && (
-                        <button className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: '8px', background: '#2E7D32' }} onClick={() => navigate('/modulos')}>
+                        <button className="btn-primary lesson-action-btn lesson-action-btn-green" onClick={() => navigate('/modulos')}>
                           <i className="icon-check-circle icon-sm" /> Finalizar Módulo
                         </button>
                       )}
                     </>
                   )}
                   {currentLesson > 0 && (
-                    <button className="btn-secondary" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px' }} onClick={() => { setCurrentLesson(currentLesson - 1); resetLessonState() }}>
+                    <button className="btn-secondary lesson-anterior-btn" onClick={() => { setCurrentLesson(currentLesson - 1); resetLessonState() }}>
                       <i className="icon-arrow-left icon-sm" /> Anterior
                     </button>
                   )}
@@ -905,8 +893,8 @@ export function ModulosPage() {
                   <div className="quiz-result-header">
                     <span className="quiz-result-icon">{quizResult.passed ? '🎉' : '❌'}</span>
                     <div>
-                      <h3 style={{ margin: 0 }}>{quizResult.passed ? 'Aprovado!' : 'Reprovado'}</h3>
-                      <p style={{ margin: '4px 0 0', fontSize: '14px', opacity: 0.8 }}>
+                      <h3 className="quiz-result-h3">{quizResult.passed ? 'Aprovado!' : 'Reprovado'}</h3>
+                      <p className="quiz-result-sub">
                         Nota: {quizResult.nota}/10 ({quizResult.correct}/{quizResult.total} corretas)
                       </p>
                     </div>
@@ -955,7 +943,7 @@ export function ModulosPage() {
                 </div>
               )}
 
-              <div style={{ marginTop: '20px' }}>
+              <div className="quiz-questions-mt" style={{ marginTop: '20px' }}>
                 {current?.quiz?.perguntas?.map((pergunta: any, qIndex: number) => (
                   <div key={qIndex} style={{ marginBottom: '20px', padding: '16px', background: '#f9f9f9', borderRadius: '8px' }}>
                     <p style={{ fontWeight: '600', marginBottom: '12px' }}>{qIndex + 1}. {pergunta.pergunta}</p>

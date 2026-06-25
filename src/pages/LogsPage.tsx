@@ -105,30 +105,26 @@ export function LogsPage({ user: _user }: LogsPageProps) {
       </div>
 
       {stats && (
-        <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: '12px', marginBottom: '20px' }}>
+        <div className="cards-grid logs-stats-grid">
           <div className="stat-card">
-            <div className="stat-card-val" style={{ fontSize: '24px' }}>{stats.totalLogs || 0}</div>
+            <div className="stat-card-val logs-stat-val">{stats.totalLogs || 0}</div>
             <div className="stat-card-label">Total de Registros</div>
           </div>
           {stats.byAction?.slice(0, 3).map((a: any, i: number) => (
             <div className="stat-card" key={i}>
-              <div className="stat-card-val" style={{ fontSize: '20px' }}>{a.count}</div>
-              <div className="stat-card-label" style={{ fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{a.acao}</div>
+              <div className="stat-card-val logs-stat-val-sm">{a.count}</div>
+              <div className="stat-card-label logs-stat-label-trunc">{a.acao}</div>
             </div>
           ))}
         </div>
       )}
 
-      <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '20px', marginBottom: '16px' }}>
-        <div className="section-title" style={{ marginBottom: '14px' }}>Filtros</div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+      <div className="logs-filters">
+        <div className="section-title logs-filters-title">Filtros</div>
+        <div className="logs-filters-grid">
           <div className="form-field">
-            <label className="form-label" style={{ fontSize: '12px' }}>Usuário</label>
-            <select
-              className="form-input"
-              value={filters.userId}
-              onChange={(e) => handleFilterChange('userId', e.target.value)}
-            >
+            <label className="form-label logs-filters-label">Usuário</label>
+            <select className="form-input" value={filters.userId} onChange={(e) => handleFilterChange('userId', e.target.value)}>
               <option value="">Todos</option>
               {users.map((u: any) => (
                 <option key={u.id} value={u.id}>{u.nome} ({u.email})</option>
@@ -136,64 +132,38 @@ export function LogsPage({ user: _user }: LogsPageProps) {
             </select>
           </div>
           <div className="form-field">
-            <label className="form-label" style={{ fontSize: '12px' }}>Ação</label>
-            <input
-              className="form-input"
-              type="text"
-              placeholder="Ex: Login, Criar, Quiz..."
-              value={filters.acao}
-              onChange={(e) => handleFilterChange('acao', e.target.value)}
-            />
+            <label className="form-label logs-filters-label">Ação</label>
+            <input className="form-input" type="text" placeholder="Ex: Login, Criar, Quiz..." value={filters.acao} onChange={(e) => handleFilterChange('acao', e.target.value)} />
           </div>
           <div className="form-field">
-            <label className="form-label" style={{ fontSize: '12px' }}>Data Inicial</label>
-            <input
-              className="form-input"
-              type="date"
-              value={filters.startDate}
-              onChange={(e) => handleFilterChange('startDate', e.target.value)}
-            />
+            <label className="form-label logs-filters-label">Data Inicial</label>
+            <input className="form-input" type="date" value={filters.startDate} onChange={(e) => handleFilterChange('startDate', e.target.value)} />
           </div>
           <div className="form-field">
-            <label className="form-label" style={{ fontSize: '12px' }}>Data Final</label>
-            <input
-              className="form-input"
-              type="date"
-              value={filters.endDate}
-              onChange={(e) => handleFilterChange('endDate', e.target.value)}
-            />
+            <label className="form-label logs-filters-label">Data Final</label>
+            <input className="form-input" type="date" value={filters.endDate} onChange={(e) => handleFilterChange('endDate', e.target.value)} />
           </div>
         </div>
-        <div style={{ display: 'flex', gap: '8px', marginTop: '12px' }}>
+        <div className="logs-filters-actions">
           <button className="btn-secondary" onClick={() => { loadLogs(); loadStats() }}>
             Aplicar Filtros
           </button>
-          <button className="btn-secondary" style={{ background: 'var(--gray-100)' }} onClick={clearFilters}>
+          <button className="btn-secondary logs-clear-btn" onClick={clearFilters}>
             Limpar
           </button>
         </div>
       </div>
 
-      <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', overflow: 'hidden' }}>
-        <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--gray-200)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <b style={{ fontSize: '14px' }}>Registros ({total})</b>
+      <div className="logs-table-wrap">
+        <div className="logs-table-header">
+          <b className="logs-table-title">Registros ({total})</b>
           {totalPages > 1 && (
-            <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-              <button
-                className="btn-secondary"
-                style={{ padding: '4px 12px', fontSize: '12px' }}
-                disabled={page <= 1}
-                onClick={() => setPage(p => p - 1)}
-              >
+            <div className="logs-table-page">
+              <button className="btn-secondary logs-page-btn" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>
                 Anterior
               </button>
-              <span style={{ fontSize: '12px', color: 'var(--gray-500)' }}>{page} / {totalPages}</span>
-              <button
-                className="btn-secondary"
-                style={{ padding: '4px 12px', fontSize: '12px' }}
-                disabled={page >= totalPages}
-                onClick={() => setPage(p => p + 1)}
-              >
+              <span className="logs-page-info">{page} / {totalPages}</span>
+              <button className="btn-secondary logs-page-btn" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}>
                 Próximo
               </button>
             </div>
@@ -201,47 +171,40 @@ export function LogsPage({ user: _user }: LogsPageProps) {
         </div>
 
         {loading ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-400)' }}>Carregando...</div>
+          <div className="logs-loading">Carregando...</div>
         ) : logs.length === 0 ? (
-          <div style={{ padding: '40px', textAlign: 'center', color: 'var(--gray-400)' }}>Nenhum registro encontrado</div>
+          <div className="logs-empty">Nenhum registro encontrado</div>
         ) : (
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
+          <div className="logs-table-scroll">
+            <table className="logs-table">
               <thead>
-                <tr style={{ background: 'var(--gray-50)', borderBottom: '1px solid var(--gray-200)' }}>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--gray-600)' }}>Data e Hora</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--gray-600)' }}>Usuário</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--gray-600)' }}>Role</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--gray-600)' }}>Ação</th>
-                  <th style={{ padding: '10px 16px', textAlign: 'left', fontWeight: 600, color: 'var(--gray-600)' }}>Detalhes</th>
+                <tr>
+                  <th>Data e Hora</th>
+                  <th>Usuário</th>
+                  <th>Role</th>
+                  <th>Ação</th>
+                  <th>Detalhes</th>
                 </tr>
               </thead>
               <tbody>
                 {logs.map((log) => (
-                  <tr key={log.id} style={{ borderBottom: '1px solid var(--gray-100)' }}>
-                    <td style={{ padding: '10px 16px', color: 'var(--gray-600)', whiteSpace: 'nowrap' }}>
+                  <tr key={log.id}>
+                    <td className="logs-td-date">
                       {formatDate(log.createdAt)}
                     </td>
-                    <td style={{ padding: '10px 16px' }}>
-                      <b style={{ color: 'var(--gray-900)' }}>{log.user?.nome || '—'}</b>
-                      <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>{log.user?.email}</div>
+                    <td>
+                      <b className="logs-td-user-name">{log.user?.nome || '—'}</b>
+                      <div className="logs-td-user-email">{log.user?.email}</div>
                     </td>
-                    <td style={{ padding: '10px 16px' }}>
-                      <span style={{
-                        fontSize: '10px',
-                        fontWeight: 600,
-                        padding: '2px 8px',
-                        borderRadius: '4px',
-                        background: roleColor(log.user?.role || ''),
-                        color: '#fff',
-                      }}>
+                    <td>
+                      <span className="logs-role-badge" style={{ background: roleColor(log.user?.role || '') }}>
                         {log.user?.role}
                       </span>
                     </td>
-                    <td style={{ padding: '10px 16px', color: 'var(--gray-700)', fontWeight: 500 }}>
+                    <td className="logs-td-acao">
                       {log.acao}
                     </td>
-                    <td style={{ padding: '10px 16px', color: 'var(--gray-500)', fontSize: '12px' }}>
+                    <td className="logs-td-detalhes">
                       {log.detalhes || '—'}
                     </td>
                   </tr>
@@ -253,27 +216,20 @@ export function LogsPage({ user: _user }: LogsPageProps) {
       </div>
 
       {stats?.byUser && stats.byUser.length > 0 && (
-        <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '20px', marginTop: '16px' }}>
-          <div className="section-title" style={{ marginBottom: '14px' }}>Usuários Mais Ativos</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+        <div className="logs-most-active">
+          <div className="section-title logs-most-active-title">Usuários Mais Ativos</div>
+          <div className="logs-most-active-list">
             {stats.byUser.map((u: any, i: number) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '8px 12px', borderRadius: '8px', background: '#f8fafc' }}>
-                <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--gray-400)', width: '24px' }}>#{i + 1}</span>
-                <div style={{ flex: 1 }}>
-                  <b style={{ fontSize: '13px', color: 'var(--gray-900)' }}>{u.nome}</b>
-                  <span style={{ fontSize: '11px', color: 'var(--gray-400)', marginLeft: '8px' }}>{u.email}</span>
+              <div key={i} className="logs-most-active-item">
+                <span className="logs-most-active-rank">#{i + 1}</span>
+                <div className="logs-most-active-info">
+                  <b className="logs-most-active-name">{u.nome}</b>
+                  <span className="logs-most-active-email">{u.email}</span>
                 </div>
-                <span style={{
-                  fontSize: '10px',
-                  fontWeight: 600,
-                  padding: '2px 8px',
-                  borderRadius: '4px',
-                  background: roleColor(u.role || ''),
-                  color: '#fff',
-                }}>
+                <span className="logs-role-badge" style={{ background: roleColor(u.role || '') }}>
                   {u.role}
                 </span>
-                <span style={{ fontSize: '14px', fontWeight: 700, color: 'var(--pg-orange)' }}>{u.count}</span>
+                <span className="logs-most-active-count">{u.count}</span>
               </div>
             ))}
           </div>

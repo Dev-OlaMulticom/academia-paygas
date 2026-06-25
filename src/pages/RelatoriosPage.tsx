@@ -1,30 +1,9 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-
 
 interface RelatoriosPageProps {
   user: User
-}
-
-function StatInfo({ val, label, icon, bg, tip }: { val: number; label: string; icon: string; bg: string; tip: string }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="stat-info">
-      <div className="stat-info-top">
-        <div className="stat-card-icon" style={{ background: bg }}><i className={`${icon} icon-lg`} /></div>
-        <div className="stat-card-val">{val}</div>
-        <Tooltip open={open} onOpenChange={setOpen}>
-          <TooltipTrigger asChild>
-            <button className="stat-info-trigger" onClick={() => setOpen(true)} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>i</button>
-          </TooltipTrigger>
-          <TooltipContent side="top" onPointerDownOutside={() => setOpen(false)}>{tip}</TooltipContent>
-        </Tooltip>
-      </div>
-      <div className="stat-card-label">{label}</div>
-    </div>
-  )
 }
 
 const ACTION_LABELS: Record<string, string> = {
@@ -61,13 +40,11 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
         api.getDashboard(),
         api.getDashboardLeaderboard(),
       ])
-
       setStats(dashboardData)
       setLeaderboard(leaderData.users || [])
 
       const modulos = await api.getCmsModulos()
       const progress = await api.getProgresso()
-
       const modStats = modulos.map((m: any) => {
         const modProgress = progress.filter((p: any) => p.moduloId === m.id)
         const completed = modProgress.filter((p: any) => p.concluido).length
@@ -78,10 +55,8 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
           emAndamento: modProgress.length - completed,
           total,
           taxaConclusao: total > 0 ? Math.round((completed / total) * 100) : 0,
-          notaMedia: '-',
         }
       })
-
       setModuleStats(modStats)
     } catch {
       setStats({ aulasConcluidas: 0, totalQuizzes: 0, totalCertificados: 0, xp: 0 })
@@ -92,9 +67,7 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
     }
   }
 
-  useEffect(() => {
-    loadRelatorios()
-  }, [])
+  useEffect(() => { loadRelatorios() }, [])
 
   if (loading) {
     return (
@@ -106,54 +79,56 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
     )
   }
 
+  const rankBg = (rank: number) => {
+    if (rank === 1) return '#FFD700'
+    if (rank === 2) return '#C0C0C0'
+    if (rank === 3) return '#CD7F32'
+    return 'var(--gray-100)'
+  }
+
   return (
     <div className="page active">
       <div className="page-header">
         <div className="page-title">Relatorios</div>
       </div>
 
-      {/* Gamification Stats */}
       <div className="section-title">Gamificacao</div>
-      <div className="cards-grid" style={{ marginBottom: '24px' }}>
-        <StatInfo val={stats?.xp || 0} label="XP Total" icon="icon-zap" bg="#FEF0E6" tip="Pontos de experiencia acumulados por completar atividades" />
-        <StatInfo val={stats?.aulasConcluidas || 0} label="Aulas Concluidas" icon="icon-bar-chart-3" bg="#E6EEF9" tip="Numero de aulas finalizadas com sucesso" />
-        <StatInfo val={stats?.totalQuizzes || 0} label="Quizzes Aprovados" icon="icon-check-circle" bg="#DCFCE7" tip="Quizzes em que a nota minima foi atingida" />
-        <StatInfo val={stats?.totalCertificados || 0} label="Certificados" icon="icon-award" bg="#FEF3C7" tip="Certificados obtidos ao completar modulos" />
+      <div className="cards-grid section-mb-xl">
+        {[
+          { val: stats?.xp || 0, label: 'XP Total', icon: 'icon-zap', bg: '#FEF0E6' },
+          { val: stats?.aulasConcluidas || 0, label: 'Aulas Concluidas', icon: 'icon-bar-chart-3', bg: '#E6EEF9' },
+          { val: stats?.totalQuizzes || 0, label: 'Quizzes Aprovados', icon: 'icon-check-circle', bg: '#DCFCE7' },
+          { val: stats?.totalCertificados || 0, label: 'Certificados', icon: 'icon-award', bg: '#FEF3C7' },
+        ].map((item, i) => (
+          <div key={i} className="stat-info">
+            <div className="stat-info-top">
+              <div className="stat-card-icon" style={{ background: item.bg }}><i className={`${item.icon} icon-lg`} /></div>
+              <div className="stat-card-val">{item.val}</div>
+            </div>
+            <div className="stat-card-label">{item.label}</div>
+          </div>
+        ))}
       </div>
 
-      {/* Points Breakdown */}
       {stats?.pointsByAction && stats.pointsByAction.length > 0 && (
         <>
           <div className="section-title">Pontos por Acao</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '12px', marginBottom: '24px' }}>
+          <div className="rel-action-grid">
             {stats.pointsByAction.map((item: any) => (
-              <div key={item.action} style={{
-                padding: '16px',
-                background: 'white',
-                borderRadius: '12px',
-                border: '1px solid var(--gray-200)',
-                borderLeft: `4px solid ${ACTION_COLORS[item.action] || '#666'}`,
-              }}>
-                <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginBottom: '4px' }}>
-                  {ACTION_LABELS[item.action] || item.action}
-                </div>
-                <div style={{ fontSize: '24px', fontWeight: 'bold', color: ACTION_COLORS[item.action] || '#666' }}>
-                  {item.totalPoints} XP
-                </div>
-                <div style={{ fontSize: '11px', color: 'var(--gray-400)' }}>
-                  {item.count}x realizado
-                </div>
+              <div key={item.action} className="rel-action-card" style={{ borderLeftColor: ACTION_COLORS[item.action] || '#666' }}>
+                <div className="rel-action-label">{ACTION_LABELS[item.action] || item.action}</div>
+                <div className="rel-action-val" style={{ color: ACTION_COLORS[item.action] || '#666' }}>{item.totalPoints} XP</div>
+                <div className="rel-action-count">{item.count}x realizado</div>
               </div>
             ))}
           </div>
         </>
       )}
 
-      {/* Leaderboard */}
       {(isAdmin || isGestor) && leaderboard.length > 0 && (
         <>
           <div className="section-title">Leaderboard - Ranking de XP</div>
-          <div className="table-wrap" style={{ marginBottom: '24px' }}>
+          <div className="table-wrap rel-table-wrap">
             <table>
               <thead>
                 <tr>
@@ -168,39 +143,14 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
                 {leaderboard.map((u: any) => (
                   <tr key={u.id} style={{ background: u.id === user?.id ? '#f0f9ff' : undefined }}>
                     <td>
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        width: '28px',
-                        height: '28px',
-                        borderRadius: '50%',
-                        background: u.rank <= 3 ? ['#FFD700', '#C0C0C0', '#CD7F32'][u.rank - 1] : 'var(--gray-100)',
-                        fontWeight: 'bold',
-                        fontSize: '12px',
-                        color: u.rank <= 3 ? 'white' : 'var(--gray-600)',
-                      }}>
+                      <span className={`rel-rank-badge ${u.rank <= 3 ? 'top3' : 'normal'}`} style={{ background: u.rank <= 3 ? rankBg(u.rank) : undefined }}>
                         {u.rank}
                       </span>
                     </td>
                     <td><b>{u.nome}</b></td>
                     <td style={{ color: 'var(--gray-500)' }}>{u.role}</td>
-                    <td>
-                      <span style={{
-                        display: 'inline-flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '2px 8px',
-                        borderRadius: '12px',
-                        background: '#E6EEF9',
-                        color: '#0A2E6E',
-                        fontSize: '12px',
-                        fontWeight: 'bold',
-                      }}>
-                        Lv. {u.level}
-                      </span>
-                    </td>
-                    <td><b style={{ color: 'var(--pg-orange)' }}>{u.xp} XP</b></td>
+                    <td><span className="rel-level-badge">Lv. {u.level}</span></td>
+                    <td><b className="rel-xp-val">{u.xp} XP</b></td>
                   </tr>
                 ))}
               </tbody>
@@ -209,9 +159,8 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
         </>
       )}
 
-      {/* Module Performance */}
       <div className="section-title">Desempenho por Modulo</div>
-      <div className="table-wrap" style={{ marginBottom: '24px' }}>
+      <div className="table-wrap rel-table-wrap">
         <table>
           <thead>
             <tr>
@@ -229,21 +178,17 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
                   <td>{mod.concluidos}</td>
                   <td>{mod.emAndamento}</td>
                   <td>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <div style={{ width: '60px', height: '6px', background: 'var(--gray-200)', borderRadius: '3px', overflow: 'hidden' }}>
-                        <div style={{ width: `${mod.taxaConclusao}%`, height: '100%', background: mod.taxaConclusao === 100 ? '#22c55e' : '#6366f1', borderRadius: '3px' }} />
+                    <div className="rel-progress-wrap">
+                      <div className="rel-progress-bar">
+                        <div className={`rel-progress-fill ${mod.taxaConclusao === 100 ? 'done' : 'partial'}`} style={{ width: `${mod.taxaConclusao}%` }} />
                       </div>
-                      <span style={{ fontSize: '12px', color: 'var(--gray-500)' }}>{mod.taxaConclusao}%</span>
+                      <span className="rel-progress-label">{mod.taxaConclusao}%</span>
                     </div>
                   </td>
                 </tr>
               ))
             ) : (
-              <tr>
-                <td colSpan={4} style={{ textAlign: 'center', color: 'var(--gray-400)', padding: '20px' }}>
-                  Nenhum dado de desempenho disponivel
-                </td>
-              </tr>
+              <tr><td colSpan={4} className="rel-empty">Nenhum dado de desempenho disponivel</td></tr>
             )}
           </tbody>
         </table>

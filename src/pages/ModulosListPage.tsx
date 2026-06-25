@@ -77,8 +77,8 @@ export function ModulosListPage() {
         </div>
         <div className="empty-state">
           <div className="empty-icon">🔒</div>
-          <p style={{ fontWeight: 600, marginBottom: '8px' }}>Acesso restrito</p>
-          <p style={{ color: 'var(--gray-500)', fontSize: '14px', maxWidth: '400px' }}>
+          <p className="modlist-empty-msg">Acesso restrito</p>
+          <p className="modlist-empty-desc">
             Você precisa ser associado a um Gestor de Posto para acessar os cursos.
             Aguarde a aprovação do seu gestor ou entre em contato com o administrador.
           </p>
@@ -125,15 +125,15 @@ export function ModulosListPage() {
                     <p>{mod.descricao || 'Curso de aprendizado'}</p>
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
+                <div className="modlist-badges">
                   {mod.obrigatorio && (
                     <span className="track-badge badge-required">Obrigatório</span>
                   )}
                   {mod.autoCertificado && (
-                    <span className="track-badge badge-new" style={{ background: '#E8F5E9', color: '#2E7D32' }}>Cert. Automático</span>
+                    <span className="track-badge badge-new modlist-cert-badge">Cert. Automático</span>
                   )}
                   {hasCert && (
-                    <span className="track-badge badge-new" style={{ background: '#E8F5E9', color: '#2E7D32' }}>✓ Certificado</span>
+                    <span className="track-badge badge-new modlist-cert-badge">✓ Certificado</span>
                   )}
                   <span className="track-badge badge-new">{aulasCount} {pluralize(aulasCount, 'aula')}</span>
                 </div>

@@ -62,9 +62,9 @@ export function ForumPage() {
         <button className="btn-primary">+ Nova Publicação</button>
       </div>
 
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '20px' }}>
+      <div className="forum-filters">
         {['Todos', 'Dúvidas', 'Dicas', 'Cases de Sucesso', 'Técnico'].map((f, i) => (
-          <button key={i} className={`track-badge ${i === 0 ? 'badge-progress' : 'badge-new'}`} style={{ cursor: 'pointer', padding: '6px 14px', fontSize: '12px' }}>
+          <button key={i} className={`track-badge ${i === 0 ? 'badge-progress' : 'badge-new'} forum-filter-btn`}>
             {f}
           </button>
         ))}
@@ -73,7 +73,7 @@ export function ForumPage() {
       {posts.map((p) => (
         <div key={p.id} className="forum-post" onClick={() => setSelectedPost(posts.indexOf(p))}>
           <div className="forum-author">
-            <div className="forum-avatar" style={{ background: 'var(--pg-orange)' }}>{p.autor?.nome?.charAt(0) || '?'}</div>
+            <div className="forum-avatar forum-avatar-orange">{p.autor?.nome?.charAt(0) || '?'}</div>
             <div className="forum-meta">
               <b>{p.autor?.nome || 'Anônimo'}</b>
               <span>{p.autor?.role || ''} · {new Date(p.createdAt).toLocaleDateString('pt-BR')}</span>
@@ -84,7 +84,7 @@ export function ForumPage() {
           <div className="forum-footer">
             <span onClick={(e) => handleLike(p.id, e)}>❤️ {p.likes} curtidas</span>
             <span>💬 {p.replies} respostas</span>
-            <span style={{ marginLeft: 'auto', color: 'var(--pg-orange)', fontWeight: 600 }}>Ler mais →</span>
+            <span className="forum-ler-mais">Ler mais →</span>
           </div>
         </div>
       ))}
@@ -97,24 +97,24 @@ export function ForumPage() {
               <button className="modal-close" onClick={() => setSelectedPost(null)}>✕</button>
             </div>
             <div className="modal-body">
-              <div style={{ marginBottom: '12px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'var(--pg-orange)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: '#fff' }}>
+              <div className="forum-modal-author">
+                <div className="forum-modal-avatar">
                   {posts[selectedPost].autor?.nome?.charAt(0) || '?'}
                 </div>
                 <div>
                   <b>{posts[selectedPost].autor?.nome || 'Anônimo'}</b>
                   <br />
-                  <span style={{ fontSize: '12px', color: 'var(--gray-400)' }}>{posts[selectedPost].autor?.role || ''} · {new Date(posts[selectedPost].createdAt).toLocaleDateString('pt-BR')}</span>
+                  <span className="forum-modal-date">{posts[selectedPost].autor?.role || ''} · {new Date(posts[selectedPost].createdAt).toLocaleDateString('pt-BR')}</span>
                 </div>
               </div>
-              <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--gray-900)', marginBottom: '12px' }}>
+              <div className="forum-modal-title">
                 {posts[selectedPost].titulo}
               </div>
-              <div style={{ fontSize: '13px', color: 'var(--gray-700)', lineHeight: 1.7, marginBottom: '16px' }}>
+              <div className="forum-modal-body">
                 {posts[selectedPost].conteudo}
               </div>
-              <div style={{ background: 'var(--gray-50)', borderRadius: 'var(--radius)', padding: '14px' }}>
-                <div style={{ fontSize: '12px', fontWeight: 600, color: 'var(--gray-700)', marginBottom: '8px' }}>Adicionar resposta</div>
+              <div className="forum-reply-box">
+                <div className="forum-reply-label">Adicionar resposta</div>
                 <textarea className="form-input" rows={3} placeholder="Compartilhe sua experiência..."></textarea>
               </div>
             </div>

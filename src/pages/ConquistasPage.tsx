@@ -2,29 +2,9 @@ import { useState, useEffect } from 'react'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
 import { useToast, useConfirm } from '../components/Toast'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 
 const ICONES = ['🏆', '🎯', '🚀', '⭐', '👑', '🔥', '📊', '🤝', '💎', '🎖️', '🏅', '⚡', '🌟', '🎓', '💪']
 const CORES = ['#F47C20', '#16A34A', '#0A2E6E', '#DC2626', '#8B5CF6', '#06B6D4', '#EC4899', '#D97706', '#14B8A6', '#3B82F6']
-
-function StatInfo({ val, label, icon, bg, tip }: { val: number; label: string; icon: string; bg: string; tip: string }) {
-  const [open, setOpen] = useState(false)
-  return (
-    <div className="stat-info">
-      <div className="stat-info-top">
-        <div className="stat-card-icon" style={{ background: bg }}><i className={`${icon} icon-lg`} /></div>
-        <div className="stat-card-val">{val}</div>
-        <Tooltip open={open} onOpenChange={setOpen}>
-          <TooltipTrigger asChild>
-            <button className="stat-info-trigger" onClick={() => setOpen(true)} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>i</button>
-          </TooltipTrigger>
-          <TooltipContent side="top" onPointerDownOutside={() => setOpen(false)}>{tip}</TooltipContent>
-        </Tooltip>
-      </div>
-      <div className="stat-card-label">{label}</div>
-    </div>
-  )
-}
 
 interface ConquistaData {
   id: string
@@ -168,11 +148,19 @@ export function ConquistasPage({ user }: ConquistasPageProps) {
       </div>
 
       <div className="cards-grid">
-        <StatInfo val={conquistas.length} label="Total de Conquistas" icon="icon-trophy" bg="#FEF3C7" tip="Quantidade total de conquistas disponiveis no sistema" />
-        <StatInfo val={totalAtivas} label="Ativas" icon="icon-check" bg="#DCFCE7" tip="Conquistas ativas que podem ser desbloqueadas" />
-        {!canManage && (
-          <StatInfo val={totalConquistadas} label="Conquistadas" icon="icon-star" bg="#E6EEF9" tip="Conquistas que voce ja desbloqueou" />
-        )}
+        {[
+          { val: conquistas.length, label: 'Total de Conquistas', icon: 'icon-trophy', bg: '#FEF3C7' },
+          { val: totalAtivas, label: 'Ativas', icon: 'icon-check', bg: '#DCFCE7' },
+          ...(!canManage ? [{ val: totalConquistadas, label: 'Conquistadas', icon: 'icon-star', bg: '#E6EEF9' }] : []),
+        ].map((item, i) => (
+          <div key={i} className="stat-info">
+            <div className="stat-info-top">
+              <div className="stat-card-icon" style={{ background: item.bg }}><i className={`${item.icon} icon-lg`} /></div>
+              <div className="stat-card-val">{item.val}</div>
+            </div>
+            <div className="stat-card-label">{item.label}</div>
+          </div>
+        ))}
       </div>
 
       <div className="trophy-grid">
@@ -188,67 +176,46 @@ export function ConquistasPage({ user }: ConquistasPageProps) {
               className={`trophy-card ${c.earned ? 'earned' : 'locked'}`}
               style={{ borderColor: c.earned ? c.cor : undefined, opacity: !canManage && !c.ativo ? 0.5 : 1 }}
             >
-              <div className="trophy-icon" style={{ fontSize: '32px' }}>{c.icone}</div>
+              <div className="trophy-icon conq-trophy-icon">{c.icone}</div>
               <div className="trophy-name">{c.titulo}</div>
               <div className="trophy-desc">{c.descricao}</div>
 
-              <div style={{ marginTop: '6px', fontSize: '11px', color: 'var(--gray-400)', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                  <span style={{ color: 'var(--pg-orange)' }}>{c.pontosMinimos}</span> pts
-                </span>
-                <span style={{ display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
-                  <span style={{ color: 'var(--pg-green)' }}>+{c.xpRecompensa}</span> XP
-                </span>
+              <div className="conq-meta">
+                <span className="conq-meta-item"><span className="conq-meta-orange">{c.pontosMinimos}</span> pts</span>
+                <span className="conq-meta-item"><span className="conq-meta-green">+{c.xpRecompensa}</span> XP</span>
               </div>
 
               {c.earned && (
-                <div style={{ marginTop: '6px', fontSize: '11px', color: c.cor, fontWeight: 700, display: 'flex', alignItems: 'center', gap: '4px' }}>
+                <div className="conq-earned-badge" style={{ color: c.cor }}>
                   <i className="icon-check-circle icon-xs" /> Conquistado
                   {c.dataConquista && (
-                    <span style={{ fontWeight: 400, color: 'var(--gray-400)' }}>
-                      · {new Date(c.dataConquista).toLocaleDateString('pt-BR')}
-                    </span>
+                    <span className="conq-earned-date">· {new Date(c.dataConquista).toLocaleDateString('pt-BR')}</span>
                   )}
                 </div>
               )}
 
               {!c.earned && !canManage && (
-                <div style={{ marginTop: '6px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '10px', color: 'var(--gray-400)', marginBottom: '3px' }}>
+                <div className="conq-progress">
+                  <div className="conq-progress-header">
                     <span>{c.progresso || 0}% concluido</span>
                     <span>{c.pontosMinimos} pts</span>
                   </div>
-                  <div style={{ width: '100%', height: '4px', background: 'var(--gray-200)', borderRadius: '2px' }}>
-                    <div style={{ width: `${Math.min(c.progresso || 0, 100)}%`, height: '100%', background: c.cor, borderRadius: '2px', transition: 'width .3s' }} />
+                  <div className="conq-progress-bar">
+                    <div className="conq-progress-fill" style={{ width: `${Math.min(c.progresso || 0, 100)}%`, background: c.cor }} />
                   </div>
                 </div>
               )}
 
               {canManage && (
-                <div style={{ marginTop: '8px', display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
-                  <button
-                    className="btn-secondary"
-                    style={{ padding: '4px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                    onClick={() => openEdit(c)}
-                  >
+                <div className="conq-card-actions">
+                  <button className="btn-secondary conq-btn-sm" onClick={() => openEdit(c)}>
                     <i className="icon-pencil icon-xs" /> Editar
                   </button>
-                  <button
-                    className="btn-secondary"
-                    style={{
-                      padding: '4px 8px', fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '3px',
-                      color: c.ativo ? '#D97706' : '#16A34A', borderColor: c.ativo ? '#D97706' : '#16A34A',
-                    }}
-                    onClick={() => toggleAtivo(c)}
-                  >
+                  <button className={`btn-secondary conq-btn-toggle ${c.ativo ? 'inactive' : 'active'}`} onClick={() => toggleAtivo(c)}>
                     {c.ativo ? <><i className="icon-pause icon-xs" /> Desativar</> : <><i className="icon-play icon-xs" /> Ativar</>}
                   </button>
                   {isAdmin && (
-                    <button
-                      className="btn-secondary"
-                      style={{ padding: '4px 8px', fontSize: '11px', color: 'var(--pg-red)', borderColor: 'var(--pg-red)', display: 'inline-flex', alignItems: 'center', gap: '3px' }}
-                      onClick={() => handleDelete(c)}
-                    >
+                    <button className="btn-secondary conq-btn-delete" onClick={() => handleDelete(c)}>
                       <i className="icon-trash-2 icon-xs" />
                     </button>
                   )}
@@ -260,9 +227,9 @@ export function ConquistasPage({ user }: ConquistasPageProps) {
       </div>
 
       {showModal && (
-        <div className="modal-overlay" style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
-          <div style={{ background: '#fff', borderRadius: 'var(--radius)', padding: '24px', width: '480px', maxWidth: '90%', maxHeight: '85vh', overflowY: 'auto' }}>
-            <h3 style={{ marginBottom: '16px' }}>{editing ? 'Editar Conquista' : 'Nova Conquista'}</h3>
+        <div className="modal-overlay">
+          <div className="modal-card">
+            <h3>{editing ? 'Editar Conquista' : 'Nova Conquista'}</h3>
 
             <div className="form-field">
               <label className="form-label">Titulo *</label>
@@ -276,17 +243,9 @@ export function ConquistasPage({ user }: ConquistasPageProps) {
 
             <div className="form-field">
               <label className="form-label">Icone</label>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <div className="conq-icon-grid">
                 {ICONES.map(icon => (
-                  <button
-                    key={icon}
-                    onClick={() => setForm({ ...form, icone: icon })}
-                    style={{
-                      width: '36px', height: '36px', fontSize: '18px', border: `2px solid ${form.icone === icon ? 'var(--pg-orange)' : 'var(--gray-200)'}`,
-                      borderRadius: '8px', background: form.icone === icon ? 'var(--pg-orange-lt)' : '#fff', cursor: 'pointer',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    }}
-                  >
+                  <button key={icon} className={`conq-icon-btn ${form.icone === icon ? 'selected' : ''}`} onClick={() => setForm({ ...form, icone: icon })}>
                     {icon}
                   </button>
                 ))}
@@ -295,22 +254,14 @@ export function ConquistasPage({ user }: ConquistasPageProps) {
 
             <div className="form-field">
               <label className="form-label">Cor</label>
-              <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+              <div className="conq-color-grid">
                 {CORES.map(color => (
-                  <button
-                    key={color}
-                    onClick={() => setForm({ ...form, cor: color })}
-                    style={{
-                      width: '32px', height: '32px', borderRadius: '50%', background: color, cursor: 'pointer',
-                      border: `3px solid ${form.cor === color ? 'var(--gray-800)' : 'transparent'}`,
-                      boxShadow: form.cor === color ? '0 0 0 2px #fff, 0 0 0 4px var(--gray-400)' : 'none',
-                    }}
-                  />
+                  <button key={color} className={`conq-color-btn ${form.cor === color ? 'selected' : ''}`} style={{ background: color }} onClick={() => setForm({ ...form, cor: color })} />
                 ))}
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="form-grid-2">
               <div className="form-field">
                 <label className="form-label">Pontos Minimos</label>
                 <input className="form-input" type="number" min="0" value={form.pontosMinimos} onChange={e => setForm({ ...form, pontosMinimos: parseInt(e.target.value) || 0 })} />
@@ -321,7 +272,7 @@ export function ConquistasPage({ user }: ConquistasPageProps) {
               </div>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="form-grid-2">
               <div className="form-field">
                 <label className="form-label">Ordem</label>
                 <input className="form-input" type="number" min="0" value={form.ordem} onChange={e => setForm({ ...form, ordem: parseInt(e.target.value) || 0 })} />
@@ -335,7 +286,7 @@ export function ConquistasPage({ user }: ConquistasPageProps) {
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+            <div className="modal-footer">
               <button className="btn-primary" onClick={handleSave}>{editing ? 'Salvar' : 'Criar'}</button>
               <button className="btn-secondary" onClick={() => setShowModal(false)}>Cancelar</button>
             </div>

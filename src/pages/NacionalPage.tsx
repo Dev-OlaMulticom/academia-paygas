@@ -46,7 +46,7 @@ export function NacionalPage() {
         </div>
       </div>
 
-      <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
+      <div className="cards-grid nat-grid">
         {[
           { icon: '👥', val: totalUsers.toLocaleString('pt-BR'), label: 'Usuários Ativos', color: '#FEF3C7', trend: `↑ +${overview?.usersThisMonth || 0} este mês` },
           { icon: '🏆', val: overview?.totalCertificates?.toLocaleString('pt-BR') || '0', label: 'Certificados Emitidos', color: '#DCFCE7', trend: `↑ +${overview?.progressThisMonth || 0} ações` },
@@ -62,14 +62,14 @@ export function NacionalPage() {
         ))}
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px', marginBottom: '24px' }}>
-        <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '20px' }}>
-          <div className="section-title" style={{ marginBottom: '14px' }}>Distribuição Regional</div>
+      <div className="nat-two-col">
+        <div className="nat-section">
+          <div className="section-title nat-section-title">Distribuição Regional</div>
           {regions.map((r, i) => (
-            <div key={i} style={{ marginBottom: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+            <div key={i} className="nat-region-row">
+              <div className="nat-region-header">
                 <span>{r.icon} <b>{r.name}</b></span>
-                <span style={{ color: 'var(--gray-500)' }}>{r.users.toLocaleString('pt-BR')} · <b style={{ color: 'var(--pg-green)' }}>{r.growth}</b></span>
+                <span className="nat-region-stats">{r.users.toLocaleString('pt-BR')} · <b className="nat-region-growth">{r.growth}</b></span>
               </div>
               <div className="nat-bar">
                 <div className="nat-bar-fill" style={{ width: `${r.pct}%`, background: BAR_COLORS[i] }}>{r.pct}%</div>
@@ -78,15 +78,15 @@ export function NacionalPage() {
           ))}
         </div>
 
-        <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '20px' }}>
-          <div className="section-title" style={{ marginBottom: '14px' }}>Módulos Mais Populares</div>
+        <div className="nat-section">
+          <div className="section-title nat-section-title">Módulos Mais Populares</div>
           {modules.length === 0 ? (
-            <p style={{ color: 'var(--gray-400)', fontSize: '13px', textAlign: 'center' }}>Nenhum módulo disponível</p>
+            <p className="nat-empty">Nenhum módulo disponível</p>
           ) : modules.slice(0, 5).map((m, i) => (
-            <div key={i} style={{ marginBottom: '10px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', marginBottom: '4px' }}>
+            <div key={i} className="nat-region-row">
+              <div className="nat-region-header">
                 <span>{m.titulo}</span>
-                <span style={{ color: 'var(--gray-500)' }}>{m.conclusao}%</span>
+                <span className="nat-region-stats">{m.conclusao}%</span>
               </div>
               <div className="nat-bar">
                 <div className="nat-bar-fill" style={{ width: `${m.conclusao}%`, background: 'var(--pg-blue)' }}>{m.conclusao}%</div>
@@ -96,8 +96,8 @@ export function NacionalPage() {
         </div>
       </div>
 
-      <div style={{ background: '#fff', border: '1px solid var(--gray-200)', borderRadius: 'var(--radius)', padding: '20px' }}>
-        <div className="section-title" style={{ marginBottom: '14px' }}>Top Municípios</div>
+      <div className="nat-section">
+        <div className="section-title nat-section-title">Top Municípios</div>
         <div className="table-wrap">
           <table>
             <thead>
@@ -110,7 +110,7 @@ export function NacionalPage() {
             </thead>
             <tbody>
               {municipios.length === 0 ? (
-                <tr><td colSpan={4} style={{ textAlign: 'center', color: 'var(--gray-400)' }}>Nenhum dado disponível</td></tr>
+                <tr><td colSpan={4} className="nat-municipio-empty">Nenhum dado disponível</td></tr>
               ) : municipios.map((m, i) => (
                 <tr key={i}>
                   <td><b>{m.pos}</b></td>
