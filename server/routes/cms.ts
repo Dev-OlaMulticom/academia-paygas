@@ -515,15 +515,15 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
       await logActivity(req.userId, 'Quiz Reprovado', `Quiz: ${quiz.titulo} — Nota ${nota}/10`)
     }
 
-    // Auto-generate certificate if: quiz passed + autoGerarCertificado + ALL aulas completed
-    if (concluido && quiz.autoGerarCertificado) {
+    // Auto-generate certificate if: quiz passed + (autoGerarCertificado OR modulo.autoCertificado) + ALL aulas completed
+    if (concluido) {
       const aula = await prisma.aula.findUnique({ where: { id: quiz.aulaId } })
       if (aula) {
         const modulo = await prisma.modulo.findUnique({
           where: { id: aula.moduloId },
           include: { aulas: true },
         })
-        if (modulo) {
+        if (modulo && (quiz.autoGerarCertificado || modulo.autoCertificado)) {
           const allAulasCompleted = await prisma.progresso.count({
             where: {
               moduloId: aula.moduloId,
@@ -542,6 +542,17 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
               )
               await awardPointsIfNotAwarded(req.userId, 'CERTIFICATE', `CERTIFICATE:modulo:${aula.moduloId}`)
               await logActivity(req.userId, 'Certificado Gerado', `Modulo: ${modulo.titulo}`)
+
+              // Notify gestor when ATENDENTE completes entire module
+              const quizUser = await prisma.user.findUnique({ where: { id: req.userId }, select: { id: true, nome: true, role: true, gestorId: true } })
+              if (quizUser?.role === 'ATENDENTE' && quizUser.gestorId) {
+                const gestor = await prisma.user.findUnique({ where: { id: quizUser.gestorId }, select: { id: true, nome: true, email: true } })
+                if (gestor) {
+                  const titulo = 'Modulo Completo'
+                  const mensagem = `${quizUser.nome} completou o modulo "${modulo.titulo}" e recebeu o certificado.`
+                  db.create('notification', { fromId: req.userId, toId: gestor.id, titulo, mensagem }).catch(() => {})
+                }
+              }
             } catch {
               // Certificate already exists (race condition), skip
             }

@@ -212,7 +212,7 @@ export function ModulosPage() {
         loadQuizResults()
         loadCertificate()
 
-        if (lesson.quiz.autoGerarCertificado) {
+        if (lesson.quiz.autoGerarCertificado || modulo?.autoCertificado) {
           setTimeout(() => {
             setShowQuiz(false)
             setShowCertificate(true)
@@ -1036,14 +1036,14 @@ export function ModulosPage() {
                         setQuizSubmitted(false)
                         setQuizResult(null)
                         setDesktopQuizStep(0)
-                        if (current?.quiz?.autoGerarCertificado) {
+                        if (current?.quiz?.autoGerarCertificado || modulo?.autoCertificado) {
                           loadCertificate()
                           setShowCertificate(true)
                         } else if (currentLesson < lessons.length - 1) {
                           setCurrentLesson(currentLesson + 1)
                         }
                       }}>
-                        {current?.quiz?.autoGerarCertificado ? 'Ver Certificado' : currentLesson < lessons.length - 1 ? 'Avancar para Proxima Aula' : 'Finalizar'}
+                        {current?.quiz?.autoGerarCertificado || modulo?.autoCertificado ? 'Ver Certificado' : currentLesson < lessons.length - 1 ? 'Avancar para Proxima Aula' : 'Finalizar'}
                       </button>
                     )}
                   </div>
