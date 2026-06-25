@@ -33,6 +33,10 @@ export function ModulosPage() {
   const [certificate, setCertificate] = useState<any>(null)
   const [allQuizResults, setAllQuizResults] = useState<Record<string, any>>({})
   const [showConfetti, setShowConfetti] = useState(false)
+  const [expandedQuizId, setExpandedQuizId] = useState<string | null>(null)
+  const [quizAnswers, setQuizAnswers] = useState<Record<string, Record<string, string>>>({})
+  const [quizSubmittedMap, setQuizSubmittedMap] = useState<Record<string, boolean>>({})
+  const [quizResultMap, setQuizResultMap] = useState<Record<string, any>>({})
 
   const loadModulo = async () => {
     if (!moduloNombre) return
@@ -287,6 +291,38 @@ export function ModulosPage() {
     )
   }
 
+  const handleInlineAnswer = (quizId: string, perguntaId: string, answer: string) => {
+    if (quizSubmittedMap[quizId]) return
+    setQuizAnswers(prev => ({
+      ...prev,
+      [quizId]: { ...(prev[quizId] || {}), [perguntaId]: answer }
+    }))
+  }
+
+  const handleInlineSubmit = async (quiz: any) => {
+    const answers = quizAnswers[quiz.id] || {}
+    try {
+      const result: any = await api.submitQuiz(quiz.id, answers)
+      const nota = result.nota || 0
+      const total = result.total || quiz.perguntas.length
+      const correct = result.correct || 0
+      const passed = result.concluido || nota >= (quiz.notaMinima ?? 7)
+
+      setQuizResultMap(prev => ({ ...prev, [quiz.id]: { nota, total, correct, passed } }))
+      setQuizSubmittedMap(prev => ({ ...prev, [quiz.id]: true }))
+
+      if (passed) {
+        setShowConfetti(true)
+        setTimeout(() => setShowConfetti(false), 4000)
+        loadQuizResults()
+        loadCertificate()
+      }
+    } catch {
+      setQuizResultMap(prev => ({ ...prev, [quiz.id]: { nota: 0, total: quiz.perguntas.length, correct: 0, passed: false } }))
+      setQuizSubmittedMap(prev => ({ ...prev, [quiz.id]: true }))
+    }
+  }
+
   const renderAllQuizzes = () => {
     return (
       <div style={{ padding: '24px' }}>
@@ -297,51 +333,131 @@ export function ModulosPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            {quizzesWithLesson.map((lesson, idx) => {
+            {quizzesWithLesson.map((lesson) => {
               const quiz = lesson.quiz
               const result = allQuizResults[quiz.id]
               const passed = result?.concluido
-              const lessonIdx = lessons.indexOf(lesson)
+              const isExpanded = expandedQuizId === quiz.id
+              const isSubmitted = quizSubmittedMap[quiz.id]
+              const inlineResult = quizResultMap[quiz.id]
+              const answers = quizAnswers[quiz.id] || {}
 
               return (
                 <div key={quiz.id} style={{
-                  border: `1px solid ${passed ? '#4CAF50' : 'var(--gray-200)'}`,
+                  border: `1px solid ${passed ? '#4CAF50' : isExpanded ? '#F47C20' : 'var(--gray-200)'}`,
                   borderRadius: '8px',
-                  padding: '16px',
                   background: passed ? '#F1F8E9' : '#fff',
-                  cursor: 'pointer',
                   transition: 'all 0.15s',
-                }} onClick={() => {
-                  if (canAdvanceToLesson(lessonIdx)) {
-                    setCurrentLesson(lessonIdx)
-                    setShowAllQuizzes(false)
-                    setShowQuiz(true)
-                    resetLessonState()
-                  }
+                  overflow: 'hidden',
                 }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div>
-                      <div style={{ fontWeight: 600, fontSize: '14px' }}>📝 {quiz.titulo}</div>
-                      <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '4px' }}>
-                        Aula: {lesson.titulo} · {quiz.perguntas?.length || 0} perguntas · Nota mínima: {quiz.notaMinima ?? 7}/10
+                  <div style={{
+                    padding: '16px',
+                    cursor: 'pointer',
+                  }} onClick={() => setExpandedQuizId(isExpanded ? null : quiz.id)}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontWeight: 600, fontSize: '14px' }}>📝 {quiz.titulo}</div>
+                        <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginTop: '4px' }}>
+                          Aula: {lesson.titulo} · {quiz.perguntas?.length || 0} perguntas · Nota mínima: {quiz.notaMinima ?? 7}/10
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        {result ? (
+                          <span style={{
+                            padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600,
+                            background: passed ? '#DCFCE7' : '#FEE2E2',
+                            color: passed ? '#166534' : '#991B1B',
+                          }}>
+                            {passed ? `✓ ${result.nota}/10` : `✗ ${result.nota}/10`}
+                          </span>
+                        ) : (
+                          <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', background: 'var(--gray-100)', color: 'var(--gray-500)' }}>
+                            Não resolvido
+                          </span>
+                        )}
+                        <i className={`icon-chevron-${isExpanded ? 'up' : 'down'} icon-sm`} style={{ color: 'var(--gray-400)' }} />
                       </div>
                     </div>
-                    <div style={{ textAlign: 'right' }}>
-                      {result ? (
-                        <span style={{
-                          padding: '4px 10px', borderRadius: '12px', fontSize: '12px', fontWeight: 600,
-                          background: passed ? '#DCFCE7' : '#FEE2E2',
-                          color: passed ? '#166534' : '#991B1B',
-                        }}>
-                          {passed ? `✓ ${result.nota}/10` : `✗ ${result.nota}/10`}
-                        </span>
-                      ) : (
-                        <span style={{ padding: '4px 10px', borderRadius: '12px', fontSize: '12px', background: 'var(--gray-100)', color: 'var(--gray-500)' }}>
-                          Não resolvido
-                        </span>
-                      )}
-                    </div>
                   </div>
+
+                  {isExpanded && (
+                    <div style={{ padding: '0 16px 16px', borderTop: '1px solid var(--gray-100)' }}>
+                      {inlineResult && (
+                        <div className={`quiz-result-banner ${inlineResult.passed ? 'passed' : 'failed'}`} style={{ marginTop: '12px' }}>
+                          <div className="quiz-result-header">
+                            <span className="quiz-result-icon">{inlineResult.passed ? '🎉' : '❌'}</span>
+                            <div>
+                              <h3 style={{ margin: 0 }}>{inlineResult.passed ? 'Aprovado!' : 'Reprovado'}</h3>
+                              <p style={{ margin: '4px 0 0', fontSize: '14px', opacity: 0.8 }}>
+                                Nota: {inlineResult.nota}/10 ({inlineResult.correct}/{inlineResult.total} corretas)
+                              </p>
+                            </div>
+                          </div>
+                          {!inlineResult.passed && (
+                            <div style={{ marginTop: '8px' }}>
+                              <button className="btn-secondary" style={{ padding: '6px 14px', fontSize: '12px' }} onClick={() => {
+                                setQuizSubmittedMap(prev => ({ ...prev, [quiz.id]: false }))
+                                setQuizResultMap(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
+                                setQuizAnswers(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
+                              }}>
+                                Tentar Novamente
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      <div style={{ marginTop: '12px' }}>
+                        {quiz.perguntas?.map((pergunta: any, qIndex: number) => (
+                          <div key={qIndex} style={{ marginBottom: '16px', padding: '14px', background: '#f9f9f9', borderRadius: '8px' }}>
+                            <p style={{ fontWeight: '600', marginBottom: '10px', fontSize: '14px' }}>{qIndex + 1}. {pergunta.pergunta}</p>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                              {[pergunta.opcaoA, pergunta.opcaoB, pergunta.opcaoC, pergunta.opcaoD].filter(Boolean).map((opt: string, oIndex: number) => {
+                                const letter = ['A', 'B', 'C', 'D'][oIndex]
+                                const isSelected = answers[pergunta.id] === letter
+                                const isCorrect = isSubmitted && letter === pergunta.correta
+                                const isWrong = isSubmitted && isSelected && letter !== pergunta.correta
+                                return (
+                                  <label key={oIndex} className={`quiz-opt ${isSelected ? 'selected' : ''} ${isCorrect ? 'correct' : ''} ${isWrong ? 'wrong' : ''}`}>
+                                    <input
+                                      type="radio"
+                                      name={`inline-${quiz.id}-${pergunta.id}`}
+                                      checked={isSelected}
+                                      onChange={() => handleInlineAnswer(quiz.id, pergunta.id, letter)}
+                                      disabled={isSubmitted}
+                                    />
+                                    <span className="quiz-letter">{letter}</span>
+                                    {opt}
+                                  </label>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      <div style={{ display: 'flex', gap: '8px', marginTop: '4px' }}>
+                        {!isSubmitted ? (
+                          <button
+                            className="btn-primary"
+                            style={{ padding: '8px 20px', fontSize: '13px' }}
+                            onClick={() => handleInlineSubmit(quiz)}
+                            disabled={Object.keys(answers).length < (quiz.perguntas?.length || 0)}
+                          >
+                            Enviar Respostas
+                          </button>
+                        ) : !inlineResult?.passed && (
+                          <button className="btn-secondary" style={{ padding: '8px 20px', fontSize: '13px' }} onClick={() => {
+                            setQuizSubmittedMap(prev => ({ ...prev, [quiz.id]: false }))
+                            setQuizResultMap(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
+                            setQuizAnswers(prev => { const n = { ...prev }; delete n[quiz.id]; return n })
+                          }}>
+                            Tentar Novamente
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               )
             })}
