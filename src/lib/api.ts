@@ -199,6 +199,27 @@ class ApiClient {
     })
   }
 
+  async fixCert(userId: string, moduloId: string) {
+    return this.request<any>(`/usuarios/${userId}/fix-cert`, {
+      method: 'POST',
+      body: JSON.stringify({ moduloId }),
+    })
+  }
+
+  async fixNotify(userId: string, titulo: string, mensagem: string) {
+    return this.request<any>(`/usuarios/${userId}/fix-notify`, {
+      method: 'POST',
+      body: JSON.stringify({ titulo, mensagem }),
+    })
+  }
+
+  async fixProgress(userId: string, aulaId: string, moduloId: string) {
+    return this.request<any>(`/usuarios/${userId}/fix-progress`, {
+      method: 'POST',
+      body: JSON.stringify({ aulaId, moduloId }),
+    })
+  }
+
   // ==================== CMS - MODULOS ====================
 
   async getCmsModulos() {

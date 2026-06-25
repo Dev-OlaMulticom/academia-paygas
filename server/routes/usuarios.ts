@@ -309,17 +309,6 @@ router.get('/equipe/detalhe', authenticate, authorize('ADMIN', 'GESTOR'), async 
         where: { userId: m.id },
       }) as any[]
 
-      const progressoByModulo = new Map<string, { total: number; concluidas: number }>()
-
-      for (const mod of modulos) {
-        const aulas = await db.findMany('aula', {
-          where: { moduloId: mod.id },
-        }) as any[]
-        const aulaIds = aulas.map((a: any) => a.id)
-        const concluidas = progressos.filter((p: any) => aulaIds.includes(p.aulaId) && p.concluido).length
-        progressoByModulo.set(mod.id, { total: aulas.length, concluidas })
-      }
-
       // Fetch quiz results for this user
       const quizResponses = await db.findMany('quizResponse', {
         where: { userId: m.id },
@@ -329,6 +318,21 @@ router.get('/equipe/detalhe', authenticate, authorize('ADMIN', 'GESTOR'), async 
       for (const qr of quizResponses) {
         quizResponseMap.set(qr.quizId, qr)
       }
+
+      // Fetch certificates for this user
+      const certificates = await db.findMany('certificate', {
+        where: { userId: m.id },
+      }) as any[]
+
+      const certMap = new Map<string, any>()
+      for (const c of certificates) {
+        certMap.set(c.moduloId, c)
+      }
+
+      // Fetch notifications sent/received for this user
+      const notifications = await db.findMany('notification', {
+        where: { fromId: m.id },
+      }) as any[]
 
       return {
         id: m.id,
@@ -358,6 +362,7 @@ router.get('/equipe/detalhe', authenticate, authorize('ADMIN', 'GESTOR'), async 
                 id: aula.quiz.id,
                 titulo: aula.quiz.titulo,
                 notaMinima: aula.quiz.notaMinima,
+                autoGerarCertificado: aula.quiz.autoGerarCertificado,
                 totalPerguntas: aula.quiz.perguntas?.length || 0,
               } : null,
               quizResultado: quizResult ? {
@@ -372,14 +377,45 @@ router.get('/equipe/detalhe', authenticate, authorize('ADMIN', 'GESTOR'), async 
 
           const quizzesAprovados = aulasDetail.filter((a: any) => a.quizResultado?.concluido).length
           const quizzesTotal = aulasDetail.filter((a: any) => a.quiz).length
+          const allAulasCompleted = concluidas === aulas.length && aulas.length > 0
+          const allQuizzesPassed = quizzesTotal > 0 && quizzesAprovados === quizzesTotal
+
+          // Certificate status
+          const cert = certMap.get(mod.id)
+          const certExpected = mod.autoCertificado && allAulasCompleted && allQuizzesPassed
+          const certStatus = cert?.status || null
+
+          // Notification status
+          const hasCompletionNotif = notifications.some((n: any) =>
+            n.titulo === 'Modulo Completo' && n.mensagem?.includes(mod.titulo)
+          )
+
+          // Auto-process audit
+          const autoProcessStatus = {
+            certExpected: !!certExpected,
+            certGenerated: !!cert,
+            certStatus,
+            notificationSent: hasCompletionNotif,
+            issues: [] as string[],
+          }
+
+          if (certExpected && !cert) {
+            autoProcessStatus.issues.push('Certificado esperado mas nao gerado')
+          }
+          if (allAulasCompleted && allQuizzesPassed && !hasCompletionNotif) {
+            autoProcessStatus.issues.push('Modulo completo mas notificacao nao enviada ao gestor')
+          }
 
           return {
             id: mod.id,
             titulo: mod.titulo,
-            totalAulas: progressoByModulo.get(mod.id)?.total || 0,
+            totalAulas: aulas.length,
             aulasConcluidas: concluidas,
             quizzesAprovados,
             quizzesTotal,
+            allAulasCompleted,
+            allQuizzesPassed,
+            autoProcessStatus,
             aulas: aulasDetail,
           }
         })),
@@ -482,7 +518,7 @@ router.post('/:id/resend-verification', authenticate, authorize('ADMIN', 'GESTOR
 // POST /api/usuarios/:userId/auto-approve - Auto-approve quiz/aula/module for a user
 router.post('/:userId/auto-approve', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
   try {
-    const { userId } = req.params
+    const userId = getStringParam(req.params.userId)!
     const { tipo, targetId } = req.body // tipo: 'quiz' | 'aula' | 'modulo', targetId: quiz/aula/modulo id
 
     const targetUser = await db.findUnique('user', { id: userId }) as any
@@ -581,6 +617,96 @@ router.post('/:userId/auto-approve', authenticate, authorize('ADMIN', 'GESTOR'),
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao auto-aprovar' })
+  }
+})
+
+// POST /api/usuarios/:userId/fix-cert - Force generate/fix certificate for a user
+router.post('/:userId/fix-cert', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
+  try {
+    const userId = getStringParam(req.params.userId)!
+    const { moduloId } = req.body as { moduloId: string }
+
+    const targetUser = await db.findUnique('user', { id: userId }) as any
+    if (!targetUser) return res.status(404).json({ error: 'Usuario nao encontrado' })
+    if (req.userRole === 'GESTOR' && targetUser.gestorId !== req.userId) {
+      return res.status(403).json({ error: 'Voce so pode gerenciar atendentes da sua equipe' })
+    }
+
+    const modulo = await prisma.modulo.findUnique({ where: { id: moduloId } }) as any
+    if (!modulo) return res.status(404).json({ error: 'Modulo nao encontrado' })
+
+    const existing = await db.findFirst('certificate', { where: { userId, moduloId } }) as any
+    if (existing) {
+      if (existing.status !== 'APPROVED') {
+        await db.update('certificate', { id: existing.id }, { status: 'APPROVED' })
+      }
+      await logActivity(req.userId!, 'Fix Certificado', `Corrigiu certificado do modulo "${modulo.titulo}" para ${targetUser.nome} (era ${existing.status}, agora APPROVED)`)
+      return res.json({ message: 'Certificado corrigido para APPROVED' })
+    }
+
+    await db.create('certificate', { userId, moduloId, status: 'APPROVED' })
+    await awardPointsIfNotAwarded(userId, 'CERTIFICATE', `CERTIFICATE:modulo:${moduloId}`)
+    await logActivity(req.userId!, 'Fix Certificado', `Gerou certificado manualmente do modulo "${modulo.titulo}" para ${targetUser.nome}`)
+    res.json({ message: 'Certificado gerado com sucesso' })
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao corrigir certificado' })
+  }
+})
+
+// POST /api/usuarios/:userId/fix-notify - Resend notification to gestor
+router.post('/:userId/fix-notify', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
+  try {
+    const userId = getStringParam(req.params.userId)!
+    const { titulo, mensagem } = req.body
+
+    const targetUser = await db.findUnique('user', { id: userId }) as any
+    if (!targetUser) return res.status(404).json({ error: 'Usuario nao encontrado' })
+    if (req.userRole === 'GESTOR' && targetUser.gestorId !== req.userId) {
+      return res.status(403).json({ error: 'Voce so pode gerenciar atendentes da sua equipe' })
+    }
+
+    const gestorId = targetUser.gestorId
+    if (!gestorId) return res.status(400).json({ error: 'Usuario nao tem gestor associado' })
+
+    const notif = await db.create('notification', {
+      fromId: userId,
+      toId: gestorId,
+      titulo: titulo || 'Atualizacao de progresso',
+      mensagem: mensagem || `Atualizacao manual sobre o progresso de ${targetUser.nome}`,
+    })
+
+    await logActivity(req.userId!, 'Fix Notificacao', `Reenviou notificacao para gestor sobre ${targetUser.nome}: ${titulo || 'Atualizacao de progresso'}`)
+    res.json({ message: 'Notificacao enviada com sucesso', notif })
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao enviar notificacao' })
+  }
+})
+
+// POST /api/usuarios/:userId/fix-progress - Force complete a lesson
+router.post('/:userId/fix-progress', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
+  try {
+    const userId = getStringParam(req.params.userId)!
+    const { aulaId, moduloId } = req.body
+
+    const targetUser = await db.findUnique('user', { id: userId }) as any
+    if (!targetUser) return res.status(404).json({ error: 'Usuario nao encontrado' })
+    if (req.userRole === 'GESTOR' && targetUser.gestorId !== req.userId) {
+      return res.status(403).json({ error: 'Voce so pode gerenciar atendentes da sua equipe' })
+    }
+
+    await db.upsert('progresso',
+      { moduloId_aulaId_userId: { moduloId, aulaId, userId } },
+      { moduloId, aulaId, userId, concluido: true },
+      { concluido: true },
+    )
+
+    await logActivity(req.userId!, 'Fix Progresso', `Marcou aula como concluida para ${targetUser.nome}`)
+    res.json({ message: 'Progresso corrigido com sucesso' })
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao corrigir progresso' })
   }
 })
 

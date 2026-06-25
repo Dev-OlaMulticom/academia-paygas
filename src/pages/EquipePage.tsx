@@ -60,6 +60,34 @@ export function EquipePage({ user }: EquipePageProps) {
     }
   }
 
+  const handleFixCert = async (userId: string, moduloId: string, moduloTitulo: string) => {
+    const key = `fix-cert-${moduloId}`
+    try {
+      setApproving(key)
+      await api.fixCert(userId, moduloId)
+      toast(`Certificado do modulo "${moduloTitulo}" corrigido!`, 'success')
+      await loadDetail()
+    } catch (err: any) {
+      toast(err.message || 'Erro ao corrigir certificado', 'error')
+    } finally {
+      setApproving(null)
+    }
+  }
+
+  const handleFixNotify = async (userId: string, nome: string, moduloTitulo: string) => {
+    const key = `fix-notify-${moduloTitulo}`
+    try {
+      setApproving(key)
+      await api.fixNotify(userId, 'Modulo Completo', `${nome} completou o modulo "${moduloTitulo}" e recebeu o certificado.`)
+      toast(`Notificacao enviada ao gestor sobre ${nome}!`, 'success')
+      await loadDetail()
+    } catch (err: any) {
+      toast(err.message || 'Erro ao enviar notificacao', 'error')
+    } finally {
+      setApproving(null)
+    }
+  }
+
   if (loading) {
     return (
       <div className="page active">
@@ -102,16 +130,24 @@ export function EquipePage({ user }: EquipePageProps) {
                       {mod.quizzesAprovados}/{mod.quizzesTotal} quizzes aprovados
                     </span>
                   )}
+                  {mod.autoProcessStatus?.certGenerated && (
+                    <span className="eq-detail-mod-cert"><i className="icon-award icon-xs" /> Cert: {mod.autoProcessStatus.certStatus}</span>
+                  )}
                 </div>
                 <div className="eq-detail-mod-right">
+                  {(isAdmin || isGestor) && mod.autoProcessStatus?.issues?.length > 0 && (
+                    <span className="eq-issue-badge">
+                      <i className="icon-alert-triangle icon-xs" /> {mod.autoProcessStatus.issues.length}
+                    </span>
+                  )}
                   {(isAdmin || isGestor) && pct < 100 && (
                     <button
                       className="btn-secondary eq-auto-btn"
                       disabled={approving === `modulo-${mod.id}`}
-                      onClick={(e) => { e.stopPropagation(); handleAutoApprove(memberId, 'modulo', mod.id, `Módulo "${mod.titulo}"`) }}
+                      onClick={(e) => { e.stopPropagation(); handleAutoApprove(memberId, 'modulo', mod.id, `Modulo "${mod.titulo}"`) }}
                     >
                       {approving === `modulo-${mod.id}` ? <i className="icon-loader icon-xs" /> : <i className="icon-check-circle icon-xs" />}
-                      Aprovar Módulo
+                      Aprovar Modulo
                     </button>
                   )}
                   <i className={`icon-chevron-${isModExpanded ? 'up' : 'down'} icon-sm`} style={{ color: 'var(--gray-400)' }} />
@@ -123,7 +159,52 @@ export function EquipePage({ user }: EquipePageProps) {
               </div>
 
               {isModExpanded && (
-                <div className="eq-detail-aulas">
+                <>
+                  {(isAdmin || isGestor) && mod.autoProcessStatus?.issues?.length > 0 && (
+                    <div className="eq-audit-panel">
+                      <div className="eq-audit-header">
+                        <i className="icon-alert-triangle icon-sm" style={{ color: '#E65100' }} />
+                        <b>Problemas detectados</b>
+                      </div>
+                      {mod.autoProcessStatus.issues.map((issue: string, idx: number) => (
+                        <div key={idx} className="eq-audit-issue">{issue}</div>
+                      ))}
+                      <div className="eq-audit-actions">
+                        {mod.autoProcessStatus.certExpected && !mod.autoProcessStatus.certGenerated && (
+                          <button
+                            className="btn-secondary eq-audit-fix-btn"
+                            disabled={approving === `fix-cert-${mod.id}`}
+                            onClick={() => handleFixCert(memberId, mod.id, mod.titulo)}
+                          >
+                            {approving === `fix-cert-${mod.id}` ? <i className="icon-loader icon-xs" /> : <i className="icon-award icon-xs" />}
+                            Gerar Certificado
+                          </button>
+                        )}
+                        {!mod.autoProcessStatus.notificationSent && mod.allAulasCompleted && mod.allQuizzesPassed && (
+                          <button
+                            className="btn-secondary eq-audit-fix-btn"
+                            disabled={approving === `fix-notify-${mod.titulo}`}
+                            onClick={() => handleFixNotify(memberId, detail.nome, mod.titulo)}
+                          >
+                            {approving === `fix-notify-${mod.titulo}` ? <i className="icon-loader icon-xs" /> : <i className="icon-bell icon-xs" />}
+                            Enviar Notificacao
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {mod.autoProcessStatus?.certGenerated && (
+                    <div className="eq-audit-ok">
+                      <i className="icon-check-circle icon-xs" style={{ color: '#2E7D32' }} />
+                      <span>Certificado: {mod.autoProcessStatus.certStatus}</span>
+                      {mod.autoProcessStatus.notificationSent && (
+                        <><i className="icon-bell icon-xs" style={{ color: '#2E7D32', marginLeft: 8 }} /> Notificado</>
+                      )}
+                    </div>
+                  )}
+
+                  <div className="eq-detail-aulas">
                   {mod.aulas?.map((aula: any) => {
                     const aulaKey = `${memberId}-${aula.id}`
                     const isAulaExpanded = expandedAula[aulaKey]
@@ -214,6 +295,7 @@ export function EquipePage({ user }: EquipePageProps) {
                     )
                   })}
                 </div>
+                </>
               )}
             </div>
           )
