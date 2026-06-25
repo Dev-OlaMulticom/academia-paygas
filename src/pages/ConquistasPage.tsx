@@ -7,6 +7,25 @@ import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip
 const ICONES = ['🏆', '🎯', '🚀', '⭐', '👑', '🔥', '📊', '🤝', '💎', '🎖️', '🏅', '⚡', '🌟', '🎓', '💪']
 const CORES = ['#F47C20', '#16A34A', '#0A2E6E', '#DC2626', '#8B5CF6', '#06B6D4', '#EC4899', '#D97706', '#14B8A6', '#3B82F6']
 
+function StatInfo({ val, label, icon, bg, tip }: { val: number; label: string; icon: string; bg: string; tip: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="stat-info">
+      <div className="stat-info-top">
+        <div className="stat-card-icon" style={{ background: bg }}><i className={`${icon} icon-lg`} /></div>
+        <div className="stat-card-val">{val}</div>
+        <Tooltip open={open} onOpenChange={setOpen}>
+          <TooltipTrigger asChild>
+            <button className="stat-info-trigger" onClick={() => setOpen(true)} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>i</button>
+          </TooltipTrigger>
+          <TooltipContent side="top" onPointerDownOutside={() => setOpen(false)}>{tip}</TooltipContent>
+        </Tooltip>
+      </div>
+      <div className="stat-card-label">{label}</div>
+    </div>
+  )
+}
+
 interface ConquistaData {
   id: string
   titulo: string
@@ -149,40 +168,10 @@ export function ConquistasPage({ user }: ConquistasPageProps) {
       </div>
 
       <div className="cards-grid">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-icon" style={{ background: '#FEF3C7' }}><i className="icon-trophy icon-lg" /></div>
-              <div className="stat-card-val">{conquistas.length}</div>
-              <div className="stat-card-label">Total de Conquistas</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>Quantidade total de conquistas disponiveis no sistema</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-icon" style={{ background: '#DCFCE7' }}><i className="icon-check icon-lg" /></div>
-              <div className="stat-card-val">{totalAtivas}</div>
-              <div className="stat-card-label">Ativas</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>Conquistas ativas que podem ser desbloqueadas</TooltipContent>
-        </Tooltip>
+        <StatInfo val={conquistas.length} label="Total de Conquistas" icon="icon-trophy" bg="#FEF3C7" tip="Quantidade total de conquistas disponiveis no sistema" />
+        <StatInfo val={totalAtivas} label="Ativas" icon="icon-check" bg="#DCFCE7" tip="Conquistas ativas que podem ser desbloqueadas" />
         {!canManage && (
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <div className="stat-card stat-card--static">
-                <span className="stat-card-info">i</span>
-                <div className="stat-card-icon" style={{ background: '#E6EEF9' }}><i className="icon-star icon-lg" /></div>
-                <div className="stat-card-val">{totalConquistadas}</div>
-                <div className="stat-card-label">Conquistadas</div>
-              </div>
-            </TooltipTrigger>
-            <TooltipContent>Conquistas que voce ja desbloqueou</TooltipContent>
-          </Tooltip>
+          <StatInfo val={totalConquistadas} label="Conquistadas" icon="icon-star" bg="#E6EEF9" tip="Conquistas que voce ja desbloqueou" />
         )}
       </div>
 

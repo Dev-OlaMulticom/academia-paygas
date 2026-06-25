@@ -10,6 +10,25 @@ interface DashboardPageProps {
   user?: any
 }
 
+function StatInfo({ val, label, icon, bg, tip }: { val: number; label: string; icon: string; bg: string; tip: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="stat-info">
+      <div className="stat-info-top">
+        <div className="stat-card-icon" style={{ background: bg }}><i className={`${icon} icon-lg`} /></div>
+        <div className="stat-card-val">{val}</div>
+        <Tooltip open={open} onOpenChange={setOpen}>
+          <TooltipTrigger asChild>
+            <button className="stat-info-trigger" onClick={() => setOpen(true)} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>i</button>
+          </TooltipTrigger>
+          <TooltipContent side="top" onPointerDownOutside={() => setOpen(false)}>{tip}</TooltipContent>
+        </Tooltip>
+      </div>
+      <div className="stat-card-label">{label}</div>
+    </div>
+  )
+}
+
 export function DashboardPage({ xp, user }: DashboardPageProps) {
   const navigate = useNavigate()
   const [dashData, setDashData] = useState<any>(null)
@@ -75,61 +94,14 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
       </div>
 
       <div className="cards-grid">
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-icon" style={{ background: '#FEF3C7' }}><i className="icon-book-open icon-lg" /></div>
-              <div className="stat-card-val">{dashData?.totalModulos || 0}</div>
-              <div className="stat-card-label">Modulos Disponiveis</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            Quantidade total de modulos/cursos disponiveis para voce estudar
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-icon" style={{ background: '#DCFCE7' }}><i className="icon-check-circle icon-lg" /></div>
-              <div className="stat-card-val">{dashData?.aulasConcluidas || 0}</div>
-              <div className="stat-card-label">Aulas Concluidas</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            Total de aulas que voce ja finalizou com sucesso
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-icon" style={{ background: '#E6EEF9' }}><i className="icon-award icon-lg" /></div>
-              <div className="stat-card-val">{dashData?.totalCertificados || 0}</div>
-              <div className="stat-card-label">Certificados</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            Certificados obtidos ao completar modulos com quiz aprovado
-          </TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-icon" style={{ background: '#F3E8FF' }}><i className="icon-trophy icon-lg" /></div>
-              <div className="stat-card-val">{dashData?.totalQuizzes || 0}</div>
-              <div className="stat-card-label">Quizzes Aprovados</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="top">
-            Quizzes em que voce atingiu a nota minima (7/10)
-          </TooltipContent>
-        </Tooltip>
+        {[
+          { val: dashData?.totalModulos || 0, label: 'Modulos Disponiveis', icon: 'icon-book-open', bg: '#FEF3C7', tip: 'Quantidade total de modulos/cursos disponiveis para voce estudar' },
+          { val: dashData?.aulasConcluidas || 0, label: 'Aulas Concluidas', icon: 'icon-check-circle', bg: '#DCFCE7', tip: 'Total de aulas que voce ja finalizou com sucesso' },
+          { val: dashData?.totalCertificados || 0, label: 'Certificados', icon: 'icon-award', bg: '#E6EEF9', tip: 'Certificados obtidos ao completar modulos com quiz aprovado' },
+          { val: dashData?.totalQuizzes || 0, label: 'Quizzes Aprovados', icon: 'icon-trophy', bg: '#F3E8FF', tip: 'Quizzes em que voce atingiu a nota minima (7/10)' },
+        ].map((item, i) => (
+          <StatInfo key={i} {...item} />
+        ))}
       </div>
 
       <div className="section-title">Acoes Rapidas</div>

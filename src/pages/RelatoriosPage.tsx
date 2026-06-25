@@ -8,6 +8,25 @@ interface RelatoriosPageProps {
   user: User
 }
 
+function StatInfo({ val, label, icon, bg, tip }: { val: number; label: string; icon: string; bg: string; tip: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="stat-info">
+      <div className="stat-info-top">
+        <div className="stat-card-icon" style={{ background: bg }}><i className={`${icon} icon-lg`} /></div>
+        <div className="stat-card-val">{val}</div>
+        <Tooltip open={open} onOpenChange={setOpen}>
+          <TooltipTrigger asChild>
+            <button className="stat-info-trigger" onClick={() => setOpen(true)} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>i</button>
+          </TooltipTrigger>
+          <TooltipContent side="top" onPointerDownOutside={() => setOpen(false)}>{tip}</TooltipContent>
+        </Tooltip>
+      </div>
+      <div className="stat-card-label">{label}</div>
+    </div>
+  )
+}
+
 const ACTION_LABELS: Record<string, string> = {
   LOGIN: 'Acesso',
   MODULE_OPEN: 'Abriu Modulo',
@@ -96,50 +115,10 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
       {/* Gamification Stats */}
       <div className="section-title">Gamificacao</div>
       <div className="cards-grid" style={{ marginBottom: '24px' }}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-icon" style={{ background: '#FEF0E6' }}><i className="icon-zap icon-lg" /></div>
-              <div className="stat-card-val">{stats?.xp || 0}</div>
-              <div className="stat-card-label">XP Total</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>Pontos de experiencia acumulados por completar atividades</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-icon" style={{ background: '#E6EEF9' }}><i className="icon-bar-chart-3 icon-lg" /></div>
-              <div className="stat-card-val">{stats?.aulasConcluidas || 0}</div>
-              <div className="stat-card-label">Aulas Concluidas</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>Numero de aulas finalizadas com sucesso</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-icon" style={{ background: '#DCFCE7' }}><i className="icon-check-circle icon-lg" /></div>
-              <div className="stat-card-val">{stats?.totalQuizzes || 0}</div>
-              <div className="stat-card-label">Quizzes Aprovados</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>Quizzes em que a nota minima foi atingida</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-icon" style={{ background: '#FEF3C7' }}><i className="icon-award icon-lg" /></div>
-              <div className="stat-card-val">{stats?.totalCertificados || 0}</div>
-              <div className="stat-card-label">Certificados</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>Certificados obtidos ao completar modulos</TooltipContent>
-        </Tooltip>
+        <StatInfo val={stats?.xp || 0} label="XP Total" icon="icon-zap" bg="#FEF0E6" tip="Pontos de experiencia acumulados por completar atividades" />
+        <StatInfo val={stats?.aulasConcluidas || 0} label="Aulas Concluidas" icon="icon-bar-chart-3" bg="#E6EEF9" tip="Numero de aulas finalizadas com sucesso" />
+        <StatInfo val={stats?.totalQuizzes || 0} label="Quizzes Aprovados" icon="icon-check-circle" bg="#DCFCE7" tip="Quizzes em que a nota minima foi atingida" />
+        <StatInfo val={stats?.totalCertificados || 0} label="Certificados" icon="icon-award" bg="#FEF3C7" tip="Certificados obtidos ao completar modulos" />
       </div>
 
       {/* Points Breakdown */}

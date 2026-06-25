@@ -7,6 +7,24 @@ interface AdminDashboardPageProps {
   user: User
 }
 
+function StatInfo({ val, label, tip }: { val: number; label: string; tip: string }) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="stat-info">
+      <div className="stat-info-top">
+        <div className="stat-card-val" style={{ fontSize: '24px' }}>{val}</div>
+        <Tooltip open={open} onOpenChange={setOpen}>
+          <TooltipTrigger asChild>
+            <button className="stat-info-trigger" onClick={() => setOpen(true)} onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>i</button>
+          </TooltipTrigger>
+          <TooltipContent side="top" onPointerDownOutside={() => setOpen(false)}>{tip}</TooltipContent>
+        </Tooltip>
+      </div>
+      <div className="stat-card-label">{label}</div>
+    </div>
+  )
+}
+
 export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
   const [data, setData] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -102,66 +120,12 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
 
       {/* Stats Cards */}
       <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: '12px', marginBottom: '20px' }}>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-val" style={{ fontSize: '24px' }}>{resumoGeral.totalUsers}</div>
-              <div className="stat-card-label">Usuarios</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>Total de usuarios cadastrados no sistema</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-val" style={{ fontSize: '24px' }}>{resumoGeral.totalModulos}</div>
-              <div className="stat-card-label">Modulos</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>Modulos/cursos criados na plataforma</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-val" style={{ fontSize: '24px' }}>{resumoGeral.totalAulas}</div>
-              <div className="stat-card-label">Aulas</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>Total de aulas disponiveis em todos os modulos</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-val" style={{ fontSize: '24px' }}>{resumoGeral.totalCertificates}</div>
-              <div className="stat-card-label">Certificados</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>Certificados emitidos para usuarios</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-val" style={{ fontSize: '24px' }}>{resumoGeral.quizzesAprovados}</div>
-              <div className="stat-card-label">Quizzes Aprovados</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>Quizzes com nota minima atingida pelos usuarios</TooltipContent>
-        </Tooltip>
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="stat-card stat-card--static">
-              <span className="stat-card-info">i</span>
-              <div className="stat-card-val" style={{ fontSize: '24px' }}>{emailsStats.total}</div>
-              <div className="stat-card-label">Emails Enviados</div>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent>Total de emails de notificacao enviados pelo sistema</TooltipContent>
-        </Tooltip>
+        <StatInfo val={resumoGeral.totalUsers} label="Usuarios" tip="Total de usuarios cadastrados no sistema" />
+        <StatInfo val={resumoGeral.totalModulos} label="Modulos" tip="Modulos/cursos criados na plataforma" />
+        <StatInfo val={resumoGeral.totalAulas} label="Aulas" tip="Total de aulas disponiveis em todos os modulos" />
+        <StatInfo val={resumoGeral.totalCertificates} label="Certificados" tip="Certificados emitidos para usuarios" />
+        <StatInfo val={resumoGeral.quizzesAprovados} label="Quizzes Aprovados" tip="Quizzes com nota minima atingida pelos usuarios" />
+        <StatInfo val={emailsStats.total} label="Emails Enviados" tip="Total de emails de notificacao enviados pelo sistema" />
       </div>
 
       {/* Tabs */}

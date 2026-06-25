@@ -65,7 +65,7 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
           </TooltipTrigger>
           <TooltipContent side="bottom">Abrir/fechar menu de navegacao</TooltipContent>
         </Tooltip>
-        <div className="header-logo">
+        <div className="header-logo" style={{ cursor: 'pointer' }} onClick={() => { setSidebarOpen(false); navigate('/'); }}>
           <div className="header-logo-icon">PG</div>
           <div>
             <div className="header-logo-name">Academia PayGas</div>
