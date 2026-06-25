@@ -10,7 +10,7 @@ interface Certificate {
   status: string
   pdfUrl?: string
   createdAt?: string
-  user?: { nome: string; email: string }
+  user?: { nome: string; email: string; gestor?: { nome: string } }
 }
 
 interface ModuloCert {
@@ -20,15 +20,19 @@ interface ModuloCert {
   certificadoTemplate?: string
 }
 
-const DEFAULT_CERT_TEMPLATE = `<div style="width:800px;padding:40px;background:linear-gradient(135deg,#0A2E6E 0%,#1a4494 100%);color:white;border-radius:20px;text-align:center;font-family:Arial,sans-serif;">
-  <div style="font-size:14px;letter-spacing:3px;margin-bottom:8px;">ACADEMIA PAYGAS</div>
+const DEFAULT_CERT_TEMPLATE = `<div style="width:800px;padding:40px;background:#ffffff;color:#1a1a1a;border-radius:12px;text-align:center;font-family:Arial,sans-serif;border:2px solid #F47C20;">
+  <div style="font-size:14px;letter-spacing:3px;margin-bottom:8px;color:#0A2E6E;">ACADEMIA PAYGAS</div>
   <div style="font-size:28px;margin-bottom:20px;">{{MODULO_ICONE}} {{MODULO_TITULO}}</div>
-  <div style="font-size:14px;color:rgba(255,255,255,0.8);margin-bottom:10px;">Certificamos que</div>
-  <div style="font-size:32px;font-weight:bold;margin:20px 0;border-bottom:2px solid rgba(255,255,255,0.3);padding-bottom:20px;">{{USUARIO_NOME}}</div>
-  <div style="font-size:16px;margin-bottom:40px;">concluiu o modulo de <strong>{{MODULO_TITULO}}</strong> com sucesso.</div>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-top:40px;">
-    <span style="font-size:13px;">{{DATA}}</span>
-    <div style="width:80px;height:80px;background:#F47C20;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:bold;">PG</div>
+  <div style="font-size:14px;color:#666;margin-bottom:10px;">Certificamos que</div>
+  <div style="font-size:32px;font-weight:bold;margin:20px 0;border-bottom:2px solid #F47C20;padding-bottom:20px;color:#0A2E6E;">{{USUARIO_NOME}}</div>
+  <div style="font-size:16px;margin-bottom:40px;color:#444;">concluiu o modulo de <strong>{{MODULO_TITULO}}</strong> com sucesso.</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:40px;">
+    <div style="text-align:left;">
+      <div style="font-size:12px;color:#999;">{{DATA_HORA}}</div>
+      <div style="margin-top:30px;border-top:1px solid #ccc;padding-top:6px;font-size:13px;font-weight:600;color:#333;">{{GESTOR_NOME}}</div>
+      <div style="font-size:11px;color:#999;">Gestor de Posto</div>
+    </div>
+    <div style="width:80px;height:80px;background:#F47C20;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:bold;color:#fff;">PG</div>
   </div>
 </div>`
 
@@ -79,7 +83,11 @@ export function CertificadosPage({ user }: { user?: any }) {
     const titulo = cert.moduloTitulo || 'Modulo'
     const icone = cert.moduloIcone || '📚'
     const nome = cert.user?.nome || 'Usuario'
-    const html = `<!DOCTYPE html><html><head><title>Certificado - ${titulo}</title></head><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f5f5f5;">${template.replace(/\{\{MODULO_ICONE\}\}/g, icone).replace(/\{\{MODULO_TITULO\}\}/g, titulo).replace(/\{\{USUARIO_NOME\}\}/g, nome).replace(/\{\{DATA\}\}/g, new Date().toLocaleDateString('pt-BR'))}</body></html>`
+    const gestorNome = cert.user?.gestor?.nome || ''
+    const certDate = cert.createdAt ? new Date(cert.createdAt) : new Date()
+    const dateStr = certDate.toLocaleDateString('pt-BR')
+    const timeStr = certDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    const html = `<!DOCTYPE html><html><head><title>Certificado - ${titulo}</title></head><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f5f5f5;">${template.replace(/\{\{MODULO_ICONE\}\}/g, icone).replace(/\{\{MODULO_TITULO\}\}/g, titulo).replace(/\{\{USUARIO_NOME\}\}/g, nome).replace(/\{\{DATA\}\}/g, dateStr).replace(/\{\{DATA_HORA\}\}/g, `${dateStr} ${timeStr}`).replace(/\{\{GESTOR_NOME\}\}/g, gestorNome)}</body></html>`
     const blob = new Blob([html], { type: 'text/html' })
     const url = URL.createObjectURL(blob)
     const a = document.createElement('a')
@@ -87,6 +95,51 @@ export function CertificadosPage({ user }: { user?: any }) {
     a.download = `certificado-${cert.id}.html`
     a.click()
     URL.revokeObjectURL(url)
+  }
+
+  const handleDownloadPDF = async (cert: Certificate) => {
+    const template = cert.moduloCertTemplate || DEFAULT_CERT_TEMPLATE
+    const titulo = cert.moduloTitulo || 'Modulo'
+    const icone = cert.moduloIcone || '📚'
+    const nome = cert.user?.nome || 'Usuario'
+    const gestorNome = cert.user?.gestor?.nome || ''
+    const certDate = cert.createdAt ? new Date(cert.createdAt) : new Date()
+    const dateStr = certDate.toLocaleDateString('pt-BR')
+    const timeStr = certDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+    const rendered = template
+      .replace(/\{\{MODULO_ICONE\}\}/g, icone)
+      .replace(/\{\{MODULO_TITULO\}\}/g, titulo)
+      .replace(/\{\{USUARIO_NOME\}\}/g, nome)
+      .replace(/\{\{DATA\}\}/g, dateStr)
+      .replace(/\{\{DATA_HORA\}\}/g, `${dateStr} ${timeStr}`)
+      .replace(/\{\{GESTOR_NOME\}\}/g, gestorNome)
+
+    const container = document.createElement('div')
+    container.innerHTML = rendered
+    container.style.position = 'fixed'
+    container.style.left = '-9999px'
+    container.style.top = '0'
+    document.body.appendChild(container)
+
+    try {
+      const html2canvas = (await import('html2canvas')).default
+      const jsPDF = (await import('jspdf')).default
+      const canvas = await html2canvas(container, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
+      const imgData = canvas.toDataURL('image/png')
+      const pdf = new jsPDF('l', 'mm', 'a4')
+      const pdfWidth = pdf.internal.pageSize.getWidth()
+      const pdfHeight = pdf.internal.pageSize.getHeight()
+      const ratio = Math.min(pdfWidth / canvas.width, pdfHeight / canvas.height)
+      const w = canvas.width * ratio
+      const h = canvas.height * ratio
+      pdf.addImage(imgData, 'PNG', (pdfWidth - w) / 2, (pdfHeight - h) / 2, w, h)
+      pdf.save(`certificado-${titulo.replace(/\s+/g, '-').toLowerCase()}.pdf`)
+    } catch (err) {
+      console.error('Erro ao gerar PDF:', err)
+    } finally {
+      document.body.removeChild(container)
+    }
   }
 
   const handleEditTemplate = (mod: ModuloCert) => {
@@ -113,6 +166,8 @@ export function CertificadosPage({ user }: { user?: any }) {
       .replace(/\{\{MODULO_TITULO\}\}/g, mod?.titulo || 'Nome do Curso')
       .replace(/\{\{USUARIO_NOME\}\}/g, 'Joao da Silva')
       .replace(/\{\{DATA\}\}/g, new Date().toLocaleDateString('pt-BR'))
+      .replace(/\{\{DATA_HORA\}\}/g, new Date().toLocaleString('pt-BR'))
+      .replace(/\{\{GESTOR_NOME\}\}/g, 'Gestor de Exemplo')
   }
 
   const statusClass = (status: string) => status === 'APPROVED' ? 'approved' : 'pending'
@@ -146,18 +201,31 @@ export function CertificadosPage({ user }: { user?: any }) {
           {certificates.length === 0 ? (
             <div className="cert-empty">Nenhum certificado encontrado</div>
           ) : (
-            certificates.map((cert) => (
-              <div key={cert.id} className="stat-card cert-card">
-                <div className="cert-card-header">
-                  <div className="cert-card-icon">{cert.moduloIcone || '🏆'}</div>
-                  <span className={`cert-card-badge ${statusClass(cert.status)}`}>{statusLabel(cert.status)}</span>
+            certificates.map((cert) => {
+              const certDate = cert.createdAt ? new Date(cert.createdAt) : null
+              const dateStr = certDate ? certDate.toLocaleDateString('pt-BR') : ''
+              const timeStr = certDate ? certDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''
+              return (
+                <div key={cert.id} className="stat-card cert-card">
+                  <div className="cert-card-header">
+                    <div className="cert-card-icon">{cert.moduloIcone || '🏆'}</div>
+                    <span className={`cert-card-badge ${statusClass(cert.status)}`}>{statusLabel(cert.status)}</span>
+                  </div>
+                  <div className="cert-card-title">{cert.moduloTitulo || 'Modulo'}</div>
+                  {cert.user && <div className="cert-card-user">{cert.user.nome}</div>}
+                  {cert.user?.gestor && <div className="cert-card-gestor">Gestor: {cert.user.gestor.nome}</div>}
+                  <div className="cert-card-date">{dateStr} {timeStr}</div>
+                  <div className="cert-card-actions">
+                    <button id={`btn-download-cert-${cert.id}`} className="cert-card-btn cert-card-btn-pdf" onClick={() => handleDownloadPDF(cert)}>
+                      <i className="icon-download icon-xs" /> Baixar PDF
+                    </button>
+                    <button id={`btn-html-cert-${cert.id}`} className="cert-card-btn cert-card-btn-html" onClick={() => handleDownloadHTML(cert)}>
+                      <i className="icon-code icon-xs" /> HTML
+                    </button>
+                  </div>
                 </div>
-                <div className="cert-card-title">{cert.moduloTitulo || 'Modulo'}</div>
-                {cert.user && <div className="cert-card-user">{cert.user.nome}</div>}
-                <div className="cert-card-date">{cert.createdAt ? new Date(cert.createdAt).toLocaleDateString('pt-BR') : ''}</div>
-                <button id={`btn-download-cert-${cert.id}`} className="cert-card-btn" onClick={() => handleDownloadHTML(cert)}>Baixar HTML</button>
-              </div>
-            ))
+              )
+            })
           )}
         </div>
       ) : (
@@ -180,7 +248,7 @@ export function CertificadosPage({ user }: { user?: any }) {
             <div className="modal-overlay">
               <div className="cert-modal">
                 <h3>Template: {editingModulo.icone} {editingModulo.titulo}</h3>
-                <p className="cert-modal-desc">Variaveis: {'{{MODULO_ICONE}}'} {'{{MODULO_TITULO}}'} {'{{USUARIO_NOME}}'} {'{{DATA}}'}</p>
+                <p className="cert-modal-desc">Variaveis: {'{{MODULO_ICONE}}'} {'{{MODULO_TITULO}}'} {'{{USUARIO_NOME}}'} {'{{DATA}}'} {'{{DATA_HORA}}'} {'{{GESTOR_NOME}}'}</p>
                 <div className="form-field">
                   <label className="form-label">HTML do Template</label>
                   <textarea id="template-editor" className="form-input cert-modal-textarea" value={templateText} onChange={e => setTemplateText(e.target.value)} rows={12} />

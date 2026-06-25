@@ -2234,13 +2234,27 @@ a {
 .cert-card-btn {
   width: 100%;
   padding: 8px;
-  background: var(--primary);
+  background: var(--pg-blue);
   color: white;
   border: none;
   border-radius: 8px;
   cursor: pointer;
   font-size: 13px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
 }
+
+.cert-card-btn:hover { opacity: 0.9; }
+
+.cert-card-btn-pdf { background: var(--pg-blue); }
+.cert-card-btn-html { background: var(--gray-500); }
+
+.cert-card-actions { display: flex; gap: 6px; margin-top: 4px; }
+.cert-card-actions .cert-card-btn { flex: 1; }
+
+.cert-card-gestor { font-size: 11px; color: var(--gray-400); margin-top: 2px; }
 
 .cert-template-card {
   padding: 16px;
@@ -2346,7 +2360,22 @@ a {
 .cert-body-text-green { font-size: 14px; color: var(--gray-600); margin-top: 16px; }
 .cert-footer-mt { margin-top: 24px; }
 .cert-date { font-size: 12px; color: var(--gray-400); }
-.cert-download-center { text-align: center; margin-top: 16px; }
+.cert-download-center { text-align: center; margin-top: 16px; display: flex; gap: 8px; justify-content: center; }
+.cert-dl-btn { display: inline-flex; align-items: center; gap: 6px; }
+
+.cert-gestor-signature { margin-top: 20px; display: flex; flex-direction: column; align-items: flex-start; }
+.cert-gestor-line { width: 120px; border-top: 1px solid var(--gray-400); margin-bottom: 4px; }
+.cert-gestor-name { font-size: 13px; font-weight: 600; color: var(--gray-700); }
+.cert-gestor-role { font-size: 11px; color: var(--gray-400); }
+
+.cert-footer-left { display: flex; flex-direction: column; gap: 4px; }
+
+/* PRINT STYLES */
+@media print {
+  body * { visibility: hidden; }
+  #cert-printable, #cert-printable * { visibility: visible; }
+  #cert-printable { position: absolute; left: 0; top: 0; width: 100%; max-width: 100%; border: none; }
+}
 
 .quizzes-section { padding: 24px; }
 .quizzes-title { margin-bottom: 16px; }

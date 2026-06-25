@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import { db } from '../lib/db'
+import { prisma } from '../lib/prisma'
 import { authenticate, authorize } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
 import { logActivity } from '../services/log'
@@ -18,13 +19,21 @@ router.get('/', authenticate, async (req: any, res) => {
       : { userId: req.userId }
 
     const [certs, total] = await Promise.all([
-      db.findMany('certificate', {
+      prisma.certificate.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip,
         take: limit,
+        include: {
+          user: {
+            include: { gestor: { select: { id: true, nome: true } } },
+          },
+          modulo: {
+            select: { id: true, titulo: true, icone: true, certificadoTemplate: true },
+          },
+        },
       }),
-      db.count('certificate', where),
+      prisma.certificate.count({ where }),
     ])
 
     res.json({

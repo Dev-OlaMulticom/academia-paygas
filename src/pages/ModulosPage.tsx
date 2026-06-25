@@ -301,10 +301,48 @@ export function ModulosPage() {
     const titulo = certificate.modulo?.titulo || modulo.titulo
     const icone = certificate.modulo?.icone || modulo.icone || '📚'
     const nome = user?.nome || 'Usuario'
+    const gestorNome = certificate.user?.gestor?.nome || user?.gestorNome || ''
+    const certDate = certificate.createdAt ? new Date(certificate.createdAt) : new Date()
+    const dateStr = certDate.toLocaleDateString('pt-BR')
+    const timeStr = certDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+    const handleDownloadPDF = async () => {
+      const certEl = document.getElementById('cert-printable')
+      if (!certEl) return
+      try {
+        const html2canvas = (await import('html2canvas')).default
+        const jsPDF = (await import('jspdf')).default
+        const canvas = await html2canvas(certEl, { scale: 2, useCORS: true, backgroundColor: '#ffffff' })
+        const imgData = canvas.toDataURL('image/png')
+        const pdf = new jsPDF('l', 'mm', 'a4')
+        const pdfWidth = pdf.internal.pageSize.getWidth()
+        const pdfHeight = pdf.internal.pageSize.getHeight()
+        const imgWidth = canvas.width
+        const imgHeight = canvas.height
+        const ratio = Math.min(pdfWidth / imgWidth, pdfHeight / imgHeight)
+        const w = imgWidth * ratio
+        const h = imgHeight * ratio
+        pdf.addImage(imgData, 'PNG', (pdfWidth - w) / 2, (pdfHeight - h) / 2, w, h)
+        pdf.save(`certificado-${titulo.replace(/\s+/g, '-').toLowerCase()}.pdf`)
+      } catch (err) {
+        console.error('Erro ao gerar PDF:', err)
+      }
+    }
+
+    const handlePrint = () => {
+      const certEl = document.getElementById('cert-printable')
+      if (!certEl) return
+      const printWindow = window.open('', '_blank')
+      if (!printWindow) return
+      printWindow.document.write(`<!DOCTYPE html><html><head><title>Certificado - ${titulo}</title><style>@page{size:landscape;margin:0}body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh}</style></head><body>${certEl.outerHTML}</body></html>`)
+      printWindow.document.close()
+      printWindow.print()
+    }
+
     return (
       <div className="section-padding">
         <h3 className="section-title-mb">📜 Seu Certificado</h3>
-        <div className="cert-card cert-max-w">
+        <div id="cert-printable" className="cert-card cert-max-w">
           <div className="cert-header">
             <h3>ACADEMIA PAYGAS</h3>
             <h2>{icone} {titulo}</h2>
@@ -314,13 +352,17 @@ export function ModulosPage() {
             <div className="cert-name">{nome}</div>
             <p className="cert-body-text-green">concluiu o modulo de <strong>{titulo}</strong> com sucesso.</p>
             <div className="cert-footer cert-footer-mt">
-              <span className="cert-date">{new Date().toLocaleDateString('pt-BR')}</span>
+              <div className="cert-footer-left">
+                <span className="cert-date">{dateStr} {timeStr}</span>
+                {gestorNome && <div className="cert-gestor-signature"><div className="cert-gestor-line" /><span className="cert-gestor-name">{gestorNome}</span><span className="cert-gestor-role">Gestor de Posto</span></div>}
+              </div>
               <div className="cert-seal">PG</div>
             </div>
           </div>
         </div>
         <div className="cert-download-center">
-          <button className="btn-primary" onClick={() => navigate('/certificados')}><i className="icon-download icon-sm" /> Ver meus certificados</button>
+          <button className="btn-primary cert-dl-btn" onClick={handleDownloadPDF}><i className="icon-download icon-sm" /> Baixar PDF</button>
+          <button className="btn-secondary cert-dl-btn" onClick={handlePrint}><i className="icon-printer icon-sm" /> Imprimir</button>
         </div>
       </div>
     )
