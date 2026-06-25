@@ -477,8 +477,8 @@ router.post('/quiz/:quizId/responder', authenticate, async (req: any, res) => {
 
     const response = await db.upsert('quizResponse',
       { quizId_userId: { quizId: req.params.quizId, userId: req.userId } },
-      { quizId: req.params.quizId, userId: req.userId, nota, total, concluido },
-      { nota, total, concluido },
+      { quizId: req.params.quizId, userId: req.userId, nota, total, concluido, respostas: respostas || {} },
+      { nota, total, concluido, respostas: respostas || {} },
     )
 
     if (concluido) {

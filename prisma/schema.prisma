@@ -171,6 +171,7 @@ model QuizResponse {
   nota      Int
   total     Int
   concluido Boolean  @default(false)
+  respostas Json?    // { perguntaId: 'A'|'B'|'C'|'D' }
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 

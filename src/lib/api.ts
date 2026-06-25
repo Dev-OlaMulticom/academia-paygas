@@ -192,6 +192,13 @@ class ApiClient {
     return this.request<any[]>('/usuarios/equipe/detalhe')
   }
 
+  async autoApprove(userId: string, tipo: 'quiz' | 'aula' | 'modulo', targetId: string) {
+    return this.request<any>(`/usuarios/${userId}/auto-approve`, {
+      method: 'POST',
+      body: JSON.stringify({ tipo, targetId }),
+    })
+  }
+
   // ==================== CMS - MODULOS ====================
 
   async getCmsModulos() {

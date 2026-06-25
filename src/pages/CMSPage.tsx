@@ -339,26 +339,44 @@ export function CMSPage({ user }: CMSPageProps) {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>Título</th><th>Descrição</th><th>Aulas</th><th>Ações</th></tr>
+              <tr><th>Curso</th><th>Detalhes</th><th>Aulas</th><th>Ações</th></tr>
             </thead>
             <tbody>
               {modulos.length > 0 ? (
-                modulos.map((mod) => (
-                  <tr key={mod.id}>
-                    <td><b>{mod.icone || '📚'} {mod.titulo}</b></td>
-                    <td className="cms-table-td-desc">{mod.descricao || '—'}</td>
-                    <td>{mod._count?.aulas || 0} {pluralize(mod._count?.aulas || 0, 'aula')}</td>
-                    <td className="cms-table-td-actions">
-                      <button id={`btn-mod-aulas-${mod.id}`} className="btn-secondary cms-table-action-btn" onClick={() => { setSelectedModulo(mod); setView('aulas') }}><i className="icon-book-open icon-xs" /> Aulas</button>
-                      {isAdmin && <button id={`btn-mod-editar-${mod.id}`} className="btn-secondary cms-table-action-btn" onClick={() => setEditingMod({ ...mod, obrigatorio: mod.obrigatorio || false, autoCertificado: mod.autoCertificado || false })}><i className="icon-pencil icon-xs" /> Editar</button>}
-                      {isAdmin && <button id={`btn-mod-excluir-${mod.id}`} className="btn-secondary cms-table-action-btn cms-table-action-red" onClick={() => handleDeleteModulo(mod.id)}><i className="icon-trash-2 icon-xs" /></button>}
-                    </td>
-                  </tr>
-                ))
+                modulos.map((mod, idx) => {
+                  const aulaCount = mod._count?.aulas || 0
+                  return (
+                    <tr key={mod.id}>
+                      <td>
+                        <div className="cms-mod-title-cell">
+                          <span className="cms-mod-order">{idx + 1}</span>
+                          <div>
+                            <b>{mod.icone || '📚'} {mod.titulo}</b>
+                            <div className="cms-mod-subtitle">{mod.descricao ? mod.descricao.substring(0, 60) + (mod.descricao.length > 60 ? '...' : '') : 'Sem descricao'}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div className="cms-mod-badges">
+                          {mod.obrigatorio && <span className="cms-badge cms-badge-required">Obrigatorio</span>}
+                          {mod.autoCertificado && <span className="cms-badge cms-badge-cert">Auto-Cert</span>}
+                        </div>
+                      </td>
+                      <td>
+                        <span className="cms-mod-aula-count">{aulaCount} {pluralize(aulaCount, 'aula')}</span>
+                      </td>
+                      <td className="cms-table-td-actions">
+                        <button id={`btn-mod-aulas-${mod.id}`} className="btn-secondary cms-table-action-btn" onClick={() => { setSelectedModulo(mod); setView('aulas') }}><i className="icon-book-open icon-xs" /> Aulas</button>
+                        {isAdmin && <button id={`btn-mod-editar-${mod.id}`} className="btn-secondary cms-table-action-btn" onClick={() => setEditingMod({ ...mod, obrigatorio: mod.obrigatorio || false, autoCertificado: mod.autoCertificado || false })}><i className="icon-pencil icon-xs" /> Editar</button>}
+                        {isAdmin && <button id={`btn-mod-excluir-${mod.id}`} className="btn-secondary cms-table-action-btn cms-table-action-red" onClick={() => handleDeleteModulo(mod.id)}><i className="icon-trash-2 icon-xs" /></button>}
+                      </td>
+                    </tr>
+                  )
+                })
               ) : (
                 <tr>
                   <td colSpan={4} className="cms-table-empty">
-                    Dados não carregados
+                    Nenhum curso criado ainda. Clique em "+ Novo Curso" para comecar.
                   </td>
                 </tr>
               )}
@@ -369,46 +387,62 @@ export function CMSPage({ user }: CMSPageProps) {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>Título</th><th>Tipo</th><th>URL</th><th>Quiz</th><th>Ações</th></tr>
+              <tr><th>#</th><th>Aula</th><th>Tipo</th><th>Quiz</th><th>Licoes</th><th>Ações</th></tr>
             </thead>
             <tbody>
               {aulas.length > 0 ? (
-                aulas.map((aula) => (
-                  <tr key={aula.id}>
-                    <td><b>{aula.titulo}</b></td>
-                    <td><span className={`track-badge ${aula.tipo === 'VIDEO' ? 'badge-new' : 'badge-blue'} cms-badge-video`}>{aula.tipo === 'VIDEO' ? <><i className="icon-video icon-xs" /> Vídeo</> : <><i className="icon-file-text icon-xs" /> PDF</>}</span></td>
-                    <td className="cms-td-url">{aula.videoUrl || aula.pdfUrl || '—'}</td>
-                    <td>
-                      {isAdmin && (
-                        <button id={`btn-aula-quiz-${aula.id}`} className={`btn-secondary cms-quiz-btn ${aula.quiz ? 'has-quiz' : ''}`} onClick={() => handleOpenQuiz(aula)}>
-                          <i className="icon-help-circle icon-xs" /> {aula.quiz ? `${aula.quiz.perguntas?.length || 0} ${pluralize(aula.quiz.perguntas?.length || 0, 'pergunta')}` : 'Criar Quiz'}
-                        </button>
-                      )}
-                      {!isAdmin && aula.quiz && (
-                        <span className="cms-quiz-count">
-                          {aula.quiz.perguntas?.length || 0} {pluralize(aula.quiz.perguntas?.length || 0, 'pergunta')}
+                aulas.map((aula, idx) => {
+                  const quizPerguntas = aula.quiz?.perguntas?.length || 0
+                  const licoesCount = aula.licoes?.length || 0
+                  return (
+                    <tr key={aula.id}>
+                      <td><span className="cms-aula-order">{idx + 1}</span></td>
+                      <td>
+                        <div>
+                          <b>{aula.titulo}</b>
+                          <div className="cms-aula-url">{aula.videoUrl || aula.pdfUrl || '—'}</div>
+                        </div>
+                      </td>
+                      <td>
+                        <span className={`track-badge ${aula.tipo === 'VIDEO' ? 'badge-new' : 'badge-blue'} cms-badge-video`}>
+                          {aula.tipo === 'VIDEO' ? <><i className="icon-video icon-xs" /> Video</> : <><i className="icon-file-text icon-xs" /> PDF</>}
                         </span>
-                      )}
-                    </td>
-                    <td className="cms-table-td-actions">
-                      {isAdmin && <button id={`btn-aula-editar-${aula.id}`} className="btn-secondary cms-table-action-btn" onClick={() => {
-                        const licoes = (aula.licoes || []).map((l: any) => ({
-                          id: l.id,
-                          titulo: l.titulo || '',
-                          hours: Math.floor((l.inicioSeg || 0) / 3600),
-                          minutes: Math.floor(((l.inicioSeg || 0) % 3600) / 60),
-                          seconds: (l.inicioSeg || 0) % 60,
-                        }))
-                        setEditingAula({ ...aula, microLessons: licoes })
-                      }}><i className="icon-pencil icon-xs" /> Editar</button>}
-                      {isAdmin && <button id={`btn-aula-excluir-${aula.id}`} className="btn-secondary cms-table-action-btn cms-table-action-red" onClick={() => handleDeleteAula(aula.id)}><i className="icon-trash-2 icon-xs" /></button>}
-                    </td>
-                  </tr>
-                ))
+                      </td>
+                      <td>
+                        {isAdmin && (
+                          <button id={`btn-aula-quiz-${aula.id}`} className={`btn-secondary cms-quiz-btn ${aula.quiz ? 'has-quiz' : ''}`} onClick={() => handleOpenQuiz(aula)}>
+                            <i className="icon-help-circle icon-xs" /> {aula.quiz ? `${quizPerguntas} ${pluralize(quizPerguntas, 'pergunta')}` : '+ Criar Quiz'}
+                          </button>
+                        )}
+                        {!isAdmin && aula.quiz && (
+                          <span className="cms-quiz-count">{quizPerguntas} {pluralize(quizPerguntas, 'pergunta')}</span>
+                        )}
+                      </td>
+                      <td>
+                        <span className={`cms-licoes-count ${licoesCount > 0 ? 'has-licoes' : ''}`}>
+                          {licoesCount > 0 ? <><i className="icon-layers icon-xs" /> {licoesCount}</> : <span className="cms-no-licoes">-</span>}
+                        </span>
+                      </td>
+                      <td className="cms-table-td-actions">
+                        {isAdmin && <button id={`btn-aula-editar-${aula.id}`} className="btn-secondary cms-table-action-btn" onClick={() => {
+                          const licoes = (aula.licoes || []).map((l: any) => ({
+                            id: l.id,
+                            titulo: l.titulo || '',
+                            hours: Math.floor((l.inicioSeg || 0) / 3600),
+                            minutes: Math.floor(((l.inicioSeg || 0) % 3600) / 60),
+                            seconds: (l.inicioSeg || 0) % 60,
+                          }))
+                          setEditingAula({ ...aula, microLessons: licoes })
+                        }}><i className="icon-pencil icon-xs" /> Editar</button>}
+                        {isAdmin && <button id={`btn-aula-excluir-${aula.id}`} className="btn-secondary cms-table-action-btn cms-table-action-red" onClick={() => handleDeleteAula(aula.id)}><i className="icon-trash-2 icon-xs" /></button>}
+                      </td>
+                    </tr>
+                  )
+                })
               ) : (
                 <tr>
-                  <td colSpan={5} className="cms-table-empty">
-                    Dados não carregados
+                  <td colSpan={6} className="cms-table-empty">
+                    Nenhuma aula criada ainda. Clique em "+ Nova Aula" para comecar.
                   </td>
                 </tr>
               )}

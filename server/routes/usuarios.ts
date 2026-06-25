@@ -2,6 +2,7 @@ import { Router } from 'express'
 import bcrypt from 'bcryptjs'
 import crypto from 'crypto'
 import { db } from '../lib/db'
+import { prisma } from '../lib/prisma'
 import { authenticate, authorize, AuthRequest } from '../middleware/auth'
 import { getStringParam } from '../utils/queryParams'
 import { Role } from '@prisma/client'
@@ -319,6 +320,16 @@ router.get('/equipe/detalhe', authenticate, authorize('ADMIN', 'GESTOR'), async 
         progressoByModulo.set(mod.id, { total: aulas.length, concluidas })
       }
 
+      // Fetch quiz results for this user
+      const quizResponses = await db.findMany('quizResponse', {
+        where: { userId: m.id },
+      }) as any[]
+
+      const quizResponseMap = new Map<string, any>()
+      for (const qr of quizResponses) {
+        quizResponseMap.set(qr.quizId, qr)
+      }
+
       return {
         id: m.id,
         nome: m.nome,
@@ -327,11 +338,50 @@ router.get('/equipe/detalhe', authenticate, authorize('ADMIN', 'GESTOR'), async 
         xp: m.xp,
         lastLogin: m.lastLogin,
         gestorId: m.gestorId,
-        modulos: modulos.map((mod: any) => ({
-          id: mod.id,
-          titulo: mod.titulo,
-          totalAulas: progressoByModulo.get(mod.id)?.total || 0,
-          aulasConcluidas: progressoByModulo.get(mod.id)?.concluidas || 0,
+        modulos: await Promise.all(modulos.map(async (mod: any) => {
+          const aulas = await db.findMany('aula', {
+            where: { moduloId: mod.id },
+            include: { quiz: { include: { perguntas: true } } },
+          }) as any[]
+
+          const aulaIds = aulas.map((a: any) => a.id)
+          const concluidas = progressos.filter((p: any) => aulaIds.includes(p.aulaId) && p.concluido).length
+
+          const aulasDetail = aulas.map((aula: any) => {
+            const quizResult = aula.quiz ? quizResponseMap.get(aula.quiz.id) : null
+            return {
+              id: aula.id,
+              titulo: aula.titulo,
+              tipo: aula.tipo,
+              concluido: progressos.some((p: any) => p.aulaId === aula.id && p.concluido),
+              quiz: aula.quiz ? {
+                id: aula.quiz.id,
+                titulo: aula.quiz.titulo,
+                notaMinima: aula.quiz.notaMinima,
+                totalPerguntas: aula.quiz.perguntas?.length || 0,
+              } : null,
+              quizResultado: quizResult ? {
+                nota: quizResult.nota,
+                total: quizResult.total,
+                concluido: quizResult.concluido,
+                respostas: quizResult.respostas || null,
+                createdAt: quizResult.createdAt,
+              } : null,
+            }
+          })
+
+          const quizzesAprovados = aulasDetail.filter((a: any) => a.quizResultado?.concluido).length
+          const quizzesTotal = aulasDetail.filter((a: any) => a.quiz).length
+
+          return {
+            id: mod.id,
+            titulo: mod.titulo,
+            totalAulas: progressoByModulo.get(mod.id)?.total || 0,
+            aulasConcluidas: concluidas,
+            quizzesAprovados,
+            quizzesTotal,
+            aulas: aulasDetail,
+          }
         })),
       }
     }))
@@ -426,6 +476,111 @@ router.post('/:id/resend-verification', authenticate, authorize('ADMIN', 'GESTOR
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao reenviar verificacao' })
+  }
+})
+
+// POST /api/usuarios/:userId/auto-approve - Auto-approve quiz/aula/module for a user
+router.post('/:userId/auto-approve', authenticate, authorize('ADMIN', 'GESTOR'), async (req: AuthRequest, res) => {
+  try {
+    const { userId } = req.params
+    const { tipo, targetId } = req.body // tipo: 'quiz' | 'aula' | 'modulo', targetId: quiz/aula/modulo id
+
+    const targetUser = await db.findUnique('user', { id: userId }) as any
+    if (!targetUser) return res.status(404).json({ error: 'Usuario nao encontrado' })
+
+    if (req.userRole === 'GESTOR' && targetUser.gestorId !== req.userId) {
+      return res.status(403).json({ error: 'Voce so pode gerenciar atendentes da sua equipe' })
+    }
+
+    if (tipo === 'quiz' && targetId) {
+      const quiz = await prisma.quiz.findUnique({ where: { id: targetId }, include: { perguntas: true, aula: true } }) as any
+      if (!quiz) return res.status(404).json({ error: 'Quiz nao encontrado' })
+
+      const total = quiz.perguntas.length
+      const nota = quiz.notaMinima || 7
+
+      await db.upsert('quizResponse',
+        { quizId_userId: { quizId: targetId, userId } },
+        { quizId: targetId, userId, nota, total, concluido: true, respostas: {} },
+        { nota, total, concluido: true, respostas: {} },
+      )
+
+      await db.upsert('progresso',
+        { moduloId_aulaId_userId: { moduloId: quiz.aula.moduloId, aulaId: quiz.aulaId, userId } },
+        { moduloId: quiz.aula.moduloId, aulaId: quiz.aulaId, userId, concluido: true },
+        { concluido: true },
+      )
+
+      await logActivity(req.userId!, 'Auto-Aprovar Quiz', `Aprovou quiz "${quiz.titulo}" para ${targetUser.nome}`)
+      return res.json({ message: 'Quiz aprovado com sucesso' })
+    }
+
+    if (tipo === 'aula' && targetId) {
+      const aula = await prisma.aula.findUnique({ where: { id: targetId } }) as any
+      if (!aula) return res.status(404).json({ error: 'Aula nao encontrada' })
+
+      await db.upsert('progresso',
+        { moduloId_aulaId_userId: { moduloId: aula.moduloId, aulaId: targetId, userId } },
+        { moduloId: aula.moduloId, aulaId: targetId, userId, concluido: true },
+        { concluido: true },
+      )
+
+      if (aula.quizId) {
+        const quiz = await prisma.quiz.findUnique({ where: { id: aula.quizId }, include: { perguntas: true } }) as any
+        if (quiz) {
+          const total = quiz.perguntas.length
+          await db.upsert('quizResponse',
+            { quizId_userId: { quizId: aula.quizId, userId } },
+            { quizId: aula.quizId, userId, nota: quiz.notaMinima || 7, total, concluido: true, respostas: {} },
+            { nota: quiz.notaMinima || 7, total, concluido: true, respostas: {} },
+          )
+        }
+      }
+
+      await logActivity(req.userId!, 'Auto-Aprovar Aula', `Aprovou aula "${aula.titulo}" para ${targetUser.nome}`)
+      return res.json({ message: 'Aula aprovada com sucesso' })
+    }
+
+    if (tipo === 'modulo' && targetId) {
+      const modulo = await prisma.modulo.findUnique({ where: { id: targetId }, include: { aulas: { include: { quiz: { include: { perguntas: true } } } } } }) as any
+      if (!modulo) return res.status(404).json({ error: 'Modulo nao encontrado' })
+
+      for (const aula of modulo.aulas) {
+        await db.upsert('progresso',
+          { moduloId_aulaId_userId: { moduloId: targetId, aulaId: aula.id, userId } },
+          { moduloId: targetId, aulaId: aula.id, userId, concluido: true },
+          { concluido: true },
+        )
+
+        if (aula.quiz) {
+          const total = aula.quiz.perguntas.length
+          await db.upsert('quizResponse',
+            { quizId_userId: { quizId: aula.quiz.id, userId } },
+            { quizId: aula.quiz.id, userId, nota: aula.quiz.notaMinima || 7, total, concluido: true, respostas: {} },
+            { nota: aula.quiz.notaMinima || 7, total, concluido: true, respostas: {} },
+          )
+        }
+      }
+
+      if (modulo.autoCertificado) {
+        const existing = await db.findFirst('certificate', { where: { userId, moduloId: targetId } }) as any
+        if (!existing) {
+          await db.create('certificate', {
+            userId,
+            moduloId: targetId,
+            status: 'APPROVED',
+          })
+        }
+      }
+
+      await logActivity(req.userId!, 'Auto-Aprovar Modulo', `Aprovou modulo "${modulo.titulo}" completo para ${targetUser.nome}`)
+      return res.json({ message: 'Modulo completo aprovado com sucesso' })
+    }
+
+    return res.status(400).json({ error: 'Tipo invalido. Use: quiz, aula, ou modulo' })
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao auto-aprovar' })
   }
 })
 
