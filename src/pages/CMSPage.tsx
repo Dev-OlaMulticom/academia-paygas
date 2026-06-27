@@ -6,6 +6,7 @@ import { pluralize } from '../lib/utils'
 import { VideoPreview } from '../components/VideoPreview'
 import { PDFViewer } from '../components/PDFViewer'
 import { useToast, useConfirm } from '../components/Toast'
+import { TablePagination, useClientPagination } from '../components/TablePagination'
 
 const EMOJI_OPTIONS = ['📚', '🎓', '💪', '⭐', '🏆', '🎯', '🔥', '✅', '📖', '💡', '🚀', '🤝', '🛡️', '⛽', '🧑‍💼', '🔧', '📋', '🔑', '🏆', '🌟']
 
@@ -14,7 +15,7 @@ interface CMSPageProps {
   user: User
 }
 
-interface MicroLesson {
+interface LicaoAncoragem {
   hours: number
   minutes: number
   seconds: number
@@ -36,12 +37,16 @@ export function CMSPage({ user }: CMSPageProps) {
   const [showAulaModal, setShowAulaModal] = useState(false)
   const [editingMod, setEditingMod] = useState<any>(null)
   const [editingAula, setEditingAula] = useState<any>(null)
-  const [newAula, setNewAula] = useState({ titulo: '', tipo: 'VIDEO' as 'VIDEO' | 'PDF', videoUrl: '', pdfUrl: '', obrigatorio: false, microLessons: [] as MicroLesson[], duration: { hours: 0, minutes: 0, seconds: 0 } as VideoDuration })
+  const [newAula, setNewAula] = useState({ titulo: '', tipo: 'VIDEO' as 'VIDEO' | 'PDF', videoUrl: '', pdfUrl: '', obrigatorio: false, licoesAncoragem: [] as LicaoAncoragem[], duration: { hours: 0, minutes: 0, seconds: 0 } as VideoDuration })
   const [modulos, setModulos] = useState<any[]>([])
   const [aulas, setAulas] = useState<any[]>([])
   const [gestores, setGestores] = useState<any[]>([])
   const [showImportExport, setShowImportExport] = useState(false)
   const [importing, setImporting] = useState(false)
+  const [expandedModRow, setExpandedModRow] = useState<string | null>(null)
+  const [expandedAulaRow, setExpandedAulaRow] = useState<string | null>(null)
+  const { page: modPage, setPage: setModPage, paginatedItems: paginatedModulos, totalItems: totalModulos } = useClientPagination(modulos, 10)
+  const { page: aulaPage, setPage: setAulaPage, paginatedItems: paginatedAulas, totalItems: totalAulas } = useClientPagination(aulas, 10)
 
 
   const isAdmin = user?.role === 'ADMIN'
@@ -150,23 +155,21 @@ export function CMSPage({ user }: CMSPageProps) {
       }
       if (newAula.tipo === 'VIDEO') {
         payload.videoUrl = newAula.videoUrl
+        if (newAula.licoesAncoragem?.length > 0) {
+          payload.ancoragemPoints = newAula.licoesAncoragem.map(ml => ({
+            hours: ml.hours || 0,
+            minutes: ml.minutes || 0,
+            seconds: ml.seconds || 0,
+            titulo: ml.titulo || '',
+          }))
+        }
       } else {
         payload.pdfUrl = newAula.pdfUrl
       }
-      const created: any = await api.createAula(selectedModulo.id, payload)
-      if (created?.id && newAula.microLessons?.length > 0) {
-        let licaoErrors = 0
-        for (const ml of newAula.microLessons) {
-          const inicioSeg = (ml.hours || 0) * 3600 + (ml.minutes || 0) * 60 + (ml.seconds || 0)
-          await api.createLicao(created.id, { titulo: ml.titulo || 'Sem titulo', tipo: 'VIDEO', conteudo: newAula.videoUrl || null, inicioSeg }).catch(() => { licaoErrors++ })
-        }
-        if (licaoErrors > 0) {
-          toast(`Aula criada, mas ${licaoErrors} lição(ões) falhou ao salvar`, 'info')
-        }
-      }
+      await api.createAula(selectedModulo.id, payload)
       toast('Aula criada com sucesso!', 'success')
       setShowAulaModal(false)
-      setNewAula({ titulo: '', tipo: 'VIDEO', videoUrl: '', pdfUrl: '', obrigatorio: false, microLessons: [], duration: { hours: 0, minutes: 0, seconds: 0 } })
+      setNewAula({ titulo: '', tipo: 'VIDEO', videoUrl: '', pdfUrl: '', obrigatorio: false, licoesAncoragem: [], duration: { hours: 0, minutes: 0, seconds: 0 } })
       loadAulas(selectedModulo.id)
     } catch (err: any) {
       toast(err.message || 'Erro ao criar aula', 'error')
@@ -176,31 +179,23 @@ export function CMSPage({ user }: CMSPageProps) {
   const handleEditAula = async () => {
     if (!editingAula) return
     try {
-      await api.updateAula(editingAula.id, editingAula)
-      const microLessons = editingAula.microLessons || []
-      const existing = (editingAula.licoes || []) as any[]
-      const existingIds = new Set(existing.map((l: any) => l.id))
-      const incomingIds = new Set(microLessons.filter((m: any) => m.id).map((m: any) => m.id))
-      for (const lid of existingIds) {
-        if (!incomingIds.has(lid)) {
-          await api.deleteLicao(lid).catch(() => {})
-        }
+      const payload = { ...editingAula }
+      if (editingAula.tipo === 'VIDEO' && editingAula.licoesAncoragem?.length > 0) {
+        payload.ancoragemPoints = editingAula.licoesAncoragem.map((ml: any) => ({
+          hours: ml.hours || 0,
+          minutes: ml.minutes || 0,
+          seconds: ml.seconds || 0,
+          titulo: ml.titulo || '',
+        }))
+      } else if (editingAula.tipo === 'VIDEO') {
+        payload.ancoragemPoints = null
       }
-      let licaoErrors = 0
-      for (const ml of microLessons) {
-        const inicioSeg = (ml.hours || 0) * 3600 + (ml.minutes || 0) * 60 + (ml.seconds || 0)
-        const payload = { titulo: ml.titulo || 'Sem titulo', tipo: 'VIDEO', conteudo: editingAula.videoUrl || null, inicioSeg }
-        if (ml.id) {
-          await api.updateLicao(ml.id, payload).catch(() => {})
-        } else {
-          await api.createLicao(editingAula.id, payload).catch(() => { licaoErrors++ })
-        }
-      }
-      if (licaoErrors > 0) {
-        toast(`Aula atualizada, mas ${licaoErrors} lição(ões) falhou ao salvar`, 'info')
-      } else {
-        toast('Aula atualizada!', 'success')
-      }
+      delete payload.licoesAncoragem
+      delete payload.licoes
+      delete payload.progressos
+      delete payload.quiz
+      await api.updateAula(editingAula.id, payload)
+      toast('Aula atualizada!', 'success')
       setEditingAula(null)
       loadAulas(selectedModulo.id)
     } catch (err: any) {
@@ -240,18 +235,18 @@ export function CMSPage({ user }: CMSPageProps) {
     return { maxMinutes: maxMin, maxSeconds: maxSec }
   }
 
-  const addMicroLesson = () => {
-    setNewAula({ ...newAula, microLessons: [...newAula.microLessons, { hours: 0, minutes: 0, seconds: 0, titulo: '' }] })
+  const addLicaoAncoragem = () => {
+    setNewAula({ ...newAula, licoesAncoragem: [...newAula.licoesAncoragem, { hours: 0, minutes: 0, seconds: 0, titulo: '' }] })
   }
 
-  const removeMicroLesson = (index: number) => {
-    setNewAula({ ...newAula, microLessons: newAula.microLessons.filter((_, i) => i !== index) })
+  const removeLicaoAncoragem = (index: number) => {
+    setNewAula({ ...newAula, licoesAncoragem: newAula.licoesAncoragem.filter((_, i) => i !== index) })
   }
 
-  const updateMicroLesson = (index: number, field: keyof MicroLesson, value: string | number) => {
-    const updated = [...newAula.microLessons]
+  const updateLicaoAncoragem = (index: number, field: keyof LicaoAncoragem, value: string | number) => {
+    const updated = [...newAula.licoesAncoragem]
     updated[index] = { ...updated[index], [field]: value }
-    setNewAula({ ...newAula, microLessons: updated })
+    setNewAula({ ...newAula, licoesAncoragem: updated })
   }
 
   const handleExport = async (type: 'cursos' | 'aulas' | 'licoes' | 'quiz') => {
@@ -339,115 +334,191 @@ export function CMSPage({ user }: CMSPageProps) {
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>Curso</th><th>Detalhes</th><th>Aulas</th><th>Ações</th></tr>
+              <tr><th style={{ width: '40px' }}></th><th>Curso</th><th>Detalhes</th><th>Aulas</th><th>Ações</th></tr>
             </thead>
             <tbody>
-              {modulos.length > 0 ? (
-                modulos.map((mod, idx) => {
+              {paginatedModulos.length > 0 ? (
+                paginatedModulos.map((mod, idx) => {
                   const aulaCount = mod._count?.aulas || 0
+                  const globalIdx = (modPage - 1) * 10 + idx
                   return (
-                    <tr key={mod.id}>
-                      <td>
-                        <div className="cms-mod-title-cell">
-                          <span className="cms-mod-order">{idx + 1}</span>
-                          <div>
-                            <b>{mod.icone || '📚'} {mod.titulo}</b>
-                            <div className="cms-mod-subtitle">{mod.descricao ? mod.descricao.substring(0, 60) + (mod.descricao.length > 60 ? '...' : '') : 'Sem descricao'}</div>
+                    <>
+                      <tr key={mod.id} className={`row-clickable ${expandedModRow === mod.id ? 'row-expanded' : ''}`} onClick={() => setExpandedModRow(expandedModRow === mod.id ? null : mod.id)}>
+                        <td>
+                          <span className={`row-expand-icon ${expandedModRow === mod.id ? 'open' : ''}`}>
+                            <i className={`icon-chevron-${expandedModRow === mod.id ? 'up' : 'down'} icon-xs`} />
+                          </span>
+                        </td>
+                        <td>
+                          <div className="cms-mod-title-cell">
+                            <span className="cms-mod-order">{globalIdx + 1}</span>
+                            <div>
+                              <b>{mod.icone || '📚'} {mod.titulo}</b>
+                              <div className="cms-mod-subtitle">{mod.descricao ? mod.descricao.substring(0, 60) + (mod.descricao.length > 60 ? '...' : '') : 'Sem descricao'}</div>
+                            </div>
                           </div>
-                        </div>
-                      </td>
-                      <td>
-                        <div className="cms-mod-badges">
-                          {mod.obrigatorio && <span className="cms-badge cms-badge-required">Obrigatorio</span>}
-                          {mod.autoCertificado && <span className="cms-badge cms-badge-cert">Auto-Cert</span>}
-                        </div>
-                      </td>
-                      <td>
-                        <span className="cms-mod-aula-count">{aulaCount} {pluralize(aulaCount, 'aula')}</span>
-                      </td>
-                      <td className="cms-table-td-actions">
-                        <button id={`btn-mod-aulas-${mod.id}`} className="btn-secondary cms-table-action-btn" onClick={() => { setSelectedModulo(mod); setView('aulas') }}><i className="icon-book-open icon-xs" /> Aulas</button>
-                        {isAdmin && <button id={`btn-mod-editar-${mod.id}`} className="btn-secondary cms-table-action-btn" onClick={() => setEditingMod({ ...mod, obrigatorio: mod.obrigatorio || false, autoCertificado: mod.autoCertificado || false })}><i className="icon-pencil icon-xs" /> Editar</button>}
-                        {isAdmin && <button id={`btn-mod-excluir-${mod.id}`} className="btn-secondary cms-table-action-btn cms-table-action-red" onClick={() => handleDeleteModulo(mod.id)}><i className="icon-trash-2 icon-xs" /></button>}
-                      </td>
-                    </tr>
+                        </td>
+                        <td>
+                          <div className="cms-mod-badges">
+                            {mod.obrigatorio && <span className="cms-badge cms-badge-required">Obrigatorio</span>}
+                            {mod.autoCertificado && <span className="cms-badge cms-badge-cert">Auto-Cert</span>}
+                          </div>
+                        </td>
+                        <td>
+                          <span className="cms-mod-aula-count">{aulaCount} {pluralize(aulaCount, 'aula')}</span>
+                        </td>
+                        <td className="cms-table-td-actions" onClick={e => e.stopPropagation()}>
+                          <button id={`btn-mod-aulas-${mod.id}`} className="btn-secondary cms-table-action-btn" onClick={() => { setSelectedModulo(mod); setView('aulas') }}><i className="icon-book-open icon-xs" /> Aulas</button>
+                          {isAdmin && <button id={`btn-mod-editar-${mod.id}`} className="btn-secondary cms-table-action-btn" onClick={() => setEditingMod({ ...mod, obrigatorio: mod.obrigatorio || false, autoCertificado: mod.autoCertificado || false })}><i className="icon-pencil icon-xs" /> Editar</button>}
+                          {isAdmin && <button id={`btn-mod-excluir-${mod.id}`} className="btn-secondary cms-table-action-btn cms-table-action-red" onClick={() => handleDeleteModulo(mod.id)}><i className="icon-trash-2 icon-xs" /></button>}
+                        </td>
+                      </tr>
+                      {expandedModRow === mod.id && (
+                        <tr key={`${mod.id}-detail`} className="row-detail">
+                          <td colSpan={5}>
+                            <div className="row-detail-body">
+                              <div className="row-detail-grid">
+                                <div className="row-detail-item">
+                                  <span className="row-detail-label">Titulo</span>
+                                  <span className="row-detail-value">{mod.icone} {mod.titulo}</span>
+                                </div>
+                                <div className="row-detail-item">
+                                  <span className="row-detail-label">Descricao</span>
+                                  <span className="row-detail-value">{mod.descricao || 'Sem descricao'}</span>
+                                </div>
+                                <div className="row-detail-item">
+                                  <span className="row-detail-label">Total de Aulas</span>
+                                  <span className="row-detail-value">{aulaCount}</span>
+                                </div>
+                                <div className="row-detail-item">
+                                  <span className="row-detail-label">Obrigatorio</span>
+                                  <span className="row-detail-value">{mod.obrigatorio ? 'Sim' : 'Nao'}</span>
+                                </div>
+                                <div className="row-detail-item">
+                                  <span className="row-detail-label">Auto-Certificado</span>
+                                  <span className="row-detail-value">{mod.autoCertificado ? 'Sim' : 'Nao'}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   )
                 })
               ) : (
                 <tr>
-                  <td colSpan={4} className="cms-table-empty">
+                  <td colSpan={5} className="cms-table-empty">
                     Nenhum curso criado ainda. Clique em "+ Novo Curso" para comecar.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+          <TablePagination page={modPage} totalItems={totalModulos} itemsPerPage={10} onPageChange={setModPage} />
         </div>
       ) : (
         <div className="table-wrap">
           <table>
             <thead>
-              <tr><th>#</th><th>Aula</th><th>Tipo</th><th>Quiz</th><th>Licoes</th><th>Ações</th></tr>
+              <tr><th style={{ width: '40px' }}></th><th>#</th><th>Aula</th><th>Tipo</th><th>Quiz</th><th>Licoes</th><th>Ações</th></tr>
             </thead>
             <tbody>
-              {aulas.length > 0 ? (
-                aulas.map((aula, idx) => {
+              {paginatedAulas.length > 0 ? (
+                paginatedAulas.map((aula, idx) => {
                   const quizPerguntas = aula.quiz?.perguntas?.length || 0
-                  const licoesCount = aula.licoes?.length || 0
+                  const licoesCount = aula.tipo === 'VIDEO' ? (aula.ancoragemPoints as any[])?.length || 0 : aula.licoes?.length || 0
+                  const globalIdx = (aulaPage - 1) * 10 + idx
                   return (
-                    <tr key={aula.id}>
-                      <td><span className="cms-aula-order">{idx + 1}</span></td>
-                      <td>
-                        <div>
-                          <b>{aula.titulo}</b>
-                          <div className="cms-aula-url">{aula.videoUrl || aula.pdfUrl || '—'}</div>
-                        </div>
-                      </td>
-                      <td>
-                        <span className={`track-badge ${aula.tipo === 'VIDEO' ? 'badge-new' : 'badge-blue'} cms-badge-video`}>
-                          {aula.tipo === 'VIDEO' ? <><i className="icon-video icon-xs" /> Video</> : <><i className="icon-file-text icon-xs" /> PDF</>}
-                        </span>
-                      </td>
-                      <td>
-                        {isAdmin && (
-                          <button id={`btn-aula-quiz-${aula.id}`} className={`btn-secondary cms-quiz-btn ${aula.quiz ? 'has-quiz' : ''}`} onClick={() => handleOpenQuiz(aula)}>
-                            <i className="icon-help-circle icon-xs" /> {aula.quiz ? `${quizPerguntas} ${pluralize(quizPerguntas, 'pergunta')}` : '+ Criar Quiz'}
-                          </button>
-                        )}
-                        {!isAdmin && aula.quiz && (
-                          <span className="cms-quiz-count">{quizPerguntas} {pluralize(quizPerguntas, 'pergunta')}</span>
-                        )}
-                      </td>
-                      <td>
-                        <span className={`cms-licoes-count ${licoesCount > 0 ? 'has-licoes' : ''}`}>
-                          {licoesCount > 0 ? <><i className="icon-layers icon-xs" /> {licoesCount}</> : <span className="cms-no-licoes">-</span>}
-                        </span>
-                      </td>
-                      <td className="cms-table-td-actions">
-                        {isAdmin && <button id={`btn-aula-editar-${aula.id}`} className="btn-secondary cms-table-action-btn" onClick={() => {
-                          const licoes = (aula.licoes || []).map((l: any) => ({
-                            id: l.id,
-                            titulo: l.titulo || '',
-                            hours: Math.floor((l.inicioSeg || 0) / 3600),
-                            minutes: Math.floor(((l.inicioSeg || 0) % 3600) / 60),
-                            seconds: (l.inicioSeg || 0) % 60,
-                          }))
-                          setEditingAula({ ...aula, microLessons: licoes })
-                        }}><i className="icon-pencil icon-xs" /> Editar</button>}
-                        {isAdmin && <button id={`btn-aula-excluir-${aula.id}`} className="btn-secondary cms-table-action-btn cms-table-action-red" onClick={() => handleDeleteAula(aula.id)}><i className="icon-trash-2 icon-xs" /></button>}
-                      </td>
-                    </tr>
+                    <>
+                      <tr key={aula.id} className={`row-clickable ${expandedAulaRow === aula.id ? 'row-expanded' : ''}`} onClick={() => setExpandedAulaRow(expandedAulaRow === aula.id ? null : aula.id)}>
+                        <td>
+                          <span className={`row-expand-icon ${expandedAulaRow === aula.id ? 'open' : ''}`}>
+                            <i className={`icon-chevron-${expandedAulaRow === aula.id ? 'up' : 'down'} icon-xs`} />
+                          </span>
+                        </td>
+                        <td><span className="cms-aula-order">{globalIdx + 1}</span></td>
+                        <td>
+                          <div>
+                            <b>{aula.titulo}</b>
+                            <div className="cms-aula-url">{aula.videoUrl || aula.pdfUrl || '—'}</div>
+                          </div>
+                        </td>
+                        <td>
+                          <span className={`track-badge ${aula.tipo === 'VIDEO' ? 'badge-new' : 'badge-blue'} cms-badge-video`}>
+                            {aula.tipo === 'VIDEO' ? <><i className="icon-video icon-xs" /> Video</> : <><i className="icon-file-text icon-xs" /> PDF</>}
+                          </span>
+                        </td>
+                        <td>
+                          {isAdmin && (
+                            <button id={`btn-aula-quiz-${aula.id}`} className={`btn-secondary cms-quiz-btn ${aula.quiz ? 'has-quiz' : ''}`} onClick={(e) => { e.stopPropagation(); handleOpenQuiz(aula) }}>
+                              <i className="icon-help-circle icon-xs" /> {aula.quiz ? `${quizPerguntas} ${pluralize(quizPerguntas, 'pergunta')}` : '+ Criar Quiz'}
+                            </button>
+                          )}
+                          {!isAdmin && aula.quiz && (
+                            <span className="cms-quiz-count">{quizPerguntas} {pluralize(quizPerguntas, 'pergunta')}</span>
+                          )}
+                        </td>
+                        <td>
+                          <span className={`cms-licoes-count ${licoesCount > 0 ? 'has-licoes' : ''}`}>
+                            {licoesCount > 0 ? <><i className="icon-layers icon-xs" /> {licoesCount}</> : <span className="cms-no-licoes">-</span>}
+                          </span>
+                        </td>
+                        <td className="cms-table-td-actions" onClick={e => e.stopPropagation()}>
+                          {isAdmin && <button id={`btn-aula-editar-${aula.id}`} className="btn-secondary cms-table-action-btn" onClick={() => {
+                            const ancPoints = (aula.ancoragemPoints || []) as any[]
+                            setEditingAula({ ...aula, licoesAncoragem: ancPoints.map((p: any) => ({ hours: p.hours || 0, minutes: p.minutes || 0, seconds: p.seconds || 0, titulo: p.titulo || '' })) })
+                          }}><i className="icon-pencil icon-xs" /> Editar</button>}
+                          {isAdmin && <button id={`btn-aula-excluir-${aula.id}`} className="btn-secondary cms-table-action-btn cms-table-action-red" onClick={() => handleDeleteAula(aula.id)}><i className="icon-trash-2 icon-xs" /></button>}
+                        </td>
+                      </tr>
+                      {expandedAulaRow === aula.id && (
+                        <tr key={`${aula.id}-detail`} className="row-detail">
+                          <td colSpan={7}>
+                            <div className="row-detail-body">
+                              <div className="row-detail-grid">
+                                <div className="row-detail-item">
+                                  <span className="row-detail-label">Titulo</span>
+                                  <span className="row-detail-value">{aula.titulo}</span>
+                                </div>
+                                <div className="row-detail-item">
+                                  <span className="row-detail-label">Tipo</span>
+                                  <span className="row-detail-value">{aula.tipo === 'VIDEO' ? 'Video (YouTube)' : 'PDF'}</span>
+                                </div>
+                                <div className="row-detail-item">
+                                  <span className="row-detail-label">URL</span>
+                                  <span className="row-detail-value" style={{ wordBreak: 'break-all', fontSize: '12px' }}>{aula.videoUrl || aula.pdfUrl || '—'}</span>
+                                </div>
+                                <div className="row-detail-item">
+                                  <span className="row-detail-label">Obrigatorio</span>
+                                  <span className="row-detail-value">{aula.obrigatorio ? 'Sim' : 'Nao'}</span>
+                                </div>
+                                <div className="row-detail-item">
+                                  <span className="row-detail-label">Quiz</span>
+                                  <span className="row-detail-value">{aula.quiz ? `${quizPerguntas} perguntas` : 'Sem quiz'}</span>
+                                </div>
+                                <div className="row-detail-item">
+                                  <span className="row-detail-label">Licoes</span>
+                                  <span className="row-detail-value">{licoesCount > 0 ? `${licoesCount} ponto(s)` : 'Nenhuma'}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   )
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="cms-table-empty">
+                  <td colSpan={7} className="cms-table-empty">
                     Nenhuma aula criada ainda. Clique em "+ Nova Aula" para comecar.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
+          <TablePagination page={aulaPage} totalItems={totalAulas} itemsPerPage={10} onPageChange={setAulaPage} />
         </div>
       )}
 
@@ -526,14 +597,14 @@ export function CMSPage({ user }: CMSPageProps) {
                 </div>
                 {newAula.tipo === 'VIDEO' && (
                   <div className="form-field">
-                    <label className="form-label">Micro-Leções (pontos de separação)</label>
-                    {newAula.microLessons.map((ml, i) => {
+                    <label className="form-label">Lições (pontos de ancoragem)</label>
+                    {newAula.licoesAncoragem.map((ml, i) => {
                       const { maxMinutes, maxSeconds } = getMaxTime(newAula.duration, ml.hours)
                       return (
                       <div key={i} className="cms-micro-row">
                         <div className="cms-micro-col">
                           <label className="cms-micro-label">Hora</label>
-                          <select className="form-select cms-micro-select" value={ml.hours} onChange={e => updateMicroLesson(i, 'hours', parseInt(e.target.value) || 0)}>
+                          <select className="form-select cms-micro-select" value={ml.hours} onChange={e => updateLicaoAncoragem(i, 'hours', parseInt(e.target.value) || 0)}>
                             {Array.from({ length: newAula.duration.hours + 1 }, (_, i) => i).map(h => (
                               <option key={h} value={h}>{h}</option>
                             ))}
@@ -541,7 +612,7 @@ export function CMSPage({ user }: CMSPageProps) {
                         </div>
                         <div className="cms-micro-col">
                           <label className="cms-micro-label">Min</label>
-                          <select className="form-select cms-micro-select" value={ml.minutes} onChange={e => updateMicroLesson(i, 'minutes', parseInt(e.target.value) || 0)}>
+                          <select className="form-select cms-micro-select" value={ml.minutes} onChange={e => updateLicaoAncoragem(i, 'minutes', parseInt(e.target.value) || 0)}>
                             {Array.from({ length: maxMinutes + 1 }, (_, i) => i).map(m => (
                               <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
                             ))}
@@ -549,20 +620,20 @@ export function CMSPage({ user }: CMSPageProps) {
                         </div>
                         <div className="cms-micro-col">
                           <label className="cms-micro-label">Seg</label>
-                          <select className="form-select cms-micro-select" value={ml.seconds} onChange={e => updateMicroLesson(i, 'seconds', parseInt(e.target.value) || 0)}>
+                          <select className="form-select cms-micro-select" value={ml.seconds} onChange={e => updateLicaoAncoragem(i, 'seconds', parseInt(e.target.value) || 0)}>
                             {Array.from({ length: (ml.minutes < maxMinutes ? 60 : maxSeconds) + 1 }, (_, i) => i).map(s => (
                               <option key={s} value={s}>{s.toString().padStart(2, '0')}</option>
                             ))}
                           </select>
                         </div>
                         <div className="cms-micro-title-input">
-                          <input className="form-input" placeholder="Título do ponto" value={ml.titulo} onChange={e => updateMicroLesson(i, 'titulo', e.target.value)} />
+                          <input className="form-input" placeholder="Título do ponto" value={ml.titulo} onChange={e => updateLicaoAncoragem(i, 'titulo', e.target.value)} />
                         </div>
-                        <button className="btn-secondary cms-micro-remove" onClick={() => removeMicroLesson(i)}><i className="icon-x icon-sm" /></button>
+                        <button className="btn-secondary cms-micro-remove" onClick={() => removeLicaoAncoragem(i)}><i className="icon-x icon-sm" /></button>
                       </div>
                       )
                     })}
-                    <button className="btn-secondary cms-micro-add" onClick={addMicroLesson}>+ Adicionar Ponto</button>
+                    <button className="btn-secondary cms-micro-add" onClick={addLicaoAncoragem}>+ Adicionar Ponto</button>
                   </div>
                 )}
               </div>
@@ -630,8 +701,8 @@ export function CMSPage({ user }: CMSPageProps) {
                 </div>
                 {editingAula.tipo === 'VIDEO' && (
                   <div className="form-field">
-                    <label className="form-label">Micro-Leções (pontos de separação)</label>
-                    {(editingAula.microLessons || []).map((ml: MicroLesson, i: number) => {
+                    <label className="form-label">Lições (pontos de ancoragem)</label>
+                    {(editingAula.licoesAncoragem || []).map((ml: LicaoAncoragem, i: number) => {
                       const dur = editingAula.duration || { hours: 0, minutes: 0, seconds: 0 }
                       const { maxMinutes, maxSeconds } = getMaxTime(dur, ml.hours || 0)
                       return (
@@ -639,9 +710,9 @@ export function CMSPage({ user }: CMSPageProps) {
                         <div className="cms-micro-col">
                           <label className="cms-micro-label">Hora</label>
                           <select className="form-select cms-micro-select" value={ml.hours || 0} onChange={e => {
-                            const updated = [...(editingAula.microLessons || [])]
+                            const updated = [...(editingAula.licoesAncoragem || [])]
                             updated[i] = { ...updated[i], hours: parseInt(e.target.value) || 0 }
-                            setEditingAula({ ...editingAula, microLessons: updated })
+                            setEditingAula({ ...editingAula, licoesAncoragem: updated })
                           }}>
                             {Array.from({ length: dur.hours + 1 }, (_, i) => i).map(h => (
                               <option key={h} value={h}>{h}</option>
@@ -651,9 +722,9 @@ export function CMSPage({ user }: CMSPageProps) {
                         <div className="cms-micro-col">
                           <label className="cms-micro-label">Min</label>
                           <select className="form-select cms-micro-select" value={ml.minutes || 0} onChange={e => {
-                            const updated = [...(editingAula.microLessons || [])]
+                            const updated = [...(editingAula.licoesAncoragem || [])]
                             updated[i] = { ...updated[i], minutes: parseInt(e.target.value) || 0 }
-                            setEditingAula({ ...editingAula, microLessons: updated })
+                            setEditingAula({ ...editingAula, licoesAncoragem: updated })
                           }}>
                             {Array.from({ length: maxMinutes + 1 }, (_, i) => i).map(m => (
                               <option key={m} value={m}>{m.toString().padStart(2, '0')}</option>
@@ -663,9 +734,9 @@ export function CMSPage({ user }: CMSPageProps) {
                         <div className="cms-micro-col">
                           <label className="cms-micro-label">Seg</label>
                           <select className="form-select cms-micro-select" value={ml.seconds || 0} onChange={e => {
-                            const updated = [...(editingAula.microLessons || [])]
+                            const updated = [...(editingAula.licoesAncoragem || [])]
                             updated[i] = { ...updated[i], seconds: parseInt(e.target.value) || 0 }
-                            setEditingAula({ ...editingAula, microLessons: updated })
+                            setEditingAula({ ...editingAula, licoesAncoragem: updated })
                           }}>
                             {Array.from({ length: ((ml.minutes || 0) < maxMinutes ? 60 : maxSeconds) + 1 }, (_, i) => i).map(s => (
                               <option key={s} value={s}>{s.toString().padStart(2, '0')}</option>
@@ -674,19 +745,19 @@ export function CMSPage({ user }: CMSPageProps) {
                         </div>
                         <div className="cms-micro-title-input">
                           <input className="form-input" placeholder="Título do ponto" value={ml.titulo} onChange={e => {
-                            const updated = [...(editingAula.microLessons || [])]
+                            const updated = [...(editingAula.licoesAncoragem || [])]
                             updated[i] = { ...updated[i], titulo: e.target.value }
-                            setEditingAula({ ...editingAula, microLessons: updated })
+                            setEditingAula({ ...editingAula, licoesAncoragem: updated })
                           }} />
                         </div>
                         <button className="btn-secondary cms-micro-remove" onClick={() => {
-                          setEditingAula({ ...editingAula, microLessons: (editingAula.microLessons || []).filter((_: any, idx: number) => idx !== i) })
+                          setEditingAula({ ...editingAula, licoesAncoragem: (editingAula.licoesAncoragem || []).filter((_: any, idx: number) => idx !== i) })
                         }}><i className="icon-x icon-sm" /></button>
                       </div>
                       )
                     })}
                     <button className="btn-secondary cms-micro-add" onClick={() => {
-                      setEditingAula({ ...editingAula, microLessons: [...(editingAula.microLessons || []), { hours: 0, minutes: 0, seconds: 0, titulo: '' }] })
+                      setEditingAula({ ...editingAula, licoesAncoragem: [...(editingAula.licoesAncoragem || []), { hours: 0, minutes: 0, seconds: 0, titulo: '' }] })
                     }}>+ Adicionar Ponto</button>
                   </div>
                 )}

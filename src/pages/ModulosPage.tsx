@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { api } from '../lib/api'
 import { pluralize } from '../lib/utils'
@@ -40,6 +40,8 @@ export function ModulosPage() {
   const [quizResult, setQuizResult] = useState<any>(null)
   const [videoEnded, setVideoEnded] = useState(false)
   const [expandedLicao, setExpandedLicao] = useState<string | null>(null)
+  const videoRef = useRef<{ seekTo: (s: number) => void }>(null)
+  const [videoCurrentTime, setVideoCurrentTime] = useState(0)
   const [certificate, setCertificate] = useState<any>(null)
   const [allQuizResults, setAllQuizResults] = useState<Record<string, any>>({})
   const [showConfetti, setShowConfetti] = useState(false)
@@ -51,7 +53,8 @@ export function ModulosPage() {
   const [desktopQuizStep, setDesktopQuizStep] = useState(0)
   const [expandedMobileLesson, setExpandedMobileLesson] = useState<number | null>(0)
   const [expandedMobileExtra, setExpandedMobileExtra] = useState<string | null>(null)
-  const [mediaModal, setMediaModal] = useState<{ url: string; type: 'pdf' | 'video'; title: string } | null>(null)
+  const [mediaModal, setMediaModal] = useState<{ url: string; type: 'pdf' | 'video'; title: string; startTime?: number } | null>(null)
+  const [restartRequested, setRestartRequested] = useState(false)
   const isMobile = useIsMobile()
 
   const loadModulo = async () => {
@@ -115,6 +118,17 @@ export function ModulosPage() {
     }
   }, [modulo, lessons, loadQuizResults, loadCertificate])
 
+  // Auto-request certificate for modules without quizzes when all lessons completed
+  useEffect(() => {
+    if (!modulo || lessons.length === 0 || certificate) return
+    const hasQuizzes = lessons.some((l: any) => l.quiz)
+    if (hasQuizzes) return
+    const allDone = lessons.every((l: any) => isLessonCompleted(l))
+    if (allDone) {
+      api.createCertificate(modulo.id).then(() => loadCertificate()).catch(() => {})
+    }
+  }, [lessons, modulo, certificate, loadCertificate])
+
   const isLessonCompleted = (lesson: any) => lesson.concluido === true
 
   const canAdvanceToLesson = (index: number) => {
@@ -127,7 +141,7 @@ export function ModulosPage() {
 
   const areAllQuizzesPassed = () => {
     const quizLessons = lessons.filter(l => l.quiz)
-    if (quizLessons.length === 0) return false
+    if (quizLessons.length === 0) return true
     return quizLessons.every(l => {
       const result = allQuizResults[l.quiz.id]
       return result?.concluido
@@ -278,6 +292,29 @@ export function ModulosPage() {
 
   const renderCertificateTab = () => {
     const quizzesPassed = areAllQuizzesPassed()
+    const allLessonsCompleted = lessons.length > 0 && lessons.every((l: any) => isLessonCompleted(l))
+    const canRequestCert = allLessonsCompleted && quizzesPassed
+
+    if (!hasCertificate && canRequestCert) {
+      return (
+        <div className="empty-state section-padding">
+          <div className="empty-icon">📜</div>
+          <p className="empty-msg">Certificado disponivel!</p>
+          <p className="empty-desc">Voce completou todas as aulas e quizzes. Solicite seu certificado.</p>
+          <button className="btn-primary" style={{ marginTop: '12px' }} onClick={async () => {
+            try {
+              await api.createCertificate(modulo.id)
+              loadCertificate()
+            } catch (e) {
+              alert('Erro ao solicitar certificado')
+            }
+          }}>
+            Solicitar Certificado
+          </button>
+        </div>
+      )
+    }
+
     if (!hasCertificate || !quizzesPassed) {
       const quizLessons = lessons.filter(l => l.quiz)
       const pendingCount = quizLessons.filter(l => {
@@ -290,21 +327,51 @@ export function ModulosPage() {
           <p className="empty-msg">{!hasCertificate ? 'Nenhum certificado disponivel' : 'Certificado bloqueado'}</p>
           <p className="empty-desc">
             {!hasCertificate
-              ? 'Complete todas as aulas e aprove nos quizzes para gerar seu certificado.'
-              : `Aprove em ${pendingCount} ${pluralize(pendingCount, 'quiz')} pendente${pendingCount !== 1 ? 's' : ''} para desbloquear seu certificado.`
+              ? 'Complete todas as aulas para gerar seu certificado.'
+              : pendingCount > 0
+                ? `Aprove em ${pendingCount} ${pluralize(pendingCount, 'quiz')} pendente${pendingCount !== 1 ? 's' : ''} para desbloquear seu certificado.`
+                : 'Aguarde a aprovacao do gestor.'
             }
           </p>
         </div>
       )
     }
-    const template = certificate.moduloCertTemplate || certificate.modulo?.certificadoTemplate
+    const DEFAULT_TEMPLATE = `<div style="width:800px;padding:40px;background:#ffffff;color:#1a1a1a;border-radius:12px;text-align:center;font-family:Arial,sans-serif;border:2px solid #F47C20;">
+  <div style="font-size:14px;letter-spacing:3px;margin-bottom:8px;color:#0A2E6E;">ACADEMIA PAYGAS</div>
+  <div style="font-size:28px;margin-bottom:20px;">{{MODULO_ICONE}} {{MODULO_TITULO}}</div>
+  <div style="font-size:14px;color:#666;margin-bottom:10px;">Certificamos que</div>
+  <div style="font-size:32px;font-weight:bold;margin:20px 0;border-bottom:2px solid #F47C20;padding-bottom:20px;color:#0A2E6E;">{{USUARIO_NOME}}</div>
+  <div style="font-size:16px;margin-bottom:40px;color:#444;">concluiu o modulo de <strong>{{MODULO_TITULO}}</strong> com sucesso.</div>
+  <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:40px;">
+    <div style="text-align:left;">
+      <div style="font-size:12px;color:#999;">{{DATA_HORA}}</div>
+      <div style="margin-top:30px;border-top:1px solid #ccc;padding-top:6px;font-size:13px;font-weight:600;color:#333;">{{GESTOR_NOME}}</div>
+      <div style="font-size:11px;color:#999;">Gestor de Posto</div>
+    </div>
+    <div style="width:80px;height:80px;background:#F47C20;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:bold;color:#fff;">PG</div>
+  </div>
+</div>`
+    const template = certificate.moduloCertTemplate || certificate.modulo?.certificadoTemplate || DEFAULT_TEMPLATE
     const titulo = certificate.modulo?.titulo || modulo.titulo
     const icone = certificate.modulo?.icone || modulo.icone || '📚'
     const nome = user?.nome || 'Usuario'
-    const gestorNome = certificate.user?.gestor?.nome || user?.gestorNome || ''
+    const gestorNome = ''
     const certDate = certificate.createdAt ? new Date(certificate.createdAt) : new Date()
     const dateStr = certDate.toLocaleDateString('pt-BR')
     const timeStr = certDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+
+    const certHtml = template
+      .replace(/\{\{MODULO_ICONE\}\}/g, icone)
+      .replace(/\{\{MODULO_TITULO\}\}/g, titulo)
+      .replace(/\{\{USUARIO_NOME\}\}/g, nome)
+      .replace(/\{\{DATA\}\}/g, dateStr)
+      .replace(/\{\{DATA_HORA\}\}/g, `${dateStr} ${timeStr}`)
+      .replace(/\{\{GESTOR_NOME\}\}/g, gestorNome)
+
+    const fullPageHtml = `<!DOCTYPE html><html><head><style>body{margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#e5e7eb;font-family:Arial,sans-serif;}</style></head><body>${certHtml}</body></html>`
+
+    const statusLabel = certificate.status === 'APPROVED' ? 'Aprovado' : certificate.status === 'ISSUED' ? 'Emitido' : 'Pendente'
+    const statusClass = certificate.status === 'APPROVED' ? 'cert-status-approved' : certificate.status === 'ISSUED' ? 'cert-status-issued' : 'cert-status-pending'
 
     const handleDownloadPDF = async () => {
       const certEl = document.getElementById('cert-printable')
@@ -341,24 +408,18 @@ export function ModulosPage() {
 
     return (
       <div className="section-padding">
-        <h3 className="section-title-mb">📜 Seu Certificado</h3>
-        <div id="cert-printable" className="cert-card cert-max-w">
-          <div className="cert-header">
-            <h3>ACADEMIA PAYGAS</h3>
-            <h2>{icone} {titulo}</h2>
-          </div>
-          <div className="cert-body">
-            <p className="cert-body-text">Certificamos que</p>
-            <div className="cert-name">{nome}</div>
-            <p className="cert-body-text-green">concluiu o modulo de <strong>{titulo}</strong> com sucesso.</p>
-            <div className="cert-footer cert-footer-mt">
-              <div className="cert-footer-left">
-                <span className="cert-date">{dateStr} {timeStr}</span>
-                {gestorNome && <div className="cert-gestor-signature"><div className="cert-gestor-line" /><span className="cert-gestor-name">{gestorNome}</span><span className="cert-gestor-role">Gestor de Posto</span></div>}
-              </div>
-              <div className="cert-seal">PG</div>
-            </div>
-          </div>
+        <div className="cert-top-bar">
+          <h3 className="section-title-mb">📜 Seu Certificado</h3>
+          <span className={`cert-status-badge ${statusClass}`}>{statusLabel}</span>
+        </div>
+        <div className="cert-embed-wrap">
+          <iframe
+            id="cert-printable"
+            className="cert-embed-iframe"
+            srcDoc={fullPageHtml}
+            title={`Certificado - ${titulo}`}
+            sandbox="allow-same-origin"
+          />
         </div>
         <div className="cert-download-center">
           <button className="btn-primary cert-dl-btn" onClick={handleDownloadPDF}><i className="icon-download icon-sm" /> Baixar PDF</button>
@@ -387,7 +448,18 @@ export function ModulosPage() {
         setShowConfetti(true)
         setTimeout(() => setShowConfetti(false), 4000)
         loadQuizResults()
-        loadCertificate()
+        // Auto-request certificate if all quizzes passed and all lessons completed
+        const allLessonsDone = lessons.every((l: any) => isLessonCompleted(l))
+        const updatedResults: Record<string, any> = { ...allQuizResults, [quiz.id]: { ...result, concluido: true } }
+        const allQuizzesDone = lessons.filter((l: any) => l.quiz).every((l: any) => updatedResults[l.quiz.id]?.concluido)
+        if (allLessonsDone && allQuizzesDone && !certificate) {
+          try {
+            await api.createCertificate(modulo.id)
+            loadCertificate()
+          } catch { /* silent */ }
+        } else {
+          loadCertificate()
+        }
       }
     } catch {
       setQuizResultMap(prev => ({ ...prev, [quiz.id]: { nota: 0, total: quiz.perguntas.length, correct: 0, passed: false } }))
@@ -641,8 +713,8 @@ export function ModulosPage() {
     )
   }
 
-  const openMediaModal = (url: string, type: 'pdf' | 'video', title: string) => {
-    setMediaModal({ url, type, title })
+  const openMediaModal = (url: string, type: 'pdf' | 'video', title: string, startTime?: number) => {
+    setMediaModal({ url, type, title, startTime })
   }
 
   const renderMediaButton = (lesson: any) => {
@@ -692,9 +764,15 @@ export function ModulosPage() {
             <div className="media-modal-body">
               {mediaModal.type === 'pdf' ? (
                 <PDFViewer url={mediaModal.url} />
-              ) : (
-                <iframe src={mediaModal.url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')} title={mediaModal.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
-              )}
+              ) : (() => {
+                let embedUrl = mediaModal.url.replace('watch?v=', 'embed/').replace('youtu.be/', 'youtube.com/embed/')
+                if (mediaModal.startTime && mediaModal.startTime > 0) {
+                  embedUrl += (embedUrl.includes('?') ? '&' : '?') + `start=${mediaModal.startTime}`
+                }
+                return (
+                  <iframe src={embedUrl} title={mediaModal.title} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+                )
+              })()}
             </div>
           </div>
         </div>
@@ -771,9 +849,60 @@ export function ModulosPage() {
                   )}
                 </div>
 
+                {isActive && !isMobile && lesson.tipo === 'VIDEO' && lesson.ancoragemPoints && (lesson.ancoragemPoints as any[]).length > 0 && (
+                  <div className="lesson-sidebar-chapters">
+                    {(lesson.ancoragemPoints as any[]).map((pt: any, ci: number) => {
+                      const totalSec = (pt.hours || 0) * 3600 + (pt.minutes || 0) * 60 + (pt.seconds || 0)
+                      const nextPt = (lesson.ancoragemPoints as any[])[ci + 1]
+                      const nextSec = nextPt ? (nextPt.hours || 0) * 3600 + (nextPt.minutes || 0) * 60 + (nextPt.seconds || 0) : Infinity
+                      const isActiveChapter = videoCurrentTime >= totalSec && videoCurrentTime < nextSec
+                      const isPast = videoCurrentTime >= nextSec
+                      const h = Math.floor(totalSec / 3600)
+                      const m = Math.floor((totalSec % 3600) / 60)
+                      const s = Math.floor(totalSec % 60)
+                      const timeLabel = h > 0 ? `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}` : `${m}:${s.toString().padStart(2,'0')}`
+                      return (
+                        <button key={ci} className={`sidebar-chapter-btn ${isActiveChapter ? 'active' : ''} ${isPast ? 'past' : ''}`} onClick={(e) => { e.stopPropagation(); videoRef.current?.seekTo(totalSec) }}>
+                          <span className="sidebar-chapter-dot" />
+                          <span className="sidebar-chapter-time">{timeLabel}</span>
+                          <span className="sidebar-chapter-label">{pt.titulo || `Ponto ${ci + 1}`}</span>
+                        </button>
+                      )
+                    })}
+                  </div>
+                )}
+
                 {isMobile && isExpanded && (
                   <div className="lesson-item-accordion-body">
                     {renderMediaButton(lesson)}
+
+                    {lesson.tipo === 'VIDEO' && lesson.ancoragemPoints && (lesson.ancoragemPoints as any[]).length > 0 && (
+                      <div className="lesson-mobile-chapters">
+                        {(lesson.ancoragemPoints as any[]).map((pt: any, ci: number) => {
+                          const totalSec = (pt.hours || 0) * 3600 + (pt.minutes || 0) * 60 + (pt.seconds || 0)
+                          const nextPt = (lesson.ancoragemPoints as any[])[ci + 1]
+                          const nextSec = nextPt ? (nextPt.hours || 0) * 3600 + (nextPt.minutes || 0) * 60 + (nextPt.seconds || 0) : Infinity
+                          const isActivePill = videoCurrentTime >= totalSec && videoCurrentTime < nextSec
+                          const isPastPill = videoCurrentTime >= nextSec
+                          const h = Math.floor(totalSec / 3600)
+                          const m = Math.floor((totalSec % 3600) / 60)
+                          const s = Math.floor(totalSec % 60)
+                          const timeLabel = h > 0 ? `${h}:${m.toString().padStart(2,'0')}:${s.toString().padStart(2,'0')}` : `${m}:${s.toString().padStart(2,'0')}`
+                          return (
+                            <button key={ci} className={`mobile-chapter-pill ${isActivePill ? 'active' : ''} ${isPastPill ? 'past' : ''}`} onClick={(e) => {
+                              e.stopPropagation()
+                              if (isMobile && lesson.videoUrl) {
+                                openMediaModal(lesson.videoUrl, 'video', lesson.titulo, totalSec)
+                              } else {
+                                videoRef.current?.seekTo(totalSec)
+                              }
+                            }}>
+                              {timeLabel} — {pt.titulo || `Ponto ${ci + 1}`}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    )}
 
                     <div className="lesson-desc">{lesson.descricao || 'Conteudo da aula.'}</div>
 
@@ -916,6 +1045,27 @@ export function ModulosPage() {
               <div className="sidebar-extra-accordion-body">{renderCertificateTab()}</div>
             )}
           </div>
+
+          {/* Restart Request Button */}
+          {user?.role === 'ATENDENTE' && (
+            <div className="sidebar-extra-item">
+              <div className={`sidebar-extra-btn ${restartRequested ? 'requested' : ''}`} onClick={async () => {
+                if (restartRequested) return
+                if (!window.confirm('Solicitar reinicio do progresso deste modulo? O gestor sera notificado.')) return
+                try {
+                  await api.requestRestart(modulo.id)
+                  setRestartRequested(true)
+                  alert('Solicitação enviada ao gestor!')
+                } catch {
+                  alert('Erro ao enviar solicitação')
+                }
+              }}>
+                <i className="icon-refresh icon-sm" />
+                <span>{restartRequested ? 'Solicitação Enviada' : 'Solicitar Reiniciar'}</span>
+                {restartRequested && <span className="sidebar-extra-check">⏳</span>}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="lesson-content">
@@ -931,7 +1081,15 @@ export function ModulosPage() {
                 </div>
               ) : current?.videoUrl ? (
                 <div className="lesson-video">
-                  <VideoPlayer key={`${current.id}-${current.videoInicio}`} url={current.videoUrl} startAt={current.videoInicio || 0} endAt={current.videoFim || undefined} onTimeUpdate={(time) => { if (current.videoFim && time >= current.videoFim) handleVideoEnd() }} />
+                  {!isMobile ? (
+                    <VideoPlayer ref={videoRef} key={`${current.id}-${current.videoInicio}`} url={current.videoUrl} startAt={current.videoInicio || 0} endAt={current.videoFim || undefined} licoesAncoragem={current.ancoragemPoints || undefined} onTimeUpdate={(time) => { if (current.videoFim && time >= current.videoFim) handleVideoEnd() }} onCurrentTimeChange={setVideoCurrentTime} />
+                  ) : (
+                    <div className="lesson-video-placeholder">
+                      <div className="play-btn"><i className="icon-play icon-xl" /></div>
+                      <p>Video</p>
+                      <small className="lesson-text-placeholder">{current?.titulo}</small>
+                    </div>
+                  )}
                 </div>
               ) : current?.tipo === 'TEXTO' ? (
                 <div className="lesson-video">
@@ -954,13 +1112,14 @@ export function ModulosPage() {
                 <h2>{current?.titulo}</h2>
                 <div className="lesson-tags">
                   <span className="lesson-tag">{current?.tipo === 'PDF' ? 'PDF' : current?.videoUrl ? 'Video' : 'Conteudo'}</span>
-                  {current?.licoes && current.licoes.length > 0 && <span className="lesson-tag">{current.licoes.length} {pluralize(current.licoes.length, 'licao')}</span>}
+                  {current?.tipo === 'VIDEO' && current?.ancoragemPoints && (current.ancoragemPoints as any[]).length > 0 && <span className="lesson-tag">{(current.ancoragemPoints as any[]).length} {(current.ancoragemPoints as any[]).length === 1 ? 'ponto de ancoragem' : 'pontos de ancoragem'}</span>}
+                  {current?.tipo !== 'VIDEO' && current?.licoes && current.licoes.length > 0 && <span className="lesson-tag">{current.licoes.length} {pluralize(current.licoes.length, 'licao')}</span>}
                   {current?.videoInicio || current?.videoFim ? <span className="lesson-tag">⏱ {current.videoInicio || 0}s – {current.videoFim || 'fim'}s</span> : null}
                   {current?.concluido && <span className="lesson-tag lesson-tags-concluido">✓ Concluido</span>}
                   {current?.obrigatorio && <span className="lesson-tag lesson-tags-obrigatorio">Obrigatorio</span>}
                 </div>
                 <div className="lesson-text">{current?.descricao || 'Conteudo da aula.'}</div>
-                {current?.licoes && current.licoes.length > 0 && (
+                {current?.licoes && current.licoes.length > 0 && current?.tipo !== 'VIDEO' && (
                   <div className="lesson-cons-section">
                     <h3 className="lesson-cons-title">Licoes ({current.licoes.length})</h3>
                     <div className="lesson-cons-list">

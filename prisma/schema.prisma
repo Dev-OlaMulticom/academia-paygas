@@ -97,6 +97,7 @@ model Aula {
   videoFim    Int?
   duracaoMin  Int?
   obrigatorio Boolean   @default(false)
+  ancoragemPoints Json?  // Pontos de ancoragem do video [{hours, minutes, seconds, titulo}]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -185,13 +186,15 @@ model QuizResponse {
 }
 
 model Progresso {
-  id        String   @id @default(cuid())
-  moduloId  String
-  aulaId    String
-  userId    String
-  concluido Boolean  @default(false)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id           String   @id @default(cuid())
+  moduloId     String
+  aulaId       String
+  userId       String
+  concluido    Boolean  @default(false)
+  reiniciado   Boolean  @default(false)
+  restartCount Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   // Relations
   modulo    Modulo @relation(fields: [moduloId], references: [id], onDelete: Cascade)
@@ -231,6 +234,7 @@ model Notification {
   toId      String
   titulo    String
   mensagem  String
+  data      Json?
   lida      Boolean  @default(false)
   createdAt DateTime @default(now())
 

@@ -14,9 +14,23 @@ router.get('/', authenticate, async (req: any, res) => {
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20))
     const skip = (page - 1) * limit
 
-    const where = req.userRole === 'ADMIN'
-      ? {}
-      : { userId: req.userId }
+    let where: any = {}
+
+    if (req.userRole === 'ADMIN') {
+      // Admin sees all certificates
+      where = {}
+    } else if (req.userRole === 'GESTOR') {
+      // Gestor sees own + team members' certificates
+      const teamMembers = await prisma.user.findMany({
+        where: { gestorId: req.userId },
+        select: { id: true },
+      })
+      const teamIds = teamMembers.map((m: any) => m.id)
+      where = { userId: { in: [req.userId, ...teamIds] } }
+    } else {
+      // ATENDENTE sees only own
+      where = { userId: req.userId }
+    }
 
     const [certs, total] = await Promise.all([
       prisma.certificate.findMany({
@@ -26,7 +40,7 @@ router.get('/', authenticate, async (req: any, res) => {
         take: limit,
         include: {
           user: {
-            include: { gestor: { select: { id: true, nome: true } } },
+            select: { id: true, nome: true, email: true, role: true, gestorId: true },
           },
           modulo: {
             select: { id: true, titulo: true, icone: true, certificadoTemplate: true },

@@ -1,4 +1,4 @@
-import { useRef, useCallback } from 'react'
+import { useRef, useCallback, useState, forwardRef, useImperativeHandle } from 'react'
 import YouTube, { YouTubeEvent, YouTubePlayer } from 'react-youtube'
 
 interface VideoPlayerProps {
@@ -7,7 +7,8 @@ interface VideoPlayerProps {
   endAt?: number
   onReady?: () => void
   onTimeUpdate?: (time: number) => void
-  microLessons?: Array<{ hours: number; minutes: number; seconds: number; titulo: string }>
+  onCurrentTimeChange?: (time: number) => void
+  licoesAncoragem?: Array<{ hours: number; minutes: number; seconds: number; titulo: string }>
 }
 
 function extractYouTubeId(url: string): string | null {
@@ -23,10 +24,34 @@ function extractYouTubeId(url: string): string | null {
   return null
 }
 
-export function VideoPlayer({ url, startAt = 0, endAt, onReady, onTimeUpdate, microLessons }: VideoPlayerProps) {
+function fmt(totalSeconds: number): string {
+  const h = Math.floor(totalSeconds / 3600)
+  const m = Math.floor((totalSeconds % 3600) / 60)
+  const s = Math.floor(totalSeconds % 60)
+  if (h > 0) return `${h}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  return `${m}:${s.toString().padStart(2, '0')}`
+}
+
+export const VideoPlayer = forwardRef<{ seekTo: (s: number) => void }, VideoPlayerProps>(function VideoPlayer(
+  { url, startAt = 0, endAt, onReady, onTimeUpdate, onCurrentTimeChange, licoesAncoragem },
+  ref
+) {
   const playerRef = useRef<YouTubePlayer | null>(null)
   const endAtRef = useRef(endAt)
   endAtRef.current = endAt
+  const [currentTime, setCurrentTime] = useState(0)
+  const [duration, setDuration] = useState(0)
+  const [hoveredMarker, setHoveredMarker] = useState<number | null>(null)
+  const progressBarRef = useRef<HTMLDivElement>(null)
+
+  useImperativeHandle(ref, () => ({
+    seekTo(seconds: number) {
+      const player = playerRef.current
+      if (!player) return
+      player.seekTo(seconds, true)
+      player.playVideo()
+    },
+  }))
 
   const videoId = extractYouTubeId(url)
   if (!videoId) {
@@ -39,6 +64,8 @@ export function VideoPlayer({ url, startAt = 0, endAt, onReady, onTimeUpdate, mi
 
   const handleReady = useCallback((event: YouTubeEvent) => {
     playerRef.current = event.target
+    const dur = event.target.getDuration()
+    setDuration(dur)
     if (startAt > 0) {
       event.target.seekTo(startAt, true)
       event.target.playVideo()
@@ -54,26 +81,37 @@ export function VideoPlayer({ url, startAt = 0, endAt, onReady, onTimeUpdate, mi
       const player = event.target
       const pollInterval = setInterval(() => {
         try {
-          const currentTime = player.getCurrentTime()
-          onTimeUpdate?.(currentTime)
+          const ct = player.getCurrentTime()
+          const dur = player.getDuration()
+          setCurrentTime(ct)
+          if (dur > 0) setDuration(dur)
+          onTimeUpdate?.(ct)
+          onCurrentTimeChange?.(ct)
           const limit = endAtRef.current
-          if (limit && limit > 0 && currentTime >= limit) {
+          if (limit && limit > 0 && ct >= limit) {
             player.pauseVideo()
             clearInterval(pollInterval)
           }
         } catch {
           clearInterval(pollInterval)
         }
-      }, 500)
+      }, 250)
     }
-  }, [onTimeUpdate])
+  }, [onTimeUpdate, onCurrentTimeChange])
 
-  const handleMicroLessonClick = useCallback((totalSeconds: number) => {
+  const handleSeek = useCallback((totalSeconds: number) => {
     const player = playerRef.current
     if (!player) return
     player.seekTo(totalSeconds, true)
     player.playVideo()
   }, [])
+
+  const handleBarClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!progressBarRef.current || !playerRef.current || duration <= 0) return
+    const rect = progressBarRef.current.getBoundingClientRect()
+    const ratio = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width))
+    handleSeek(ratio * duration)
+  }, [duration, handleSeek])
 
   const opts = {
     playerVars: {
@@ -90,42 +128,60 @@ export function VideoPlayer({ url, startAt = 0, endAt, onReady, onTimeUpdate, mi
     },
   }
 
+  const hasMarkers = licoesAncoragem && licoesAncoragem.length > 0 && duration > 0
+  const progress = duration > 0 ? (currentTime / duration) * 100 : 0
+
   return (
-    <div className="video-player-wrapper">
-      {microLessons && microLessons.length > 0 && (
-        <div style={{ marginBottom: '12px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-          {microLessons.map((ml, i) => {
-            const totalSeconds = ml.hours * 3600 + ml.minutes * 60 + ml.seconds
-            return (
-              <button
-                key={i}
-                className="btn-secondary"
-                style={{ padding: '4px 8px', fontSize: '11px' }}
-                onClick={() => handleMicroLessonClick(totalSeconds)}
-              >
-                {ml.hours > 0 ? `${ml.hours}h ` : ''}{ml.minutes}m {ml.seconds}s - {ml.titulo}
-              </button>
-            )
-          })}
-        </div>
-      )}
-      <div style={{
-        position: 'relative',
-        width: '100%',
-        height: '100%',
-        overflow: 'hidden',
-        borderRadius: 'var(--radius)',
-        background: '#000',
-      }}>
+    <div className="vp-root">
+      <div className="vp-video-container">
         <YouTube
           videoId={videoId}
           opts={opts}
           onReady={handleReady}
           onStateChange={handleStateChange}
           style={{ width: '100%', height: '100%' }}
-          iframeClassName="lesson-yt-iframe"
+          iframeClassName="vp-yt-iframe"
         />
       </div>
+
+      {duration > 0 && (
+        <div className="vp-controls">
+          <div
+            ref={progressBarRef}
+            className="vp-track"
+            onClick={handleBarClick}
+          >
+            <div className="vp-played" style={{ width: `${progress}%` }} />
+            <div className="vp-head" style={{ left: `${progress}%` }} />
+            {hasMarkers && licoesAncoragem!.map((ml, i) => {
+              const totalSeconds = ml.hours * 3600 + ml.minutes * 60 + ml.seconds
+              const pct = Math.min(100, Math.max(0, (totalSeconds / duration) * 100))
+              return (
+                <div
+                  key={i}
+                  className="vp-marker"
+                  style={{ left: `${pct}%` }}
+                  onClick={(e) => { e.stopPropagation(); handleSeek(totalSeconds) }}
+                  onMouseEnter={() => setHoveredMarker(i)}
+                  onMouseLeave={() => setHoveredMarker(null)}
+                >
+                  <div className="vp-marker-dot" />
+                  {hoveredMarker === i && (
+                    <div className="vp-tooltip">
+                      <span className="vp-tooltip-time">{fmt(totalSeconds)}</span>
+                      <span className="vp-tooltip-title">{ml.titulo}</span>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+          <div className="vp-time">
+            <span>{fmt(currentTime)}</span>
+            <span>{fmt(duration)}</span>
+          </div>
+        </div>
+      )}
     </div>
   )
-}
+})

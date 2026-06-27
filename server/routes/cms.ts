@@ -146,6 +146,25 @@ router.get('/:id/aulas', authenticate, async (req: any, res) => {
       orderBy: { ordem: 'asc' },
     })
 
+    // Auto-migrate: if aula has no ancoragemPoints but has VIDEO licoes with inicioSeg, convert them
+    for (const a of aulas) {
+      if (!a.ancoragemPoints && a.licoes.length > 0) {
+        const videoLicoes = a.licoes.filter((l: any) => l.tipo === 'VIDEO' && l.inicioSeg != null && l.conteudo === a.videoUrl)
+        if (videoLicoes.length > 0) {
+          const points = videoLicoes.map((l: any) => ({
+            hours: Math.floor((l.inicioSeg || 0) / 3600),
+            minutes: Math.floor(((l.inicioSeg || 0) % 3600) / 60),
+            seconds: (l.inicioSeg || 0) % 60,
+            titulo: l.titulo || '',
+          }))
+          try {
+            await prisma.aula.update({ where: { id: a.id }, data: { ancoragemPoints: points } })
+            ;(a as any).ancoragemPoints = points
+          } catch { /* ignore */ }
+        }
+      }
+    }
+
     const result = aulas.map(a => ({
       ...a,
       concluido: a.progressos.length > 0 ? a.progressos[0].concluido : false,
@@ -162,7 +181,7 @@ router.get('/:id/aulas', authenticate, async (req: any, res) => {
 // POST /api/modulos/:id/aulas
 router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
-    const { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, obrigatorio } = req.body
+    const { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, obrigatorio, ancoragemPoints } = req.body
     const moduloId = getStringParam(req.params.id)
     if (!moduloId) return res.status(400).json({ error: 'ID inválido' })
 
@@ -183,6 +202,7 @@ router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req: any, res
       videoFim: videoFim || null,
       duracaoMin: duracaoMin || null,
       obrigatorio: obrigatorio || false,
+      ancoragemPoints: ancoragemPoints || null,
     })
     await logActivity(req.userId!, 'Criar Aula', `Aula: ${titulo}`)
     res.status(201).json(aula)
@@ -195,11 +215,11 @@ router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req: any, res
 // PUT /api/aulas/:id
 router.put('/aulas/:id', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
-    const { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio } = req.body
+    const { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio, ancoragemPoints } = req.body
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
     const aula = await db.update('aula', { id }, {
-      titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio,
+      titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio, ancoragemPoints,
     })
     await logActivity(req.userId!, 'Editar Aula', `Aula: ${aula.titulo}`)
     res.json(aula)

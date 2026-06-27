@@ -3,6 +3,7 @@ import type { User } from '../hooks/useAuth'
 import { PERSONAS } from '../data/constants'
 import { api } from '../lib/api'
 import { useToast, useConfirm } from '../components/Toast'
+import { TablePagination, useClientPagination } from '../components/TablePagination'
 
 
 interface UsuariosPageProps {
@@ -20,6 +21,8 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
   const [loading, setLoading] = useState(true)
   const [equipeDetalhe, setEquipeDetalhe] = useState<any[]>([])
   const [expandedUser, setExpandedUser] = useState<string | null>(null)
+  const [expandedRow, setExpandedRow] = useState<string | null>(null)
+  const { page, setPage, paginatedItems: paginatedUsuarios, totalItems } = useClientPagination(usuarios, 10)
 
   const isAdmin = user?.role === 'ADMIN'
   const isGestor = user?.role === 'GESTOR'
@@ -178,60 +181,110 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
         <table>
           <thead>
             <tr>
-              <th>Nome</th><th>E-mail</th><th>Perfil</th><th>Gestor</th><th>Status</th><th>XP</th><th>Ultimo Acesso</th><th>Acoes</th>
+              <th style={{ width: '40px' }}></th><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Gestor</th><th>Status</th><th>XP</th><th>Ultimo Acesso</th><th>Acoes</th>
             </tr>
           </thead>
           <tbody>
-            {usuarios.length > 0 ? (
-              usuarios.map((u) => (
-                <tr key={u.id}>
-                  <td>
-                    <div className="user-row">
-                      <div className="user-avatar user-avatar-sm" style={{ background: PERSONAS[u.role as keyof typeof PERSONAS]?.color || '#999' }}>
-                        {u.nome?.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+            {paginatedUsuarios.length > 0 ? (
+              paginatedUsuarios.map((u) => (
+                <>
+                  <tr key={u.id} className={`row-clickable ${expandedRow === u.id ? 'row-expanded' : ''}`} onClick={() => setExpandedRow(expandedRow === u.id ? null : u.id)}>
+                    <td>
+                      <span className={`row-expand-icon ${expandedRow === u.id ? 'open' : ''}`}>
+                        <i className={`icon-chevron-${expandedRow === u.id ? 'up' : 'down'} icon-xs`} />
+                      </span>
+                    </td>
+                    <td>
+                      <div className="user-row">
+                        <div className="user-avatar user-avatar-sm" style={{ background: PERSONAS[u.role as keyof typeof PERSONAS]?.color || '#999' }}>
+                          {u.nome?.split(' ').map((n: string) => n[0]).slice(0, 2).join('')}
+                        </div>
+                        <b>{u.nome}</b>
                       </div>
-                      <b>{u.nome}</b>
-                    </div>
-                  </td>
-                  <td className="user-td-email">{u.email}</td>
-                  <td><span className="track-badge badge-new" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{getPersonaIcon(u.role)} {PERSONAS[u.role as keyof typeof PERSONAS]?.label}</span></td>
-                  <td className="user-td-gestor">
-                    {u.role === 'ATENDENTE' ? (u.gestorNome || getGestorName(u.gestorId)) : '—'}
-                  </td>
-                  <td>
-                    {u.emailVerificado ? (
-                      <span className="user-status-ok">
-                        <i className="icon-check-circle icon-xs" /> Verificado
-                      </span>
-                    ) : (
-                      <span className="user-status-pending">
-                        <i className="icon-clock icon-xs" /> Pendente
-                      </span>
-                    )}
-                  </td>
-                  <td><b className="user-xp">{u.xp || 0}</b></td>
-                  <td className="user-td-last">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('pt-BR') : 'Nunca'}</td>
-                  <td className="user-actions">
-                    <button className="btn-secondary user-action-btn" onClick={() => setEditingUser({ ...u })}><i className="icon-pencil icon-xs" /> Editar</button>
-                    {canValidate && !u.emailVerificado && (
-                      <>
-                        <button className="btn-secondary user-action-btn user-action-green" onClick={() => handleValidateAccount(u.id, u.nome)}><i className="icon-check icon-xs" /> Validar</button>
-                        <button className="btn-secondary user-action-btn user-action-blue" onClick={() => handleResendVerification(u.id, u.nome)}><i className="icon-mail icon-xs" /> Reenviar</button>
-                      </>
-                    )}
-                    {isAdmin && <button className="btn-secondary user-action-btn user-action-red" onClick={() => handleDelete(u.id)}><i className="icon-trash-2 icon-xs" /></button>}
-                  </td>
-                </tr>
+                    </td>
+                    <td className="user-td-email">{u.email}</td>
+                    <td><span className="track-badge badge-new" style={{ fontSize: '11px', display: 'inline-flex', alignItems: 'center', gap: '4px' }}>{getPersonaIcon(u.role)} {PERSONAS[u.role as keyof typeof PERSONAS]?.label}</span></td>
+                    <td className="user-td-gestor">
+                      {u.role === 'ATENDENTE' ? (u.gestorNome || getGestorName(u.gestorId)) : '—'}
+                    </td>
+                    <td>
+                      {u.emailVerificado ? (
+                        <span className="user-status-ok">
+                          <i className="icon-check-circle icon-xs" /> Verificado
+                        </span>
+                      ) : (
+                        <span className="user-status-pending">
+                          <i className="icon-clock icon-xs" /> Pendente
+                        </span>
+                      )}
+                    </td>
+                    <td><b className="user-xp">{u.xp || 0}</b></td>
+                    <td className="user-td-last">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('pt-BR') : 'Nunca'}</td>
+                    <td className="user-actions" onClick={e => e.stopPropagation()}>
+                      <button className="btn-secondary user-action-btn" onClick={() => setEditingUser({ ...u })}><i className="icon-pencil icon-xs" /> Editar</button>
+                      {canValidate && !u.emailVerificado && (
+                        <>
+                          <button className="btn-secondary user-action-btn user-action-green" onClick={() => handleValidateAccount(u.id, u.nome)}><i className="icon-check icon-xs" /> Validar</button>
+                          <button className="btn-secondary user-action-btn user-action-blue" onClick={() => handleResendVerification(u.id, u.nome)}><i className="icon-mail icon-xs" /> Reenviar</button>
+                        </>
+                      )}
+                      {isAdmin && <button className="btn-secondary user-action-btn user-action-red" onClick={() => handleDelete(u.id)}><i className="icon-trash-2 icon-xs" /></button>}
+                    </td>
+                  </tr>
+                  {expandedRow === u.id && (
+                    <tr key={`${u.id}-detail`} className="row-detail">
+                      <td colSpan={9}>
+                        <div className="row-detail-body">
+                          <div className="row-detail-grid">
+                            <div className="row-detail-item">
+                              <span className="row-detail-label">Nome Completo</span>
+                              <span className="row-detail-value">{u.nome}</span>
+                            </div>
+                            <div className="row-detail-item">
+                              <span className="row-detail-label">E-mail</span>
+                              <span className="row-detail-value">{u.email}</span>
+                            </div>
+                            <div className="row-detail-item">
+                              <span className="row-detail-label">Perfil</span>
+                              <span className="row-detail-value">{PERSONAS[u.role as keyof typeof PERSONAS]?.label || u.role}</span>
+                            </div>
+                            <div className="row-detail-item">
+                              <span className="row-detail-label">Gestor</span>
+                              <span className="row-detail-value">{u.role === 'ATENDENTE' ? (u.gestorNome || getGestorName(u.gestorId)) : '—'}</span>
+                            </div>
+                            <div className="row-detail-item">
+                              <span className="row-detail-label">Status</span>
+                              <span className="row-detail-value">{u.emailVerificado ? 'Verificado' : 'Pendente'}</span>
+                            </div>
+                            <div className="row-detail-item">
+                              <span className="row-detail-label">XP</span>
+                              <span className="row-detail-value">{u.xp || 0} pontos</span>
+                            </div>
+                            <div className="row-detail-item">
+                              <span className="row-detail-label">Nivel</span>
+                              <span className="row-detail-value">{Math.floor((u.xp || 0) / 2000) + 1}</span>
+                            </div>
+                            <div className="row-detail-item">
+                              <span className="row-detail-label">Ultimo Acesso</span>
+                              <span className="row-detail-value">{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString('pt-BR') + ' ' + new Date(u.lastLogin).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : 'Nunca'}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))
             ) : (
               <tr>
-                <td colSpan={8} className="cms-table-empty">
+                <td colSpan={9} className="cms-table-empty">
                   {loading ? 'Carregando...' : 'Dados nao carregados'}
                 </td>
               </tr>
             )}
           </tbody>
         </table>
+        <TablePagination page={page} totalItems={totalItems} itemsPerPage={10} onPageChange={setPage} />
       </div>
 
       {isGestor && equipeDetalhe.length > 0 && (

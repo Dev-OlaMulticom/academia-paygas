@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
 import type { User } from '../hooks/useAuth'
+import { TablePagination, useClientPagination } from '../components/TablePagination'
 
 interface AdminDashboardPageProps {
   user: User
@@ -14,6 +15,12 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
   const [emailForm, setEmailForm] = useState({ userId: '', assunto: '', mensagem: '' })
   const [sending, setSending] = useState(false)
   const [emailMsg, setEmailMsg] = useState('')
+  const [expandedRow, setExpandedRow] = useState<string | null>(null)
+
+  const acessosRecentes = data?.acessosRecentes || []
+  const atividadesRecentes = data?.atividadesRecentes || []
+  const { page: acessosPage, setPage: setAcessosPage, paginatedItems: paginatedAcessos, totalItems: totalAcessos } = useClientPagination(acessosRecentes, 10)
+  const { page: ativPage, setPage: setAtivPage, paginatedItems: paginatedAtividades, totalItems: totalAtividades } = useClientPagination(atividadesRecentes, 10)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -78,7 +85,7 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
     )
   }
 
-  const { resumoGeral, acessosRecentes, atividadesRecentes, cursosRecentes, emailsStats } = data
+  const { resumoGeral, cursosRecentes, emailsStats } = data
 
   const tabs = [
     { key: 'resumo', label: 'Resumo' },
@@ -176,6 +183,7 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
             <table className="admin-table">
               <thead>
                 <tr>
+                  <th style={{ width: '40px' }}></th>
                   <th>Data/Hora</th>
                   <th>Usuario</th>
                   <th>Email</th>
@@ -183,16 +191,50 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
                 </tr>
               </thead>
               <tbody>
-                {acessosRecentes.map((log: any) => (
-                  <tr key={log.id}>
-                    <td className="date-col">{formatDate(log.createdAt)}</td>
-                    <td className="name-col">{log.user?.nome || '—'}</td>
-                    <td className="email-col">{log.user?.email}</td>
-                    <td><span className={`admin-role-badge ${roleClass(log.user?.role || '')}`}>{log.user?.role}</span></td>
-                  </tr>
+                {paginatedAcessos.map((log: any) => (
+                  <>
+                    <tr key={log.id} className={`row-clickable ${expandedRow === log.id ? 'row-expanded' : ''}`} onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}>
+                      <td>
+                        <span className={`row-expand-icon ${expandedRow === log.id ? 'open' : ''}`}>
+                          <i className={`icon-chevron-${expandedRow === log.id ? 'up' : 'down'} icon-xs`} />
+                        </span>
+                      </td>
+                      <td className="date-col">{formatDate(log.createdAt)}</td>
+                      <td className="name-col">{log.user?.nome || '—'}</td>
+                      <td className="email-col">{log.user?.email}</td>
+                      <td><span className={`admin-role-badge ${roleClass(log.user?.role || '')}`}>{log.user?.role}</span></td>
+                    </tr>
+                    {expandedRow === log.id && (
+                      <tr key={`${log.id}-detail`} className="row-detail">
+                        <td colSpan={5}>
+                          <div className="row-detail-body">
+                            <div className="row-detail-grid">
+                              <div className="row-detail-item">
+                                <span className="row-detail-label">Data/Hora</span>
+                                <span className="row-detail-value">{formatDate(log.createdAt)}</span>
+                              </div>
+                              <div className="row-detail-item">
+                                <span className="row-detail-label">Nome</span>
+                                <span className="row-detail-value">{log.user?.nome || '—'}</span>
+                              </div>
+                              <div className="row-detail-item">
+                                <span className="row-detail-label">Email</span>
+                                <span className="row-detail-value">{log.user?.email}</span>
+                              </div>
+                              <div className="row-detail-item">
+                                <span className="row-detail-label">Perfil</span>
+                                <span className="row-detail-value">{log.user?.role}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 ))}
               </tbody>
             </table>
+            <TablePagination page={acessosPage} totalItems={totalAcessos} itemsPerPage={10} onPageChange={setAcessosPage} />
           </div>
         )}
 
@@ -201,6 +243,7 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
             <table className="admin-table">
               <thead>
                 <tr>
+                  <th style={{ width: '40px' }}></th>
                   <th>Data/Hora</th>
                   <th>Usuario</th>
                   <th>Acao</th>
@@ -208,19 +251,57 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
                 </tr>
               </thead>
               <tbody>
-                {atividadesRecentes.map((log: any) => (
-                  <tr key={log.id}>
-                    <td className="date-col">{formatDate(log.createdAt)}</td>
-                    <td>
-                      <div className="name-col">{log.user?.nome || '—'}</div>
-                      <div className="admin-log-item-sub">{log.user?.email}</div>
-                    </td>
-                    <td className="action-col">{log.acao}</td>
-                    <td className="detail-col">{log.detalhes || '—'}</td>
-                  </tr>
+                {paginatedAtividades.map((log: any) => (
+                  <>
+                    <tr key={log.id} className={`row-clickable ${expandedRow === log.id ? 'row-expanded' : ''}`} onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}>
+                      <td>
+                        <span className={`row-expand-icon ${expandedRow === log.id ? 'open' : ''}`}>
+                          <i className={`icon-chevron-${expandedRow === log.id ? 'up' : 'down'} icon-xs`} />
+                        </span>
+                      </td>
+                      <td className="date-col">{formatDate(log.createdAt)}</td>
+                      <td>
+                        <div className="name-col">{log.user?.nome || '—'}</div>
+                        <div className="admin-log-item-sub">{log.user?.email}</div>
+                      </td>
+                      <td className="action-col">{log.acao}</td>
+                      <td className="detail-col">{log.detalhes || '—'}</td>
+                    </tr>
+                    {expandedRow === log.id && (
+                      <tr key={`${log.id}-detail`} className="row-detail">
+                        <td colSpan={5}>
+                          <div className="row-detail-body">
+                            <div className="row-detail-grid">
+                              <div className="row-detail-item">
+                                <span className="row-detail-label">Data/Hora</span>
+                                <span className="row-detail-value">{formatDate(log.createdAt)}</span>
+                              </div>
+                              <div className="row-detail-item">
+                                <span className="row-detail-label">Usuario</span>
+                                <span className="row-detail-value">{log.user?.nome || '—'}</span>
+                              </div>
+                              <div className="row-detail-item">
+                                <span className="row-detail-label">Email</span>
+                                <span className="row-detail-value">{log.user?.email}</span>
+                              </div>
+                              <div className="row-detail-item">
+                                <span className="row-detail-label">Acao</span>
+                                <span className="row-detail-value">{log.acao}</span>
+                              </div>
+                              <div className="row-detail-item" style={{ gridColumn: '1 / -1' }}>
+                                <span className="row-detail-label">Detalhes</span>
+                                <span className="row-detail-value">{log.detalhes || '—'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 ))}
               </tbody>
             </table>
+            <TablePagination page={ativPage} totalItems={totalAtividades} itemsPerPage={10} onPageChange={setAtivPage} />
           </div>
         )}
 

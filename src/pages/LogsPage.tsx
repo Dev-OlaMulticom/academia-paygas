@@ -23,6 +23,7 @@ export function LogsPage({ user: _user }: LogsPageProps) {
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
+  const [expandedRow, setExpandedRow] = useState<string | null>(null)
 
   const [filters, setFilters] = useState({
     userId: '',
@@ -179,6 +180,7 @@ export function LogsPage({ user: _user }: LogsPageProps) {
             <table className="logs-table">
               <thead>
                 <tr>
+                  <th style={{ width: '40px' }}></th>
                   <th>Data e Hora</th>
                   <th>Usuário</th>
                   <th>Role</th>
@@ -188,26 +190,67 @@ export function LogsPage({ user: _user }: LogsPageProps) {
               </thead>
               <tbody>
                 {logs.map((log) => (
-                  <tr key={log.id}>
-                    <td className="logs-td-date">
-                      {formatDate(log.createdAt)}
-                    </td>
-                    <td>
-                      <b className="logs-td-user-name">{log.user?.nome || '—'}</b>
-                      <div className="logs-td-user-email">{log.user?.email}</div>
-                    </td>
-                    <td>
-                      <span className="logs-role-badge" style={{ background: roleColor(log.user?.role || '') }}>
-                        {log.user?.role}
-                      </span>
-                    </td>
-                    <td className="logs-td-acao">
-                      {log.acao}
-                    </td>
-                    <td className="logs-td-detalhes">
-                      {log.detalhes || '—'}
-                    </td>
-                  </tr>
+                  <>
+                    <tr key={log.id} className={`row-clickable ${expandedRow === log.id ? 'row-expanded' : ''}`} onClick={() => setExpandedRow(expandedRow === log.id ? null : log.id)}>
+                      <td>
+                        <span className={`row-expand-icon ${expandedRow === log.id ? 'open' : ''}`}>
+                          <i className={`icon-chevron-${expandedRow === log.id ? 'up' : 'down'} icon-xs`} />
+                        </span>
+                      </td>
+                      <td className="logs-td-date">
+                        {formatDate(log.createdAt)}
+                      </td>
+                      <td>
+                        <b className="logs-td-user-name">{log.user?.nome || '—'}</b>
+                        <div className="logs-td-user-email">{log.user?.email}</div>
+                      </td>
+                      <td>
+                        <span className="logs-role-badge" style={{ background: roleColor(log.user?.role || '') }}>
+                          {log.user?.role}
+                        </span>
+                      </td>
+                      <td className="logs-td-acao">
+                        {log.acao}
+                      </td>
+                      <td className="logs-td-detalhes">
+                        {log.detalhes || '—'}
+                      </td>
+                    </tr>
+                    {expandedRow === log.id && (
+                      <tr key={`${log.id}-detail`} className="row-detail">
+                        <td colSpan={6}>
+                          <div className="row-detail-body">
+                            <div className="row-detail-grid">
+                              <div className="row-detail-item">
+                                <span className="row-detail-label">Data/Hora</span>
+                                <span className="row-detail-value">{formatDate(log.createdAt)}</span>
+                              </div>
+                              <div className="row-detail-item">
+                                <span className="row-detail-label">Nome</span>
+                                <span className="row-detail-value">{log.user?.nome || '—'}</span>
+                              </div>
+                              <div className="row-detail-item">
+                                <span className="row-detail-label">Email</span>
+                                <span className="row-detail-value">{log.user?.email}</span>
+                              </div>
+                              <div className="row-detail-item">
+                                <span className="row-detail-label">Perfil</span>
+                                <span className="row-detail-value">{log.user?.role}</span>
+                              </div>
+                              <div className="row-detail-item">
+                                <span className="row-detail-label">Acao</span>
+                                <span className="row-detail-value">{log.acao}</span>
+                              </div>
+                              <div className="row-detail-item" style={{ gridColumn: '1 / -1' }}>
+                                <span className="row-detail-label">Detalhes</span>
+                                <span className="row-detail-value">{log.detalhes || '—'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </>
                 ))}
               </tbody>
             </table>

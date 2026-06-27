@@ -344,6 +344,20 @@ class ApiClient {
     return this.request<any>('/progresso/stats')
   }
 
+  async requestRestart(moduloId: string, aulaId?: string) {
+    return this.request<any>('/progresso/restart-request', {
+      method: 'POST',
+      body: JSON.stringify({ moduloId, aulaId }),
+    })
+  }
+
+  async approveRestart(userId: string, moduloId: string, aulaId?: string) {
+    return this.request<any>('/progresso/restart', {
+      method: 'PUT',
+      body: JSON.stringify({ userId, moduloId, aulaId }),
+    })
+  }
+
   // ==================== CERTIFICADOS ====================
 
   async getCertificates() {

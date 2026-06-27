@@ -15,6 +15,7 @@ export function NotifPage({ user }: NotifPageProps) {
   const [notifs, setNotifs] = useState<any[]>([])
   const [usuarios, setUsuarios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
+  const [approvingId, setApprovingId] = useState<string | null>(null)
 
   const isAdmin = user?.role === 'ADMIN'
   const isGestor = user?.role === 'GESTOR'
@@ -79,6 +80,31 @@ export function NotifPage({ user }: NotifPageProps) {
 
   const unreadCount = notifs.filter(n => !n.lida).length
 
+  const handleApproveRestart = async (notif: any) => {
+    const data = typeof notif.data === 'string' ? JSON.parse(notif.data) : notif.data
+    if (!data?.moduloId || !data?.userId) {
+      toast('Dados incompletos na notificacao', 'error')
+      return
+    }
+    if (!window.confirm(`Aprovar reinicio de progresso de ${data.userName || 'este usuario'}?`)) return
+    setApprovingId(notif.id)
+    try {
+      await api.approveRestart(data.userId, data.moduloId)
+      toast('Reinicio aprovado! O usuario foi notificado.', 'success')
+      setNotifs(prev => prev.filter(n => n.id !== notif.id))
+    } catch (err: any) {
+      toast(err.message || 'Erro ao aprovar reinicio', 'error')
+    } finally {
+      setApprovingId(null)
+    }
+  }
+
+  const isRestartRequest = (notif: any) => {
+    if (notif.titulo === 'Solicitação de Reinício') return true
+    const data = typeof notif.data === 'string' ? JSON.parse(notif.data) : notif.data
+    return data?.type === 'restart-request'
+  }
+
   return (
     <div className="page active">
       <div className="page-header">
@@ -97,6 +123,18 @@ export function NotifPage({ user }: NotifPageProps) {
               <p>{notif.mensagem}</p>
               <time>{new Date(notif.createdAt).toLocaleDateString('pt-BR')}</time>
               {notif.from && <span className="notif-from"> · De: {notif.from.nome}</span>}
+              {(isAdmin || isGestor) && isRestartRequest(notif) && (
+                <div style={{ marginTop: '8px' }}>
+                  <button
+                    className="btn-primary"
+                    style={{ fontSize: '12px', padding: '4px 12px' }}
+                    disabled={approvingId === notif.id}
+                    onClick={() => handleApproveRestart(notif)}
+                  >
+                    {approvingId === notif.id ? 'Aprovando...' : 'Aprovar Reinicio'}
+                  </button>
+                </div>
+              )}
             </div>
             {!notif.lida && <div className="notif-unread-dot"></div>}
           </div>

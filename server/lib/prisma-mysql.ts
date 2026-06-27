@@ -1,9 +1,8 @@
 import { PrismaMariaDb } from '@prisma/adapter-mariadb'
 import path from 'path'
 
-// Dynamic require because compiled output is at dist/server/lib/ (3 levels)
-// while source is at server/lib/ (2 levels) — relative paths differ
-const mysqlPath = path.resolve(__dirname, '../../../prisma/generated/mysql')
+// Dynamic require — resolve from project root
+const mysqlPath = path.resolve(process.cwd(), 'prisma/generated/mysql')
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const MysqlPrismaClient: any = require(mysqlPath).PrismaClient
 

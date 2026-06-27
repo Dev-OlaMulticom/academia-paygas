@@ -10,7 +10,7 @@ interface Certificate {
   status: string
   pdfUrl?: string
   createdAt?: string
-  user?: { nome: string; email: string; gestor?: { nome: string } }
+  user?: { id: string; nome: string; email: string; role?: string; gestorId?: string }
 }
 
 interface ModuloCert {
@@ -83,7 +83,7 @@ export function CertificadosPage({ user }: { user?: any }) {
     const titulo = cert.moduloTitulo || 'Modulo'
     const icone = cert.moduloIcone || '📚'
     const nome = cert.user?.nome || 'Usuario'
-    const gestorNome = cert.user?.gestor?.nome || ''
+    const gestorNome = ''
     const certDate = cert.createdAt ? new Date(cert.createdAt) : new Date()
     const dateStr = certDate.toLocaleDateString('pt-BR')
     const timeStr = certDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -102,7 +102,7 @@ export function CertificadosPage({ user }: { user?: any }) {
     const titulo = cert.moduloTitulo || 'Modulo'
     const icone = cert.moduloIcone || '📚'
     const nome = cert.user?.nome || 'Usuario'
-    const gestorNome = cert.user?.gestor?.nome || ''
+    const gestorNome = ''
     const certDate = cert.createdAt ? new Date(cert.createdAt) : new Date()
     const dateStr = certDate.toLocaleDateString('pt-BR')
     const timeStr = certDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
@@ -205,6 +205,9 @@ export function CertificadosPage({ user }: { user?: any }) {
               const certDate = cert.createdAt ? new Date(cert.createdAt) : null
               const dateStr = certDate ? certDate.toLocaleDateString('pt-BR') : ''
               const timeStr = certDate ? certDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''
+              const showUserInfo = isAdmin || user?.role === 'GESTOR'
+              const isOtherUser = cert.user && cert.user.id !== user?.id
+              const roleLabel = cert.user?.role === 'ADMIN' ? 'Admin' : cert.user?.role === 'GESTOR' ? 'Gestor' : 'Atendente'
               return (
                 <div key={cert.id} className="stat-card cert-card">
                   <div className="cert-card-header">
@@ -212,8 +215,15 @@ export function CertificadosPage({ user }: { user?: any }) {
                     <span className={`cert-card-badge ${statusClass(cert.status)}`}>{statusLabel(cert.status)}</span>
                   </div>
                   <div className="cert-card-title">{cert.moduloTitulo || 'Modulo'}</div>
-                  {cert.user && <div className="cert-card-user">{cert.user.nome}</div>}
-                  {cert.user?.gestor && <div className="cert-card-gestor">Gestor: {cert.user.gestor.nome}</div>}
+                  {cert.user && showUserInfo && isOtherUser && (
+                    <div className="cert-card-user">
+                      {cert.user.nome}
+                      <span className="cert-card-role">{roleLabel}</span>
+                    </div>
+                  )}
+                  {cert.user && showUserInfo && !isOtherUser && (
+                    <div className="cert-card-user cert-card-user-self">Voce</div>
+                  )}
                   <div className="cert-card-date">{dateStr} {timeStr}</div>
                   <div className="cert-card-actions">
                     <button id={`btn-download-cert-${cert.id}`} className="cert-card-btn cert-card-btn-pdf" onClick={() => handleDownloadPDF(cert)}>
