@@ -1,4 +1,5 @@
-import nodemailer from 'nodemailer'
+import nodemailer from "nodemailer";
+import logger from "../lib/logger";
 
 /**
  * SMTP Email Service
@@ -6,194 +7,189 @@ import nodemailer from 'nodemailer'
  */
 
 interface EmailOptions {
-  to: string | string[]
-  subject: string
-  html?: string
-  text?: string
+	to: string | string[];
+	subject: string;
+	html?: string;
+	text?: string;
 }
 
-let transporter: nodemailer.Transporter | null = null
-let backupTransporter: nodemailer.Transporter | null = null
+let transporter: nodemailer.Transporter | null = null;
+let backupTransporter: nodemailer.Transporter | null = null;
 
 function initializeTransporter(): nodemailer.Transporter | null {
-  if (transporter) return transporter
+	if (transporter) return transporter;
 
-  const requiredEnvVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS']
-  const missing = requiredEnvVars.filter(v => !process.env[v])
+	const requiredEnvVars = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS"];
+	const missing = requiredEnvVars.filter((v) => !process.env[v]);
 
-  if (missing.length > 0) {
-    console.warn(`⚠️  SMTP configuration incomplete. Missing: ${missing.join(', ')}`)
-    return null
-  }
+	if (missing.length > 0) {
+		logger.warn(`⚠️  SMTP configuration incomplete. Missing: ${missing.join(", ")}`);
+		return null;
+	}
 
-  transporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-    secure: process.env.SMTP_SECURE === 'true',
-    auth: {
-      user: process.env.SMTP_USER,
-      pass: process.env.SMTP_PASS,
-    },
-  })
+	transporter = nodemailer.createTransport({
+		host: process.env.SMTP_HOST,
+		port: parseInt(process.env.SMTP_PORT || "587", 10),
+		secure: process.env.SMTP_SECURE === "true",
+		auth: {
+			user: process.env.SMTP_USER,
+			pass: process.env.SMTP_PASS,
+		},
+	});
 
-  console.log(`✅ SMTP primary: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}`)
-  return transporter
+	logger.info(`✅ SMTP primary: ${process.env.SMTP_HOST}:${process.env.SMTP_PORT}`);
+	return transporter;
 }
 
 function initializeBackupTransporter(): nodemailer.Transporter | null {
-  if (backupTransporter) return backupTransporter
-  if (!process.env.SMTP_BACKUP_HOST) return null
+	if (backupTransporter) return backupTransporter;
+	if (!process.env.SMTP_BACKUP_HOST) return null;
 
-  backupTransporter = nodemailer.createTransport({
-    host: process.env.SMTP_BACKUP_HOST,
-    port: parseInt(process.env.SMTP_BACKUP_PORT || '465', 10),
-    secure: process.env.SMTP_BACKUP_SECURE === 'true',
-    auth: {
-      user: process.env.SMTP_BACKUP_USER,
-      pass: process.env.SMTP_BACKUP_PASS,
-    },
-  })
+	backupTransporter = nodemailer.createTransport({
+		host: process.env.SMTP_BACKUP_HOST,
+		port: parseInt(process.env.SMTP_BACKUP_PORT || "465", 10),
+		secure: process.env.SMTP_BACKUP_SECURE === "true",
+		auth: {
+			user: process.env.SMTP_BACKUP_USER,
+			pass: process.env.SMTP_BACKUP_PASS,
+		},
+	});
 
-  console.log(`✅ SMTP backup: ${process.env.SMTP_BACKUP_HOST}:${process.env.SMTP_BACKUP_PORT}`)
-  return backupTransporter
+	logger.info(`✅ SMTP backup: ${process.env.SMTP_BACKUP_HOST}:${process.env.SMTP_BACKUP_PORT}`);
+	return backupTransporter;
 }
 
 export interface EmailResult {
-  success: boolean
-  messageId?: string
-  error?: string
+	success: boolean;
+	messageId?: string;
+	error?: string;
 }
 
-
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
-  const from = process.env.SMTP_FROM || 'Academia PayGas <dev.olamulticom@gmail.com>'
-  const replyTo = process.env.SMTP_REPLY_TO || 'email@academia.paygas.com.br'
-  const bcc = process.env.SMTP_BCC || 'email@academia.paygas.com.br'
-  const monitorEmail = process.env.SMTP_MONITOR_EMAIL || 'onboarding@resend.dev'
-  const MAX_RETRIES = 2
+	const from = process.env.SMTP_FROM || "Academia PayGas <dev.olamulticom@gmail.com>";
+	const replyTo = process.env.SMTP_REPLY_TO || "email@academia.paygas.com.br";
+	const bcc = process.env.SMTP_BCC || "email@academia.paygas.com.br";
+	const monitorEmail = process.env.SMTP_MONITOR_EMAIL || "onboarding@resend.dev";
+	const MAX_RETRIES = 2;
 
-  const mailOptions = {
-    from,
-    to: options.to,
-    bcc,
-    replyTo,
-    subject: options.subject,
-    html: options.html || '',
-    text: options.text || '',
-  }
+	const mailOptions = {
+		from,
+		to: options.to,
+		bcc,
+		replyTo,
+		subject: options.subject,
+		html: options.html || "",
+		text: options.text || "",
+	};
 
-  // Try primary SMTP
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const transport = initializeTransporter()
-      if (!transport) break
+	// Try primary SMTP
+	for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+		try {
+			const transport = initializeTransporter();
+			if (!transport) break;
 
-      const result = await transport.sendMail(mailOptions)
-      console.log(`✅ Email sent [PRIMARY] to=${options.to} id=${result.messageId}`)
-      sendMonitorEmail(monitorEmail, String(options.to), options.subject, result.messageId).catch(() => {})
-      return { success: true, messageId: result.messageId }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error)
-      console.warn(`⚠️  Email PRIMARY attempt ${attempt}/${MAX_RETRIES} failed: ${msg}`)
-      if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 1000))
-    }
-  }
+			const result = await transport.sendMail(mailOptions);
+			logger.info(`✅ Email sent [PRIMARY] to=${options.to} id=${result.messageId}`);
+			sendMonitorEmail(monitorEmail, String(options.to), options.subject, result.messageId).catch(() => {});
+			return { success: true, messageId: result.messageId };
+		} catch (error) {
+			const msg = error instanceof Error ? error.message : String(error);
+			logger.warn(`⚠️  Email PRIMARY attempt ${attempt}/${MAX_RETRIES} failed: ${msg}`);
+			if (attempt < MAX_RETRIES) await new Promise((r) => setTimeout(r, 1000));
+		}
+	}
 
-  // Fallback to backup SMTP
-  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-    try {
-      const backup = initializeBackupTransporter()
-      if (!backup) {
-        console.error(`❌ No SMTP transport available. Primary failed, backup not configured.`)
-        return { success: false, error: 'No SMTP transport available' }
-      }
+	// Fallback to backup SMTP
+	for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+		try {
+			const backup = initializeBackupTransporter();
+			if (!backup) {
+				logger.error(`❌ No SMTP transport available. Primary failed, backup not configured.`);
+				return { success: false, error: "No SMTP transport available" };
+			}
 
-      const result = await backup.sendMail(mailOptions)
-      console.log(`✅ Email sent [BACKUP] to=${options.to} id=${result.messageId}`)
-      sendMonitorEmail(monitorEmail, String(options.to), options.subject, result.messageId).catch(() => {})
-      return { success: true, messageId: result.messageId }
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error)
-      console.warn(`⚠️  Email BACKUP attempt ${attempt}/${MAX_RETRIES} failed: ${msg}`)
-      if (attempt < MAX_RETRIES) await new Promise(r => setTimeout(r, 1000))
-    }
-  }
+			const result = await backup.sendMail(mailOptions);
+			logger.info(`✅ Email sent [BACKUP] to=${options.to} id=${result.messageId}`);
+			sendMonitorEmail(monitorEmail, String(options.to), options.subject, result.messageId).catch(() => {});
+			return { success: true, messageId: result.messageId };
+		} catch (error) {
+			const msg = error instanceof Error ? error.message : String(error);
+			logger.warn(`⚠️  Email BACKUP attempt ${attempt}/${MAX_RETRIES} failed: ${msg}`);
+			if (attempt < MAX_RETRIES) await new Promise((r) => setTimeout(r, 1000));
+		}
+	}
 
-  console.error(`❌ Email FAILED all attempts to=${options.to} subject="${options.subject}"`)
-  return { success: false, error: 'All SMTP attempts failed' }
+	logger.error(`❌ Email FAILED all attempts to=${options.to} subject="${options.subject}"`);
+	return { success: false, error: "All SMTP attempts failed" };
 }
 
 async function sendMonitorEmail(monitorTo: string, realTo: string, subject: string, messageId?: string) {
-  const backup = initializeBackupTransporter()
-  if (!backup) return
+	const backup = initializeBackupTransporter();
+	if (!backup) return;
 
-  const timestamp = new Date().toISOString()
-  await backup.sendMail({
-    from: 'Academia PayGas <onboarding@resend.dev>',
-    to: monitorTo,
-    subject: `[MONITOR] ${subject}`,
-    html: `
+	const timestamp = new Date().toISOString();
+	await backup.sendMail({
+		from: "Academia PayGas <onboarding@resend.dev>",
+		to: monitorTo,
+		subject: `[MONITOR] ${subject}`,
+		html: `
       <div style="font-family:monospace;font-size:13px;background:#1a1a2e;color:#0f0;padding:20px;border-radius:8px;">
         <h3 style="color:#00ff88;margin:0 0 12px;">EMAIL MONITOR</h3>
         <p><strong>Para:</strong> ${realTo}</p>
         <p><strong>Asunto:</strong> ${subject}</p>
-        <p><strong>ID:</strong> ${messageId || 'N/A'}</p>
+        <p><strong>ID:</strong> ${messageId || "N/A"}</p>
         <p><strong>Fecha:</strong> ${timestamp}</p>
         <p><strong>Sistema:</strong> Academia PayGas</p>
       </div>
     `,
-  })
+	});
 }
 
 /**
  * Send certificate notification email
  */
 export async function sendCertificateEmail(to: string, userName: string, moduloName: string) {
-  return sendEmail({
-    to,
-    subject: `🎓 Certificado Emitido - ${moduloName}`,
-    html: `
+	return sendEmail({
+		to,
+		subject: `🎓 Certificado Emitido - ${moduloName}`,
+		html: `
       <h2>Parabéns ${userName}! 🎉</h2>
       <p>Você completou o módulo <strong>${moduloName}</strong>.</p>
       <p>Seu certificado foi emitido com sucesso!</p>
-      <p><a href="${process.env.APP_URL || 'https://academia.paygas.com.br'}/certificados" style="background: #F47C20; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ver Certificado</a></p>
+      <p><a href="${process.env.APP_URL || "https://academia.paygas.com.br"}/certificados" style="background: #F47C20; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ver Certificado</a></p>
     `,
-  })
+	});
 }
 
 /**
  * Send user registration confirmation
  */
 export async function sendWelcomeEmail(to: string, userName: string, loginUrl: string) {
-  return sendEmail({
-    to,
-    subject: 'Bem-vindo à Academia PayGas',
-    html: `
+	return sendEmail({
+		to,
+		subject: "Bem-vindo à Academia PayGas",
+		html: `
       <h2>Bem-vindo ${userName}! 👋</h2>
       <p>Sua conta foi criada com sucesso na Academia PayGas.</p>
       <p>Você já pode começar seus módulos de aprendizagem.</p>
       <p><a href="${loginUrl}" style="background: #F47C20; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Acessar Academia</a></p>
     `,
-  })
+	});
 }
 
 /**
  * Send notification alert email — simple alert with link to Academy
  */
-export async function sendNotificationAlertEmail(
-  to: string,
-  userName: string,
-  titulo: string
-) {
-  const appUrl = process.env.APP_URL || 'https://academia.paygas.com.br'
-  const now = new Date()
-  const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' })
-  const timeStr = now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+export async function sendNotificationAlertEmail(to: string, userName: string, titulo: string) {
+	const appUrl = process.env.APP_URL || "https://academia.paygas.com.br";
+	const now = new Date();
+	const dateStr = now.toLocaleDateString("pt-BR", { day: "2-digit", month: "2-digit", year: "numeric" });
+	const timeStr = now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
-  return sendEmail({
-    to,
-    subject: `🔔 Nova notificação - Academia PayGas`,
-    html: `
+	return sendEmail({
+		to,
+		subject: `🔔 Nova notificação - Academia PayGas`,
+		html: `
       <!DOCTYPE html>
       <html>
       <head><meta charset="UTF-8"></head>
@@ -220,64 +216,60 @@ export async function sendNotificationAlertEmail(
       </body>
       </html>
     `,
-  })
+	});
 }
 
 /**
  * Send notification email
  */
-export async function sendNotificationEmail(
-  to: string,
-  titulo: string,
-  mensagem: string
-) {
-  return sendEmail({
-    to,
-    subject: titulo,
-    html: `
+export async function sendNotificationEmail(to: string, titulo: string, mensagem: string) {
+	return sendEmail({
+		to,
+		subject: titulo,
+		html: `
       <h2>${titulo}</h2>
       <p>${mensagem}</p>
     `,
-  })
+	});
 }
 
 /**
  * Send custom email from admin
  */
 export async function sendCustomEmail(to: string, subject: string, htmlBody: string) {
-  return sendEmail({
-    to,
-    subject,
-    html: htmlBody,
-  })
+	return sendEmail({
+		to,
+		subject,
+		html: htmlBody,
+	});
 }
 
 /**
  * Check if SMTP is configured
  */
 export function isEmailConfigured(): { configured: boolean; host?: string; port?: number } {
-  const requiredEnvVars = ['SMTP_HOST', 'SMTP_PORT', 'SMTP_USER', 'SMTP_PASS']
-  const missing = requiredEnvVars.filter(v => !process.env[v])
-  if (missing.length > 0) {
-    return { configured: false }
-  }
-  return {
-    configured: true,
-    host: process.env.SMTP_HOST,
-    port: parseInt(process.env.SMTP_PORT || '587', 10),
-  }
+	const requiredEnvVars = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS"];
+	const missing = requiredEnvVars.filter((v) => !process.env[v]);
+	if (missing.length > 0) {
+		return { configured: false };
+	}
+	return {
+		configured: true,
+		host: process.env.SMTP_HOST,
+		port: parseInt(process.env.SMTP_PORT || "587", 10),
+	};
 }
 
 /**
  * Send password reset code email
  */
 export async function sendPasswordResetEmail(to: string, userName: string, code: string) {
-  const appUrl = process.env.APP_URL || 'https://academia.paygas.com.br'
+	const appUrl = process.env.APP_URL || "https://academia.paygas.com.br";
 
-  return sendEmail({
-    to,
-    subject: '🔑 Redefinir senha - Academia PayGas',
-    html: `
+	return sendEmail({
+		to,
+		subject: "🔑 Redefinir senha - Academia PayGas",
+		html: `
       <!DOCTYPE html>
       <html>
       <head><meta charset="UTF-8"></head>
@@ -305,19 +297,19 @@ export async function sendPasswordResetEmail(to: string, userName: string, code:
       </body>
       </html>
     `,
-  })
+	});
 }
 
 /**
  * Send email verification link
  */
 export async function sendVerificationEmail(to: string, userName: string, token: string) {
-  const verifyUrl = `${process.env.APP_URL || 'https://academia.paygas.com.br'}/verificar-email?token=${token}`
+	const verifyUrl = `${process.env.APP_URL || "https://academia.paygas.com.br"}/verificar-email?token=${token}`;
 
-  return sendEmail({
-    to,
-    subject: 'Verifique seu email - Academia PayGas',
-    html: `
+	return sendEmail({
+		to,
+		subject: "Verifique seu email - Academia PayGas",
+		html: `
       <!DOCTYPE html>
       <html>
       <head><meta charset="UTF-8"></head>
@@ -345,7 +337,7 @@ export async function sendVerificationEmail(to: string, userName: string, token:
       </body>
       </html>
     `,
-  })
+	});
 }
 
 /**
@@ -354,12 +346,12 @@ export async function sendVerificationEmail(to: string, userName: string, token:
  * user must change on first login.
  */
 export async function sendPayGasAccessEmail(to: string, userName: string, temporaryPassword: string) {
-  const appUrl = process.env.APP_URL || 'https://academia.paygas.com.br'
+	const appUrl = process.env.APP_URL || "https://academia.paygas.com.br";
 
-  return sendEmail({
-    to,
-    subject: '🎉 Bem-vindo à Academia PayGas - Suas credenciais',
-    html: `
+	return sendEmail({
+		to,
+		subject: "🎉 Bem-vindo à Academia PayGas - Suas credenciais",
+		html: `
       <!DOCTYPE html>
       <html>
       <head><meta charset="UTF-8"></head>
@@ -387,5 +379,5 @@ export async function sendPayGasAccessEmail(to: string, userName: string, tempor
       </body>
       </html>
     `,
-  })
+	});
 }

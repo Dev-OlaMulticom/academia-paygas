@@ -1,11 +1,11 @@
 allowBuilds:
-  '@anthropic-ai/claude-code': set this to true or false
+  '@anthropic-ai/claude-code': false
   '@prisma/engines': true
   better-sqlite3: true
   core-js: false
   esbuild: true
-  node-pty: set this to true or false
+  node-pty: false
   prisma: true
-  protobufjs: set this to true or false
-  tldjs: set this to true or false
-  tree-sitter-bash: set this to true or false
+  protobufjs: false
+  tldjs: false
+  tree-sitter-bash: false

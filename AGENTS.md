@@ -169,6 +169,28 @@ Level = `Math.floor(xp / 2000) + 1`. `awardPointsIfNotAwarded` deduplicates by (
 
 All user actions are logged to the `ActivityLog` table via the shared `logActivity(userId, acao, detalhes)` service (`server/services/log.ts`). ADMIN can view logs at `/logs` with filters by user, action type, and date range.
 
+## Herramientas preferidas
+
+Para buscar texto usa SIEMPRE: `rg`
+Nunca uses: `grep`
+
+------------
+
+Para buscar archivos usa: `fd`
+Nunca uses: `find`
+
+------------
+
+Para refactorizaciones usa: `ast-grep`
+
+------------
+
+Para navegar símbolos usa: `LSP`
+
+------------
+
+Solo usa grep/find si las herramientas anteriores no están disponibles.
+
 ## Conventions
 
 - **Commit format:** `tipo: descripcion` — types: feat, fix, security, docs, chore, deploy

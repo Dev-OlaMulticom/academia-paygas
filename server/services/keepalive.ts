@@ -12,40 +12,41 @@
  *   import { startKeepAlive } from '../services/keepalive'
  *   startKeepAlive() // Call once at server startup
  */
-import { dbRegistry } from '../config/databases'
+import { dbRegistry } from "../config/databases";
+import logger from "../lib/logger";
 
-const DEFAULT_INTERVAL = 12 * 60 * 60 * 1000  // 12 hours
-const FIRST_DELAY = 5 * 60 * 1000              // 5 minutes
+const DEFAULT_INTERVAL = 12 * 60 * 60 * 1000; // 12 hours
+const FIRST_DELAY = 5 * 60 * 1000; // 5 minutes
 
-let keepAliveInterval: ReturnType<typeof setInterval> | null = null
-let keepAliveTimeout: ReturnType<typeof setTimeout> | null = null
+let keepAliveInterval: ReturnType<typeof setInterval> | null = null;
+let keepAliveTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /**
  * Ping all registered databases.
  * Logs results and updates health status.
  */
 async function pingAllDatabases(): Promise<void> {
-  const entries = dbRegistry.getAll()
-  console.log(`[KEEP-ALIVE] Pinging ${entries.length} database(s)...`)
+	const entries = dbRegistry.getAll();
+	logger.info(`[KEEP-ALIVE] Pinging ${entries.length} database(s)...`);
 
-  for (const entry of entries) {
-    if (!entry.client) {
-      console.log(`[KEEP-ALIVE]   ${entry.name}: no client (skipped)`)
-      continue
-    }
+	for (const entry of entries) {
+		if (!entry.client) {
+			logger.info(`[KEEP-ALIVE]   ${entry.name}: no client (skipped)`);
+			continue;
+		}
 
-    try {
-      const start = Date.now()
-      await entry.client.$queryRaw`SELECT 1`
-      const latency = Date.now() - start
+		try {
+			const start = Date.now();
+			await entry.client.$queryRaw`SELECT 1`;
+			const latency = Date.now() - start;
 
-      console.log(`[KEEP-ALIVE]   ${entry.name}: OK (${latency}ms)`)
-      dbRegistry.setStatus(entry.name, 'connected')
-    } catch (error: any) {
-      console.warn(`[KEEP-ALIVE]   ${entry.name}: FAILED — ${error?.message || error}`)
-      dbRegistry.setStatus(entry.name, 'disconnected', error?.message)
-    }
-  }
+			logger.info(`[KEEP-ALIVE]   ${entry.name}: OK (${latency}ms)`);
+			dbRegistry.setStatus(entry.name, "connected");
+		} catch (error: any) {
+			logger.warn(`[KEEP-ALIVE]   ${entry.name}: FAILED — ${error?.message || error}`);
+			dbRegistry.setStatus(entry.name, "disconnected", error?.message);
+		}
+	}
 }
 
 /**
@@ -53,43 +54,43 @@ async function pingAllDatabases(): Promise<void> {
  * Pings all databases every 12 hours. First ping after 5 minutes.
  */
 export function startKeepAlive() {
-  if (keepAliveInterval || keepAliveTimeout) {
-    console.log('[KEEP-ALIVE] Already running')
-    return
-  }
+	if (keepAliveInterval || keepAliveTimeout) {
+		logger.info("[KEEP-ALIVE] Already running");
+		return;
+	}
 
-  const interval = parseInt(process.env.KEEPALIVE_INTERVAL_MS || '') || DEFAULT_INTERVAL
-  const firstDelay = parseInt(process.env.KEEPALIVE_FIRST_DELAY_MS || '') || FIRST_DELAY
+	const interval = parseInt(process.env.KEEPALIVE_INTERVAL_MS || "", 10) || DEFAULT_INTERVAL;
+	const firstDelay = parseInt(process.env.KEEPALIVE_FIRST_DELAY_MS || "", 10) || FIRST_DELAY;
 
-  console.log(`[KEEP-ALIVE] Starting (interval: ${interval / 1000}s, first ping: ${firstDelay / 1000}s)`)
+	logger.info(`[KEEP-ALIVE] Starting (interval: ${interval / 1000}s, first ping: ${firstDelay / 1000}s)`);
 
-  keepAliveTimeout = setTimeout(async () => {
-    await pingAllDatabases()
+	keepAliveTimeout = setTimeout(async () => {
+		await pingAllDatabases();
 
-    keepAliveInterval = setInterval(async () => {
-      await pingAllDatabases()
-    }, interval)
-  }, firstDelay)
+		keepAliveInterval = setInterval(async () => {
+			await pingAllDatabases();
+		}, interval);
+	}, firstDelay);
 }
 
 /**
  * Stop the keep-alive service.
  */
 export function stopKeepAlive() {
-  if (keepAliveTimeout) {
-    clearTimeout(keepAliveTimeout)
-    keepAliveTimeout = null
-  }
-  if (keepAliveInterval) {
-    clearInterval(keepAliveInterval)
-    keepAliveInterval = null
-    console.log('[KEEP-ALIVE] Stopped')
-  }
+	if (keepAliveTimeout) {
+		clearTimeout(keepAliveTimeout);
+		keepAliveTimeout = null;
+	}
+	if (keepAliveInterval) {
+		clearInterval(keepAliveInterval);
+		keepAliveInterval = null;
+		logger.info("[KEEP-ALIVE] Stopped");
+	}
 }
 
 /**
  * Force an immediate ping of all databases.
  */
 export async function forceKeepAlive(): Promise<void> {
-  await pingAllDatabases()
+	await pingAllDatabases();
 }

@@ -1,130 +1,120 @@
-const ALGORITHM = 'AES-GCM'
-const KEY_LENGTH = 256
-const IV_LENGTH = 16
-const ITERATIONS = 100000
-const SALT_LENGTH = 64
+const ALGORITHM = "AES-GCM";
+const KEY_LENGTH = 256;
+const IV_LENGTH = 16;
+const ITERATIONS = 100000;
+const SALT_LENGTH = 64;
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '/api'
+const API_BASE = import.meta.env.VITE_API_BASE_URL || "/api";
 
-let SECRET_KEY = ''
-let keyPromise: Promise<string> | null = null
+let SECRET_KEY = "";
+let keyPromise: Promise<string> | null = null;
 
 async function fetchEncryptionKey(): Promise<string> {
-  try {
-    const token = localStorage.getItem('token')
-    const headers: Record<string, string> = {}
-    if (token) headers['Authorization'] = `Bearer ${token}`
-    const res = await fetch(`${API_BASE}/config`, { headers })
-    if (res.ok) {
-      const data = await res.json()
-      if (data.encryptionKey) {
-        return data.encryptionKey
-      }
-    }
-  } catch {
-    // network error
-  }
-  // Never return empty string — throw if key cannot be fetched
-  throw new Error('No se pudo obtener la encryption key. Verificar conexion con el servidor.')
+	try {
+		const token = localStorage.getItem("token");
+		const headers: Record<string, string> = {};
+		if (token) headers["Authorization"] = `Bearer ${token}`;
+		const res = await fetch(`${API_BASE}/config`, { headers });
+		if (res.ok) {
+			const data = await res.json();
+			if (data.encryptionKey) {
+				return data.encryptionKey;
+			}
+		}
+	} catch {
+		// network error
+	}
+	// Never return empty string — throw if key cannot be fetched
+	throw new Error("No se pudo obtener la encryption key. Verificar conexion con el servidor.");
 }
 
 export function initEncryptionKey(): Promise<string> {
-  if (!keyPromise) {
-    keyPromise = fetchEncryptionKey().then((key) => {
-      SECRET_KEY = key
-      return key
-    })
-  }
-  return keyPromise
+	if (!keyPromise) {
+		keyPromise = fetchEncryptionKey().then((key) => {
+			SECRET_KEY = key;
+			return key;
+		});
+	}
+	return keyPromise;
 }
 
 // Force re-fetch encryption key (call after login)
 export function resetEncryptionKey(): void {
-  keyPromise = null
-  SECRET_KEY = ''
+	keyPromise = null;
+	SECRET_KEY = "";
 }
 
 function getSecretKey(): string {
-  return SECRET_KEY
+	return SECRET_KEY;
 }
 
 async function deriveKey(salt: Uint8Array): Promise<CryptoKey> {
-  const encoder = new TextEncoder()
-  const keyMaterial = await crypto.subtle.importKey(
-    'raw',
-    encoder.encode(getSecretKey()),
-    { name: 'PBKDF2' },
-    false,
-    ['deriveKey']
-  )
+	const encoder = new TextEncoder();
+	const keyMaterial = await crypto.subtle.importKey("raw", encoder.encode(getSecretKey()), { name: "PBKDF2" }, false, [
+		"deriveKey",
+	]);
 
-  return crypto.subtle.deriveKey(
-    {
-      name: 'PBKDF2',
-      salt,
-      iterations: ITERATIONS,
-      hash: 'SHA-512',
-    },
-    keyMaterial,
-    { name: ALGORITHM, length: KEY_LENGTH },
-    false,
-    ['encrypt', 'decrypt']
-  )
+	return crypto.subtle.deriveKey(
+		{
+			name: "PBKDF2",
+			salt,
+			iterations: ITERATIONS,
+			hash: "SHA-512",
+		},
+		keyMaterial,
+		{ name: ALGORITHM, length: KEY_LENGTH },
+		false,
+		["encrypt", "decrypt"],
+	);
 }
 
 export async function encrypt(text: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH))
-  const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH))
-  const key = await deriveKey(salt)
+	const encoder = new TextEncoder();
+	const salt = crypto.getRandomValues(new Uint8Array(SALT_LENGTH));
+	const iv = crypto.getRandomValues(new Uint8Array(IV_LENGTH));
+	const key = await deriveKey(salt);
 
-  const encrypted = await crypto.subtle.encrypt(
-    { name: ALGORITHM, iv },
-    key,
-    encoder.encode(text)
-  )
+	const encrypted = await crypto.subtle.encrypt({ name: ALGORITHM, iv }, key, encoder.encode(text));
 
-  const encryptedArray = new Uint8Array(encrypted)
-  const combined = new Uint8Array(salt.length + iv.length + encryptedArray.length)
-  combined.set(salt, 0)
-  combined.set(iv, salt.length)
-  combined.set(encryptedArray, salt.length + iv.length)
+	const encryptedArray = new Uint8Array(encrypted);
+	const combined = new Uint8Array(salt.length + iv.length + encryptedArray.length);
+	combined.set(salt, 0);
+	combined.set(iv, salt.length);
+	combined.set(encryptedArray, salt.length + iv.length);
 
-  // Convert Uint8Array to base64 without spreading (avoids stack overflow on large payloads)
-  let binary = ''
-  const chunkSize = 8192
-  for (let i = 0; i < combined.length; i += chunkSize) {
-    binary += String.fromCharCode(...combined.subarray(i, i + chunkSize))
-  }
-  return btoa(binary)
+	// Convert Uint8Array to base64 without spreading (avoids stack overflow on large payloads)
+	let binary = "";
+	const chunkSize = 8192;
+	for (let i = 0; i < combined.length; i += chunkSize) {
+		binary += String.fromCharCode(...combined.subarray(i, i + chunkSize));
+	}
+	return btoa(binary);
 }
 
 export async function decrypt(encryptedData: string): Promise<string> {
-  const decoder = new TextDecoder()
-  const combined = new Uint8Array(
-    atob(encryptedData).split('').map(c => c.charCodeAt(0))
-  )
+	const decoder = new TextDecoder();
+	const combined = new Uint8Array(
+		atob(encryptedData)
+			.split("")
+			.map((c) => c.charCodeAt(0)),
+	);
 
-  const salt = combined.slice(0, SALT_LENGTH)
-  const iv = combined.slice(SALT_LENGTH, SALT_LENGTH + IV_LENGTH)
-  const data = combined.slice(SALT_LENGTH + IV_LENGTH)
+	const salt = combined.slice(0, SALT_LENGTH);
+	const iv = combined.slice(SALT_LENGTH, SALT_LENGTH + IV_LENGTH);
+	const data = combined.slice(SALT_LENGTH + IV_LENGTH);
 
-  const key = await deriveKey(salt)
+	const key = await deriveKey(salt);
 
-  const decrypted = await crypto.subtle.decrypt(
-    { name: ALGORITHM, iv },
-    key,
-    data
-  )
+	const decrypted = await crypto.subtle.decrypt({ name: ALGORITHM, iv }, key, data);
 
-  return decoder.decode(decrypted)
+	return decoder.decode(decrypted);
 }
 
 export async function encryptObject(obj: Record<string, any>): Promise<string> {
-  return encrypt(JSON.stringify(obj))
+	return encrypt(JSON.stringify(obj));
 }
 
 export async function decryptObject<T = Record<string, any>>(encryptedData: string): Promise<T> {
-  const decrypted = await decrypt(encryptedData)
-  return JSON.parse(decrypted)
+	const decrypted = await decrypt(encryptedData);
+	return JSON.parse(decrypted);
 }
