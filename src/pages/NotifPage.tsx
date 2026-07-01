@@ -39,7 +39,7 @@ export function NotifPage({ user }: NotifPageProps) {
 
 	useEffect(() => {
 		loadData();
-	}, []);
+	}, [loadData]);
 
 	const getTeamMembers = () => {
 		if (isGestor) {

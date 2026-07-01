@@ -25,7 +25,7 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
 
 	useEffect(() => {
 		loadDashboard();
-	}, []);
+	}, [loadDashboard]);
 
 	const level = dashData?.level || Math.floor(xp / XP_PER_LEVEL) + 1;
 	const currentLevelXp = (level - 1) * XP_PER_LEVEL;

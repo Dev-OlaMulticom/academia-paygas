@@ -160,7 +160,7 @@ export function LogsPage({ user: _user }: LogsPageProps) {
 
 	const formatDate = (iso: string) => {
 		const d = new Date(iso);
-		return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+		return `${d.toLocaleDateString("pt-BR")} ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 	};
 
 	const roleColor = (role: string) => ROLE_COLORS[role] || ROLE_COLORS.ATENDENTE;

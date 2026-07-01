@@ -28,7 +28,7 @@ class ApiClient {
 		};
 
 		if (this.token) {
-			headers["Authorization"] = `Bearer ${this.token}`;
+			headers.Authorization = `Bearer ${this.token}`;
 		}
 
 		let body = options.body as string | undefined;
@@ -687,7 +687,7 @@ class ApiClient {
 
 	async downloadCsv(type: "cursos" | "aulas" | "licoes" | "quiz"): Promise<void> {
 		const csv = await this.exportCsv(type);
-		const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+		const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;

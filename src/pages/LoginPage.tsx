@@ -87,7 +87,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 	};
 
 	const handleVerifyCode = () => {
-		if (!resetCode || resetCode.length !== 6) {
+		if (resetCode?.length !== 6) {
 			setResetError("Informe o codigo de 6 digitos!");
 			return;
 		}

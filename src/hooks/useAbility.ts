@@ -54,7 +54,7 @@ export function useAbility(): UseAbilityReturn {
 
 	const ability = useMemo(() => {
 		return defineFrontendAbility(user);
-	}, [user?.id, user?.role, user?.gestorId]);
+	}, [user?.id, user?.role, user?.gestorId, user]);
 
 	const can = useMemo(() => {
 		return (action: string, subject: string, conditions?: Record<string, any>) => {

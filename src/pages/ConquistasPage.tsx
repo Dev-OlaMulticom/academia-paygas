@@ -38,7 +38,7 @@ interface ConquistasPageProps {
 	user: User;
 }
 
-export function ConquistasPage({ user }: ConquistasPageProps) {
+export function ConquistasPage({ user: _user }: ConquistasPageProps) {
 	const { toast } = useToast();
 	const { confirm } = useConfirm();
 	const { isAdmin, isGestor } = useAbility();
@@ -72,7 +72,7 @@ export function ConquistasPage({ user }: ConquistasPageProps) {
 
 	useEffect(() => {
 		load();
-	}, []);
+	}, [load]);
 
 	const openCreate = () => {
 		setEditing(null);
@@ -346,7 +346,7 @@ export function ConquistasPage({ user }: ConquistasPageProps) {
 									type="number"
 									min="0"
 									value={form.pontosMinimos}
-									onChange={(e) => setForm({ ...form, pontosMinimos: parseInt(e.target.value) || 0 })}
+									onChange={(e) => setForm({ ...form, pontosMinimos: parseInt(e.target.value, 10) || 0 })}
 								/>
 							</div>
 							<div className="form-field">
@@ -356,7 +356,7 @@ export function ConquistasPage({ user }: ConquistasPageProps) {
 									type="number"
 									min="0"
 									value={form.xpRecompensa}
-									onChange={(e) => setForm({ ...form, xpRecompensa: parseInt(e.target.value) || 0 })}
+									onChange={(e) => setForm({ ...form, xpRecompensa: parseInt(e.target.value, 10) || 0 })}
 								/>
 							</div>
 						</div>
@@ -369,7 +369,7 @@ export function ConquistasPage({ user }: ConquistasPageProps) {
 									type="number"
 									min="0"
 									value={form.ordem}
-									onChange={(e) => setForm({ ...form, ordem: parseInt(e.target.value) || 0 })}
+									onChange={(e) => setForm({ ...form, ordem: parseInt(e.target.value, 10) || 0 })}
 								/>
 							</div>
 							<div className="form-field">

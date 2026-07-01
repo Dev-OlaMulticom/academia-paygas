@@ -193,7 +193,7 @@ async function testQuizFlow(aulaId: string | null) {
 		);
 
 		// UPDATE QUIZ
-		const updated = await prisma.quiz.update({
+		const _updated = await prisma.quiz.update({
 			where: { id: quiz.id },
 			data: { titulo: "Updated Quiz Title" },
 		});
@@ -274,7 +274,7 @@ async function runAllTests() {
 	await testProgressFlow();
 
 	// Print summary
-	console.log("\n" + "=".repeat(60));
+	console.log(`\n${"=".repeat(60)}`);
 	console.log("TEST SUMMARY");
 	console.log("=".repeat(60));
 
@@ -287,7 +287,7 @@ async function runAllTests() {
 		console.log(`${icon} ${r.test}: ${r.message}`);
 	});
 
-	console.log("\n" + "-".repeat(60));
+	console.log(`\n${"-".repeat(60)}`);
 	console.log(`Total: ${total} | Passed: ${passed} ✅ | Failed: ${failed} ❌`);
 	console.log(`Success Rate: ${((passed / total) * 100).toFixed(1)}%`);
 	console.log("=".repeat(60));

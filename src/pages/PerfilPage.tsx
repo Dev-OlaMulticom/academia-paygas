@@ -52,7 +52,7 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
 	useEffect(() => {
 		loadStats();
 		if (isAdmin) loadTeamStats();
-	}, []);
+	}, [loadTeamStats, loadStats, isAdmin]);
 
 	const handleChangePassword = async () => {
 		setPasswordMsg(null);

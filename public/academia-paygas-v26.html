@@ -1052,7 +1052,7 @@ var AI_KNOWLEDGE={
 function G(id){return document.getElementById(id)}
 function toast(msg,duration){
   var t=G('toast');t.textContent=msg;t.classList.add('show');
-  setTimeout(function(){t.classList.remove('show')},duration||3000);
+  setTimeout(()=> {t.classList.remove('show')},duration||3000);
 }
 
 function doLogin(){
@@ -1062,7 +1062,7 @@ function doLogin(){
   if(!email){toast('⚠️ Informe seu e-mail!');return}
   S.role=role;S.email=email;
   if(!S.termsAccepted[role]){
-    showTermsModal(function(){S.termsAccepted[role]=true;launchApp()});
+    showTermsModal(()=> {S.termsAccepted[role]=true;launchApp()});
   } else {
     launchApp();
   }
@@ -1083,7 +1083,7 @@ function showTermsModal(onAccept){
   openModal('Termos de Uso — Academia PayGas',content,footer);
 }
 
-function showTermsOnly(){
+function _showTermsOnly(){
   var content='<div class="terms-scroll" style="max-height:480px">'
     +'<h4>1. Aceitação dos Termos</h4><p>Ao utilizar a Academia PayGas, você concorda com estes Termos de Uso. Esta plataforma é de uso exclusivo de usuários autorizados pela PayGas e seus parceiros.</p>'
     +'<h4>2. Uso da Plataforma</h4><p>Você se compromete a usar a plataforma apenas para finalidades educacionais. É proibido compartilhar credenciais ou reproduzir conteúdos protegidos.</p>'
@@ -1095,7 +1095,7 @@ function showTermsOnly(){
   openModal('Termos de Uso',content,'<button class="btn-primary" onclick="closeModal()">Fechar</button>');
 }
 
-function showPrivacyOnly(){
+function _showPrivacyOnly(){
   var content='<div class="terms-scroll" style="max-height:480px">'
     +'<h4>Política de Privacidade — Academia PayGas</h4>'
     +'<h4>1. Dados Coletados</h4><p>Nome, e-mail, perfil de acesso, progresso nos módulos, resultados de quizzes e datas de acesso.</p>'
@@ -1145,10 +1145,10 @@ function getStartXP(){
 function updateXP(){
   var lv=Math.floor(S.xp/2000)+1;S.level=lv;
   var pct=(S.xp%2000)/2000*100;
-  G('xp-fill').style.width=pct+'%';
-  G('xp-val').textContent=S.xp.toLocaleString('pt-BR')+' pts';
-  G('xp-next').textContent='Próximo nível: '+(2000-(S.xp%2000))+' pts';
-  if(G('level-badge'))G('level-badge').textContent='⭐ Nível '+lv;
+  G('xp-fill').style.width=`${pct}%`;
+  G('xp-val').textContent=`${S.xp.toLocaleString('pt-BR')} pts`;
+  G('xp-next').textContent=`Próximo nível: ${2000-(S.xp%2000)} pts`;
+  if(G('level-badge'))G('level-badge').textContent=`⭐ Nível ${lv}`;
 }
 
 function buildNav(){
@@ -1162,15 +1162,15 @@ function buildNav(){
 
 function getMyTracks(){
   if(S.role==='paygas')return TRACKS;
-  return TRACKS.filter(function(t){return t.personas.indexOf(S.role)>=0});
+  return TRACKS.filter((t)=> t.personas.indexOf(S.role)>=0);
 }
 
 function goTo(page){
-  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
-  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active')});
-  var pg=G('page-'+page);if(!pg)return;
+  document.querySelectorAll('.page').forEach((p)=> {p.classList.remove('active')});
+  document.querySelectorAll('.nav-item').forEach((n)=> {n.classList.remove('active')});
+  var pg=G(`page-${page}`);if(!pg)return;
   pg.classList.add('active');
-  var navBtn=document.querySelector('[data-page="'+page+'"]');
+  var navBtn=document.querySelector(`[data-page="${page}"]`);
   if(navBtn)navBtn.classList.add('active');
   if(page==='home')renderHome();
   else if(page==='trilhas')renderTrilhas();
@@ -1189,8 +1189,8 @@ function goTo(page){
 
 function renderHome(){
   var p=PERSONAS[S.role];
-  G('home-title').textContent='Olá, '+getNome()+'! 👋';
-  G('home-sub').textContent=p.icon+' '+p.label+' — Academia PayGas';
+  G('home-title').textContent=`Olá, ${getNome()}! 👋`;
+  G('home-sub').textContent=`${p.icon} ${p.label} — Academia PayGas`;
   var tracks=getMyTracks();
   var stats=[
     {icon:'📚',val:tracks.length,label:'Trilhas Disponíveis',trend:'+2 novas',up:true,color:'#FEF3C7'},
@@ -1201,15 +1201,13 @@ function renderHome(){
   if(S.role==='paygas'||S.role==='gestor'){
     stats.push({icon:'👥',val:'8',label:'Equipe Ativa',trend:'2 novos esta semana',up:true,color:'#F3E8FF'});
   }
-  G('home-stats').innerHTML=stats.map(function(s){
-    return '<div class="stat-card"><div class="stat-card-icon" style="background:'+s.color+'">'+s.icon+'</div>'
+  G('home-stats').innerHTML=stats.map((s)=> '<div class="stat-card"><div class="stat-card-icon" style="background:'+s.color+'">'+s.icon+'</div>'
       +'<div class="stat-card-val">'+s.val+'</div>'
       +'<div class="stat-card-label">'+s.label+'</div>'
       +'<div class="stat-card-trend '+(s.up?'trend-up':'trend-dn')+'">'+(s.up?'↑':'↓')+' '+s.trend+'</div>'
-      +'</div>';
-  }).join('');
+      +'</div>').join('');
   var myTracks=getMyTracks().slice(0,3);
-  G('home-continue').innerHTML=myTracks.map(function(t,i){
+  G('home-continue').innerHTML=myTracks.map((t,i)=> {
     var pct=[45,72,100][i]||30;
     return '<div class="track-card" onclick="openTrack(\''+t.id+'\')" style="margin-bottom:10px">'
       +'<div class="track-card-top"><div class="track-icon" style="background:'+t.color+'">'+t.icon+'</div>'
@@ -1227,27 +1225,21 @@ function renderHome(){
     {dot:'#7C3AED',text:'Login realizado na Academia PayGas',time:'2 dias atrás'}
   ];
   G('home-activity').innerHTML='<div class="activity-header">Atividade Recente <span style="font-size:11px;color:var(--gray-400);font-weight:400">Últimos 7 dias</span></div>'
-    +activities.map(function(a){
-      return '<div class="activity-item"><div class="activity-dot" style="background:'+a.dot+'"></div>'
-        +'<div class="activity-body">'+a.text+'<span>'+a.time+'</span></div></div>';
-    }).join('');
+    +activities.map((a)=> '<div class="activity-item"><div class="activity-dot" style="background:'+a.dot+'"></div>'
+        +'<div class="activity-body">'+a.text+'<span>'+a.time+'</span></div></div>').join('');
   var days=[20,45,30,60,80,55,90];
-  G('weekly-chart').innerHTML=days.map(function(h,i){
-    return '<div class="mini-bar'+(i===6?' active':'')+'" style="height:'+h+'%" title="'+h+' min"></div>';
-  }).join('');
+  G('weekly-chart').innerHTML=days.map((h,i)=> `<div class="mini-bar${i===6?' active':''}" style="height:${h}%" title="${h} min"></div>`).join('');
 }
 
 function renderTrilhas(){
   var tracks=getMyTracks();
-  G('trilhas-sub').textContent=tracks.length+' trilhas disponíveis para '+PERSONAS[S.role].label;
+  G('trilhas-sub').textContent=`${tracks.length} trilhas disponíveis para ${PERSONAS[S.role].label}`;
   var filters=['Todas','Obrigatórias','Em Andamento','Concluídas'];
-  G('trilha-filters').innerHTML=filters.map(function(f,i){
-    return '<button class="track-badge '+(i===0?'badge-progress':'badge-new')+'" style="cursor:pointer;padding:6px 14px;font-size:12px" onclick="toast(\'Filtro: '+f+' ✓\')">' + f+'</button>';
-  }).join('');
+  G('trilha-filters').innerHTML=filters.map((f,i)=> `<button class="track-badge ${i===0?'badge-progress':'badge-new'}" style="cursor:pointer;padding:6px 14px;font-size:12px" onclick="toast('Filtro: ${f} ✓')">${f}</button>`).join('');
   var pcts=[100,72,45,0,100,30,60,0,85];
-  G('trilhas-grid').innerHTML=tracks.map(function(t,i){
+  G('trilhas-grid').innerHTML=tracks.map((t,i)=> {
     var pct=pcts[i]||0;
-    var badge=t.required?'badge-required':'badge-new';
+    var _badge=t.required?'badge-required':'badge-new';
     return '<div class="track-card" onclick="openTrack(\''+t.id+'\')">'
       +'<div class="track-card-top">'
       +'<div class="track-icon" style="background:'+t.color+'">'+t.icon+'</div>'
@@ -1265,20 +1257,20 @@ function renderTrilhas(){
   }).join('');
 }
 
-function openTrack(id){
-  var track=TRACKS.find(function(t){return t.id===id});
+function _openTrack(id){
+  var track=TRACKS.find((t)=> t.id===id);
   if(!track){toast('Abrindo trilha...');return}
   S.currentTrack=id;S.currentLesson=0;
   var lessons=LESSONS_DATA[id];
   if(!lessons){toast('Conteúdo da trilha em preparação! 📚');return}
   G('mod-title').textContent=track.label;
-  G('mod-sub').textContent=track.desc+' · '+lessons.length+' aulas';
+  G('mod-sub').textContent=`${track.desc} · ${lessons.length} aulas`;
   renderLessonViewer(track,lessons);
   goTo('modulos');
 }
 
 function renderLessonViewer(track,lessons){
-  var sidebarItems=lessons.map(function(l,i){
+  var sidebarItems=lessons.map((l,i)=> {
     var done=i<S.currentLesson;
     var active=i===S.currentLesson;
     return '<div class="lesson-item'+(active?' active':'')+(done?' done':'')+'" onclick="selectLesson('+i+')">'
@@ -1295,8 +1287,8 @@ function renderLessonViewer(track,lessons){
     +'<div class="lesson-content">'+mainContent+'</div>';
 }
 
-function selectLesson(idx){
-  var track=TRACKS.find(function(t){return t.id===S.currentTrack});
+function _selectLesson(idx){
+  var track=TRACKS.find((t)=> t.id===S.currentTrack);
   var lessons=LESSONS_DATA[S.currentTrack];
   if(!lessons||!track)return;
   S.currentLesson=idx;
@@ -1307,8 +1299,8 @@ function renderLessonContent(lesson,track){
   if(!lesson)return'<div class="lesson-body"><p>Aula não encontrada.</p></div>';
   var video='<div class="lesson-video">'
     +(lesson.yt
-      ?'<iframe width="100%" height="100%" src="'+lesson.yt+'" frameborder="0" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%"></iframe>'
-      :'<div class="lesson-video-placeholder"><div class="play-btn" onclick="toast(\'Vídeo carregando... 🎬\')">▶</div><p>'+lesson.title+'</p><small style="opacity:.5">Clique para reproduzir</small></div>')
+      ?`<iframe width="100%" height="100%" src="${lesson.yt}" frameborder="0" allowfullscreen style="position:absolute;inset:0;width:100%;height:100%"></iframe>`
+      :`<div class="lesson-video-placeholder"><div class="play-btn" onclick="toast('Vídeo carregando... 🎬')">▶</div><p>${lesson.title}</p><small style="opacity:.5">Clique para reproduzir</small></div>`)
     +'</div>';
   var body='<div class="lesson-body">'
     +'<h2>'+lesson.title+'</h2>'
@@ -1325,28 +1317,26 @@ function renderLessonContent(lesson,track){
     )
     +'<div class="lesson-actions">'
     +'<button class="btn-primary" onclick="advanceLesson()">Concluir e Avançar ➜</button>'
-    +(S.currentLesson>0?'<button class="btn-secondary" onclick="selectLesson('+(S.currentLesson-1)+')">← Anterior</button>':'')
+    +(S.currentLesson>0?`<button class="btn-secondary" onclick="selectLesson(${S.currentLesson-1})">← Anterior</button>`:'')
     +'</div></div>';
   return video+body;
 }
 
 function renderQuiz(lesson){
   var q=lesson.quiz;
-  if(!q)return'<div class="lesson-text">'+lesson.content+'</div>';
+  if(!q)return`<div class="lesson-text">${lesson.content}</div>`;
   var letters=['A','B','C','D'];
   return'<div class="quiz-box">'
     +'<div class="quiz-q">'+q.q+'</div>'
     +'<div class="quiz-options">'
-    +q.opts.map(function(o,i){
-      return'<div class="quiz-opt" onclick="answerQuiz('+i+','+q.correct+')">'
-        +'<div class="quiz-letter">'+letters[i]+'</div>'+o+'</div>';
-    }).join('')
+    +q.opts.map((o,i)=> '<div class="quiz-opt" onclick="answerQuiz('+i+','+q.correct+')">'
+        +'<div class="quiz-letter">'+letters[i]+'</div>'+o+'</div>').join('')
     +'</div></div>';
 }
 
-function answerQuiz(sel,correct){
+function _answerQuiz(sel,correct){
   var opts=document.querySelectorAll('.quiz-opt');
-  opts.forEach(function(o,i){
+  opts.forEach((o,i)=> {
     if(i===correct)o.classList.add('correct');
     else if(i===sel&&sel!==correct)o.classList.add('wrong');
     o.onclick=null;
@@ -1361,7 +1351,7 @@ function answerQuiz(sel,correct){
 
 function renderCertLesson(){
   var nome=getNome();
-  var track=TRACKS.find(function(t){return t.id===S.currentTrack});
+  var track=TRACKS.find((t)=> t.id===S.currentTrack);
   return'<div class="cert-card" style="max-width:100%;margin-bottom:20px">'
     +'<div class="cert-header"><h3>ACADEMIA PAYGAS — CERTIFICADO DIGITAL</h3><h2>'+track.label+'</h2></div>'
     +'<div class="cert-body">'
@@ -1379,13 +1369,13 @@ function renderCertLesson(){
     +'</div>';
 }
 
-function advanceLesson(){
+function _advanceLesson(){
   var lessons=LESSONS_DATA[S.currentTrack];
   if(!lessons)return;
   S.xp+=100;updateXP();
   if(S.currentLesson<lessons.length-1){
     S.currentLesson++;
-    var track=TRACKS.find(function(t){return t.id===S.currentTrack});
+    var track=TRACKS.find((t)=> t.id===S.currentTrack);
     renderLessonViewer(track,lessons);
     toast('Aula concluída! +100 XP ⚡');
   } else {
@@ -1394,17 +1384,16 @@ function advanceLesson(){
   }
 }
 
-function downloadCert(){toast('Certificado baixado em PDF! 📄 ✓')}
+function _downloadCert(){toast('Certificado baixado em PDF! 📄 ✓')}
 
 function renderCerts(){
-  var tracks=getMyTracks().filter(function(t,i){return i<3});
+  var tracks=getMyTracks().filter((_t,i)=> i<3);
   var nome=getNome();
   if(tracks.length===0){
     G('cert-grid').innerHTML='<div class="empty-state"><div class="empty-icon">🏆</div><p>Conclua trilhas para ganhar certificados!</p></div>';
     return;
   }
-  G('cert-grid').innerHTML=tracks.map(function(t){
-    return'<div class="cert-card">'
+  G('cert-grid').innerHTML=tracks.map((t)=> '<div class="cert-card">'
       +'<div class="cert-header"><h3>ACADEMIA PAYGAS</h3><h2>'+t.label+'</h2></div>'
       +'<div class="cert-body">'
       +'<p style="font-size:12px;color:rgba(255,255,255,.6);margin-bottom:6px">Certificamos que</p>'
@@ -1417,24 +1406,23 @@ function renderCerts(){
       +'<div style="padding:12px 16px;display:flex;gap:8px">'
       +'<button class="btn-success" style="font-size:12px;padding:7px 14px" onclick="downloadCert()">📥 Baixar</button>'
       +'<button class="btn-secondary" style="font-size:12px;padding:7px 14px" onclick="toast(\'Compartilhado! 🔗\')">🔗 Compartilhar</button>'
-      +'</div></div>';
-  }).join('');
+      +'</div></div>').join('');
 }
 
 function renderEquipe(){
-  var rows=USERS_DATA.filter(function(u){return u.role!=='paygas'});
+  var rows=USERS_DATA.filter((u)=> u.role!=='paygas');
   var pcts=[82,61,45,90,100,20,70,35];
-  G('team-table').innerHTML=rows.map(function(u,i){
+  G('team-table').innerHTML=rows.map((u,i)=> {
     var pct=pcts[i]||0;
     var cert=pct===100?1:0;
     return'<tr>'
       +'<td><div style="display:flex;align-items:center;gap:10px">'
-      +'<div class="user-avatar" style="width:32px;height:32px;font-size:11px;background:'+PERSONAS[u.role].color+'">'+u.nome.split(' ').map(function(n){return n[0]}).slice(0,2).join('')+'</div>'
+      +'<div class="user-avatar" style="width:32px;height:32px;font-size:11px;background:'+PERSONAS[u.role].color+'">'+u.nome.split(' ').map((n)=> n[0]).slice(0,2).join('')+'</div>'
       +'<div><b style="font-size:13px">'+u.nome+'</b><div style="font-size:11px;color:var(--gray-400)">'+u.estado+'</div></div></div></td>'
       +'<td><span class="track-badge badge-new" style="font-size:11px">'+PERSONAS[u.role].label+'</span></td>'
       +'<td><div class="progress-cell"><div class="progress-mini"><div class="progress-mini-fill'+(pct===100?' done':'')+'" style="width:'+pct+'%"></div></div><span style="font-size:12px;font-weight:600;min-width:32px">'+pct+'%</span></div></td>'
       +'<td><span style="font-weight:600;color:var(--pg-orange)">'+u.xp.toLocaleString('pt-BR')+'</span></td>'
-      +'<td><span class="status-pill '+(cert?'pill-green':'pill-gray')+'">'+(cert?'✓ '+cert:'Pendente')+'</span></td>'
+      +'<td><span class="status-pill '+(cert?'pill-green':'pill-gray')+'">'+(cert?`✓ ${cert}`:'Pendente')+'</span></td>'
       +'<td><span class="status-pill '+(u.ativo?'pill-green':'pill-gray')+'">'+(u.ativo?'Ativo':'Inativo')+'</span></td>'
       +'</tr>';
   }).join('');
@@ -1446,11 +1434,9 @@ function renderRelatorios(){
     {icon:'⭐',val:'8.4',label:'Nota Média nos Quizzes',trend:'↑ +0.3 pontos',color:'#FEF3C7'},
     {icon:'👥',val:'8',label:'Usuários Ativos',trend:'↑ +2 novos',color:'#E6EEF9'},
     {icon:'⚡',val:'24.700',label:'XP Total da Equipe',trend:'↑ +1.200 esta semana',color:'#FEF0E6'}
-  ].map(function(c){
-    return'<div class="stat-card"><div class="stat-card-icon" style="background:'+c.color+'">'+c.icon+'</div>'
+  ].map((c)=> '<div class="stat-card"><div class="stat-card-icon" style="background:'+c.color+'">'+c.icon+'</div>'
       +'<div class="stat-card-val">'+c.val+'</div><div class="stat-card-label">'+c.label+'</div>'
-      +'<div class="stat-card-trend trend-up">'+c.trend+'</div></div>';
-  }).join('');
+      +'<div class="stat-card-trend trend-up">'+c.trend+'</div></div>').join('');
   var mods=[
     ['Excelência no Atendimento',6,2,'75%','8.8'],
     ['Sistema de Cashback PayGas',5,3,'62%','8.2'],
@@ -1458,18 +1444,15 @@ function renderRelatorios(){
     ['Operação do Terminal',7,1,'87%','9.1'],
     ['LGPD e Segurança de Dados',3,2,'60%','8.5']
   ];
-  G('relat-table').innerHTML=mods.map(function(m){
-    return'<tr><td><b>'+m[0]+'</b></td><td>'+m[1]+'</td><td>'+m[2]+'</td>'
+  G('relat-table').innerHTML=mods.map((m)=> '<tr><td><b>'+m[0]+'</b></td><td>'+m[1]+'</td><td>'+m[2]+'</td>'
       +'<td><div class="progress-cell"><div class="progress-mini"><div class="progress-mini-fill" style="width:'+m[3]+'"></div></div>'+m[3]+'</div></td>'
-      +'<td><b>'+m[4]+'</b></td></tr>';
-  }).join('');
+      +'<td><b>'+m[4]+'</b></td></tr>').join('');
 }
 
 function renderCMS(){
   var filter=S.cmsFilter;
-  var mods=filter==='all'?CMS_MODS:CMS_MODS.filter(function(m){return filter==='published'?m.status==='published':m.status==='draft'});
-  G('cms-table').innerHTML=mods.map(function(m){
-    return'<tr>'
+  var mods=filter==='all'?CMS_MODS:CMS_MODS.filter((m)=> filter==='published'?m.status==='published':m.status==='draft');
+  G('cms-table').innerHTML=mods.map((m)=> '<tr>'
       +'<td><b>'+m.title+'</b></td>'
       +'<td><span class="track-badge badge-new">'+m.persona+'</span></td>'
       +'<td>'+m.aulas+' aulas</td>'
@@ -1479,18 +1462,17 @@ function renderCMS(){
       +'<button class="btn-secondary" style="padding:5px 10px;font-size:11px" onclick="editContent('+m.id+')">✏️ Editar</button>'
       +'<button class="btn-secondary" style="padding:5px 10px;font-size:11px" onclick="toast(\'Módulo visualizado!\')">👁️</button>'
       +'<button class="btn-secondary" style="padding:5px 10px;font-size:11px;color:var(--pg-red);border-color:var(--pg-red)" onclick="deleteContent('+m.id+')">🗑️</button>'
-      +'</td></tr>';
-  }).join('');
+      +'</td></tr>').join('');
 }
 
-function cmsTab(el,filter){
-  document.querySelectorAll('.admin-tab').forEach(function(t){t.classList.remove('active')});
+function _cmsTab(el,filter){
+  document.querySelectorAll('.admin-tab').forEach((t)=> {t.classList.remove('active')});
   el.classList.add('active');
   S.cmsFilter=filter;
   renderCMS();
 }
 
-function openNewContent(){
+function _openNewContent(){
   var body='<div class="form-row">'
     +'<div class="form-field"><label class="form-label">Título do Módulo</label><input class="form-input" id="cms-titulo" placeholder="Ex: Atendimento Premium"></div>'
     +'<div class="form-field"><label class="form-label">Persona</label>'
@@ -1507,7 +1489,7 @@ function openNewContent(){
   openModal('Novo Módulo de Conteúdo',body,footer);
 }
 
-function previewYT(){
+function _previewYT(){
   var url=G('cms-yt').value.trim();
   var prev=G('cms-yt-preview');
   if(!url.includes('youtube.com/embed/')){
@@ -1520,7 +1502,7 @@ function previewYT(){
   toast('Vídeo carregado! Verifique o preview. ✓');
 }
 
-function saveNewContent(){
+function _saveNewContent(){
   var titulo=G('cms-titulo')?G('cms-titulo').value:'';
   if(!titulo){toast('⚠️ Informe o título!');return}
   var newMod={id:Date.now(),title:titulo,persona:'Todos',aulas:1,yt:G('cms-yt')?G('cms-yt').value:'',status:G('cms-status')?G('cms-status').value:'draft'};
@@ -1530,8 +1512,8 @@ function saveNewContent(){
   toast('Módulo criado com sucesso! ✓');
 }
 
-function editContent(id){
-  var m=CMS_MODS.find(function(x){return x.id===id});
+function _editContent(id){
+  var m=CMS_MODS.find((x)=> x.id===id);
   if(!m)return;
   var body='<div class="form-field"><label class="form-label">Título</label><input class="form-input" id="edit-titulo" value="'+m.title+'"></div>'
     +'<div class="form-field"><label class="form-label">Link YouTube (embed)</label>'
@@ -1543,10 +1525,10 @@ function editContent(id){
     +'<option value="draft"'+(m.status==='draft'?' selected':'')+'>Rascunho</option></select></div>';
   var footer='<button class="btn-secondary" onclick="closeModal()">Cancelar</button>'
     +'<button class="btn-primary" onclick="saveEdit('+id+')">Salvar Alterações</button>';
-  openModal('Editar: '+m.title,body,footer);
+  openModal(`Editar: ${m.title}`,body,footer);
 }
 
-function previewEditYT(){
+function _previewEditYT(){
   var url=G('edit-yt')?G('edit-yt').value.trim():'';
   var prev=G('edit-yt-preview');if(!prev)return;
   if(!url.includes('youtube.com/embed/')){prev.innerHTML='<p style="color:var(--pg-red);font-size:12px;margin-top:6px">⚠️ URL inválida.</p>';return}
@@ -1555,8 +1537,8 @@ function previewEditYT(){
   toast('Preview carregado! ✓');
 }
 
-function saveEdit(id){
-  var m=CMS_MODS.find(function(x){return x.id===id});
+function _saveEdit(id){
+  var m=CMS_MODS.find((x)=> x.id===id);
   if(!m)return;
   if(G('edit-titulo'))m.title=G('edit-titulo').value;
   if(G('edit-yt'))m.yt=G('edit-yt').value;
@@ -1564,14 +1546,14 @@ function saveEdit(id){
   closeModal();renderCMS();toast('Alterações salvas! ✓');
 }
 
-function deleteContent(id){
+function _deleteContent(id){
   openModal('Confirmar Exclusão',
     '<p style="color:var(--gray-700)">Tem certeza que deseja excluir este módulo? Esta ação não pode ser desfeita.</p>',
     '<button class="btn-secondary" onclick="closeModal()">Cancelar</button>'
     +'<button class="btn-primary" style="background:var(--pg-red)" onclick="confirmDelete('+id+')">Excluir</button>');
 }
-function confirmDelete(id){
-  CMS_MODS=CMS_MODS.filter(function(m){return m.id!==id});
+function _confirmDelete(id){
+  CMS_MODS=CMS_MODS.filter((m)=> m.id!==id);
   closeModal();renderCMS();toast('Módulo excluído.');
 }
 
@@ -1581,15 +1563,13 @@ function renderUsuarios(){
     {icon:'✅',val:'4.200',label:'Usuários Ativos',color:'#DCFCE7'},
     {icon:'🆕',val:'127',label:'Novos este mês',color:'#FEF3C7'},
     {icon:'🌎',val:'27',label:'Estados cobertos',color:'#FEF0E6'}
-  ].map(function(c){
-    return'<div class="stat-card"><div class="stat-card-icon" style="background:'+c.color+'">'+c.icon+'</div>'
-      +'<div class="stat-card-val">'+c.val+'</div><div class="stat-card-label">'+c.label+'</div></div>';
-  }).join('');
-  G('usr-table').innerHTML=USERS_DATA.map(function(u){
+  ].map((c)=> '<div class="stat-card"><div class="stat-card-icon" style="background:'+c.color+'">'+c.icon+'</div>'
+      +'<div class="stat-card-val">'+c.val+'</div><div class="stat-card-label">'+c.label+'</div></div>').join('');
+  G('usr-table').innerHTML=USERS_DATA.map((u)=> {
     var p=PERSONAS[u.role];
     return'<tr>'
       +'<td><div style="display:flex;align-items:center;gap:10px">'
-      +'<div class="user-avatar" style="width:30px;height:30px;font-size:10px;flex-shrink:0;background:'+p.color+'">'+u.nome.split(' ').map(function(n){return n[0]}).slice(0,2).join('')+'</div>'
+      +'<div class="user-avatar" style="width:30px;height:30px;font-size:10px;flex-shrink:0;background:'+p.color+'">'+u.nome.split(' ').map((n)=> n[0]).slice(0,2).join('')+'</div>'
       +'<b>'+u.nome+'</b></div></td>'
       +'<td style="color:var(--gray-500)">'+u.email+'</td>'
       +'<td><span class="track-badge badge-new" style="font-size:11px">'+p.icon+' '+p.label+'</span></td>'
@@ -1608,17 +1588,13 @@ function renderNacional(){
     {icon:'🏆',val:'1.240',label:'Certificados Emitidos',color:'#FEF3C7'},
     {icon:'⚡',val:'2.4M',label:'XP Total Acumulado',color:'#FEF0E6'},
     {icon:'📊',val:'76%',label:'Taxa de Engajamento',color:'#F3E8FF'}
-  ].map(function(c){
-    return'<div class="stat-card"><div class="stat-card-icon" style="background:'+c.color+'">'+c.icon+'</div>'
-      +'<div class="stat-card-val">'+c.val+'</div><div class="stat-card-label">'+c.label+'</div></div>';
-  }).join('');
-  G('region-grid').innerHTML=REGIONS.map(function(r){
-    return'<div class="region-card" onclick="toast(\'Região '+r.name+': '+r.users+' usuários ✓\')">'
+  ].map((c)=> '<div class="stat-card"><div class="stat-card-icon" style="background:'+c.color+'">'+c.icon+'</div>'
+      +'<div class="stat-card-val">'+c.val+'</div><div class="stat-card-label">'+c.label+'</div></div>').join('');
+  G('region-grid').innerHTML=REGIONS.map((r)=> '<div class="region-card" onclick="toast(\'Região '+r.name+': '+r.users+' usuários ✓\')">'
       +'<div class="region-name">'+r.name+'</div>'
       +'<div class="region-count">'+r.users.toLocaleString('pt-BR')+'</div>'
       +'<div class="region-label">usuários</div>'
-      +'</div>';
-  }).join('');
+      +'</div>').join('');
   var estados=[
     ['São Paulo','SP',1840,520,'92%'],['Rio de Janeiro','RJ',890,210,'88%'],
     ['Minas Gerais','MG',640,180,'85%'],['Paraná','PR',380,95,'82%'],
@@ -1626,13 +1602,11 @@ function renderNacional(){
     ['Bahia','BA',310,88,'80%'],['Ceará','CE',180,42,'74%'],
     ['Pernambuco','PE',160,38,'72%'],['Mato Grosso','MT',145,32,'70%']
   ];
-  G('estados-table').innerHTML=estados.map(function(e){
-    return'<tr><td><b>'+e[0]+'</b> <span style="color:var(--gray-400);font-size:11px">('+e[1]+')</span></td>'
+  G('estados-table').innerHTML=estados.map((e)=> '<tr><td><b>'+e[0]+'</b> <span style="color:var(--gray-400);font-size:11px">('+e[1]+')</span></td>'
       +'<td>'+e[2].toLocaleString('pt-BR')+'</td><td>'+e[3]+'</td>'
-      +'<td><b style="color:var(--pg-orange)">'+parseInt(e[2]*2200).toLocaleString('pt-BR')+'</b></td>'
+      +'<td><b style="color:var(--pg-orange)">'+parseInt(e[2]*2200, 10).toLocaleString('pt-BR')+'</b></td>'
       +'<td><div class="progress-cell"><div class="progress-mini"><div class="progress-mini-fill" style="width:'+e[4]+'"></div></div>'+e[4]+'</div></td>'
-      +'</tr>';
-  }).join('');
+      +'</tr>').join('');
 }
 
 function renderAnalitica(){
@@ -1641,21 +1615,17 @@ function renderAnalitica(){
     {icon:'⏱️',val:'42 min',label:'Tempo Médio/sessão',trend:'↑ +5 min',color:'#FEF3C7'},
     {icon:'🔁',val:'68%',label:'Taxa de Retorno',trend:'↑ +3%',color:'#DCFCE7'},
     {icon:'📱',val:'54%',label:'Acesso Mobile',trend:'→ estável',color:'#FEF0E6'}
-  ].map(function(c){
-    return'<div class="stat-card"><div class="stat-card-icon" style="background:'+c.color+'">'+c.icon+'</div>'
+  ].map((c)=> '<div class="stat-card"><div class="stat-card-icon" style="background:'+c.color+'">'+c.icon+'</div>'
       +'<div class="stat-card-val">'+c.val+'</div><div class="stat-card-label">'+c.label+'</div>'
-      +'<div class="stat-card-trend trend-up">'+c.trend+'</div></div>';
-  }).join('');
+      +'<div class="stat-card-trend trend-up">'+c.trend+'</div></div>').join('');
   G('anal-mods').innerHTML=[
     ['Excelência no Atendimento',1840,'88%'],
     ['Sistema de Cashback PayGas',1620,'75%'],
     ['Operação do Terminal',1380,'91%'],
     ['Gestão e KPIs do Posto',980,'68%'],
     ['Integração via API',720,'82%']
-  ].map(function(m){
-    return'<tr><td><b>'+m[0]+'</b></td><td>'+m[1].toLocaleString('pt-BR')+'</td>'
-      +'<td><div class="progress-cell"><div class="progress-mini"><div class="progress-mini-fill" style="width:'+m[2]+'"></div></div>'+m[2]+'</div></td></tr>';
-  }).join('');
+  ].map((m)=> '<tr><td><b>'+m[0]+'</b></td><td>'+m[1].toLocaleString('pt-BR')+'</td>'
+      +'<td><div class="progress-cell"><div class="progress-mini"><div class="progress-mini-fill" style="width:'+m[2]+'"></div></div>'+m[2]+'</div></td></tr>').join('');
   G('anal-personas').innerHTML=[
     ['Atendente','1.840','1.820'],
     ['Gestor','980','3.950'],
@@ -1663,18 +1633,16 @@ function renderAnalitica(){
     ['Líder Comunitário','420','2.840'],
     ['Integrador ERP','280','4.920'],
     ['Admin PayGas','120','7.800']
-  ].map(function(p){
-    return'<tr><td>'+p[0]+'</td><td><b>'+p[1]+'</b></td><td><b style="color:var(--pg-orange)">'+p[2]+'</b></td></tr>';
-  }).join('');
+  ].map((p)=> `<tr><td>${p[0]}</td><td><b>${p[1]}</b></td><td><b style="color:var(--pg-orange)">${p[2]}</b></td></tr>`).join('');
 }
 
 function renderRanking(){
-  G('ranking-list').innerHTML=RANKING_DATA.map(function(u,i){
+  G('ranking-list').innerHTML=RANKING_DATA.map((u,i)=> {
     var pos=i+1;
     var color=['#F59E0B','#9CA3AF','#CD7F32'][i]||'var(--gray-600)';
     var bg=['#FEF3C7','#F3F4F6','#FEF9F0'][i]||'#fff';
     var avatarColors=['#0A2E6E','#D97706','#16A34A','#7C3AED','#DC2626','#0891B2','#F47C20','#1F2937'];
-    return'<div class="ranking-item" style="background:'+bg+';'+(i<3?'border: 1.5px solid '+color+';':'')+';">'
+    return'<div class="ranking-item" style="background:'+bg+';'+(i<3?`border: 1.5px solid ${color};`:'')+';">'
       +'<div class="rank-pos" style="color:'+color+';font-size:'+(i<3?'20':'16')+'px">'+(i===0?'🥇':i===1?'🥈':i===2?'🥉':pos)+'</div>'
       +'<div class="rank-avatar" style="background:'+avatarColors[i%8]+'">'+u.avatar+'</div>'
       +'<div class="rank-info"><b>'+u.nome+'</b><span>'+u.role+' · '+u.estado+'</span></div>'
@@ -1684,28 +1652,24 @@ function renderRanking(){
 }
 
 function renderConquistas(){
-  G('trophy-grid').innerHTML=TROPHIES.map(function(t){
-    return'<div class="trophy-card'+(t.earned?' earned':'')+(t.earned?'':' locked')+'">'
+  G('trophy-grid').innerHTML=TROPHIES.map((t)=> '<div class="trophy-card'+(t.earned?' earned':'')+(t.earned?'':' locked')+'">'
       +'<div class="trophy-icon">'+t.icon+'</div>'
       +'<div class="trophy-name">'+t.name+'</div>'
       +'<div class="trophy-desc">'+t.desc+'</div>'
       +(t.earned?'<div style="margin-top:6px;font-size:10px;color:var(--pg-green);font-weight:700">✓ Conquistado</div>':'')
-      +'</div>';
-  }).join('');
+      +'</div>').join('');
 }
 
 function renderNotif(){
-  G('notif-list').innerHTML=NOTIFS.map(function(n,i){
-    return'<div class="notif-item'+(n.unread?' unread':'')+'" onclick="markRead('+i+')">'
+  G('notif-list').innerHTML=NOTIFS.map((n,i)=> '<div class="notif-item'+(n.unread?' unread':'')+'" onclick="markRead('+i+')">'
       +'<div class="notif-icon" style="background:'+(n.unread?'var(--pg-orange-lt)':'var(--gray-100)')+'">'+n.icon+'</div>'
       +'<div class="notif-body"><b>'+n.title+'</b><p>'+n.body+'</p><time>'+n.time+'</time></div>'
       +(n.unread?'<div style="width:8px;height:8px;border-radius:50%;background:var(--pg-orange);margin-top:4px;flex-shrink:0"></div>':'')
-      +'</div>';
-  }).join('');
+      +'</div>').join('');
 }
 
-function markRead(i){NOTIFS[i].unread=false;renderNotif()}
-function markAllRead(){NOTIFS.forEach(function(n){n.unread=false});renderNotif();toast('Todas marcadas como lidas! ✓')}
+function _markRead(i){NOTIFS[i].unread=false;renderNotif()}
+function _markAllRead(){NOTIFS.forEach((n)=> {n.unread=false});renderNotif();toast('Todas marcadas como lidas! ✓')}
 
 function renderPerfil(){
   var p=PERSONAS[S.role];
@@ -1713,7 +1677,7 @@ function renderPerfil(){
   var av=G('perfil-avatar');
   if(av){av.textContent=p.initials;av.style.background=p.color}
   if(G('perfil-nome'))G('perfil-nome').textContent=nome;
-  if(G('perfil-role'))G('perfil-role').textContent=p.icon+' '+p.label;
+  if(G('perfil-role'))G('perfil-role').textContent=`${p.icon} ${p.label}`;
   if(G('perfil-nome-inp'))G('perfil-nome-inp').value=nome;
   if(G('perfil-email-inp'))G('perfil-email-inp').value=S.email;
   var stats=[
@@ -1723,15 +1687,13 @@ function renderPerfil(){
     {icon:'📚',val:getMyTracks().length,label:'Trilhas'}
   ];
   if(G('perfil-stats')){
-    G('perfil-stats').innerHTML=stats.map(function(s){
-      return'<div class="stat-card" style="padding:14px"><div style="font-size:20px;margin-bottom:4px">'+s.icon+'</div>'
+    G('perfil-stats').innerHTML=stats.map((s)=> '<div class="stat-card" style="padding:14px"><div style="font-size:20px;margin-bottom:4px">'+s.icon+'</div>'
         +'<div class="stat-card-val" style="font-size:20px">'+s.val+'</div>'
-        +'<div class="stat-card-label">'+s.label+'</div></div>';
-    }).join('');
+        +'<div class="stat-card-label">'+s.label+'</div></div>').join('');
   }
 }
 
-function savePerfil(){
+function _savePerfil(){
   if(G('perfil-nome-inp'))S.nome=G('perfil-nome-inp').value;
   toast('Perfil atualizado com sucesso! ✓');
 }
@@ -1762,22 +1724,20 @@ function initAI(){
   var quick=G('ai-quick');
   if(quick){
     var qs=AI_QUICK[S.role]||[];
-    quick.innerHTML=qs.map(function(q){
-      return'<button onclick="quickAI(\''+q+'\')">'+q+'</button>';
-    }).join('');
+    quick.innerHTML=qs.map((q)=> `<button onclick="quickAI('${q}')">${q}</button>`).join('');
   }
 }
 
 function addAIMsg(text,type){
   var msgs=G('ai-msgs');if(!msgs)return;
   var div=document.createElement('div');
-  div.className='ai-msg '+type;
+  div.className=`ai-msg ${type}`;
   div.textContent=text;
   msgs.appendChild(div);
   msgs.scrollTop=99999;
 }
 
-function quickAI(q){
+function _quickAI(q){
   var inp=G('ai-inp');if(inp)inp.value=q;
   sendAI();
 }
@@ -1791,26 +1751,26 @@ function sendAI(){
   var typing=document.createElement('div');typing.className='ai-typing';
   typing.innerHTML='<span></span><span></span><span></span>';
   if(msgs){msgs.appendChild(typing);msgs.scrollTop=99999}
-  setTimeout(function(){
-    if(msgs&&msgs.contains(typing))msgs.removeChild(typing);
+  setTimeout(()=> {
+    if(msgs?.contains(typing))msgs.removeChild(typing);
     var know=AI_KNOWLEDGE[S.role]||[];
     var resp=know[Math.floor(Math.random()*know.length)]||'Entendido! Consulte as trilhas disponíveis para mais detalhes sobre este tema.';
     if(text.toLowerCase().includes('certif'))resp='Os certificados são emitidos automaticamente ao concluir uma trilha. Acesse a seção "Certificados" no menu lateral.';
-    else if(text.toLowerCase().includes('xp'))resp='Você ganha XP (+100) por aula concluída, (+50) por quiz correto e (+500) ao terminar uma trilha completa. Nível atual: '+S.level+'.';
+    else if(text.toLowerCase().includes('xp'))resp=`Você ganha XP (+100) por aula concluída, (+50) por quiz correto e (+500) ao terminar uma trilha completa. Nível atual: ${S.level}.`;
     else if(text.toLowerCase().includes('quiz'))resp='Os quizzes são avaliações ao final de cada trilha. Acerte para ganhar XP bônus e avançar ao certificado.';
     else if(text.toLowerCase().includes('ranking'))resp='O ranking nacional mostra os alunos com mais XP em todo o Brasil. Você pode ver no menu "Ranking Nacional".';
     addAIMsg(resp,'bot');
   },1200);
 }
 
-function toggleAI(){
+function _toggleAI(){
   S.aiOpen=!S.aiOpen;
   var panel=G('ai-panel');if(!panel)return;
   panel.classList.toggle('hidden',!S.aiOpen);
   if(S.aiOpen&&!G('ai-msgs').children.length)initAI();
 }
 
-function doLogout(){
+function _doLogout(){
   G('screen-app').classList.remove('active');
   G('screen-login').style.display='';
   S.role='';S.xp=0;
@@ -1863,30 +1823,26 @@ var FORUM_DATA=[
 
 function renderMapa(){
   if(!document.getElementById('regioes-grid'))return;
-  var total=REGIONS_V26.reduce(function(a,r){return a+r.users},0);
+  var total=REGIONS_V26.reduce((a,r)=> a+r.users,0);
   var barColors=['#16A34A','#F47C20','#D97706','#0A2E6E','#7C3AED'];
-  document.getElementById('regioes-grid').innerHTML=REGIONS_V26.map(function(r,ri){
-    return '<div class="region-card" onclick="showRegiao('+ri+')">'
+  document.getElementById('regioes-grid').innerHTML=REGIONS_V26.map((r,ri)=> '<div class="region-card" onclick="showRegiao('+ri+')">'
       +'<div style="font-size:28px;margin-bottom:6px">'+r.icon+'</div>'
       +'<div class="region-users">'+r.users.toLocaleString('pt-BR')+'</div>'
       +'<div class="region-name">'+r.name+'</div>'
       +'<div class="region-pct">'+Math.round(r.users/total*100)+'% do Brasil · '+r.growth+'</div>'
       +'<div class="track-prog-bar" style="margin-top:8px"><div class="track-prog-fill" style="width:'+r.pct+'%"></div></div>'
       +'<div style="font-size:11px;color:var(--gray-400);margin-top:4px">'+r.pct+'% engajamento</div>'
-      +'</div>';
-  }).join('');
-  document.getElementById('nat-bars').innerHTML=REGIONS_V26.map(function(r,i){
-    return '<div style="margin-bottom:14px">'
+      +'</div>').join('');
+  document.getElementById('nat-bars').innerHTML=REGIONS_V26.map((r,i)=> '<div style="margin-bottom:14px">'
       +'<div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;margin-bottom:4px">'
       +'<span>'+r.icon+' '+r.name+'</span>'
       +'<span style="color:var(--gray-500)">'+r.pct+'% · '+r.users.toLocaleString('pt-BR')+' usuários · <span style="color:var(--pg-green)">'+r.growth+'</span></span>'
       +'</div>'
       +'<div class="nat-bar"><div class="nat-bar-fill" style="width:'+r.pct+'%;background:'+barColors[i]+'">'+r.pct+'%</div></div>'
-      +'</div>';
-  }).join('');
+      +'</div>').join('');
   document.getElementById('top-municipios').innerHTML='<div class="table-wrap"><table>'
     +'<thead><tr><th>Pos.</th><th>Município</th><th>Postos</th><th>Usuários</th><th>Engajamento</th></tr></thead><tbody>'
-    +MUNICIPIOS_TOP.map(function(m){
+    +MUNICIPIOS_TOP.map((m)=> {
       var pct=Math.round(m.usuarios/18);
       return '<tr><td><b>'+m.pos+'</b></td><td><b>'+m.cidade+'</b></td><td>'+m.postos+'</td>'
         +'<td>'+m.usuarios.toLocaleString('pt-BR')+'</td>'
@@ -1895,15 +1851,14 @@ function renderMapa(){
     +'</tbody></table></div>';
 }
 
-function showRegiao(ri){
+function _showRegiao(ri){
   var r=REGIONS_V26[ri];
-  if(r)toast(r.icon+' '+r.name+': '+r.users.toLocaleString('pt-BR')+' usuários · '+r.growth+' este mês');
+  if(r)toast(`${r.icon} ${r.name}: ${r.users.toLocaleString('pt-BR')} usuários · ${r.growth} este mês`);
 }
 
 function renderForum(){
   if(!document.getElementById('forum-posts'))return;
-  document.getElementById('forum-posts').innerHTML=FORUM_DATA.map(function(p,pi){
-    return '<div class="forum-post" onclick="openPost('+pi+')">'
+  document.getElementById('forum-posts').innerHTML=FORUM_DATA.map((p,pi)=> '<div class="forum-post" onclick="openPost('+pi+')">'
       +'<div class="forum-author">'
       +'<div class="forum-avatar" style="background:'+p.col+'">'+p.av+'</div>'
       +'<div class="forum-meta"><b>'+p.autor+'</b><span>'+p.role+' · '+p.tempo+'</span></div>'
@@ -1917,11 +1872,10 @@ function renderForum(){
       +'<span>🔖 Salvar</span>'
       +'<span style="margin-left:auto;color:var(--pg-orange);font-weight:600">Ler mais →</span>'
       +'</div>'
-      +'</div>';
-  }).join('');
+      +'</div>').join('');
 }
 
-function openPost(pi){
+function _openPost(pi){
   var p=FORUM_DATA[pi];
   if(!p)return;
   var body='<div style="margin-bottom:12px;display:flex;align-items:center;gap:10px">'
@@ -1939,7 +1893,7 @@ function openPost(pi){
   openModal('Post do Fórum',body,footer);
 }
 
-function openNovoPost(){
+function _openNovoPost(){
   var body='<div class="form-field"><label class="form-label">Categoria</label>'
     +'<select class="form-input" id="novo-cat"><option>Dúvida</option><option>Dica</option><option>Case de Sucesso</option><option>Técnico</option></select></div>'
     +'<div class="form-field"><label class="form-label">Título</label>'
@@ -1954,7 +1908,7 @@ function openNovoPost(){
 /* Override renderNacional with richer version */
 function renderNacional(){
   var el=G('page-nacional');if(!el)return;
-  var totalUsers=REGIONS_V26.reduce(function(a,r){return a+r.users},0);
+  var totalUsers=REGIONS_V26.reduce((a,r)=> a+r.users,0);
   el.innerHTML='<div class="page-header"><div><div class="page-title">🌐 Painel Nacional</div>'
     +'<div class="page-subtitle">Visão consolidada do Brasil — atualizado agora</div></div>'
     +'<button class="btn-primary" onclick="toast(\'Relatório exportado!\');">Exportar PDF</button></div>'
@@ -1967,16 +1921,14 @@ function renderNacional(){
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px">'
     +'<div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px">'
     +'<div class="section-title" style="margin-bottom:14px">Distribuição Regional</div>'
-    +REGIONS_V26.map(function(r){
-      return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">'
+    +REGIONS_V26.map((r)=> '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">'
         +'<span>'+r.icon+' <b>'+r.name+'</b></span>'
         +'<span style="color:var(--gray-500)">'+r.users.toLocaleString('pt-BR')+' · <b style="color:var(--pg-green)">'+r.growth+'</b></span></div>'
-        +'<div class="nat-bar"><div class="nat-bar-fill" style="width:'+r.pct+'%;background:var(--pg-orange)">'+r.pct+'%</div></div></div>';
-    }).join('')
+        +'<div class="nat-bar"><div class="nat-bar-fill" style="width:'+r.pct+'%;background:var(--pg-orange)">'+r.pct+'%</div></div></div>').join('')
     +'</div>'
     +'<div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px">'
     +'<div class="section-title" style="margin-bottom:14px">Trilhas Mais Populares</div>'
-    +['Cashback PayGas','Excelência no Atendimento','Gestão e KPIs','Operação do Terminal','LGPD e Segurança'].map(function(t,i){
+    +['Cashback PayGas','Excelência no Atendimento','Gestão e KPIs','Operação do Terminal','LGPD e Segurança'].map((t,i)=> {
       var pcts=[94,88,76,71,68];
       return '<div style="margin-bottom:10px"><div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">'
         +'<span>'+t+'</span><span style="color:var(--gray-500)">'+pcts[i]+'%</span></div>'
@@ -1986,13 +1938,11 @@ function renderNacional(){
     +'<div style="background:#fff;border:1px solid var(--gray-200);border-radius:var(--radius);padding:20px">'
     +'<div class="section-title" style="margin-bottom:14px">Distribuição por Perfil</div>'
     +'<div class="cards-grid" style="grid-template-columns:repeat(3,1fr)">'
-    +[{l:'Atendentes',v:'5.840',i:'👤'},{l:'Gestores',v:'2.100',i:'⛽'},{l:'Parceiros',v:'1.680',i:'🏪'},{l:'Líderes',v:'1.420',i:'⛪'},{l:'Integradores ERP',v:'840',i:'💻'},{l:'Admins',v:'520',i:'🌐'}].map(function(p){
-      return '<div class="stat-card" style="padding:14px;text-align:center">'
+    +[{l:'Atendentes',v:'5.840',i:'👤'},{l:'Gestores',v:'2.100',i:'⛽'},{l:'Parceiros',v:'1.680',i:'🏪'},{l:'Líderes',v:'1.420',i:'⛪'},{l:'Integradores ERP',v:'840',i:'💻'},{l:'Admins',v:'520',i:'🌐'}].map((p)=> '<div class="stat-card" style="padding:14px;text-align:center">'
         +'<div style="font-size:22px;margin-bottom:4px">'+p.i+'</div>'
         +'<div style="font-size:18px;font-weight:800;color:var(--gray-900)">'+p.v+'</div>'
         +'<div style="font-size:11px;color:var(--gray-400)">'+p.l+'</div>'
-        +'</div>';
-    }).join('')+'</div></div>';
+        +'</div>').join('')+'</div></div>';
 }
 
 /* Override ranking to show user position */
@@ -2001,10 +1951,10 @@ function renderRanking(){
   var myOrder={paygas:1,erp:2,gestor:3,lider:4,atendente:5,parceiro:6};
   var myPos=myOrder[S.role]||7;
   var medals=['🥇','🥈','🥉'];
-  el.innerHTML=RANKING_DATA.map(function(r,i){
+  el.innerHTML=RANKING_DATA.map((r,i)=> {
     var isMe=(i+1)===myPos;
     return '<div style="display:flex;align-items:center;gap:14px;padding:14px 16px;border-radius:var(--radius);margin-bottom:8px;background:'+(isMe?'var(--pg-orange-lt)':'#fff')+';border:1px solid '+(isMe?'var(--pg-orange)':'var(--gray-200)')+';box-shadow:var(--shadow)">'
-      +'<div style="width:32px;text-align:center;font-size:'+(i<3?'20px':'14px')+';font-weight:700;color:var(--gray-500)">'+(medals[i]||('#'+(i+1)))+'</div>'
+      +'<div style="width:32px;text-align:center;font-size:'+(i<3?'20px':'14px')+';font-weight:700;color:var(--gray-500)">'+(medals[i]||(`#${i+1}`))+'</div>'
       +'<div style="width:36px;height:36px;border-radius:50%;background:var(--pg-blue);display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#fff">'+r.avatar+'</div>'
       +'<div style="flex:1"><b style="font-size:14px;color:var(--gray-900)">'+r.nome+(isMe?' <span style="font-size:11px;background:var(--pg-orange);color:#fff;padding:2px 6px;border-radius:10px">Você</span>':'')+'</b>'
       +'<div style="font-size:11px;color:var(--gray-400)">'+r.role+' · '+r.estado+'</div></div>'
@@ -2015,12 +1965,12 @@ function renderRanking(){
 
 /* Override goTo to handle new pages */
 var _baseGoTo=goTo;
-goTo=function(page){
-  document.querySelectorAll('.page').forEach(function(p){p.classList.remove('active')});
-  document.querySelectorAll('.nav-item').forEach(function(n){n.classList.remove('active')});
-  var pg=G('page-'+page);if(!pg){toast('Seção em desenvolvimento!');return}
+goTo=(page)=> {
+  document.querySelectorAll('.page').forEach((p)=> {p.classList.remove('active')});
+  document.querySelectorAll('.nav-item').forEach((n)=> {n.classList.remove('active')});
+  var pg=G(`page-${page}`);if(!pg){toast('Seção em desenvolvimento!');return}
   pg.classList.add('active');
-  var navBtn=document.querySelector('[data-page="'+page+'"]');
+  var navBtn=document.querySelector(`[data-page="${page}"]`);
   if(navBtn)navBtn.classList.add('active');
   if(page==='home')renderHome();
   else if(page==='trilhas')renderTrilhas();
@@ -2041,10 +1991,10 @@ goTo=function(page){
 /* ===== END V26 ===== */
 
 // Init
-document.addEventListener('DOMContentLoaded',function(){
-  G('inp-email').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
-  G('inp-senha').addEventListener('keydown',function(e){if(e.key==='Enter')doLogin()});
-  G('modal-overlay').addEventListener('click',function(e){if(e.target===G('modal-overlay'))closeModal()});
+document.addEventListener('DOMContentLoaded',()=> {
+  G('inp-email').addEventListener('keydown',(e)=> {if(e.key==='Enter')doLogin()});
+  G('inp-senha').addEventListener('keydown',(e)=> {if(e.key==='Enter')doLogin()});
+  G('modal-overlay').addEventListener('click',(e)=> {if(e.target===G('modal-overlay'))closeModal()});
 });
 </script>
 </body>

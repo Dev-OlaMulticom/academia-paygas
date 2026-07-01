@@ -50,7 +50,7 @@ interface VideoDuration {
 	seconds: number;
 }
 
-export function CMSPage({ user }: CMSPageProps) {
+export function CMSPage({ user: _user }: CMSPageProps) {
 	const navigate = useNavigate();
 	const { toast } = useToast();
 	const { confirm } = useConfirm();
@@ -71,7 +71,7 @@ export function CMSPage({ user }: CMSPageProps) {
 	});
 	const [modulos, setModulos] = useState<any[]>([]);
 	const [aulas, setAulas] = useState<any[]>([]);
-	const [gestores, setGestores] = useState<any[]>([]);
+	const [_gestores, setGestores] = useState<any[]>([]);
 	const [showImportExport, setShowImportExport] = useState(false);
 	const [importing, setImporting] = useState(false);
 	const [expandedModRow, setExpandedModRow] = useState<string | null>(null);
@@ -118,13 +118,13 @@ export function CMSPage({ user }: CMSPageProps) {
 
 	useEffect(() => {
 		loadModulos();
-	}, []);
+	}, [loadModulos]);
 	useEffect(() => {
 		if (selectedModulo) loadAulas(selectedModulo.id);
-	}, [selectedModulo]);
+	}, [selectedModulo, loadAulas]);
 	useEffect(() => {
 		loadGestores();
-	}, []);
+	}, [loadGestores]);
 
 	const handleEditModulo = async () => {
 		if (!editingMod) return;
@@ -944,7 +944,7 @@ export function CMSPage({ user }: CMSPageProps) {
 														<select
 															className="form-select cms-micro-select"
 															value={ml.hours}
-															onChange={(e) => updateLicaoAncoragem(i, "hours", parseInt(e.target.value) || 0)}
+															onChange={(e) => updateLicaoAncoragem(i, "hours", parseInt(e.target.value, 10) || 0)}
 														>
 															{Array.from({ length: newAula.duration.hours + 1 }, (_, i) => i).map((h) => (
 																<option key={h} value={h}>
@@ -958,7 +958,7 @@ export function CMSPage({ user }: CMSPageProps) {
 														<select
 															className="form-select cms-micro-select"
 															value={ml.minutes}
-															onChange={(e) => updateLicaoAncoragem(i, "minutes", parseInt(e.target.value) || 0)}
+															onChange={(e) => updateLicaoAncoragem(i, "minutes", parseInt(e.target.value, 10) || 0)}
 														>
 															{Array.from({ length: maxMinutes + 1 }, (_, i) => i).map((m) => (
 																<option key={m} value={m}>
@@ -972,7 +972,7 @@ export function CMSPage({ user }: CMSPageProps) {
 														<select
 															className="form-select cms-micro-select"
 															value={ml.seconds}
-															onChange={(e) => updateLicaoAncoragem(i, "seconds", parseInt(e.target.value) || 0)}
+															onChange={(e) => updateLicaoAncoragem(i, "seconds", parseInt(e.target.value, 10) || 0)}
 														>
 															{Array.from({ length: (ml.minutes < maxMinutes ? 60 : maxSeconds) + 1 }, (_, i) => i).map(
 																(s) => (
@@ -1108,7 +1108,7 @@ export function CMSPage({ user }: CMSPageProps) {
 															value={ml.hours || 0}
 															onChange={(e) => {
 																const updated = [...(editingAula.licoesAncoragem || [])];
-																updated[i] = { ...updated[i], hours: parseInt(e.target.value) || 0 };
+																updated[i] = { ...updated[i], hours: parseInt(e.target.value, 10) || 0 };
 																setEditingAula({ ...editingAula, licoesAncoragem: updated });
 															}}
 														>
@@ -1126,7 +1126,7 @@ export function CMSPage({ user }: CMSPageProps) {
 															value={ml.minutes || 0}
 															onChange={(e) => {
 																const updated = [...(editingAula.licoesAncoragem || [])];
-																updated[i] = { ...updated[i], minutes: parseInt(e.target.value) || 0 };
+																updated[i] = { ...updated[i], minutes: parseInt(e.target.value, 10) || 0 };
 																setEditingAula({ ...editingAula, licoesAncoragem: updated });
 															}}
 														>
@@ -1144,7 +1144,7 @@ export function CMSPage({ user }: CMSPageProps) {
 															value={ml.seconds || 0}
 															onChange={(e) => {
 																const updated = [...(editingAula.licoesAncoragem || [])];
-																updated[i] = { ...updated[i], seconds: parseInt(e.target.value) || 0 };
+																updated[i] = { ...updated[i], seconds: parseInt(e.target.value, 10) || 0 };
 																setEditingAula({ ...editingAula, licoesAncoragem: updated });
 															}}
 														>

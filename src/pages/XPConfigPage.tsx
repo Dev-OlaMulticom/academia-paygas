@@ -54,7 +54,7 @@ export function XPConfigPage({ user: _user }: XPConfigPageProps) {
 
 	const handleSave = async (action: string) => {
 		const points = parseFloat(editValues.points);
-		if (isNaN(points) || points < 0) {
+		if (Number.isNaN(points) || points < 0) {
 			toast("Pontos deve ser um número válido e não negativo", "error");
 			return;
 		}

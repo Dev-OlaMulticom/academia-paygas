@@ -53,15 +53,6 @@ export const VideoPlayer = forwardRef<{ seekTo: (s: number) => void }, VideoPlay
 		},
 	}));
 
-	const videoId = extractYouTubeId(url);
-	if (!videoId) {
-		return (
-			<div className="lesson-video-placeholder">
-				<p>URL de vídeo inválida</p>
-			</div>
-		);
-	}
-
 	const handleReady = useCallback(
 		(event: YouTubeEvent) => {
 			playerRef.current = event.target;
@@ -139,6 +130,15 @@ export const VideoPlayer = forwardRef<{ seekTo: (s: number) => void }, VideoPlay
 
 	const hasMarkers = licoesAncoragem && licoesAncoragem.length > 0 && duration > 0;
 	const progress = duration > 0 ? (currentTime / duration) * 100 : 0;
+
+	const videoId = extractYouTubeId(url);
+	if (!videoId) {
+		return (
+			<div className="lesson-video-placeholder">
+				<p>URL de vídeo inválida</p>
+			</div>
+		);
+	}
 
 	return (
 		<div className="vp-root">

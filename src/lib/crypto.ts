@@ -13,7 +13,7 @@ async function fetchEncryptionKey(): Promise<string> {
 	try {
 		const token = localStorage.getItem("token");
 		const headers: Record<string, string> = {};
-		if (token) headers["Authorization"] = `Bearer ${token}`;
+		if (token) headers.Authorization = `Bearer ${token}`;
 		const res = await fetch(`${API_BASE}/config`, { headers });
 		if (res.ok) {
 			const data = await res.json();

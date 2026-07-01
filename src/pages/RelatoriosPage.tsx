@@ -66,7 +66,7 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
 
 	useEffect(() => {
 		loadRelatorios();
-	}, []);
+	}, [loadRelatorios]);
 
 	if (loading) {
 		return (

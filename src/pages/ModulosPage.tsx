@@ -41,7 +41,7 @@ export function ModulosPage() {
 	const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
 	const [quizSubmitted, setQuizSubmitted] = useState(false);
 	const [quizResult, setQuizResult] = useState<any>(null);
-	const [videoEnded, setVideoEnded] = useState(false);
+	const [_videoEnded, setVideoEnded] = useState(false);
 	const [expandedLicao, setExpandedLicao] = useState<string | null>(null);
 	const videoRef = useRef<{ seekTo: (s: number) => void }>(null);
 	const [videoCurrentTime, setVideoCurrentTime] = useState(0);
@@ -117,9 +117,11 @@ export function ModulosPage() {
 		}
 	}, [modulo]);
 
+	const isLessonCompleted = (lesson: any) => lesson.concluido === true;
+
 	useEffect(() => {
 		loadModulo();
-	}, [moduloNombre]);
+	}, [loadModulo]);
 
 	useEffect(() => {
 		if (modulo && lessons.length > 0) {
@@ -140,9 +142,7 @@ export function ModulosPage() {
 				.then(() => loadCertificate())
 				.catch(() => {});
 		}
-	}, [lessons, modulo, certificate, loadCertificate]);
-
-	const isLessonCompleted = (lesson: any) => lesson.concluido === true;
+	}, [lessons, modulo, certificate, loadCertificate, isLessonCompleted]);
 
 	const canAdvanceToLesson = (index: number) => {
 		if (index === 0) return true;
@@ -326,7 +326,7 @@ export function ModulosPage() {
 							try {
 								await api.createCertificate(modulo.id);
 								loadCertificate();
-							} catch (e) {
+							} catch (_e) {
 								alert("Erro ao solicitar certificado");
 							}
 						}}
@@ -561,7 +561,7 @@ export function ModulosPage() {
 					perguntas[currentStep] &&
 					(() => {
 						const pergunta = perguntas[currentStep];
-						const letter = null;
+						const _letter = null;
 						return (
 							<div style={{ marginBottom: "12px" }}>
 								<p style={{ fontWeight: "600", marginBottom: "8px", fontSize: "13px" }}>
@@ -935,7 +935,7 @@ export function ModulosPage() {
 										.replace("watch?v=", "embed/")
 										.replace("youtu.be/", "youtube.com/embed/");
 									if (mediaModal.startTime && mediaModal.startTime > 0) {
-										embedUrl += (embedUrl.includes("?") ? "&" : "?") + `start=${mediaModal.startTime}`;
+										embedUrl += `${embedUrl.includes("?") ? "&" : "?"}start=${mediaModal.startTime}`;
 									}
 									return (
 										<iframe
@@ -1520,34 +1520,32 @@ export function ModulosPage() {
 								)}
 								<div className="lesson-actions">
 									{!current?.concluido ? (
-										<>
-											{current?.quiz ? (
-												canOpenQuiz(currentLesson) ? (
-													<>
-														<button className="btn-primary lesson-action-btn" onClick={handleConcluir}>
-															Iniciar Quiz <i className="icon-chevron-right icon-sm" />
-														</button>
-														{!current?.obrigatorio && currentLesson < lessons.length - 1 && (
-															<button className="btn-secondary lesson-action-btn" onClick={handleAvanzar}>
-																Pular <i className="icon-chevron-right icon-sm" />
-															</button>
-														)}
-													</>
-												) : (
-													<button
-														className="btn-primary lesson-action-btn"
-														disabled
-														style={{ opacity: 0.5, cursor: "not-allowed" }}
-													>
-														<i className="icon-lock icon-sm" /> Complete os quizzes anteriores primeiro
+										current?.quiz ? (
+											canOpenQuiz(currentLesson) ? (
+												<>
+													<button className="btn-primary lesson-action-btn" onClick={handleConcluir}>
+														Iniciar Quiz <i className="icon-chevron-right icon-sm" />
 													</button>
-												)
+													{!current?.obrigatorio && currentLesson < lessons.length - 1 && (
+														<button className="btn-secondary lesson-action-btn" onClick={handleAvanzar}>
+															Pular <i className="icon-chevron-right icon-sm" />
+														</button>
+													)}
+												</>
 											) : (
-												<button className="btn-primary lesson-action-btn" onClick={handleConcluir}>
-													Proximo <i className="icon-chevron-right icon-sm" />
+												<button
+													className="btn-primary lesson-action-btn"
+													disabled
+													style={{ opacity: 0.5, cursor: "not-allowed" }}
+												>
+													<i className="icon-lock icon-sm" /> Complete os quizzes anteriores primeiro
 												</button>
-											)}
-										</>
+											)
+										) : (
+											<button className="btn-primary lesson-action-btn" onClick={handleConcluir}>
+												Proximo <i className="icon-chevron-right icon-sm" />
+											</button>
+										)
 									) : (
 										<>
 											{currentLesson < lessons.length - 1 && (

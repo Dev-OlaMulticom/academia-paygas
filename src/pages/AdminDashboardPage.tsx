@@ -70,7 +70,7 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
 
 	const formatDate = (iso: string) => {
 		const d = new Date(iso);
-		return d.toLocaleDateString("pt-BR") + " " + d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+		return `${d.toLocaleDateString("pt-BR")} ${d.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`;
 	};
 
 	const roleClass = (role: string) => ROLE_CSS_CLASSES[role] || ROLE_CSS_CLASSES.ATENDENTE;

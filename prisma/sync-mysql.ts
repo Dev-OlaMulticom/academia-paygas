@@ -3,8 +3,8 @@
  * Run with: tsx prisma/sync-mysql.ts
  */
 import "dotenv/config";
-import { PrismaClient } from "../prisma/generated/mysql";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "../prisma/generated/mysql";
 
 const pgClient = new PrismaClient({
 	adapter: new PrismaPg({ connectionString: process.env.PG_URL_1 || process.env.DATABASE_URL }),
@@ -16,7 +16,7 @@ const mysqlClient = new PrismaClient({
 		const url = new URL(process.env.MYSQL_URL || "mysql://root:@localhost:3306/academia_paygas");
 		return new PrismaMariaDb({
 			host: url.hostname,
-			port: parseInt(url.port || "3306"),
+			port: parseInt(url.port || "3306", 10),
 			user: url.username || "root",
 			password: url.password || "",
 			database: url.pathname.replace("/", "") || undefined,

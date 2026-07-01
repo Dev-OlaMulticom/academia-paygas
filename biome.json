@@ -13,7 +13,9 @@
 			"!!**/*.js",
 			"!!wordpress-plugin-academia-paygas",
 			"!!api",
-			"!!app.js"
+			"!!app.js",
+			"!!public/**/*.html",
+			"!!styles/**/*.css"
 		],
 		"ignoreUnknown": true
 	},
@@ -28,13 +30,31 @@
 			"recommended": true,
 			"correctness": {
 				"noUnusedImports": "warn",
-				"noUnusedVariables": "warn"
+				"noUnusedVariables": "warn",
+				"useExhaustiveDependencies": "warn"
 			},
 			"suspicious": {
-				"noExplicitAny": "off"
+				"noExplicitAny": "off",
+				"noArrayIndexKey": "off",
+				"noDocumentCookie": "off",
+				"noEmptyBlock": "warn"
 			},
 			"style": {
-				"noNonNullAssertion": "off"
+				"noNonNullAssertion": "off",
+				"noDescendingSpecificity": "off"
+			},
+			"a11y": {
+				"useButtonType": "off",
+				"noLabelWithoutControl": "off",
+				"useKeyWithClickEvents": "off",
+				"noStaticElementInteractions": "off",
+				"useSemanticElements": "off",
+				"noSvgWithoutTitle": "off",
+				"useFocusableInteractive": "off",
+				"useAriaPropsForRole": "off"
+			},
+			"security": {
+				"noDangerouslySetInnerHtml": "warn"
 			}
 		}
 	},

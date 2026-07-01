@@ -11,14 +11,14 @@ interface EquipePageProps {
 	user: User;
 }
 
-export function EquipePage({ user }: EquipePageProps) {
+export function EquipePage({ user: _user }: EquipePageProps) {
 	const { isAdmin, isGestor } = useAbility();
 	const { toast } = useToast();
 	const [teamData, setTeamData] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
 	const [expandedUser, setExpandedUser] = useState<string | null>(null);
 	const [detailData, setDetailData] = useState<any[]>([]);
-	const [loadingDetail, setLoadingDetail] = useState(false);
+	const [_loadingDetail, setLoadingDetail] = useState(false);
 	const [approving, setApproving] = useState<string | null>(null);
 	const [expandedModulo, setExpandedModulo] = useState<Record<string, boolean>>({});
 	const [expandedAula, setExpandedAula] = useState<Record<string, boolean>>({});
@@ -48,7 +48,7 @@ export function EquipePage({ user }: EquipePageProps) {
 
 	useEffect(() => {
 		loadEquipe();
-	}, []);
+	}, [loadEquipe]);
 	useEffect(() => {
 		if (!loading) loadDetail();
 	}, [loading, loadDetail]);
@@ -341,7 +341,7 @@ export function EquipePage({ user }: EquipePageProps) {
 																{pluralize(quiz.totalPerguntas, "pergunta")}
 															</div>
 
-															{qr && qr.respostas && (
+															{qr?.respostas && (
 																<div className="eq-detail-quiz-answers">
 																	{quiz.perguntas?.map((pergunta: any, idx: number) => {
 																		const userAnswer = qr.respostas[pergunta.id];
@@ -437,7 +437,7 @@ export function EquipePage({ user }: EquipePageProps) {
 							<div className="progress-mini">
 								<div
 									className={`progress-mini-fill ${(member.progress || 0) === 100 ? "done" : ""}`}
-									style={{ width: (member.progress || 0) + "%" }}
+									style={{ width: `${member.progress || 0}%` }}
 								/>
 							</div>
 							<span className="eq-progress-pct">{member.progress || 0}%</span>

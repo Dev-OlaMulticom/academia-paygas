@@ -73,7 +73,7 @@ export function AIPanel({ open, onClose }: AIPanelProps) {
 				.catch(() => {});
 			setMessages([{ text: AI_FIRST[role] || "Olá! Como posso ajudar?", type: "bot" }]);
 		}
-	}, [open]);
+	}, [open, role, messages.length]);
 
 	const getKnowledge = (): string[] => {
 		const totalUsers = stats?.alunos?.toLocaleString("pt-BR") || "vários";

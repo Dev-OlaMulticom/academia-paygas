@@ -70,7 +70,7 @@ export function ModulosListPage() {
 
 	useEffect(() => {
 		loadModulos();
-	}, []);
+	}, [loadModulos]);
 
 	if (loading) {
 		return (

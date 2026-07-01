@@ -60,7 +60,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 		loadUsuarios();
 		loadGestores();
 		loadEquipeDetalhe();
-	}, []);
+	}, [loadUsuarios, loadGestores, loadEquipeDetalhe]);
 
 	const handleCreate = async () => {
 		if (!newUser.nome || !newUser.email || !newUser.senha || !newUser.role) {

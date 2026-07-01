@@ -79,7 +79,7 @@ export function useAuth() {
 	};
 
 	const persona = user ? PERSONAS[user.role as keyof typeof PERSONAS] : null;
-	const isAuthenticated = !!user;
+	const _isAuthenticated = !!user;
 
 	return {
 		user,

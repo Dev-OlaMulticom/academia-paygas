@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
+import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 
 const adapter = new PrismaPg({
@@ -15,7 +15,7 @@ const ADMIN_PASSWORD = "123456";
 async function main() {
 	console.log("🔍 Diagnosticando usuario admin...");
 	console.log(
-		`   DATABASE_URL: ${process.env.DATABASE_URL ? "definida (" + process.env.DATABASE_URL.substring(0, 30) + "...)" : "NO DEFINIDA"}`,
+		`   DATABASE_URL: ${process.env.DATABASE_URL ? `definida (${process.env.DATABASE_URL.substring(0, 30)}...)` : "NO DEFINIDA"}`,
 	);
 	console.log("");
 

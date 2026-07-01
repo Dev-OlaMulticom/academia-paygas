@@ -9,7 +9,7 @@ interface QuizEditorPageProps {
 	user: any;
 }
 
-export function QuizEditorPage({ user }: QuizEditorPageProps) {
+export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 	const { moduloId, aulaId } = useParams<{ moduloId: string; aulaId: string }>();
 	const navigate = useNavigate();
 	const { toast } = useToast();
@@ -36,7 +36,7 @@ export function QuizEditorPage({ user }: QuizEditorPageProps) {
 		opcaoD: "",
 		correta: "A",
 	});
-	const [isEditing, setIsEditing] = useState(false);
+	const [_isEditing, setIsEditing] = useState(false);
 
 	const loadData = useCallback(async () => {
 		if (!moduloId || !aulaId) return;
@@ -121,7 +121,7 @@ export function QuizEditorPage({ user }: QuizEditorPageProps) {
 		}
 	};
 
-	const handleAddQuestion = async () => {
+	const _handleAddQuestion = async () => {
 		if (!quiz) return;
 		if (!formData.pergunta.trim() || !formData.opcaoA.trim() || !formData.opcaoB.trim()) {
 			toast("Pergunta e opções A/B são obrigatórias", "error");
@@ -246,7 +246,7 @@ export function QuizEditorPage({ user }: QuizEditorPageProps) {
 								min="0"
 								max="10"
 								value={notaMinima}
-								onChange={(e) => setNotaMinima(parseInt(e.target.value) || 7)}
+								onChange={(e) => setNotaMinima(parseInt(e.target.value, 10) || 7)}
 							/>
 							{quiz && quiz.perguntas?.length > 0 && (
 								<p className="quiz-settings-hint">
