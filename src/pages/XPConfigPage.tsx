@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
 import type { User } from '../hooks/useAuth'
-import { useToast } from '../components/Toast'
+import { useToast, useConfirm } from '../components/Toast'
 
 interface XPConfigPageProps {
   user: User
@@ -17,10 +17,12 @@ interface XPConfigItem {
 
 export function XPConfigPage({ user: _user }: XPConfigPageProps) {
   const { toast } = useToast()
+  const { confirm } = useConfirm()
   const [configs, setConfigs] = useState<XPConfigItem[]>([])
   const [loading, setLoading] = useState(true)
   const [editingId, setEditingId] = useState<string | null>(null)
   const [editValues, setEditValues] = useState<{ points: string; label: string; description: string }>({ points: '', label: '', description: '' })
+  const [deletingAction, setDeletingAction] = useState<string | null>(null)
 
   const loadConfigs = useCallback(async () => {
     try {
@@ -64,6 +66,28 @@ export function XPConfigPage({ user: _user }: XPConfigPageProps) {
       loadConfigs()
     } catch (err: any) {
       toast(err.message || 'Erro ao atualizar', 'error')
+    }
+  }
+
+  const handleDelete = async (config: XPConfigItem) => {
+    const ok = await confirm({
+      title: 'Excluir acao de XP',
+      message: `¿Realmente deseas borrar la acción de XP "${config.label}" (${config.action})?\n\nEsta acción NÃO pode ser desfeita. Registros históricos de pontos já contabilizados NAO serao alterados.`,
+      confirmLabel: 'Sim, excluir',
+      cancelLabel: 'Cancelar',
+      danger: true,
+    })
+    if (!ok) return
+
+    setDeletingAction(config.action)
+    try {
+      await api.deleteXPConfig(config.action)
+      toast('Configuração XP excluída!', 'success')
+      loadConfigs()
+    } catch (err: any) {
+      toast(err.message || 'Erro ao excluir', 'error')
+    } finally {
+      setDeletingAction(null)
     }
   }
 
@@ -138,9 +162,19 @@ export function XPConfigPage({ user: _user }: XPConfigPageProps) {
                         <button className="btn-secondary xp-edit-btn" onClick={() => setEditingId(null)}>Cancelar</button>
                       </div>
                     ) : (
-                      <button className="btn-secondary xp-edit-trigger" onClick={() => handleEdit(config)}>
-                        <i className="icon-pencil icon-xs" /> Editar
-                      </button>
+                      <div className="xp-edit-actions" style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <button className="btn-secondary xp-edit-trigger" onClick={() => handleEdit(config)}>
+                          <i className="icon-pencil icon-xs" /> Editar
+                        </button>
+                        <button
+                          className="btn-secondary xp-edit-delete"
+                          onClick={() => handleDelete(config)}
+                          disabled={deletingAction === config.action}
+                          title="Excluir esta ação de XP"
+                        >
+                          <i className="icon-trash-2 icon-xs" />
+                        </button>
+                      </div>
                     )}
                   </td>
                 </tr>

@@ -14,6 +14,9 @@ export const Actions = {
   issueCertificate: 'issueCertificate',
   viewTeam: 'viewTeam',
   exportData: 'exportData',
+  deleteActivityLog: 'deleteActivityLog',
+  deleteNotification: 'deleteNotification',
+  deleteXPConfig: 'deleteXPConfig',
 } as const
 
 export type Action = typeof Actions[keyof typeof Actions]

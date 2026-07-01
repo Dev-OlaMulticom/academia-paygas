@@ -99,26 +99,28 @@ export function CMSPage({ user }: CMSPageProps) {
     const mod = modulos.find(m => m.id === id)
     const aulaCount = mod?._count?.aulas || 0
 
-    let message = `Deseja excluir o curso "${mod?.titulo}"?`
+    let message = `¿Realmente deseas borrar el curso "${mod?.titulo}"?`
     if (aulaCount > 0) {
-      message += `\n\nEste curso contém ${aulaCount} aula(s).`
+      let totalLicoes = 0
       try {
-        let totalLicoes = 0
-        for (const aula of (mod.aulas || [])) {
+        for (const aula of (mod?.aulas || [])) {
           const licoes = await api.getLicoes(aula.id).catch(() => [])
           totalLicoes += licoes.length
         }
-        if (totalLicoes > 0) {
-          message += `\n${totalLicoes} ${pluralize(totalLicoes, 'lição')} ${totalLicoes === 1 ? 'será removida' : 'serão removidas'} também.`
-        }
-      } catch {}
-      message += `\n\nEsta ação não pode ser desfeita.`
+      } catch { /* */ }
+      message += `\n\nEste curso contiene ${aulaCount} aula(s)`
+      if (totalLicoes > 0) {
+        message += ` y ${totalLicoes} ${pluralize(totalLicoes, 'lição')} que também serão excluídas`
+      }
+      message += '.'
     }
+    message += `\n\nEsta ação NÃO pode ser desfeita.`
 
     const ok = await confirm({
-      title: 'Excluir Curso',
+      title: 'Confirmar exclusão',
       message,
-      confirmLabel: 'Excluir',
+      confirmLabel: 'Sim, excluir',
+      cancelLabel: 'Cancelar',
       danger: true,
     })
     if (!ok) return

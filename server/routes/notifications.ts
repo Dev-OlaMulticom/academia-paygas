@@ -124,4 +124,27 @@ router.put('/read-all', authenticate, async (req: any, res) => {
   }
 })
 
+// DELETE /api/notifications/:id - Owner or ADMIN can delete.
+router.delete('/:id', authenticate, async (req: any, res) => {
+  try {
+    const id = getStringParam(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID invalido' })
+
+    const notif = await db.findUnique('notification', { id }) as any
+    if (!notif) return res.status(404).json({ error: 'Notificación no encontrada' })
+
+    const isOwner = notif.toId === req.userId
+    const isAdmin = req.userRole === 'ADMIN'
+    if (!isOwner && !isAdmin) {
+      return res.status(403).json({ error: 'Sem permissao' })
+    }
+
+    await db.delete('notification', { id })
+    res.json({ success: true })
+  } catch (error) {
+    console.error('[ROUTE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao excluir notificação' })
+  }
+})
+
 export default router

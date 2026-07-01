@@ -1,6 +1,8 @@
 import { Router } from 'express'
 import { prisma } from '../lib/prisma'
+import { db } from '../lib/db'
 import { authenticate, authorize } from '../middleware/auth'
+import { logActivity } from '../services/log'
 
 const router = Router()
 
@@ -82,6 +84,58 @@ router.get('/users', authenticate, authorize('ADMIN'), async (_req: any, res) =>
   } catch (error) {
     console.error('[ROUTE ERROR]', error)
     res.status(500).json({ error: 'Erro ao buscar usuários' })
+  }
+})
+
+// DELETE /api/logs/:id - Delete a single activity log (ADMIN only)
+router.delete('/:id', authenticate, authorize('ADMIN'), async (req: any, res) => {
+  try {
+    const id = String(req.params.id)
+    if (!id) return res.status(400).json({ error: 'ID inválido' })
+
+    const existing = await prisma.activityLog.findUnique({ where: { id } })
+    if (!existing) return res.status(404).json({ error: 'Registro de log não encontrado' })
+
+    await db.delete('activityLog', { id })
+    res.json({ success: true })
+  } catch (error) {
+    console.error('[LOG DELETE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao excluir registro' })
+  }
+})
+
+// DELETE /api/logs - Bulk delete activity logs (ADMIN only)
+// Body: { userId?, acao?, startDate?, endDate? }
+// Requires at least one filter to prevent accidental wipe.
+router.delete('/', authenticate, authorize('ADMIN'), async (req: any, res) => {
+  try {
+    const { userId, acao, startDate, endDate } = req.body || {}
+
+    if (!userId && !acao && !startDate && !endDate) {
+      return res.status(400).json({
+        error: 'Aplique ao menos um filtro (userId, acao, startDate, endDate) para exclusão em massa',
+      })
+    }
+
+    const where: any = {}
+    if (userId) where.userId = userId
+    if (acao) where.acao = { contains: acao, mode: 'insensitive' }
+    if (startDate || endDate) {
+      where.createdAt = {}
+      if (startDate) where.createdAt.gte = new Date(startDate)
+      if (endDate) where.createdAt.lte = new Date(endDate + 'T23:59:59.999Z')
+    }
+
+    const result = await prisma.activityLog.deleteMany({ where })
+
+    if (req.userId) {
+      await logActivity(req.userId, 'Excluir Logs', `Bulk delete: ${result.count} registros`)
+    }
+
+    res.json({ success: true, deleted: result.count })
+  } catch (error) {
+    console.error('[LOG BULK DELETE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao excluir registros' })
   }
 })
 

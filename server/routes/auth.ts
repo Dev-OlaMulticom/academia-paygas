@@ -7,8 +7,12 @@ import { JWT_SECRET, authenticate, AuthRequest } from '../middleware/auth'
 import { sendPasswordResetEmail, isEmailConfigured } from '../services/email'
 import { awardLoginPointsDaily } from '../services/gamification'
 import { logActivity } from '../services/log'
+import payGasRoutes from './paygas-access'
 
 const router = Router()
+
+// Mount Acesso PayGas routes under /api/auth/paygas-*
+router.use('/paygas', payGasRoutes)
 
 // POST /api/auth/login
 router.post('/login', async (req, res) => {

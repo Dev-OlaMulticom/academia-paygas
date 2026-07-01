@@ -78,4 +78,24 @@ router.post('/', authenticate, authorize('ADMIN'), async (req: any, res) => {
   }
 })
 
+// DELETE /api/xp-config/:action - Remove an XP config entry (ADMIN only).
+// Existing PointsTransaction rows keep the action string for historical
+// purposes; only the configuration that controls new awards is removed.
+router.delete('/:action', authenticate, authorize('ADMIN'), async (req: any, res) => {
+  try {
+    const action = String(req.params.action)
+
+    const existing = await prisma.xPConfig.findUnique({ where: { action } })
+    if (!existing) {
+      return res.status(404).json({ error: 'Ação de XP não encontrada' })
+    }
+
+    await db.delete('xPConfig', { action })
+    res.json({ success: true, action })
+  } catch (error) {
+    console.error('[XP CONFIG DELETE ERROR]', error)
+    res.status(500).json({ error: 'Erro ao excluir configuração de XP' })
+  }
+})
+
 export default router

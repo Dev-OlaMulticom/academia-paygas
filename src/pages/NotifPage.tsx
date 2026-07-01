@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
-import { useToast } from '../components/Toast'
+import { useToast, useConfirm } from '../components/Toast'
 
 interface NotifPageProps {
   user: User
@@ -9,6 +9,7 @@ interface NotifPageProps {
 
 export function NotifPage({ user }: NotifPageProps) {
   const { toast } = useToast()
+  const { confirm } = useConfirm()
   const [showSendModal, setShowSendModal] = useState(false)
   const [sendTarget, setSendTarget] = useState<'user' | 'all' | 'role' | 'team'>('user')
   const [newNotif, setNewNotif] = useState({ titulo: '', mensagem: '', toUserId: '', toRole: '' })
@@ -16,6 +17,7 @@ export function NotifPage({ user }: NotifPageProps) {
   const [usuarios, setUsuarios] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [approvingId, setApprovingId] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
 
   const isAdmin = user?.role === 'ADMIN'
   const isGestor = user?.role === 'GESTOR'
@@ -78,6 +80,28 @@ export function NotifPage({ user }: NotifPageProps) {
     } catch { /* silent */ }
   }
 
+  const handleDeleteNotif = async (notif: any) => {
+    const ok = await confirm({
+      title: 'Excluir notificacao',
+      message: '¿Realmente deseas borrar esta notificacao?\n\nEsta ação NÃO pode ser desfeita.',
+      confirmLabel: 'Sim, excluir',
+      cancelLabel: 'Cancelar',
+      danger: true,
+    })
+    if (!ok) return
+
+    setDeletingId(notif.id)
+    try {
+      await api.deleteNotification(notif.id)
+      setNotifs(prev => prev.filter(n => n.id !== notif.id))
+      toast('Notificacao excluida!', 'success')
+    } catch (err: any) {
+      toast(err.message || 'Erro ao excluir', 'error')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
   const unreadCount = notifs.filter(n => !n.lida).length
 
   const handleApproveRestart = async (notif: any) => {
@@ -136,7 +160,17 @@ export function NotifPage({ user }: NotifPageProps) {
                 </div>
               )}
             </div>
-            {!notif.lida && <div className="notif-unread-dot"></div>}
+            <div className="notif-actions" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <button
+                className="btn-secondary notif-delete-btn"
+                onClick={() => handleDeleteNotif(notif)}
+                disabled={deletingId === notif.id}
+                title="Excluir notificacao"
+              >
+                <i className="icon-trash-2 icon-xs" />
+              </button>
+              {!notif.lida && <div className="notif-unread-dot"></div>}
+            </div>
           </div>
         ))}
         {notifs.length === 0 && !loading && <p className="notif-empty">Nenhuma notificacao</p>}

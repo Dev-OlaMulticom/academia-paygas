@@ -40,3 +40,9 @@ Thumbs.db
 
 # TypeScript cache
 *.tsbuildinfo
+
+# Logs and temp files
+logs/
+*.log
+test-api.js
+.backup-build/

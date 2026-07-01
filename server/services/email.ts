@@ -347,3 +347,45 @@ export async function sendVerificationEmail(to: string, userName: string, token:
     `,
   })
 }
+
+/**
+ * Send credentials email after a successful Acesso PayGas lookup that
+ * auto-created a new ATENDENTE user. Includes a temporary password the
+ * user must change on first login.
+ */
+export async function sendPayGasAccessEmail(to: string, userName: string, temporaryPassword: string) {
+  const appUrl = process.env.APP_URL || 'https://academia.paygas.com.br'
+
+  return sendEmail({
+    to,
+    subject: '🎉 Bem-vindo à Academia PayGas - Suas credenciais',
+    html: `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="UTF-8"></head>
+      <body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;margin:0;">
+        <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
+          <div style="background:linear-gradient(135deg,#F47C20 0%,#C45E0A 100%);color:white;padding:30px;text-align:center;">
+            <h1 style="margin:0;font-size:22px;">Academia PayGas</h1>
+            <p style="margin:5px 0 0;font-size:14px;">Acesso via PayGas</p>
+          </div>
+          <div style="padding:30px;text-align:center;">
+            <h2 style="margin:0 0 8px;color:#333;">Olá, ${userName}!</h2>
+            <p style="color:#555;font-size:15px;margin:0 0 20px;">Sua conta na <strong>Academia PayGas</strong> foi criada com sucesso. Use a senha temporária abaixo para entrar:</p>
+            <div style="background:#f9f9f9;border-radius:8px;padding:20px;margin:0 0 24px;">
+              <p style="margin:0;color:#333;font-size:24px;font-weight:bold;letter-spacing:4px;word-break:break-all;">${temporaryPassword}</p>
+              <p style="margin:8px 0 0;color:#888;font-size:12px;">Senha temporária — altere após o primeiro acesso</p>
+            </div>
+            <p style="color:#666;font-size:13px;margin:0 0 16px;">Recomendamos que você redefina sua senha assim que entrar na plataforma.</p>
+            <a href="${appUrl}/login" style="background:#F47C20;color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">Acessar Academia</a>
+          </div>
+          <div style="background:#f8f9fa;padding:16px;text-align:center;color:#999;font-size:11px;">
+            <p style="margin:0;">Este é um email automático. Por favor, não responda.</p>
+            <p style="margin:4px 0 0;">© 2026 Academia PayGas</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `,
+  })
+}

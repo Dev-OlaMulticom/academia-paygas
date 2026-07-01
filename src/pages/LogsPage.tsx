@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
 import type { User } from '../hooks/useAuth'
+import { useToast, useConfirm } from '../components/Toast'
 
 interface LogsPageProps {
   user: User
@@ -16,6 +17,8 @@ interface ActivityLog {
 }
 
 export function LogsPage({ user: _user }: LogsPageProps) {
+  const { toast } = useToast()
+  const { confirm } = useConfirm()
   const [logs, setLogs] = useState<ActivityLog[]>([])
   const [users, setUsers] = useState<any[]>([])
   const [stats, setStats] = useState<any>(null)
@@ -24,6 +27,8 @@ export function LogsPage({ user: _user }: LogsPageProps) {
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
+  const [deletingId, setDeletingId] = useState<string | null>(null)
+  const [bulkDeleting, setBulkDeleting] = useState(false)
 
   const [filters, setFilters] = useState({
     userId: '',
@@ -86,6 +91,65 @@ export function LogsPage({ user: _user }: LogsPageProps) {
   const clearFilters = () => {
     setFilters({ userId: '', acao: '', startDate: '', endDate: '' })
     setPage(1)
+  }
+
+  const handleDeleteLog = async (log: ActivityLog) => {
+    const ok = await confirm({
+      title: 'Excluir registro',
+      message: '¿Realmente deseas borrar este registro de atividade?\n\nEsta ação NÃO pode ser desfeita.',
+      confirmLabel: 'Sim, excluir',
+      cancelLabel: 'Cancelar',
+      danger: true,
+    })
+    if (!ok) return
+
+    setDeletingId(log.id)
+    try {
+      await api.deleteActivityLog(log.id)
+      toast('Registro excluído!', 'success')
+      setLogs(prev => prev.filter(l => l.id !== log.id))
+      if (expandedRow === log.id) setExpandedRow(null)
+      loadStats()
+      setTotal(t => Math.max(0, t - 1))
+    } catch (err: any) {
+      toast(err.message || 'Erro ao excluir', 'error')
+    } finally {
+      setDeletingId(null)
+    }
+  }
+
+  const handleBulkDelete = async () => {
+    const hasFilters = Boolean(filters.userId || filters.acao || filters.startDate || filters.endDate)
+    if (!hasFilters) {
+      toast('Aplique ao menos um filtro antes de excluir registros.', 'info')
+      return
+    }
+    const ok = await confirm({
+      title: 'Excluir registros filtrados',
+      message: '¿Realmente deseas borrar TODOS os registros que correspondem aos filtros atuais?\n\nEsta ação NÃO pode ser desfeita.',
+      confirmLabel: 'Sim, excluir em massa',
+      cancelLabel: 'Cancelar',
+      danger: true,
+    })
+    if (!ok) return
+
+    setBulkDeleting(true)
+    try {
+      const res = await api.bulkDeleteActivityLogs({
+        userId: filters.userId || undefined,
+        acao: filters.acao || undefined,
+        startDate: filters.startDate || undefined,
+        endDate: filters.endDate || undefined,
+      })
+      toast(`${res.deleted} registro(s) excluído(s).`, 'success')
+      clearFilters()
+      loadLogs()
+      loadStats()
+    } catch (err: any) {
+      toast(err.message || 'Erro ao excluir registros', 'error')
+    } finally {
+      setBulkDeleting(false)
+    }
   }
 
   const formatDate = (iso: string) => {
@@ -152,6 +216,14 @@ export function LogsPage({ user: _user }: LogsPageProps) {
           <button className="btn-secondary logs-clear-btn" onClick={clearFilters}>
             Limpar
           </button>
+          <button
+            className="btn-secondary logs-bulk-delete-btn"
+            onClick={handleBulkDelete}
+            disabled={bulkDeleting}
+            title="Excluir todos os registros que correspondem aos filtros"
+          >
+            <i className="icon-trash-2 icon-xs" /> Excluir filtrados
+          </button>
         </div>
       </div>
 
@@ -186,6 +258,7 @@ export function LogsPage({ user: _user }: LogsPageProps) {
                   <th>Role</th>
                   <th>Ação</th>
                   <th>Detalhes</th>
+                  <th style={{ width: '60px' }}></th>
                 </tr>
               </thead>
               <tbody>
@@ -215,10 +288,20 @@ export function LogsPage({ user: _user }: LogsPageProps) {
                       <td className="logs-td-detalhes">
                         {log.detalhes || '—'}
                       </td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <button
+                          className="btn-secondary logs-row-delete-btn"
+                          onClick={() => handleDeleteLog(log)}
+                          disabled={deletingId === log.id}
+                          title="Excluir este registro"
+                        >
+                          <i className="icon-trash-2 icon-xs" />
+                        </button>
+                      </td>
                     </tr>
                     {expandedRow === log.id && (
                       <tr key={`${log.id}-detail`} className="row-detail">
-                        <td colSpan={6}>
+                        <td colSpan={7}>
                           <div className="row-detail-body">
                             <div className="row-detail-grid">
                               <div className="row-detail-item">

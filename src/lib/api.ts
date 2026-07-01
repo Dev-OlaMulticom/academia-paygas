@@ -111,6 +111,23 @@ class ApiClient {
     })
   }
 
+  async paygasAccess(input: { cpf?: string; email?: string }) {
+    const response = await this.request<{ token: string; user: any; isNewlyCreated: boolean; message: string }>(
+      '/auth/paygas/paygas-access',
+      {
+        method: 'POST',
+        body: JSON.stringify(input),
+      },
+    )
+    this.setToken(response.token)
+    localStorage.setItem('user', JSON.stringify(response.user))
+    return response
+  }
+
+  async getPayGasApiStatus() {
+    return this.request<{ configured: boolean }>('/auth/paygas/paygas-api-status')
+  }
+
   async getEmailStatus() {
     return this.request<{ configured: boolean; host?: string; port?: number }>('/auth/email-status')
   }
@@ -406,6 +423,13 @@ class ApiClient {
     return this.request<any>('/notifications/read-all', { method: 'PUT', body: JSON.stringify({}) })
   }
 
+  async deleteNotification(id: string) {
+    return this.request<{ success: boolean }>(`/notifications/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({}),
+    })
+  }
+
   // ==================== DASHBOARD ====================
 
   async getDashboard() {
@@ -569,6 +593,20 @@ class ApiClient {
     return this.request<any>(`/logs/stats${qs ? `?${qs}` : ''}`)
   }
 
+  async deleteActivityLog(id: string) {
+    return this.request<{ success: boolean }>(`/logs/${id}`, {
+      method: 'DELETE',
+      body: JSON.stringify({}),
+    })
+  }
+
+  async bulkDeleteActivityLogs(filter: { userId?: string; acao?: string; startDate?: string; endDate?: string }) {
+    return this.request<{ success: boolean; deleted: number }>('/logs', {
+      method: 'DELETE',
+      body: JSON.stringify(filter || {}),
+    })
+  }
+
   // ==================== ADMIN DASHBOARD ====================
 
   async getAdminDashboard() {
@@ -599,6 +637,13 @@ class ApiClient {
     return this.request<any>('/xp-config', {
       method: 'POST',
       body: JSON.stringify(data),
+    })
+  }
+
+  async deleteXPConfig(action: string) {
+    return this.request<{ success: boolean; action: string }>(`/xp-config/${action}`, {
+      method: 'DELETE',
+      body: JSON.stringify({}),
     })
   }
 

@@ -92,7 +92,7 @@ export function authorize(...args: string[]) {
     }
 
     // Detect pattern: if first arg is a known CASL action → ability check
-    const knownActions = ['create', 'read', 'update', 'delete', 'manage', 'assignRole', 'sendNotification', 'approveCertificate', 'issueCertificate', 'viewTeam', 'exportData']
+    const knownActions = ['create', 'read', 'update', 'delete', 'manage', 'assignRole', 'sendNotification', 'approveCertificate', 'issueCertificate', 'viewTeam', 'exportData', 'deleteActivityLog', 'deleteNotification', 'deleteXPConfig']
     const isAbilityCheck = args.length >= 2 && knownActions.includes(args[0])
 
     if (isAbilityCheck) {
