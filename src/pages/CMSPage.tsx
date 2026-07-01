@@ -86,7 +86,7 @@ export function CMSPage({ user }: CMSPageProps) {
   const handleEditModulo = async () => {
     if (!editingMod) return
     try {
-      await api.updateModulo(editingMod.id, { titulo: editingMod.titulo, descricao: editingMod.descricao, obrigatorio: editingMod.obrigatorio, autoCertificado: editingMod.autoCertificado, icone: editingMod.icone, certificadoTemplate: editingMod.certificadoTemplate })
+      await api.updateModulo(editingMod.id, { titulo: editingMod.titulo, descricao: editingMod.descricao, obrigatorio: editingMod.obrigatorio, autoCertificado: editingMod.autoCertificado, icone: editingMod.icone, certificadoTemplate: editingMod.certificadoTemplate, rolesPermitidos: editingMod.rolesPermitidos })
       toast('Curso atualizado!', 'success')
       setEditingMod(null)
       loadModulos()
@@ -364,6 +364,11 @@ export function CMSPage({ user }: CMSPageProps) {
                           <div className="cms-mod-badges">
                             {mod.obrigatorio && <span className="cms-badge cms-badge-required">Obrigatorio</span>}
                             {mod.autoCertificado && <span className="cms-badge cms-badge-cert">Auto-Cert</span>}
+                            {mod.rolesPermitidos && (mod.rolesPermitidos as string[]).length > 0 && (
+                              <span className="cms-badge" style={{ background: '#ede9fe', color: '#7c3aed', fontSize: '10px' }}>
+                                {(mod.rolesPermitidos as string[]).length} perfil(s)
+                              </span>
+                            )}
                           </div>
                         </td>
                         <td>
@@ -399,6 +404,14 @@ export function CMSPage({ user }: CMSPageProps) {
                                 <div className="row-detail-item">
                                   <span className="row-detail-label">Auto-Certificado</span>
                                   <span className="row-detail-value">{mod.autoCertificado ? 'Sim' : 'Nao'}</span>
+                                </div>
+                                <div className="row-detail-item">
+                                  <span className="row-detail-label">Acesso</span>
+                                  <span className="row-detail-value">
+                                    {mod.rolesPermitidos && (mod.rolesPermitidos as string[]).length > 0
+                                      ? (mod.rolesPermitidos as string[]).map(r => r === 'ADMIN' ? 'Admin' : r === 'GESTOR' ? 'Gestor' : r === 'ATENDENTE' ? 'Atendente' : r === 'PARCEIRO_ACREDITADO' ? 'Parceiro' : 'ERPs').join(', ')
+                                      : 'Todos os perfis'}
+                                  </span>
                                 </div>
                               </div>
                             </div>
@@ -560,6 +573,35 @@ export function CMSPage({ user }: CMSPageProps) {
                 <option value="false">Não (Requer aprovação do gestor)</option>
                 <option value="true">Sim (Automático ao concluir)</option>
               </select>
+            </div>
+            <div className="form-field">
+              <label className="form-label">Acesso por Perfil</label>
+              <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginBottom: '6px' }}>
+                {editingMod.rolesPermitidos && (editingMod.rolesPermitidos as string[]).length > 0
+                  ? `Restrito a: ${(editingMod.rolesPermitidos as string[]).join(', ')}`
+                  : 'Todos os perfis têm acesso'}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                {['ADMIN', 'GESTOR', 'ATENDENTE', 'PARCEIRO_ACREDITADO', 'ERPS_REPRESENTANTE'].map(role => {
+                  const currentRoles: string[] = editingMod.rolesPermitidos || []
+                  const checked = currentRoles.includes(role)
+                  return (
+                    <label key={role} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px' }}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => {
+                          const newRoles = checked
+                            ? currentRoles.filter(r => r !== role)
+                            : [...currentRoles, role]
+                          setEditingMod({ ...editingMod, rolesPermitidos: newRoles.length > 0 ? newRoles : null })
+                        }}
+                      />
+                      {role === 'ADMIN' ? 'Administrador' : role === 'GESTOR' ? 'Gestor de Posto' : role === 'ATENDENTE' ? 'Atendente/Frentista' : role === 'PARCEIRO_ACREDITADO' ? 'Parceiro Acreditado' : 'ERPs Representante'}
+                    </label>
+                  )
+                })}
+              </div>
             </div>
             <div className="modal-actions">
               <button id="mod-edit-salvar" className="btn-primary" onClick={handleEditModulo}>Salvar</button>

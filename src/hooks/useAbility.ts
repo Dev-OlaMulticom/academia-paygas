@@ -15,9 +15,9 @@
  *     return <AdminPanel />
  *   }
  */
-import { useMemo } from 'react'
+import { useMemo, useEffect } from 'react'
 import { useAuth, User } from './useAuth'
-import { defineFrontendAbility, FrontendAbility } from '../auth/casl/ability'
+import { defineFrontendAbility, FrontendAbility, loadRolePermissions } from '../auth/casl/ability'
 
 interface UseAbilityReturn {
   ability: FrontendAbility
@@ -35,6 +35,8 @@ interface UseAbilityReturn {
   isAdmin: boolean
   isGestor: boolean
   isAtendente: boolean
+  isParceiro: boolean
+  isErps: boolean
 
   /** Current user */
   user: User | null
@@ -43,9 +45,16 @@ interface UseAbilityReturn {
 export function useAbility(): UseAbilityReturn {
   const { user } = useAuth()
 
+  // Load DB permissions once on mount / role change
+  useEffect(() => {
+    if (user?.role) {
+      loadRolePermissions()
+    }
+  }, [user?.role])
+
   const ability = useMemo(() => {
     return defineFrontendAbility(user)
-  }, [user?.id, user?.role])
+  }, [user?.id, user?.role, user?.gestorId])
 
   const can = useMemo(() => {
     return (action: string, subject: string, conditions?: Record<string, any>) => {
@@ -71,6 +80,8 @@ export function useAbility(): UseAbilityReturn {
     isAdmin: user?.role === 'ADMIN',
     isGestor: user?.role === 'GESTOR',
     isAtendente: user?.role === 'ATENDENTE',
+    isParceiro: user?.role === 'PARCEIRO_ACREDITADO',
+    isErps: user?.role === 'ERPS_REPRESENTANTE',
     user,
   }
 }

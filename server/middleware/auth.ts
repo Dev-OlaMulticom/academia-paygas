@@ -59,9 +59,10 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
 
   const token = authHeader.split(' ')[1]
   try {
-    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string }
+    const decoded = jwt.verify(token, JWT_SECRET) as { userId: string; role: string; gestorId?: string | null }
     req.userId = decoded.userId
     req.userRole = decoded.role
+    ;(req as any).userGestorId = decoded.gestorId || null
     next()
   } catch {
     return res.status(401).json({ error: 'Token inválido' })
@@ -86,7 +87,7 @@ export function authenticate(req: AuthRequest, res: Response, next: NextFunction
  *    → checks with additional conditions
  */
 export function authorize(...args: string[]) {
-  return (req: AuthRequest, res: Response, next: NextFunction) => {
+  return async (req: AuthRequest, res: Response, next: NextFunction) => {
     if (!req.userRole || !req.userId) {
       return res.status(403).json({ error: 'Sem permissão' })
     }
@@ -101,7 +102,7 @@ export function authorize(...args: string[]) {
       const subject = args[1]
       const conditions = args[2] ? JSON.parse(args[2]) : undefined
 
-      const ability = defineAbility({
+      const ability = await defineAbility({
         id: req.userId,
         role: req.userRole,
         gestorId: (req as any).userGestorId,

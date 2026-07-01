@@ -25,6 +25,7 @@ import logsRoutes from './routes/logs'
 import xpconfigRoutes from './routes/xpconfig'
 import importExportRoutes from './routes/import-export'
 import adminDashboardRoutes from './routes/admin-dashboard'
+import rolePermissionsRoutes from './routes/role-permissions'
 import { startKeepAlive } from './services/keepalive'
 import { startHealthChecks } from './services/db-health'
 import { startSyncWorker } from './services/db-sync'
@@ -122,6 +123,7 @@ app.use('/api/logs', logsRoutes)
 app.use('/api/xp-config', xpconfigRoutes)
 app.use('/api/import-export', importExportRoutes)
 app.use('/api/admin/dashboard', adminDashboardRoutes)
+app.use('/api/role-permissions', rolePermissionsRoutes)
 
 app.get('/api/health', async (_req, res) => {
   const { dbRegistry } = await import('./config/databases')

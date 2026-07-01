@@ -139,9 +139,9 @@ Centralized email dispatch via `server/services/email.ts`. Primary: Gmail SMTP. 
 
 ### Auth & Authorization
 
-**Authentication**: JWT + bcryptjs. Three roles: `ADMIN`, `GESTOR`, `ATENDENTE`. GESTOR is restricted to their own team members. Tokens verified via `server/middleware/auth.ts`.
+**Authentication**: JWT + bcryptjs. Five roles: `ADMIN`, `GESTOR`, `ATENDENTE`, `PARCEIRO_ACREDITADO`, `ERPS_REPRESENTANTE`. GESTOR is restricted to their own team members. Tokens verified via `server/middleware/auth.ts`.
 
-**Authorization**: CASL-based RBAC/ABAC. All permission logic centralized in `server/auth/casl/`.
+**Authorization**: CASL-based RBAC/ABAC. All permission logic centralized in `server/auth/casl/`. Permissions are DB-driven via `RoleConfig` table — adding a new role is just a DB insert.
 
 **Middleware** (`server/middleware/auth.ts`) supports both patterns:
 ```ts
@@ -198,3 +198,48 @@ All user actions are logged to the `ActivityLog` table via the shared `logActivi
 - Prisma migrations live in `prisma/migrations/`. Use `prisma migrate dev` to create new ones locally.
 - MySQL client is generated to `prisma/generated/mysql/` — this path is in `.gitignore`.
 - `prisma-mysql.ts` uses `path.resolve(__dirname, ...)` for dynamic require because compiled output (`dist/server/lib/`) is deeper than source (`server/lib/`).
+
+## Codebase Tools
+
+### codebase-memory-mcp (Always-On)
+
+**Always index the codebase** using `codebase-memory-mcp` tools. They are the PRIMARY method for code discovery.
+
+**Priority Order:**
+1. `search_graph` — find functions, classes, routes by pattern
+2. `trace_path` — trace callers/callees, data flow, cross-service calls
+3. `get_code_snippet` — read function/class source code
+4. `query_graph` — run Cypher queries for complex patterns
+5. `get_architecture` — high-level project overview
+
+**Fallback to grep/glob ONLY when:**
+- Searching string literals, error messages, config values
+- Searching non-code files (Dockerfiles, shell scripts)
+- MCP tools return insufficient results
+
+### Task Master AI
+
+Task list lives in `.taskmaster/tasks/tasks.json`. Individual task files in `.taskmaster/tasks/`.
+
+**Workflow:**
+```
+1. Parse PRD → task-master parse-prd .taskmaster/docs/prd.md
+2. Expand tasks → task-master expand --all
+3. Pick next → npx task-master next
+4. Work on it → npx task-master set-status --id=<id> --status=in-progress
+5. Done → npx task-master set-status --id=<id> --status=done
+```
+
+**Useful commands:**
+```bash
+npx task-master list              # show all tasks
+npx task-master next              # next available task
+npx task-master show <id>         # task details
+npx task-master add-task --title="..." --description="..." --priority=<high|medium|low>
+npx task-master set-status --id=<id> --status=done
+npx task-master expand --id=<id>  # break into subtasks
+```
+
+**Note:** AI features (parse-prd, expand, add-task with --prompt) require API keys in `.env`:
+- `ANTHROPIC_API_KEY` (recommended) or `OPENAI_API_KEY` or `GOOGLE_API_KEY`
+- `PERPLEXITY_API_KEY` (optional, for research mode)

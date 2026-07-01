@@ -1,0 +1,49 @@
+{
+  "master": {
+    "tasks": [
+      {
+        "id": "1",
+        "title": "Update AGENTS.md with workflow rules",
+        "description": "Update AGENTS.md with: 1) Codebase-memory-mcp always-on rule. 2) Task-master-ai workflow diagram. 3) New workflow instructions for opencode agents. 4) Commit all current changes.",
+        "details": "",
+        "testStrategy": "",
+        "status": "done",
+        "dependencies": [],
+        "priority": "high",
+        "subtasks": [],
+        "updatedAt": "2026-07-01T08:56:30.880Z"
+      },
+      {
+        "id": "2",
+        "title": "Convert hardcoded role checks to useAbility()",
+        "description": "Replace 48+ hardcoded role checks (e.g. user?.persona === 'ADMIN') with useAbility() hook across all pages. This ensures CASL-driven permissions are enforced consistently.",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "medium",
+        "subtasks": []
+      },
+      {
+        "id": "3",
+        "title": "Wire ROLE_LABELS into all pages",
+        "description": "Replace duplicated role label mappings in LogsPage, CertificadosPage, PerfilPage, AdminDashboardPage with shared ROLE_LABELS constant from src/data/constants.ts",
+        "details": "",
+        "testStrategy": "",
+        "status": "pending",
+        "dependencies": [],
+        "priority": "low",
+        "subtasks": []
+      }
+    ],
+    "metadata": {
+      "version": "1.0.0",
+      "lastModified": "2026-07-01T08:56:30.881Z",
+      "taskCount": 3,
+      "completedCount": 1,
+      "tags": [
+        "master"
+      ]
+    }
+  }
+}

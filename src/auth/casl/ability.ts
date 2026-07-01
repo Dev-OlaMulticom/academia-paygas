@@ -1,8 +1,8 @@
 /**
- * Frontend CASL Ability builder.
+ * Frontend CASL Ability builder — database-driven.
  *
- * Mirrors the backend ability rules so the UI can conditionally
- * render elements based on permissions.
+ * Fetches permission rules from /api/role-permissions on login and caches them.
+ * Falls back to hardcoded rules if the API is unreachable.
  *
  * IMPORTANT: Backend is always the source of truth.
  * This is only for UI hints — never trust client-side abilities for security.
@@ -23,6 +23,9 @@ export const Actions = {
   issueCertificate: 'issueCertificate',
   viewTeam: 'viewTeam',
   exportData: 'exportData',
+  deleteActivityLog: 'deleteActivityLog',
+  deleteNotification: 'deleteNotification',
+  deleteXPConfig: 'deleteXPConfig',
 } as const
 
 export type Action = typeof Actions[keyof typeof Actions]
@@ -36,6 +39,8 @@ export const Subjects = {
   Aula: 'Aula',
   Licao: 'Licao',
   Quiz: 'Quiz',
+  QuizPergunta: 'QuizPergunta',
+  QuizResponse: 'QuizResponse',
   Certificate: 'Certificate',
   Notification: 'Notification',
   ActivityLog: 'ActivityLog',
@@ -44,6 +49,7 @@ export const Subjects = {
   ModuleConfig: 'ModuleConfig',
   XPConfig: 'XPConfig',
   Conquista: 'Conquista',
+  UserConquista: 'UserConquista',
   Progresso: 'Progresso',
   Team: 'Team',
   Message: 'Message',
@@ -53,10 +59,6 @@ export const Subjects = {
 
 export type Subject = typeof Subjects[keyof typeof Subjects]
 
-/**
- * Simple ability checker — no CASL dependency needed at runtime.
- * This mirrors the backend defineAbility logic.
- */
 interface AbilityRule {
   action: string
   subject: string
@@ -69,57 +71,157 @@ interface FrontendUser {
   gestorId?: string | null
 }
 
+/**
+ * Hardcoded fallback rules (used when DB is unreachable).
+ */
+const FALLBACK_RULES: Record<string, AbilityRule[]> = {
+  ADMIN: [
+    { action: 'manage', subject: 'all' },
+  ],
+  GESTOR: [
+    { action: 'read', subject: 'User' },
+    { action: 'update', subject: 'User', conditions: { gestorId: '__userId__' } },
+    { action: 'create', subject: 'User', conditions: { role: 'ATENDENTE' } },
+    { action: 'viewTeam', subject: 'Team' },
+    { action: 'sendNotification', subject: 'Notification' },
+    { action: 'read', subject: 'Notification' },
+    { action: 'read', subject: 'Certificate' },
+    { action: 'approveCertificate', subject: 'Certificate' },
+    { action: 'issueCertificate', subject: 'Certificate' },
+    { action: 'read', subject: 'Modulo' },
+    { action: 'read', subject: 'Aula' },
+    { action: 'read', subject: 'Licao' },
+    { action: 'read', subject: 'PointsTransaction' },
+    { action: 'read', subject: 'Conquista' },
+    { action: 'read', subject: 'Progresso' },
+  ],
+  ATENDENTE: [
+    { action: 'read', subject: 'User', conditions: { id: '__userId__' } },
+    { action: 'update', subject: 'User', conditions: { id: '__userId__' } },
+    { action: 'read', subject: 'Progresso' },
+    { action: 'update', subject: 'Progresso' },
+    { action: 'read', subject: 'Certificate' },
+    { action: 'create', subject: 'Certificate' },
+    { action: 'read', subject: 'Notification' },
+    { action: 'read', subject: 'Modulo' },
+    { action: 'read', subject: 'Aula' },
+    { action: 'read', subject: 'Licao' },
+    { action: 'read', subject: 'Quiz' },
+    { action: 'create', subject: 'Quiz' },
+    { action: 'read', subject: 'PointsTransaction' },
+    { action: 'read', subject: 'Conquista' },
+    { action: 'read', subject: 'ForumPost' },
+    { action: 'create', subject: 'ForumPost' },
+  ],
+  PARCEIRO_ACREDITADO: [
+    { action: 'read', subject: 'User', conditions: { id: '__userId__' } },
+    { action: 'update', subject: 'User', conditions: { id: '__userId__' } },
+    { action: 'read', subject: 'Progresso' },
+    { action: 'update', subject: 'Progresso' },
+    { action: 'read', subject: 'Certificate' },
+    { action: 'create', subject: 'Certificate' },
+    { action: 'read', subject: 'Notification' },
+    { action: 'read', subject: 'Modulo' },
+    { action: 'read', subject: 'Aula' },
+    { action: 'read', subject: 'Licao' },
+    { action: 'read', subject: 'Quiz' },
+    { action: 'create', subject: 'Quiz' },
+    { action: 'read', subject: 'PointsTransaction' },
+    { action: 'read', subject: 'Conquista' },
+    { action: 'read', subject: 'ForumPost' },
+    { action: 'create', subject: 'ForumPost' },
+  ],
+  ERPS_REPRESENTANTE: [
+    { action: 'read', subject: 'User', conditions: { id: '__userId__' } },
+    { action: 'update', subject: 'User', conditions: { id: '__userId__' } },
+    { action: 'read', subject: 'Progresso' },
+    { action: 'update', subject: 'Progresso' },
+    { action: 'read', subject: 'Certificate' },
+    { action: 'create', subject: 'Certificate' },
+    { action: 'read', subject: 'Notification' },
+    { action: 'read', subject: 'Modulo' },
+    { action: 'read', subject: 'Aula' },
+    { action: 'read', subject: 'Licao' },
+    { action: 'read', subject: 'Quiz' },
+    { action: 'create', subject: 'Quiz' },
+    { action: 'read', subject: 'PointsTransaction' },
+    { action: 'read', subject: 'Conquista' },
+    { action: 'read', subject: 'ForumPost' },
+    { action: 'create', subject: 'ForumPost' },
+  ],
+}
+
+/**
+ * In-memory cache for DB-fetched permissions, keyed by role.
+ */
+let dbPermissionsCache: Record<string, AbilityRule[]> = {}
+
+/**
+ * Load permissions from the API for the current user's role.
+ * Called once on login. Falls back to hardcoded on error.
+ */
+export async function loadRolePermissions(): Promise<void> {
+  try {
+    const res = await fetch('/api/role-permissions', {
+      headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` },
+    })
+    if (res.ok) {
+      const data = await res.json()
+      if (data.role && Array.isArray(data.permissions)) {
+        dbPermissionsCache[data.role] = data.permissions
+      }
+    }
+  } catch {
+    // Fallback: will use hardcoded rules
+  }
+}
+
+/**
+ * Clear cached permissions (call on logout).
+ */
+export function clearRolePermissionsCache(): void {
+  dbPermissionsCache = {}
+}
+
+/**
+ * Resolve condition placeholders with actual values.
+ */
+function resolveConditions(
+  conditions: Record<string, any> | undefined,
+  userId?: string,
+  gestorId?: string | null
+): Record<string, any> | undefined {
+  if (!conditions) return undefined
+
+  const resolved: Record<string, any> = {}
+  for (const [key, value] of Object.entries(conditions)) {
+    if (value === '__userId__') {
+      resolved[key] = userId
+    } else if (value === '__gestorId__') {
+      resolved[key] = gestorId
+    } else if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
+      resolved[key] = resolveConditions(value, userId, gestorId) || value
+    } else {
+      resolved[key] = value
+    }
+  }
+  return resolved
+}
+
 function buildRules(user: FrontendUser | null): AbilityRule[] {
   if (!user) return []
 
-  const rules: AbilityRule[] = []
-
-  // ADMIN: full access
-  if (user.role === 'ADMIN') {
-    rules.push({ action: 'manage', subject: 'all' })
-    return rules
+  // Try DB cache first, fall back to hardcoded
+  let rules = dbPermissionsCache[user.role]
+  if (!rules) {
+    rules = FALLBACK_RULES[user.role] || []
   }
 
-  // GESTOR: team-scoped access
-  if (user.role === 'GESTOR') {
-    rules.push({ action: 'read', subject: 'User' })
-    rules.push({ action: 'update', subject: 'User', conditions: { gestorId: user.id } })
-    rules.push({ action: 'create', subject: 'User', conditions: { role: 'ATENDENTE' } })
-    rules.push({ action: 'viewTeam', subject: 'Team' })
-    rules.push({ action: 'sendNotification', subject: 'Notification' })
-    rules.push({ action: 'read', subject: 'Notification' })
-    rules.push({ action: 'read', subject: 'Certificate' })
-    rules.push({ action: 'approveCertificate', subject: 'Certificate' })
-    rules.push({ action: 'issueCertificate', subject: 'Certificate' })
-    rules.push({ action: 'read', subject: 'Modulo' })
-    rules.push({ action: 'read', subject: 'Aula' })
-    rules.push({ action: 'read', subject: 'Licao' })
-    rules.push({ action: 'read', subject: 'PointsTransaction' })
-    rules.push({ action: 'read', subject: 'Conquista' })
-    rules.push({ action: 'read', subject: 'Progresso' })
-  }
-
-  // ATENDENTE: own data only
-  if (user.role === 'ATENDENTE') {
-    rules.push({ action: 'read', subject: 'User', conditions: { id: user.id } })
-    rules.push({ action: 'update', subject: 'User', conditions: { id: user.id } })
-    rules.push({ action: 'read', subject: 'Progresso' })
-    rules.push({ action: 'update', subject: 'Progresso' })
-    rules.push({ action: 'read', subject: 'Certificate' })
-    rules.push({ action: 'create', subject: 'Certificate' })
-    rules.push({ action: 'read', subject: 'Notification' })
-    rules.push({ action: 'read', subject: 'Modulo' })
-    rules.push({ action: 'read', subject: 'Aula' })
-    rules.push({ action: 'read', subject: 'Licao' })
-    rules.push({ action: 'read', subject: 'Quiz' })
-    rules.push({ action: 'create', subject: 'Quiz' })
-    rules.push({ action: 'read', subject: 'PointsTransaction' })
-    rules.push({ action: 'read', subject: 'Conquista' })
-    rules.push({ action: 'read', subject: 'ForumPost' })
-    rules.push({ action: 'create', subject: 'ForumPost' })
-  }
-
-  return rules
+  // Resolve condition placeholders
+  return rules.map(rule => ({
+    ...rule,
+    conditions: resolveConditions(rule.conditions, user.id, user.gestorId),
+  }))
 }
 
 /**

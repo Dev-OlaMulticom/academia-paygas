@@ -9,33 +9,45 @@ import { sendNotificationAlertEmail } from '../services/email'
 
 const router = Router()
 
-// GET /api/cms/modulos - accessible to all authenticated users
+// GET /api/cms/modulos - accessible to all authenticated users, filtered by role
 router.get('/', authenticate, async (req: any, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page as string) || 1)
     const limit = Math.min(100, Math.max(1, parseInt(req.query.limit as string) || 20))
     const skip = (page - 1) * limit
 
-    const [modulos, total] = await Promise.all([
+    const userRole = req.userRole
+    const isAdmin = userRole === 'ADMIN'
+
+    const [allModulos, total] = await Promise.all([
       prisma.modulo.findMany({
         include: {
           aulas: { select: { id: true } },
           _count: { select: { aulas: true, progressos: true } },
         },
         orderBy: { createdAt: 'desc' },
-        skip,
-        take: limit,
       }),
       prisma.modulo.count(),
     ])
 
+    // Filter by role: admin sees all; others see modules with no restriction or their role included
+    const modulos = isAdmin ? allModulos : allModulos.filter(mod => {
+      if (!mod.rolesPermitidos) return true
+      const roles = mod.rolesPermitidos as unknown as string[]
+      if (!Array.isArray(roles) || roles.length === 0) return true
+      return roles.includes(userRole)
+    })
+
+    const filteredTotal = modulos.length
+    const paginatedModulos = modulos.slice(skip, skip + limit)
+
     res.json({
-      data: modulos,
+      data: paginatedModulos,
       pagination: {
         page,
         limit,
-        total,
-        totalPages: Math.ceil(total / limit),
+        total: filteredTotal,
+        totalPages: Math.ceil(filteredTotal / limit),
       },
     })
   } catch (error) {
@@ -67,7 +79,7 @@ router.get('/:id', authenticate, async (req: any, res) => {
 // POST /api/cms/modulos
 router.post('/', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
-    const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado, icone, certificadoTemplate } = req.body
+    const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado, icone, certificadoTemplate, rolesPermitidos } = req.body
     if (!titulo) {
       return res.status(400).json({ error: 'Título é obrigatório' })
     }
@@ -87,6 +99,7 @@ router.post('/', authenticate, authorize('ADMIN'), async (req: any, res) => {
       obrigatorio: obrigatorio || false,
       autoCertificado: autoCertificado || false,
       certificadoTemplate: certificadoTemplate || null,
+      rolesPermitidos: rolesPermitidos || null,
     })
     await logActivity(req.userId!, 'Criar Modulo', `Modulo: ${titulo}`)
     res.status(201).json(modulo)
@@ -99,11 +112,11 @@ router.post('/', authenticate, authorize('ADMIN'), async (req: any, res) => {
 // PUT /api/cms/modulos/:id
 router.put('/:id', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
-    const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado, icone, certificadoTemplate } = req.body
+    const { titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado, icone, certificadoTemplate, rolesPermitidos } = req.body
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
     const modulo = await db.update('modulo', { id }, {
-      titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado, icone, certificadoTemplate,
+      titulo, descricao, ordem, videoUrl, videoInicio, videoFim, obrigatorio, autoCertificado, icone, certificadoTemplate, rolesPermitidos,
     })
     await logActivity(req.userId!, 'Editar Modulo', `Modulo: ${modulo.titulo}`)
     res.json(modulo)
@@ -136,6 +149,9 @@ router.get('/:id/aulas', authenticate, async (req: any, res) => {
     const moduloExists = await prisma.modulo.findUnique({ where: { id: moduloId }, select: { id: true } })
     if (!moduloExists) return res.status(404).json({ error: 'Módulo não encontrado' })
 
+    const userRole = req.userRole
+    const isAdmin = userRole === 'ADMIN'
+
     let aulas = await prisma.aula.findMany({
       where: { moduloId },
       include: {
@@ -145,6 +161,16 @@ router.get('/:id/aulas', authenticate, async (req: any, res) => {
       },
       orderBy: { ordem: 'asc' },
     })
+
+    // Filter by role: admin sees all; others see aulas with no restriction or their role included
+    if (!isAdmin) {
+      aulas = aulas.filter(aula => {
+        if (!aula.rolesPermitidos) return true
+        const roles = aula.rolesPermitidos as unknown as string[]
+        if (!Array.isArray(roles) || roles.length === 0) return true
+        return roles.includes(userRole)
+      })
+    }
 
     // Auto-migrate: if aula has no ancoragemPoints but has VIDEO licoes with inicioSeg, convert them
     for (const a of aulas) {
@@ -181,7 +207,7 @@ router.get('/:id/aulas', authenticate, async (req: any, res) => {
 // POST /api/modulos/:id/aulas
 router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
-    const { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, obrigatorio, ancoragemPoints } = req.body
+    const { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, obrigatorio, ancoragemPoints, rolesPermitidos } = req.body
     const moduloId = getStringParam(req.params.id)
     if (!moduloId) return res.status(400).json({ error: 'ID inválido' })
 
@@ -203,6 +229,7 @@ router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req: any, res
       duracaoMin: duracaoMin || null,
       obrigatorio: obrigatorio || false,
       ancoragemPoints: ancoragemPoints || null,
+      rolesPermitidos: rolesPermitidos || null,
     })
     await logActivity(req.userId!, 'Criar Aula', `Aula: ${titulo}`)
     res.status(201).json(aula)
@@ -215,11 +242,11 @@ router.post('/:id/aulas', authenticate, authorize('ADMIN'), async (req: any, res
 // PUT /api/aulas/:id
 router.put('/aulas/:id', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
-    const { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio, ancoragemPoints } = req.body
+    const { titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio, ancoragemPoints, rolesPermitidos } = req.body
     const id = getStringParam(req.params.id)
     if (!id) return res.status(400).json({ error: 'ID inválido' })
     const aula = await db.update('aula', { id }, {
-      titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio, ancoragemPoints,
+      titulo, descricao, tipo, videoUrl, pdfUrl, videoInicio, videoFim, duracaoMin, ordem, obrigatorio, ancoragemPoints, rolesPermitidos,
     })
     await logActivity(req.userId!, 'Editar Aula', `Aula: ${aula.titulo}`)
     res.json(aula)
@@ -337,7 +364,7 @@ router.delete('/licoes/:id', authenticate, authorize('ADMIN'), async (req: any, 
 // POST /api/modulos/:moduloId/quiz - Create quiz for an aula
 router.post('/:moduloId/quiz', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
-    const { aulaId, titulo, autoGerarCertificado, notaMinima } = req.body
+    const { aulaId, titulo, autoGerarCertificado, notaMinima, rolesPermitidos } = req.body
     if (!aulaId || !titulo) {
       return res.status(400).json({ error: 'aulaId e titulo são obrigatórios' })
     }
@@ -352,6 +379,7 @@ router.post('/:moduloId/quiz', authenticate, authorize('ADMIN'), async (req: any
       titulo,
       autoGerarCertificado: autoGerarCertificado || false,
       notaMinima: typeof notaMinima === 'number' ? notaMinima : 7,
+      rolesPermitidos: rolesPermitidos || null,
     })
     await logActivity(req.userId!, 'Criar Quiz', `Quiz: ${titulo}`)
     res.status(201).json(quiz)
@@ -385,11 +413,11 @@ router.get('/:moduloId/quiz/:aulaId', authenticate, async (req: any, res) => {
 // PUT /api/modulos/quiz/:quizId - Update quiz
 router.put('/quiz/:quizId', authenticate, authorize('ADMIN'), async (req: any, res) => {
   try {
-    const { titulo, autoGerarCertificado, notaMinima } = req.body
+    const { titulo, autoGerarCertificado, notaMinima, rolesPermitidos } = req.body
     const quizId = getStringParam(req.params.quizId)
     if (!quizId) return res.status(400).json({ error: 'ID inválido' })
     const quiz = await db.update('quiz', { id: quizId }, {
-      titulo, autoGerarCertificado, ...(typeof notaMinima === 'number' ? { notaMinima } : {}),
+      titulo, autoGerarCertificado, ...(typeof notaMinima === 'number' ? { notaMinima } : {}), rolesPermitidos,
     })
     await logActivity(req.userId!, 'Editar Quiz', `Quiz: ${quiz.titulo}`)
     res.json(quiz)

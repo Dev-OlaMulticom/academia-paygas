@@ -137,7 +137,7 @@ router.post('/paygas-access', payGasLimiter, async (req, res) => {
     await db.update('user', { id: user.id }, { lastLogin: new Date() })
 
     // Sign JWT (24h)
-    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '24h' })
+    const token = jwt.sign({ userId: user.id, role: user.role, gestorId: user.gestorId || null }, JWT_SECRET, { expiresIn: '24h' })
 
     // Fire-and-forget email with credentials for new users.
     // Failure must not block login.

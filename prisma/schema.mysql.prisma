@@ -14,6 +14,8 @@ enum Role {
   ADMIN
   GESTOR
   ATENDENTE
+  PARCEIRO_ACREDITADO
+  ERPS_REPRESENTANTE
 }
 
 enum CertificateStatus {
@@ -75,6 +77,7 @@ model Modulo {
   obrigatorio      Boolean  @default(false)
   autoCertificado  Boolean  @default(false)
   certificadoTemplate String?
+  rolesPermitidos  Json?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -96,6 +99,7 @@ model Aula {
   videoFim    Int?
   duracaoMin  Int?
   obrigatorio Boolean   @default(false)
+  rolesPermitidos  Json?
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
 
@@ -131,6 +135,7 @@ model Quiz {
   titulo      String
   notaMinima  Int      @default(7)
   autoGerarCertificado Boolean @default(false)
+  rolesPermitidos  Json?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
@@ -306,6 +311,18 @@ model XPConfig {
   label       String
   points      Float    @default(0)
   description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model RoleConfig {
+  id          String   @id @default(cuid())
+  role        String   @unique
+  label       String
+  description String?
+  ativo       Boolean  @default(true)
+  ordem       Int      @default(0)
+  permissions Json
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 }

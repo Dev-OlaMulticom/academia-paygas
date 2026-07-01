@@ -61,7 +61,7 @@ export function PrivacidadePage() {
           <ul className="legal-ul">
             <li>Senhas armazenadas com hash bcrypt (não reversível)</li>
             <li>Comunicação protegida com HTTPS/TLS</li>
-            <li>Controle de acesso baseado em roles (ADMIN, GESTOR, ATENDENTE)</li>
+            <li>Controle de acesso baseado em roles (ADMIN, GESTOR, ATENDENTE, PARCEIRO_ACREDITADO, ERPS_REPRESENTANTE)</li>
             <li>Rate limiting para proteção contra ataques de força bruta</li>
             <li>Headers de segurança (Helmet) e CORS restrito</li>
             <li>Logs de auditoria para todas as ações sensíveis</li>

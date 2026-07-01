@@ -18,6 +18,7 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
     icone: '📚',
     obrigatorio: false,
     autoCertificado: false,
+    rolesPermitidos: null as string[] | null,
   })
   const [loading, setLoading] = useState(false)
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
@@ -99,6 +100,34 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
             <option value="false">Não (Requer aprovação)</option>
             <option value="true">Sim (Automático ao concluir)</option>
           </select>
+        </div>
+
+        <div className="form-field">
+          <label className="form-label">Acesso por Perfil</label>
+          <div style={{ fontSize: '12px', color: 'var(--gray-500)', marginBottom: '6px' }}>
+            Se nenhum perfil selecionado, todos terão acesso.
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+            {['ADMIN', 'GESTOR', 'ATENDENTE', 'PARCEIRO_ACREDITADO', 'ERPS_REPRESENTANTE'].map(role => {
+              const currentRoles: string[] = modulo.rolesPermitidos || []
+              const checked = currentRoles.includes(role)
+              return (
+                <label key={role} style={{ display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer', fontSize: '13px' }}>
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    onChange={() => {
+                      const newRoles = checked
+                        ? currentRoles.filter(r => r !== role)
+                        : [...currentRoles, role]
+                      setModulo({ ...modulo, rolesPermitidos: newRoles.length > 0 ? newRoles : null })
+                    }}
+                  />
+                  {role === 'ADMIN' ? 'Administrador' : role === 'GESTOR' ? 'Gestor de Posto' : role === 'ATENDENTE' ? 'Atendente/Frentista' : role === 'PARCEIRO_ACREDITADO' ? 'Parceiro Acreditado' : 'ERPs Representante'}
+                </label>
+              )
+            })}
+          </div>
         </div>
 
         <div className="criar-actions">

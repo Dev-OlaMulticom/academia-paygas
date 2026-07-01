@@ -191,7 +191,7 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
               </div>
               <div className="perfil-demo-list">
                 {demoUsers.map((u) => {
-                  const personaColor = u.role === 'ADMIN' ? 'var(--pg-red)' : u.role === 'GESTOR' ? 'var(--pg-gold)' : 'var(--pg-green)'
+                  const personaColor = u.role === 'ADMIN' ? 'var(--pg-red)' : u.role === 'GESTOR' ? 'var(--pg-gold)' : u.role === 'PARCEIRO_ACREDITADO' ? '#8b5cf6' : u.role === 'ERPS_REPRESENTANTE' ? '#06b6d4' : 'var(--pg-green)'
                   return (
                     <div key={u.email} className="perfil-demo-item">
                       <div className="user-avatar perfil-demo-avatar" style={{ background: personaColor }}>

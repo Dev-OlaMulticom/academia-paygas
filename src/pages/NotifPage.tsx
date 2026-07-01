@@ -205,6 +205,8 @@ export function NotifPage({ user }: NotifPageProps) {
                   <option value="ADMIN">Administradores</option>
                   <option value="GESTOR">Gestores de Posto</option>
                   <option value="ATENDENTE">Atendentes</option>
+                  <option value="PARCEIRO_ACREDITADO">Parceiros Acreditados</option>
+                  <option value="ERPS_REPRESENTANTE">ERPs Representantes</option>
                 </select>
               </div>
             )}

@@ -7,12 +7,16 @@ const AI_FIRST: Record<string, string> = {
   ADMIN: 'Olá, Admin Nacional! Posso ajudar com gestão de conteúdo, usuários, analytics ou o Painel Nacional. O que precisa?',
   GESTOR: 'Olá, Gestor! Posso ajudar com KPIs, relatórios de equipe ou as trilhas de gestão. Como posso ajudar?',
   ATENDENTE: 'Olá! Sou seu assistente na Academia PayGas. Posso tirar dúvidas sobre cashback, terminal ou trilhas de atendimento.',
+  PARCEIRO_ACREDITADO: 'Olá, Parceiro! Posso ajudar com módulos parceiros, certificações ou acesso a conteúdos exclusivos.',
+  ERPS_REPRESENTANTE: 'Olá! Sou seu assistente na Academia PayGas. Posso ajudar com módulos de ERPs, integrações ou trilhas técnicas.',
 }
 
 const AI_QUICK: Record<string, string[]> = {
   ADMIN: ['Ver usuários ativos', 'Como criar um módulo?', 'Analytics nacional'],
   GESTOR: ['KPIs mais importantes', 'Relatório da equipe', 'Trilha de gestão'],
   ATENDENTE: ['Script de cashback', 'Dúvidas do cliente', 'Operação do terminal'],
+  PARCEIRO_ACREDITADO: ['Módulos disponíveis', 'Certificações', 'Conteúdo exclusivo'],
+  ERPS_REPRESENTANTE: ['Módulos técnicos', 'Integrações', 'Documentação'],
 }
 
 const AI_KNOWLEDGE: Record<string, string[]> = {
@@ -30,6 +34,16 @@ const AI_KNOWLEDGE: Record<string, string[]> = {
     'Use o script de cashback para explicar ao cliente de forma simples.',
     'Seu XP aumenta a cada aula concluída.',
     'Dúvidas sobre o terminal? Acesse as trilhas de aprendizado.',
+  ],
+  PARCEIRO_ACREDITADO: [
+    'Acesse módulos exclusivos para parceiros na seção de Cursos.',
+    'Suas certificações são reconhecidas em todo o ecossistema PayGas.',
+    'Conteúdo atualizado mensalmente com as novidades do mercado.',
+  ],
+  ERPS_REPRESENTANTE: [
+    'Módulos técnicos disponíveis para integração com ERPs.',
+    'Documentação de API disponível na seção de recursos.',
+    'Suporte técnico para dúvidas de integração.',
   ],
 }
 

@@ -66,6 +66,8 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
   const roleClass = (role: string) => {
     if (role === 'ADMIN') return 'admin'
     if (role === 'GESTOR') return 'gestor'
+    if (role === 'PARCEIRO_ACREDITADO') return 'parceiro'
+    if (role === 'ERPS_REPRESENTANTE') return 'erps'
     return 'atendente'
   }
 

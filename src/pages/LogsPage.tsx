@@ -160,6 +160,8 @@ export function LogsPage({ user: _user }: LogsPageProps) {
   const roleColor = (role: string) => {
     if (role === 'ADMIN') return 'var(--pg-red)'
     if (role === 'GESTOR') return 'var(--pg-gold)'
+    if (role === 'PARCEIRO_ACREDITADO') return '#8b5cf6'
+    if (role === 'ERPS_REPRESENTANTE') return '#06b6d4'
     return 'var(--pg-green)'
   }
 

@@ -674,6 +674,30 @@ class ApiClient {
       body: JSON.stringify({ csv: csvText }),
     })
   }
+
+  // ==================== ROLE PERMISSIONS ====================
+
+  async getMyRolePermissions() {
+    return this.request<{ role: string; label: string; description: string | null; permissions: any[] }>('/role-permissions')
+  }
+
+  async getAllRoleConfigs() {
+    return this.request<any[]>('/role-permissions/all')
+  }
+
+  async updateRoleConfig(role: string, data: { permissions?: any[]; label?: string; description?: string; ativo?: boolean; ordem?: number }) {
+    return this.request<any>(`/role-permissions/${role}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    })
+  }
+
+  async createRoleConfig(data: { role: string; label: string; description?: string; permissions?: any[]; ordem?: number }) {
+    return this.request<any>('/role-permissions', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    })
+  }
 }
 
 export const api = new ApiClient()

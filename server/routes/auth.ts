@@ -41,7 +41,7 @@ router.post('/login', async (req, res) => {
 
     await logActivity(user.id, 'Login', `Acesso de ${user.email}`)
 
-    const token = jwt.sign({ userId: user.id, role: user.role }, JWT_SECRET, { expiresIn: '24h' })
+    const token = jwt.sign({ userId: user.id, role: user.role, gestorId: user.gestorId || null }, JWT_SECRET, { expiresIn: '24h' })
 
     res.json({
       token,

@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { PERSONAS } from '../data/constants'
 import { api } from '../lib/api'
 import { resetEncryptionKey } from '../lib/crypto'
+import { clearRolePermissionsCache } from '../auth/casl/ability'
 
 export interface User {
   id?: string
@@ -74,6 +75,7 @@ export function useAuth() {
     localStorage.removeItem('user')
     api.logout()
     resetEncryptionKey()
+    clearRolePermissionsCache()
   }
 
   const persona = user ? PERSONAS[user.role as keyof typeof PERSONAS] : null

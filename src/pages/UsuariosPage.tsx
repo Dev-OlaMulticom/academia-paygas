@@ -159,6 +159,8 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
       case 'ADMIN': return <i className="icon-globe icon-sm" />
       case 'GESTOR': return <i className="icon-fuel icon-sm" />
       case 'ATENDENTE': return <i className="icon-user icon-sm" />
+      case 'PARCEIRO_ACREDITADO': return <i className="icon-star icon-sm" />
+      case 'ERPS_REPRESENTANTE': return <i className="icon-chart icon-sm" />
       default: return <i className="icon-user icon-sm" />
     }
   }
@@ -366,6 +368,8 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
                   {isAdmin && <option value="ADMIN">Administrador</option>}
                   <option value="GESTOR">Gestor de Posto</option>
                   <option value="ATENDENTE">Atendente/Frentista</option>
+                  <option value="PARCEIRO_ACREDITADO">Parceiro Acreditado</option>
+                  <option value="ERPS_REPRESENTANTE">ERPs Representante</option>
                 </select>
               </div>
             )}
@@ -408,6 +412,8 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
                 <option value="ADMIN">Administrador</option>
                 <option value="GESTOR">Gestor de Posto</option>
                 <option value="ATENDENTE">Atendente</option>
+                <option value="PARCEIRO_ACREDITADO">Parceiro Acreditado</option>
+                <option value="ERPS_REPRESENTANTE">ERPs Representante</option>
               </select>
             </div>
             {editingUser.role === 'ATENDENTE' && (

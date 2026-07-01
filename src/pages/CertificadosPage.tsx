@@ -207,7 +207,7 @@ export function CertificadosPage({ user }: { user?: any }) {
               const timeStr = certDate ? certDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''
               const showUserInfo = isAdmin || user?.role === 'GESTOR'
               const isOtherUser = cert.user && cert.user.id !== user?.id
-              const roleLabel = cert.user?.role === 'ADMIN' ? 'Admin' : cert.user?.role === 'GESTOR' ? 'Gestor' : 'Atendente'
+              const roleLabel = cert.user?.role === 'ADMIN' ? 'Admin' : cert.user?.role === 'GESTOR' ? 'Gestor' : cert.user?.role === 'PARCEIRO_ACREDITADO' ? 'Parceiro' : cert.user?.role === 'ERPS_REPRESENTANTE' ? 'ERPs' : 'Atendente'
               return (
                 <div key={cert.id} className="stat-card cert-card">
                   <div className="cert-card-header">
