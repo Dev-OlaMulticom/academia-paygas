@@ -4,7 +4,6 @@ import bcrypt from "bcryptjs";
 import { Router } from "express";
 import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 import { type AuthRequest, authenticate, authorize } from "../middleware/auth";
 import { sendVerificationEmail } from "../services/email";
 import { awardPointsIfNotAwarded } from "../services/gamification";
@@ -295,142 +294,159 @@ router.get("/equipe", authenticate, authorize("ADMIN", "GESTOR"), async (req: Au
 });
 
 // GET /api/usuarios/equipe/detalhe - Detailed team progress for GESTOR
+// OPTIMIZED: Reduced from O(N*M) DB queries to 7 batch queries (independent of user count)
 router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async (req: AuthRequest, res) => {
 	try {
-		const allUsers =
+		const allUsersQuery =
 			req.userRole === "GESTOR"
-				? ((await db.findMany("user", { where: { gestorId: req.userId } })) as any[])
-				: ((await db.findMany("user", { where: { role: "ATENDENTE" } })) as any[]);
+				? (db.findMany("user", { where: { gestorId: req.userId } }) as Promise<any[]>)
+				: (db.findMany("user", { where: { role: "ATENDENTE" } }) as Promise<any[]>);
 
-		const modulos = (await db.findMany("modulo", {
-			orderBy: { ordem: "asc" },
-		})) as any[];
+		// Fetch all required data in parallel
+		const [allUsers, modulos, progressosAll, quizResponsesAll, certificatesAll, notificationsAll, aulasAll] =
+			await Promise.all([
+				allUsersQuery,
+				db.findMany("modulo", { orderBy: { ordem: "asc" } }) as Promise<any[]>,
+				db.findMany("progresso", { where: { concluido: true } }) as Promise<any[]>,
+				db.findMany("quizResponse", {}) as Promise<any[]>,
+				db.findMany("certificate", {}) as Promise<any[]>,
+				db.findMany("notification", { where: { titulo: "Modulo Completo" } }) as Promise<any[]>,
+				db.findMany("aula", { include: { quiz: { include: { perguntas: true } } } }) as Promise<any[]>,
+			]);
 
-		const result = await Promise.all(
-			allUsers.map(async (m: any) => {
-				const progressos = (await db.findMany("progresso", {
-					where: { userId: m.id },
-				})) as any[];
+		const userIds = new Set(allUsers.map((u) => u.id));
 
-				// Fetch quiz results for this user
-				const quizResponses = (await db.findMany("quizResponse", {
-					where: { userId: m.id },
-				})) as any[];
+		// Build lookup maps by userId for O(1) access
+		const progressosByUser = new Map<string, any[]>();
+		for (const p of progressosAll) {
+			if (!userIds.has(p.userId)) continue;
+			const arr = progressosByUser.get(p.userId) || [];
+			arr.push(p);
+			progressosByUser.set(p.userId, arr);
+		}
 
-				const quizResponseMap = new Map<string, any>();
-				for (const qr of quizResponses) {
-					quizResponseMap.set(qr.quizId, qr);
+		const quizResponsesByUser = new Map<string, Map<string, any>>();
+		for (const qr of quizResponsesAll) {
+			if (!userIds.has(qr.userId)) continue;
+			const map = quizResponsesByUser.get(qr.userId) || new Map<string, any>();
+			map.set(qr.quizId, qr);
+			quizResponsesByUser.set(qr.userId, map);
+		}
+
+		const certificatesByUser = new Map<string, Map<string, any>>();
+		for (const c of certificatesAll) {
+			if (!userIds.has(c.userId)) continue;
+			const map = certificatesByUser.get(c.userId) || new Map<string, any>();
+			map.set(c.moduloId, c);
+			certificatesByUser.set(c.userId, map);
+		}
+
+		const notificationsByUser = new Map<string, any[]>();
+		for (const n of notificationsAll) {
+			if (!userIds.has(n.fromId)) continue;
+			const arr = notificationsByUser.get(n.fromId) || [];
+			arr.push(n);
+			notificationsByUser.set(n.fromId, arr);
+		}
+
+		// Group aulas by moduloId
+		const aulasByModulo = new Map<string, any[]>();
+		for (const a of aulasAll) {
+			const arr = aulasByModulo.get(a.moduloId) || [];
+			arr.push(a);
+			aulasByModulo.set(a.moduloId, arr);
+		}
+
+		const result = allUsers.map((m: any) => {
+			const progressos = progressosByUser.get(m.id) || [];
+			const quizResponseMap = quizResponsesByUser.get(m.id) || new Map<string, any>();
+			const certMap = certificatesByUser.get(m.id) || new Map<string, any>();
+			const notifications = notificationsByUser.get(m.id) || [];
+
+			const modulosProcessed = modulos.map((mod: any) => {
+				const aulas = aulasByModulo.get(mod.id) || [];
+				const aulaIds = aulas.map((a: any) => a.id);
+				const concluidas = progressos.filter((p: any) => aulaIds.includes(p.aulaId)).length;
+
+				const aulasDetail = aulas.map((aula: any) => {
+					const quizResult = aula.quiz ? quizResponseMap.get(aula.quiz.id) : null;
+					return {
+						id: aula.id,
+						titulo: aula.titulo,
+						tipo: aula.tipo,
+						concluido: progressos.some((p: any) => p.aulaId === aula.id),
+						quiz: aula.quiz
+							? {
+									id: aula.quiz.id,
+									titulo: aula.quiz.titulo,
+									notaMinima: aula.quiz.notaMinima,
+									autoGerarCertificado: aula.quiz.autoGerarCertificado,
+									totalPerguntas: aula.quiz.perguntas?.length || 0,
+								}
+							: null,
+						quizResultado: quizResult
+							? {
+									nota: quizResult.nota,
+									total: quizResult.total,
+									concluido: quizResult.concluido,
+									respostas: quizResult.respostas || null,
+									createdAt: quizResult.createdAt,
+								}
+							: null,
+					};
+				});
+
+				const quizzesAprovados = aulasDetail.filter((a: any) => a.quizResultado?.concluido).length;
+				const quizzesTotal = aulasDetail.filter((a: any) => a.quiz).length;
+				const allAulasCompleted = concluidas === aulas.length && aulas.length > 0;
+				const allQuizzesPassed = quizzesTotal > 0 && quizzesAprovados === quizzesTotal;
+
+				const cert = certMap.get(mod.id);
+				const certExpected = mod.autoCertificado && allAulasCompleted && allQuizzesPassed;
+				const certStatus = cert?.status || null;
+
+				const hasCompletionNotif = notifications.some((n: any) => n.mensagem?.includes(mod.titulo));
+
+				const autoProcessStatus = {
+					certExpected: !!certExpected,
+					certGenerated: !!cert,
+					certStatus,
+					notificationSent: hasCompletionNotif,
+					issues: [] as string[],
+				};
+
+				if (certExpected && !cert) {
+					autoProcessStatus.issues.push("Certificado esperado mas nao gerado");
 				}
-
-				// Fetch certificates for this user
-				const certificates = (await db.findMany("certificate", {
-					where: { userId: m.id },
-				})) as any[];
-
-				const certMap = new Map<string, any>();
-				for (const c of certificates) {
-					certMap.set(c.moduloId, c);
+				if (allAulasCompleted && allQuizzesPassed && !hasCompletionNotif) {
+					autoProcessStatus.issues.push("Modulo completo mas notificacao nao enviada ao gestor");
 				}
-
-				// Fetch notifications sent/received for this user
-				const notifications = (await db.findMany("notification", {
-					where: { fromId: m.id },
-				})) as any[];
 
 				return {
-					id: m.id,
-					nome: m.nome,
-					email: m.email,
-					role: m.role,
-					xp: m.xp,
-					lastLogin: m.lastLogin,
-					gestorId: m.gestorId,
-					modulos: await Promise.all(
-						modulos.map(async (mod: any) => {
-							const aulas = (await db.findMany("aula", {
-								where: { moduloId: mod.id },
-								include: { quiz: { include: { perguntas: true } } },
-							})) as any[];
-
-							const aulaIds = aulas.map((a: any) => a.id);
-							const concluidas = progressos.filter((p: any) => aulaIds.includes(p.aulaId) && p.concluido).length;
-
-							const aulasDetail = aulas.map((aula: any) => {
-								const quizResult = aula.quiz ? quizResponseMap.get(aula.quiz.id) : null;
-								return {
-									id: aula.id,
-									titulo: aula.titulo,
-									tipo: aula.tipo,
-									concluido: progressos.some((p: any) => p.aulaId === aula.id && p.concluido),
-									quiz: aula.quiz
-										? {
-												id: aula.quiz.id,
-												titulo: aula.quiz.titulo,
-												notaMinima: aula.quiz.notaMinima,
-												autoGerarCertificado: aula.quiz.autoGerarCertificado,
-												totalPerguntas: aula.quiz.perguntas?.length || 0,
-											}
-										: null,
-									quizResultado: quizResult
-										? {
-												nota: quizResult.nota,
-												total: quizResult.total,
-												concluido: quizResult.concluido,
-												respostas: quizResult.respostas || null,
-												createdAt: quizResult.createdAt,
-											}
-										: null,
-								};
-							});
-
-							const quizzesAprovados = aulasDetail.filter((a: any) => a.quizResultado?.concluido).length;
-							const quizzesTotal = aulasDetail.filter((a: any) => a.quiz).length;
-							const allAulasCompleted = concluidas === aulas.length && aulas.length > 0;
-							const allQuizzesPassed = quizzesTotal > 0 && quizzesAprovados === quizzesTotal;
-
-							// Certificate status
-							const cert = certMap.get(mod.id);
-							const certExpected = mod.autoCertificado && allAulasCompleted && allQuizzesPassed;
-							const certStatus = cert?.status || null;
-
-							// Notification status
-							const hasCompletionNotif = notifications.some(
-								(n: any) => n.titulo === "Modulo Completo" && n.mensagem?.includes(mod.titulo),
-							);
-
-							// Auto-process audit
-							const autoProcessStatus = {
-								certExpected: !!certExpected,
-								certGenerated: !!cert,
-								certStatus,
-								notificationSent: hasCompletionNotif,
-								issues: [] as string[],
-							};
-
-							if (certExpected && !cert) {
-								autoProcessStatus.issues.push("Certificado esperado mas nao gerado");
-							}
-							if (allAulasCompleted && allQuizzesPassed && !hasCompletionNotif) {
-								autoProcessStatus.issues.push("Modulo completo mas notificacao nao enviada ao gestor");
-							}
-
-							return {
-								id: mod.id,
-								titulo: mod.titulo,
-								totalAulas: aulas.length,
-								aulasConcluidas: concluidas,
-								quizzesAprovados,
-								quizzesTotal,
-								allAulasCompleted,
-								allQuizzesPassed,
-								autoProcessStatus,
-								aulas: aulasDetail,
-							};
-						}),
-					),
+					id: mod.id,
+					titulo: mod.titulo,
+					totalAulas: aulas.length,
+					aulasConcluidas: concluidas,
+					quizzesAprovados,
+					quizzesTotal,
+					allAulasCompleted,
+					allQuizzesPassed,
+					autoProcessStatus,
+					aulas: aulasDetail,
 				};
-			}),
-		);
+			});
+
+			return {
+				id: m.id,
+				nome: m.nome,
+				email: m.email,
+				role: m.role,
+				xp: m.xp,
+				lastLogin: m.lastLogin,
+				gestorId: m.gestorId,
+				modulos: modulosProcessed,
+			};
+		});
 
 		res.json(result);
 	} catch (error) {
@@ -438,7 +454,6 @@ router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async 
 		res.status(500).json({ error: "Erro ao buscar detalhe da equipe" });
 	}
 });
-
 // GET /api/usuarios/equipe/stats - Team stats for admin
 router.get("/equipe/stats", authenticate, authorize("ADMIN"), async (_req: AuthRequest, res) => {
 	try {
@@ -547,10 +562,13 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 		}
 
 		if (tipo === "quiz" && targetId) {
-			const quiz = (await prisma.quiz.findUnique({
-				where: { id: targetId },
-				include: { perguntas: true, aula: true },
-			})) as any;
+			const quiz = (await db.findUnique(
+				"quiz",
+				{ id: targetId },
+				{
+					include: { perguntas: true, aula: true },
+				},
+			)) as any;
 			if (!quiz) return res.status(404).json({ error: "Quiz nao encontrado" });
 
 			const total = quiz.perguntas.length;
@@ -575,7 +593,7 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 		}
 
 		if (tipo === "aula" && targetId) {
-			const aula = (await prisma.aula.findUnique({ where: { id: targetId } })) as any;
+			const aula = (await db.findUnique("aula", { id: targetId })) as any;
 			if (!aula) return res.status(404).json({ error: "Aula nao encontrada" });
 
 			await db.upsert(
@@ -586,10 +604,13 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 			);
 
 			if (aula.quizId) {
-				const quiz = (await prisma.quiz.findUnique({
-					where: { id: aula.quizId },
-					include: { perguntas: true },
-				})) as any;
+				const quiz = (await db.findUnique(
+					"quiz",
+					{ id: aula.quizId },
+					{
+						include: { perguntas: true },
+					},
+				)) as any;
 				if (quiz) {
 					const total = quiz.perguntas.length;
 					await db.upsert(
@@ -606,10 +627,13 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 		}
 
 		if (tipo === "modulo" && targetId) {
-			const modulo = (await prisma.modulo.findUnique({
-				where: { id: targetId },
-				include: { aulas: { include: { quiz: { include: { perguntas: true } } } } },
-			})) as any;
+			const modulo = (await db.findUnique(
+				"modulo",
+				{ id: targetId },
+				{
+					include: { aulas: { include: { quiz: { include: { perguntas: true } } } } },
+				},
+			)) as any;
 			if (!modulo) return res.status(404).json({ error: "Modulo nao encontrado" });
 
 			for (const aula of modulo.aulas) {
@@ -669,7 +693,7 @@ router.post("/:userId/fix-cert", authenticate, authorize("ADMIN", "GESTOR"), asy
 			return res.status(403).json({ error: "Voce so pode gerenciar atendentes da sua equipe" });
 		}
 
-		const modulo = (await prisma.modulo.findUnique({ where: { id: moduloId } })) as any;
+		const modulo = (await db.findUnique("modulo", { id: moduloId })) as any;
 		if (!modulo) return res.status(404).json({ error: "Modulo nao encontrado" });
 
 		const existing = (await db.findFirst("certificate", { where: { userId, moduloId } })) as any;

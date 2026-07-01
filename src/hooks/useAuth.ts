@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { clearRolePermissionsCache } from "../auth/casl/ability";
-import { PERSONAS } from "../data/constants";
+import { clearRolePermissionsCache, loadAllRoleConfigs, loadRolePermissions } from "../auth/casl/ability";
+import { ROLE_VISUALS } from "../data/constants";
 import { api } from "../lib/api";
 import { resetEncryptionKey } from "../lib/crypto";
 
@@ -68,17 +68,24 @@ export function useAuth() {
 		api.setToken(token);
 		setXp(userData.xp || 0);
 		resetEncryptionKey();
+
+		// Load role permissions and labels from database
+		await loadRolePermissions();
+		if (userData.role === "ADMIN") {
+			await loadAllRoleConfigs();
+		}
 	};
 
 	const handleLogout = async () => {
 		setUser(null);
 		localStorage.removeItem("user");
+		localStorage.removeItem("roleLabels");
 		api.logout();
 		resetEncryptionKey();
 		clearRolePermissionsCache();
 	};
 
-	const persona = user ? PERSONAS[user.role as keyof typeof PERSONAS] : null;
+	const persona = user ? ROLE_VISUALS[user.role as keyof typeof ROLE_VISUALS] : null;
 	const _isAuthenticated = !!user;
 
 	return {

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useConfirm, useToast } from "../components/Toast";
 import { useAbility } from "../hooks/useAbility";
 import type { User } from "../hooks/useAuth";
@@ -59,7 +59,7 @@ export function ConquistasPage({ user: _user }: ConquistasPageProps) {
 
 	const canManage = isAdmin || isGestor;
 
-	const load = async () => {
+	const load = useCallback(async () => {
 		try {
 			const data = await api.getConquistas();
 			setConquistas(data);
@@ -68,7 +68,7 @@ export function ConquistasPage({ user: _user }: ConquistasPageProps) {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, []);
 
 	useEffect(() => {
 		load();

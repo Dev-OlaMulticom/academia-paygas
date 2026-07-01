@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAbility } from "../hooks/useAbility";
 import { useAuth } from "../hooks/useAuth";
@@ -41,7 +41,7 @@ export function ModulosListPage() {
 
 	const semGestor = isAtendente && !user?.gestorId;
 
-	const loadModulos = async () => {
+	const loadModulos = useCallback(async () => {
 		try {
 			const mods = await api.getCmsModulos();
 			setModulos(mods);
@@ -66,7 +66,7 @@ export function ModulosListPage() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, []);
 
 	useEffect(() => {
 		loadModulos();

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useAbility } from "../hooks/useAbility";
 import type { User } from "../hooks/useAuth";
 import { api } from "../lib/api";
@@ -34,7 +34,7 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
 	const [moduleStats, setModuleStats] = useState<any[]>([]);
 	const [loading, setLoading] = useState(true);
 
-	const loadRelatorios = async () => {
+	const loadRelatorios = useCallback(async () => {
 		try {
 			const [dashboardData, leaderData] = await Promise.all([api.getDashboard(), api.getDashboardLeaderboard()]);
 			setStats(dashboardData);
@@ -62,7 +62,7 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, []);
 
 	useEffect(() => {
 		loadRelatorios();

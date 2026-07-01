@@ -61,10 +61,10 @@ app.use(cors(corsOptions));
 // Body parsing
 app.use(express.json({ limit: "10mb" }));
 
-// Rate limiting global
+// Rate limiting global — relaxed in development to avoid false positives
 const globalLimiter = rateLimit({
 	windowMs: 15 * 60 * 1000,
-	max: 200,
+	max: process.env.NODE_ENV === "production" ? 200 : 5000,
 	message: { error: "Demasiadas peticiones. Intenta de nuevo en 15 minutos." },
 	standardHeaders: true,
 	legacyHeaders: false,
@@ -74,7 +74,7 @@ app.use("/api", globalLimiter);
 // Rate limiting estricto para auth
 const authLimiter = rateLimit({
 	windowMs: 15 * 60 * 1000,
-	max: 10,
+	max: process.env.NODE_ENV === "production" ? 10 : 100,
 	message: { error: "Demasiados intentos de login. Intenta de nuevo en 15 minutos." },
 	standardHeaders: true,
 	legacyHeaders: false,
@@ -84,7 +84,7 @@ app.use("/api/auth/login", authLimiter);
 // Rate limiting para registro de usuarios (solo POST)
 const registerLimiter = rateLimit({
 	windowMs: 60 * 60 * 1000, // 1 hour
-	max: 5, // 5 registrations per hour
+	max: process.env.NODE_ENV === "production" ? 5 : 50, // 5 registrations per hour in prod
 	message: { error: "Demasiados registros. Intenta de nuevo en 1 hora." },
 	standardHeaders: true,
 	legacyHeaders: false,
@@ -252,7 +252,13 @@ if (require.main === module) {
 	logger.info(`[${new Date().toISOString()}] Server initialization complete, PID: ${process.pid}`);
 
 	// ─── Start Database Infrastructure Services ──────────────
-	if (process.env.NODE_ENV === "production") {
+	// Health checks, keepalive, and background sync run by default in
+	// production. In development they are OFF by default (avoids noise during
+	// local iteration) but can be enabled with DB_INFRA_DEV=1 or DB_INFRA_DEV=true.
+	const wantsInfraInDev = process.env.DB_INFRA_DEV === "1" || process.env.DB_INFRA_DEV === "true";
+	const runInfra = process.env.NODE_ENV === "production" || wantsInfraInDev;
+
+	if (runInfra) {
 		// Keep-alive: prevents free-tier databases from pausing
 		startKeepAlive();
 
@@ -261,6 +267,17 @@ if (require.main === module) {
 
 		// Background sync: reconciles data when databases recover
 		startSyncWorker();
+
+		if (process.env.NODE_ENV !== "production") {
+			logger.info(
+				"[DB-INFRA] Running in DEVELOPMENT with health-checks enabled (DB_INFRA_DEV=1). " + "Press Ctrl+C to stop.",
+			);
+		}
+	} else {
+		logger.info(
+			"[DB-INFRA] Disabled in development. Set DB_INFRA_DEV=1 to enable keep-alive, " +
+				"health checks, and background sync locally.",
+		);
 	}
 }
 

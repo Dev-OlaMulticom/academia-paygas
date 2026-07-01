@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 import { authenticate, authorize } from "../middleware/auth";
 
 const router = Router();
@@ -9,7 +8,7 @@ const router = Router();
 // GET /api/xp-config - Get all XP configuration
 router.get("/", authenticate, async (_req, res) => {
 	try {
-		const configs = await prisma.xPConfig.findMany({
+		const configs = await db.findMany("xPConfig", {
 			orderBy: { action: "asc" },
 		});
 		res.json(configs);
@@ -61,7 +60,7 @@ router.post("/", authenticate, authorize("ADMIN"), async (req: any, res) => {
 			return res.status(400).json({ error: "action, label e points são obrigatórios" });
 		}
 
-		const existing = await prisma.xPConfig.findUnique({ where: { action } });
+		const existing = await db.findUnique("xPConfig", { action });
 		if (existing) {
 			return res.status(409).json({ error: "Esta ação já existe" });
 		}
@@ -87,7 +86,7 @@ router.delete("/:action", authenticate, authorize("ADMIN"), async (req: any, res
 	try {
 		const action = String(req.params.action);
 
-		const existing = await prisma.xPConfig.findUnique({ where: { action } });
+		const existing = await db.findUnique("xPConfig", { action });
 		if (!existing) {
 			return res.status(404).json({ error: "Ação de XP não encontrada" });
 		}

@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ROLE_COLORS } from "../data/constants";
 import { useAbility } from "../hooks/useAbility";
@@ -22,23 +22,23 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
 	const [passwordMsg, setPasswordMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
 	const demoUsers = [
-		{ email: "admin@paygas.com.br", senha: "123456", role: "ADMIN", nome: "Administrador PayGas" },
+		{ email: "admin@paygas.com.br", senha: "123456", role: "ADMIN", nome: "SuperAdministrador PayGas" },
 		{ email: "gestor@paygas.com.br", senha: "123456", role: "GESTOR", nome: "Carlos Mendes" },
 		{ email: "atendente@paygas.com.br", senha: "123456", role: "ATENDENTE", nome: "Ana Paula Costa" },
 		{ email: "joao@paygas.com.br", senha: "123456", role: "ATENDENTE", nome: "Joao Silva" },
 		{ email: "maria@paygas.com.br", senha: "123456", role: "ATENDENTE", nome: "Maria Santos" },
 	];
 
-	const loadStats = async () => {
+	const loadStats = useCallback(async () => {
 		try {
 			const data = await api.getDashboard();
 			setStats(data);
 		} catch {
 			/* */
 		}
-	};
+	}, []);
 
-	const loadTeamStats = async () => {
+	const loadTeamStats = useCallback(async () => {
 		try {
 			const res = await fetch("/api/usuarios/equipe/stats", {
 				headers: { Authorization: `Bearer ${localStorage.getItem("token")}` },
@@ -47,7 +47,7 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
 		} catch {
 			/* */
 		}
-	};
+	}, []);
 
 	useEffect(() => {
 		loadStats();

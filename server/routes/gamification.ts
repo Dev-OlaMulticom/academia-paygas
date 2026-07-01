@@ -1,6 +1,6 @@
 import { Router } from "express";
+import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 import { type AuthRequest, authenticate } from "../middleware/auth";
 
 const router = Router();
@@ -94,16 +94,16 @@ router.get("/achievements", authenticate, async (req: AuthRequest, res) => {
 		const userId = req.userId!;
 
 		const [totalAulasConcluidas, totalModulosConcluidos, totalQuizzes, user] = await Promise.all([
-			prisma.progresso.count({ where: { userId, concluido: true } }),
-			prisma.progresso
-				.groupBy({ by: ["aulaId"], where: { userId, concluido: true } })
+			db.count("progresso", { userId, concluido: true }),
+			db
+				.groupBy("progresso", { by: ["aulaId"], where: { userId, concluido: true } })
 				.then((groups) => {
-					const aulaIds = groups.map((g) => g.aulaId);
-					return prisma.aula.findMany({ where: { id: { in: aulaIds } }, select: { moduloId: true } });
+					const aulaIds = groups.map((g: any) => g.aulaId);
+					return db.findMany("aula", { where: { id: { in: aulaIds } }, select: { moduloId: true } });
 				})
-				.then((aulas) => new Set(aulas.map((a) => a.moduloId)).size),
-			prisma.quizResponse.count({ where: { userId, concluido: true } }),
-			prisma.user.findUnique({ where: { id: userId }, select: { xp: true, level: true } }),
+				.then((aulas: any[]) => new Set(aulas.map((a: any) => a.moduloId)).size),
+			db.count("quizResponse", { userId, concluido: true }),
+			db.findUnique("user", { id: userId }, { select: { xp: true, level: true } }),
 		]);
 
 		const results = GAMIFICATION_ACHIEVEMENTS.map((a) => {
@@ -155,7 +155,7 @@ router.get("/achievements", authenticate, async (req: AuthRequest, res) => {
 // GET /api/gamification/leaderboard
 router.get("/leaderboard", authenticate, async (_req: AuthRequest, res) => {
 	try {
-		const users = await prisma.user.findMany({
+		const users = await db.findMany("user", {
 			select: {
 				id: true,
 				nome: true,
@@ -169,7 +169,7 @@ router.get("/leaderboard", authenticate, async (_req: AuthRequest, res) => {
 			take: 20,
 		});
 
-		const result = users.map((u, i) => ({
+		const result = users.map((u: any, i: number) => ({
 			pos: i + 1,
 			userId: u.id,
 			nome: u.nome,
@@ -191,13 +191,10 @@ router.get("/leaderboard", authenticate, async (_req: AuthRequest, res) => {
 router.get("/stats", authenticate, async (req: AuthRequest, res) => {
 	try {
 		const userId = req.userId!;
-		const user = await prisma.user.findUnique({
-			where: { id: userId },
-			select: { xp: true, level: true },
-		});
+		const user = await db.findUnique("user", { id: userId }, { select: { xp: true, level: true } });
 
-		const totalAulasConcluidas = await prisma.progresso.count({ where: { userId, concluido: true } });
-		const totalAulasGlobal = await prisma.aula.count();
+		const totalAulasConcluidas = await db.count("progresso", { userId, concluido: true });
+		const totalAulasGlobal = await db.count("aula");
 
 		const XP_PER_LEVEL = 2000;
 		res.json({

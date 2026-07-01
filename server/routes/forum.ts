@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 import { type AuthRequest, authenticate } from "../middleware/auth";
 import { logActivity } from "../services/log";
 
@@ -12,7 +11,7 @@ const AUTHOR_SELECT = { id: true, nome: true, role: true, avatarUrl: true } as c
 // GET /api/forum
 router.get("/", authenticate, async (_req: AuthRequest, res) => {
 	try {
-		const posts = await prisma.forumPost.findMany({
+		const posts = await db.findMany("forumPost", {
 			include: { autor: { select: AUTHOR_SELECT } },
 			orderBy: { createdAt: "desc" },
 		});
@@ -38,10 +37,13 @@ router.post("/", authenticate, async (req: AuthRequest, res) => {
 			...(tagsStr ? { tags: tagsStr } : {}),
 			autorId: userId,
 		});
-		const postWithAutor = await prisma.forumPost.findUnique({
-			where: { id: (post as any).id },
-			include: { autor: { select: AUTHOR_SELECT } },
-		});
+		const postWithAutor = await db.findUnique(
+			"forumPost",
+			{ id: (post as any).id },
+			{
+				include: { autor: { select: AUTHOR_SELECT } },
+			},
+		);
 		await logActivity(userId, "Forum Post", `Post: ${titulo}`);
 		res.status(201).json(postWithAutor);
 	} catch (error) {
@@ -54,15 +56,18 @@ router.post("/", authenticate, async (req: AuthRequest, res) => {
 router.post("/:id/like", authenticate, async (req: AuthRequest, res) => {
 	try {
 		const postId = req.params.id as string;
-		const post = await prisma.forumPost.findUnique({ where: { id: postId } });
+		const post = await db.findUnique("forumPost", { id: postId });
 		if (!post) {
 			return res.status(404).json({ error: "Post não encontrado" });
 		}
 		const _updated = await db.update("forumPost", { id: postId }, { likes: post.likes + 1 });
-		const updatedWithAutor = await prisma.forumPost.findUnique({
-			where: { id: postId },
-			include: { autor: { select: AUTHOR_SELECT } },
-		});
+		const updatedWithAutor = await db.findUnique(
+			"forumPost",
+			{ id: postId },
+			{
+				include: { autor: { select: AUTHOR_SELECT } },
+			},
+		);
 		await logActivity(req.userId!, "Forum Like", `Post: ${post.titulo}`);
 		res.json(updatedWithAutor);
 	} catch (error) {
@@ -75,15 +80,18 @@ router.post("/:id/like", authenticate, async (req: AuthRequest, res) => {
 router.post("/:id/reply", authenticate, async (req: AuthRequest, res) => {
 	try {
 		const postId = req.params.id as string;
-		const post = await prisma.forumPost.findUnique({ where: { id: postId } });
+		const post = await db.findUnique("forumPost", { id: postId });
 		if (!post) {
 			return res.status(404).json({ error: "Post não encontrado" });
 		}
 		const _updated = await db.update("forumPost", { id: postId }, { replies: post.replies + 1 });
-		const updatedWithAutor = await prisma.forumPost.findUnique({
-			where: { id: postId },
-			include: { autor: { select: AUTHOR_SELECT } },
-		});
+		const updatedWithAutor = await db.findUnique(
+			"forumPost",
+			{ id: postId },
+			{
+				include: { autor: { select: AUTHOR_SELECT } },
+			},
+		);
 		await logActivity(req.userId!, "Forum Resposta", `Post: ${post.titulo}`);
 		res.json(updatedWithAutor);
 	} catch (error) {

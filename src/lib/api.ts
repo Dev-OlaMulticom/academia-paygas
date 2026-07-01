@@ -699,10 +699,60 @@ class ApiClient {
 	async importCsv(
 		type: "cursos" | "aulas" | "licoes" | "quiz",
 		csvText: string,
-	): Promise<{ created: number; skipped: number; total: number }> {
+	): Promise<{ created: number; skipped: number; total: number; updated: number; errors: any[] }> {
 		return this.request<any>(`/import-export/import/${type}`, {
 			method: "POST",
 			body: JSON.stringify({ csv: csvText }),
+		});
+	}
+
+	async exportAll(): Promise<string> {
+		const response = await fetch(`${API_BASE}/import-export/export/all`, {
+			headers: { Authorization: `Bearer ${this.token}` },
+		});
+		if (!response.ok) throw new Error("Erro ao exportar");
+		return response.text();
+	}
+
+	async downloadAll(): Promise<void> {
+		const csv = await this.exportAll();
+		const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = "conteudo-completo.csv";
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
+	async detectCsv(csvText: string): Promise<{
+		type: string;
+		columns: string[];
+		rowCount: number;
+		missingRequired: string[];
+		warnings: string[];
+		valid: boolean;
+		preview: Record<string, string>[];
+	}> {
+		return this.request<any>("/import-export/detect", {
+			method: "POST",
+			body: JSON.stringify({ csv: csvText }),
+		});
+	}
+
+	async importUnified(
+		csvText: string,
+		mode: "create" | "upsert" = "create",
+	): Promise<{
+		created: number;
+		updated: number;
+		skipped: number;
+		total: number;
+		errors: { row: number; field: string; message: string }[];
+	}> {
+		return this.request<any>("/import-export/import/unified", {
+			method: "POST",
+			body: JSON.stringify({ csv: csvText, mode }),
 		});
 	}
 

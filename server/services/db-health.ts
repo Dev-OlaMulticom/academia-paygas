@@ -12,6 +12,7 @@
  *   startHealthChecks() // Call once at server startup
  */
 import { dbRegistry } from "../config/databases";
+import { invalidateDelegateCache } from "../lib/db-models";
 import logger from "../lib/logger";
 
 const DEFAULT_INTERVAL = 60 * 1000; // 60 seconds
@@ -50,6 +51,8 @@ async function checkDatabase(name: string): Promise<"connected" | "degraded" | "
 async function runHealthChecks() {
 	const entries = dbRegistry.getAll();
 
+	let primaryChanged = false;
+
 	for (const entry of entries) {
 		const prevStatus = entry.status;
 		const newStatus = await checkDatabase(entry.name);
@@ -60,15 +63,26 @@ async function runHealthChecks() {
 		if (prevStatus !== "unknown" && prevStatus !== newStatus) {
 			if (newStatus === "connected") {
 				logger.info(`[DB-HEALTH] ${entry.name}: RECOVERED (${prevStatus} → connected)`);
-				// Signal to sync worker that this database needs reconciliation
 				entry.consecutiveFailures = 0;
 			} else if (newStatus === "disconnected") {
 				logger.warn(`[DB-HEALTH] ${entry.name}: DOWN (${prevStatus} → disconnected)`);
 			} else {
 				logger.info(`[DB-HEALTH] ${entry.name}: DEGRADED (latency high)`);
 			}
+
+			// Whenever ANY database changes state, the resolved primary may have
+			// changed. Invalidate the delegate cache so reads re-route.
+			primaryChanged = true;
 		} else if (prevStatus === "unknown") {
 			logger.info(`[DB-HEALTH] ${entry.name}: ${newStatus}`);
+		}
+	}
+
+	if (primaryChanged) {
+		invalidateDelegateCache();
+		const primary = dbRegistry.getPrimary();
+		if (primary) {
+			logger.info(`[DB-HEALTH] Primary is now: ${primary.name}`);
 		}
 	}
 

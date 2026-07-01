@@ -1,8 +1,19 @@
 import { type Request, type Response, Router } from "express";
+import { getAllRoleConfigs } from "../services/role-permissions";
 
 const router = Router();
 
-function getApiSpec() {
+async function getApiSpec() {
+	// Load role descriptions from database with cache (60s TTL)
+	const roleConfigs = await getAllRoleConfigs();
+	const roles: Record<string, { description: string }> = {};
+	const roleEnumValues = roleConfigs.map((rc) => rc.role);
+	for (const rc of roleConfigs) {
+		roles[rc.role] = {
+			description: `${rc.label} - ${rc.description || "Sem descrição"}`,
+		};
+	}
+
 	return {
 		openapi: "3.1.0",
 		info: {
@@ -28,11 +39,7 @@ function getApiSpec() {
 				'Todos los requests POST/PUT/PATCH van encriptados. El payload debe ser un objeto { payload: "base64string" }.',
 			middleware: "encryptedPayload (global)",
 		},
-		roles: {
-			ADMIN: { description: "Administrador completo - acceso total a todas las operaciones CRUD" },
-			GESTOR: { description: "Gestor / Líder - puede gestionar usuarios ATENDENTE y contenido" },
-			ATENDENTE: { description: "Atendente - solo lectura y progreso propio" },
-		},
+		roles,
 		endpoints: [
 			// AUTH
 			{
@@ -98,7 +105,7 @@ function getApiSpec() {
 						email: { type: "string", format: "email" },
 						nome: { type: "string" },
 						senha: { type: "string" },
-						role: { type: "string", enum: ["ADMIN", "GESTOR", "ATENDENTE"] },
+						role: { type: "string", enum: roleEnumValues },
 					},
 				},
 			},
@@ -344,7 +351,7 @@ function getApiSpec() {
 				email: "string (unique)",
 				nome: "string",
 				senha: "string (bcrypt hashed)",
-				role: "enum: ADMIN | GESTOR | ATENDENTE",
+				role: `enum: ${roleEnumValues.join(" | ")}`,
 				gestorId: "string|null (FK User)",
 				createdAt: "datetime",
 				updatedAt: "datetime",
@@ -456,8 +463,8 @@ function getApiSpec() {
 }
 
 // JSON endpoint
-router.get("/json", (_req: Request, res: Response) => {
-	const spec = getApiSpec();
+router.get("/json", async (_req: Request, res: Response) => {
+	const spec = await getApiSpec();
 	res.setHeader("Content-Type", "application/json; charset=utf-8");
 	res.setHeader("X-API-Version", "1.0.0");
 	res.setHeader("X-Documentation-Type", "openapi-spec");
@@ -465,8 +472,8 @@ router.get("/json", (_req: Request, res: Response) => {
 });
 
 // HTML endpoint
-router.get("/html", (_req: Request, res: Response) => {
-	const spec = getApiSpec();
+router.get("/html", async (_req: Request, res: Response) => {
+	const spec = await getApiSpec();
 	const json = JSON.stringify(spec, null, 2);
 
 	const tags = spec.endpoints.reduce((acc: Record<string, typeof spec.endpoints>, ep) => {
@@ -583,8 +590,8 @@ ${endpointSections}
 });
 
 // Default /docs -> JSON
-router.get("/", (_req: Request, res: Response) => {
-	const spec = getApiSpec();
+router.get("/", async (_req: Request, res: Response) => {
+	const spec = await getApiSpec();
 	res.setHeader("Content-Type", "application/json; charset=utf-8");
 	res.json(spec);
 });

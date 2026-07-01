@@ -5,12 +5,12 @@ import { XP_PER_LEVEL } from "../lib/constants";
 
 const AI_FIRST: Record<string, string> = {
 	ADMIN:
-		"Olá, Admin Nacional! Posso ajudar com gestão de conteúdo, usuários, analytics ou o Painel Nacional. O que precisa?",
+		"Olá, SuperAdministrador! Posso ajudar com gestão de conteúdo, usuários, analytics ou o Painel Nacional. O que precisa?",
 	GESTOR: "Olá, Gestor! Posso ajudar com KPIs, relatórios de equipe ou as trilhas de gestão. Como posso ajudar?",
 	ATENDENTE:
 		"Olá! Sou seu assistente na Academia PayGas. Posso tirar dúvidas sobre cashback, terminal ou trilhas de atendimento.",
 	PARCEIRO_ACREDITADO:
-		"Olá, Parceiro! Posso ajudar com módulos parceiros, certificações ou acesso a conteúdos exclusivos.",
+		"Olá, Administrador! Posso ajudar com módulos parceiros, certificações ou acesso a conteúdos exclusivos.",
 	ERPS_REPRESENTANTE:
 		"Olá! Sou seu assistente na Academia PayGas. Posso ajudar com módulos de ERPs, integrações ou trilhas técnicas.",
 };

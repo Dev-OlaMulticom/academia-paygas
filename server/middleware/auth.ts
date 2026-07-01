@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
+import { KNOWN_ACTIONS } from "../auth/casl/actions";
 import { defineAbility } from "../auth/casl/defineAbility";
 import logger from "../lib/logger";
 
@@ -96,22 +97,7 @@ export function authorize(...args: string[]) {
 		}
 
 		// Detect pattern: if first arg is a known CASL action → ability check
-		const knownActions = [
-			"create",
-			"read",
-			"update",
-			"delete",
-			"manage",
-			"assignRole",
-			"sendNotification",
-			"approveCertificate",
-			"issueCertificate",
-			"viewTeam",
-			"exportData",
-			"deleteActivityLog",
-			"deleteNotification",
-			"deleteXPConfig",
-		];
+		const knownActions = KNOWN_ACTIONS;
 		const isAbilityCheck = args.length >= 2 && knownActions.includes(args[0]);
 
 		if (isAbilityCheck) {

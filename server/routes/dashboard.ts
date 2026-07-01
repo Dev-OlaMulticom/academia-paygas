@@ -1,6 +1,6 @@
 import { Router } from "express";
+import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/auth";
 import { getTeamPoints, getUserPoints } from "../services/gamification";
 
@@ -21,22 +21,16 @@ router.get("/", authenticate, async (req: any, res) => {
 			recentActivity,
 			userPoints,
 		] = await Promise.all([
-			prisma.modulo.count(),
-			prisma.progresso.groupBy({
+			db.count("modulo"),
+			db.groupBy("progresso", {
 				by: ["moduloId"],
 				where: { userId, concluido: true },
 			}),
-			prisma.certificate.count({
-				where: { userId, status: "ISSUED" },
-			}),
-			prisma.aula.count(),
-			prisma.progresso.count({
-				where: { userId, concluido: true },
-			}),
-			prisma.quizResponse.count({
-				where: { userId, concluido: true },
-			}),
-			prisma.activityLog.findMany({
+			db.count("certificate", { userId, status: "ISSUED" }),
+			db.count("aula"),
+			db.count("progresso", { userId, concluido: true }),
+			db.count("quizResponse", { userId, concluido: true }),
+			db.findMany("activityLog", {
 				where: { userId },
 				take: 5,
 				orderBy: { createdAt: "desc" },

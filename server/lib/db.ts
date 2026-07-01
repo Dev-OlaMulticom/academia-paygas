@@ -8,6 +8,11 @@
  * KEY RULE: No backup write ever blocks the main operation.
  * If a backup is down, data is saved to primary and synced later.
  *
+ * Backup availability alerts:
+ *   When MYSQL_URL / NHOST_URL are not configured, the DAL silently skips that
+ *   tier. We surface a startup warning so we don't end up with a "working"
+ *   stack that quietly has no third-tier redundancy.
+ *
  * Usage:
  *   import { db } from '../lib/db'
  *   const user = await db.findUnique('user', { id: '123' })
@@ -15,9 +20,39 @@
  */
 
 import { dbRegistry } from "../config/databases";
-import { getModelDelegates } from "./db-models";
+import { getModelDelegates, invalidateDelegateCache } from "./db-models";
 import logger from "./logger";
 import { prisma } from "./prisma";
+
+/**
+ * One-time startup banner that warns when optional multi-database tiers are not
+ * configured. We never throw — these are optional — but operators get a clear
+ * signal instead of silent degradation.
+ */
+let warnedStartup = false;
+function warnAboutMissingBackups(): void {
+	if (warnedStartup) return;
+	warnedStartup = true;
+
+	const pgCount = dbRegistry.getAll().length;
+	if (pgCount === 1) {
+		logger.warn("[DAL] Only ONE PostgreSQL registered. Set PG_URL_2 (or higher) to enable read failover.");
+	}
+
+	if (!process.env.MYSQL_URL) {
+		logger.warn(
+			"[DAL] MYSQL_URL is not set. MySQL tier is skipped — every third-tier dual-write is silently dropped. " +
+				"Set MYSQL_URL to enable MySQL backup writes.",
+		);
+	}
+
+	if (!process.env.NHOST_URL && pgCount === 0) {
+		logger.warn("[DAL] NHOST_URL is not set and no PG_URL_* are configured. Legacy Nhost fallback is unavailable.");
+	}
+}
+
+// Run once when the module is first loaded; cheap and idempotent.
+warnAboutMissingBackups();
 
 function getModel(name: string) {
 	try {
@@ -77,16 +112,23 @@ export const db = {
 
 	// ==================== READ (with failover) ====================
 
-	async findUnique(modelName: string, where: Record<string, any>, include?: Record<string, any>) {
+	async findUnique(
+		modelName: string,
+		where: Record<string, any>,
+		opts?: { include?: Record<string, any>; select?: Record<string, any> },
+	) {
 		const model = getModel(modelName);
+		const prismaOpts: Record<string, any> = { where };
+		if (opts?.include) prismaOpts.include = opts.include;
+		if (opts?.select) prismaOpts.select = opts.select;
 
 		try {
-			return await model.primary.findUnique({ where, ...(include ? { include } : {}) });
+			return await model.primary.findUnique(prismaOpts);
 		} catch (error) {
 			// Failover to backup PGs
 			for (const backup of model.backups) {
 				try {
-					return await backup.findUnique({ where, ...(include ? { include } : {}) });
+					return await backup.findUnique(prismaOpts);
 				} catch {
 					/* try next */
 				}
@@ -98,17 +140,20 @@ export const db = {
 	async findFirst(
 		modelName: string,
 		where: Record<string, any>,
-		include?: Record<string, any>,
-		orderBy?: Record<string, any>,
+		opts?: { include?: Record<string, any>; select?: Record<string, any>; orderBy?: Record<string, any> },
 	) {
 		const model = getModel(modelName);
+		const prismaOpts: Record<string, any> = { where };
+		if (opts?.include) prismaOpts.include = opts.include;
+		if (opts?.select) prismaOpts.select = opts.select;
+		if (opts?.orderBy) prismaOpts.orderBy = opts.orderBy;
 
 		try {
-			return await model.primary.findFirst({ where, ...(include ? { include } : {}), ...(orderBy ? { orderBy } : {}) });
+			return await model.primary.findFirst(prismaOpts);
 		} catch (error) {
 			for (const backup of model.backups) {
 				try {
-					return await backup.findFirst({ where, ...(include ? { include } : {}), ...(orderBy ? { orderBy } : {}) });
+					return await backup.findFirst(prismaOpts);
 				} catch {
 					/* try next */
 				}
@@ -167,8 +212,10 @@ export const db = {
 			by: string[];
 			where?: Record<string, any>;
 			_sum?: Record<string, boolean>;
-			_count?: Record<string, boolean> | Record<string, Record<string, boolean>>;
+			_avg?: Record<string, boolean>;
+			_count?: Record<string, boolean> | Record<string, Record<string, boolean>> | boolean;
 			orderBy?: Record<string, any>;
+			take?: number;
 		},
 	) {
 		const model = getModel(modelName);
@@ -179,6 +226,35 @@ export const db = {
 			for (const backup of model.backups) {
 				try {
 					return await backup.groupBy(options as any);
+				} catch {
+					/* try next */
+				}
+			}
+			throw error;
+		}
+	},
+
+	// ==================== AGGREGATE ====================
+
+	async aggregate(
+		modelName: string,
+		options: {
+			where?: Record<string, any>;
+			_sum?: Record<string, boolean>;
+			_avg?: Record<string, boolean>;
+			_count?: Record<string, boolean> | boolean;
+			_max?: Record<string, boolean>;
+			_min?: Record<string, boolean>;
+		},
+	) {
+		const model = getModel(modelName);
+
+		try {
+			return await model.primary.aggregate(options as any);
+		} catch (error) {
+			for (const backup of model.backups) {
+				try {
+					return await backup.aggregate(options as any);
 				} catch {
 					/* try next */
 				}
@@ -292,13 +368,17 @@ export const db = {
 
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	async transaction<T>(fn: (tx: any) => Promise<T>): Promise<T> {
-		return prisma.$transaction(fn as any) as Promise<T>;
+		// `prisma` now resolves through `getPrimaryPrisma()` so transactions
+		// run against the same health-aware primary that the DAL uses.
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		return (prisma as any).$transaction(fn as any) as Promise<T>;
 	},
 
 	// ==================== RAW QUERIES ====================
 
 	async queryRaw(query: TemplateStringsArray, ...values: any[]) {
-		return prisma.$queryRaw(query, ...values);
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		return (prisma as any).$queryRaw(query, ...values);
 	},
 
 	// ==================== HEALTH CHECK ====================
@@ -321,5 +401,22 @@ export const db = {
 		}
 
 		return result;
+	},
+
+	// ==================== CACHE MANAGEMENT ====================
+
+	/**
+	 * Drop the model-delegate cache. The health-check service calls this after
+	 * the registry reports a status change, so subsequent reads route through
+	 * the new primary instead of a stale one.
+	 */
+	invalidateDelegateCache,
+
+	/**
+	 * Returns the name of the currently resolved primary database. Useful for
+	 * the /api/health endpoint and for diagnostic logging.
+	 */
+	getPrimaryName(): string | null {
+		return dbRegistry.getPrimary()?.name || null;
 	},
 };

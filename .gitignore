@@ -46,3 +46,7 @@ logs/
 *.log
 test-api.js
 .backup-build/
+
+# Auto-generated runtime secrets (never commit)
+.jwt-secret
+.jwt-secret-fixture

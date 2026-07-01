@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 import { authenticate, authorize } from "../middleware/auth";
 import { sendNotificationAlertEmail } from "../services/email";
 import { awardPointsIfNotAwarded } from "../services/gamification";
@@ -21,20 +20,20 @@ router.get("/", authenticate, async (req: any, res) => {
 		const isAdmin = userRole === "ADMIN";
 
 		const [allModulos, _total] = await Promise.all([
-			prisma.modulo.findMany({
+			db.findMany("modulo", {
 				include: {
 					aulas: { select: { id: true } },
 					_count: { select: { aulas: true, progressos: true } },
 				},
 				orderBy: { createdAt: "desc" },
 			}),
-			prisma.modulo.count(),
+			db.count("modulo"),
 		]);
 
 		// Filter by role: admin sees all; others see modules with no restriction or their role included
 		const modulos = isAdmin
 			? allModulos
-			: allModulos.filter((mod) => {
+			: allModulos.filter((mod: any) => {
 					if (!mod.rolesPermitidos) return true;
 					const roles = mod.rolesPermitidos as unknown as string[];
 					if (!Array.isArray(roles) || roles.length === 0) return true;
@@ -64,13 +63,16 @@ router.get("/:id", authenticate, async (req: any, res) => {
 	try {
 		const id = getStringParam(req.params.id);
 		if (!id) return res.status(400).json({ error: "ID inválido" });
-		const modulo = await prisma.modulo.findUnique({
-			where: { id },
-			include: {
-				aulas: { select: { id: true } },
-				_count: { select: { aulas: true, progressos: true } },
+		const modulo = await db.findUnique(
+			"modulo",
+			{ id },
+			{
+				include: {
+					aulas: { select: { id: true } },
+					_count: { select: { aulas: true, progressos: true } },
+				},
 			},
-		});
+		);
 		if (!modulo) return res.status(404).json({ error: "Módulo não encontrado" });
 		res.json(modulo);
 	} catch (error) {
@@ -99,7 +101,7 @@ router.post("/", authenticate, authorize("ADMIN"), async (req: any, res) => {
 			return res.status(400).json({ error: "Título é obrigatório" });
 		}
 
-		const maxOrdem = await prisma.modulo.aggregate({
+		const maxOrdem = await db.aggregate("modulo", {
 			_max: { ordem: true },
 		});
 
@@ -187,13 +189,13 @@ router.get("/:id/aulas", authenticate, async (req: any, res) => {
 		const moduloId = getStringParam(req.params.id);
 		if (!moduloId) return res.status(400).json({ error: "ID inválido" });
 
-		const moduloExists = await prisma.modulo.findUnique({ where: { id: moduloId }, select: { id: true } });
+		const moduloExists = await db.findUnique("modulo", { id: moduloId }, { select: { id: true } });
 		if (!moduloExists) return res.status(404).json({ error: "Módulo não encontrado" });
 
 		const userRole = req.userRole;
 		const isAdmin = userRole === "ADMIN";
 
-		let aulas = await prisma.aula.findMany({
+		let aulas = await db.findMany("aula", {
 			where: { moduloId },
 			include: {
 				quiz: { include: { perguntas: true } },
@@ -205,7 +207,7 @@ router.get("/:id/aulas", authenticate, async (req: any, res) => {
 
 		// Filter by role: admin sees all; others see aulas with no restriction or their role included
 		if (!isAdmin) {
-			aulas = aulas.filter((aula) => {
+			aulas = aulas.filter((aula: any) => {
 				if (!aula.rolesPermitidos) return true;
 				const roles = aula.rolesPermitidos as unknown as string[];
 				if (!Array.isArray(roles) || roles.length === 0) return true;
@@ -227,7 +229,7 @@ router.get("/:id/aulas", authenticate, async (req: any, res) => {
 						titulo: l.titulo || "",
 					}));
 					try {
-						await prisma.aula.update({ where: { id: a.id }, data: { ancoragemPoints: points } });
+						await db.update("aula", { id: a.id }, { ancoragemPoints: points });
 						(a as any).ancoragemPoints = points;
 					} catch {
 						/* ignore */
@@ -236,7 +238,7 @@ router.get("/:id/aulas", authenticate, async (req: any, res) => {
 			}
 		}
 
-		const result = aulas.map((a) => ({
+		const result = aulas.map((a: any) => ({
 			...a,
 			concluido: a.progressos.length > 0 ? a.progressos[0].concluido : false,
 			progressos: undefined,
@@ -268,7 +270,7 @@ router.post("/:id/aulas", authenticate, authorize("ADMIN"), async (req: any, res
 		const moduloId = getStringParam(req.params.id);
 		if (!moduloId) return res.status(400).json({ error: "ID inválido" });
 
-		const maxOrdem = await prisma.aula.aggregate({
+		const maxOrdem = await db.aggregate("aula", {
 			where: { moduloId },
 			_max: { ordem: true },
 		});
@@ -363,7 +365,7 @@ router.get("/aulas/:aulaId/licoes", authenticate, async (req: any, res) => {
 		const aulaId = getStringParam(req.params.aulaId);
 		if (!aulaId) return res.status(400).json({ error: "ID inválido" });
 
-		const licoes = await prisma.licao.findMany({
+		const licoes = await db.findMany("licao", {
 			where: { aulaId },
 			orderBy: { ordem: "asc" },
 		});
@@ -383,7 +385,7 @@ router.post("/aulas/:aulaId/licoes", authenticate, authorize("ADMIN"), async (re
 		const { titulo, conteudo, tipo, duracaoMin, inicioSeg, fimSeg } = req.body;
 		if (!titulo) return res.status(400).json({ error: "Título é obrigatório" });
 
-		const maxOrdem = await prisma.licao.aggregate({
+		const maxOrdem = await db.aggregate("licao", {
 			where: { aulaId },
 			_max: { ordem: true },
 		});
@@ -458,7 +460,7 @@ router.post("/:moduloId/quiz", authenticate, authorize("ADMIN"), async (req: any
 			return res.status(400).json({ error: "aulaId e titulo são obrigatórios" });
 		}
 
-		const existing = await prisma.quiz.findUnique({ where: { aulaId } });
+		const existing = await db.findUnique("quiz", { aulaId });
 		if (existing) {
 			return res.status(409).json({ error: "Esta aula já possui um quiz" });
 		}
@@ -483,12 +485,15 @@ router.get("/:moduloId/quiz/:aulaId", authenticate, async (req: any, res) => {
 	try {
 		const aulaId = getStringParam(req.params.aulaId);
 		if (!aulaId) return res.status(400).json({ error: "ID inválido" });
-		const quiz = await prisma.quiz.findUnique({
-			where: { aulaId },
-			include: {
-				perguntas: { orderBy: { ordem: "asc" } },
+		const quiz = await db.findUnique(
+			"quiz",
+			{ aulaId },
+			{
+				include: {
+					perguntas: { orderBy: { ordem: "asc" } },
+				},
 			},
-		});
+		);
 		if (!quiz) {
 			return res.status(404).json({ error: "Quiz não encontrado" });
 		}
@@ -547,7 +552,7 @@ router.post("/quiz/:quizId/perguntas", authenticate, authorize("ADMIN"), async (
 			return res.status(400).json({ error: "Pergunta, opção A, opção B e resposta correta são obrigatórias" });
 		}
 
-		const maxOrdem = await prisma.quizPergunta.aggregate({
+		const maxOrdem = await db.aggregate("quizPergunta", {
 			where: { quizId },
 			_max: { ordem: true },
 		});
@@ -612,16 +617,19 @@ router.delete("/perguntas/:perguntaId", authenticate, authorize("ADMIN"), async 
 router.post("/quiz/:quizId/responder", authenticate, async (req: any, res) => {
 	try {
 		const { respostas } = req.body; // { perguntaId: 'A'|'B'|'C'|'D' }
-		const quiz = await prisma.quiz.findUnique({
-			where: { id: req.params.quizId },
-			include: { perguntas: true },
-		});
+		const quiz = await db.findUnique(
+			"quiz",
+			{ id: req.params.quizId },
+			{
+				include: { perguntas: true },
+			},
+		);
 		if (!quiz) {
 			return res.status(404).json({ error: "Quiz não encontrado" });
 		}
 
 		let correct = 0;
-		quiz.perguntas.forEach((p) => {
+		quiz.perguntas.forEach((p: any) => {
 			if (respostas[p.id] === p.correta) correct++;
 		});
 
@@ -644,7 +652,7 @@ router.post("/quiz/:quizId/responder", authenticate, async (req: any, res) => {
 			await logActivity(req.userId, "Quiz Aprovado", `Quiz: ${quiz.titulo} — Nota ${nota}/10`);
 
 			// Mark lesson as completed only when quiz is passed
-			const quizAula = await prisma.aula.findUnique({ where: { id: quiz.aulaId }, select: { moduloId: true } });
+			const quizAula = await db.findUnique("aula", { id: quiz.aulaId }, { select: { moduloId: true } });
 			if (quizAula) {
 				await db.upsert(
 					"progresso",
@@ -655,15 +663,21 @@ router.post("/quiz/:quizId/responder", authenticate, async (req: any, res) => {
 			}
 
 			// Notify gestor when ATENDENTE passes a quiz
-			const quizUser = await prisma.user.findUnique({
-				where: { id: req.userId },
-				select: { id: true, nome: true, email: true, role: true, gestorId: true },
-			});
+			const quizUser = await db.findUnique(
+				"user",
+				{ id: req.userId },
+				{
+					select: { id: true, nome: true, email: true, role: true, gestorId: true },
+				},
+			);
 			if (quizUser?.role === "ATENDENTE" && quizUser.gestorId) {
-				const gestor = await prisma.user.findUnique({
-					where: { id: quizUser.gestorId },
-					select: { id: true, nome: true, email: true },
-				});
+				const gestor = await db.findUnique(
+					"user",
+					{ id: quizUser.gestorId },
+					{
+						select: { id: true, nome: true, email: true },
+					},
+				);
 				if (gestor) {
 					const titulo = "Quiz Aprovado";
 					const mensagem = `${quizUser.nome} aprovou no quiz "${quiz.titulo}" com nota ${nota}/10.`;
@@ -679,19 +693,20 @@ router.post("/quiz/:quizId/responder", authenticate, async (req: any, res) => {
 
 		// Auto-generate certificate if: quiz passed + (autoGerarCertificado OR modulo.autoCertificado) + ALL aulas completed
 		if (concluido) {
-			const aula = await prisma.aula.findUnique({ where: { id: quiz.aulaId } });
+			const aula = await db.findUnique("aula", { id: quiz.aulaId });
 			if (aula) {
-				const modulo = await prisma.modulo.findUnique({
-					where: { id: aula.moduloId },
-					include: { aulas: true },
-				});
+				const modulo = await db.findUnique(
+					"modulo",
+					{ id: aula.moduloId },
+					{
+						include: { aulas: true },
+					},
+				);
 				if (modulo && (quiz.autoGerarCertificado || modulo.autoCertificado)) {
-					const allAulasCompleted = await prisma.progresso.count({
-						where: {
-							moduloId: aula.moduloId,
-							userId: req.userId,
-							concluido: true,
-						},
+					const allAulasCompleted = await db.count("progresso", {
+						moduloId: aula.moduloId,
+						userId: req.userId,
+						concluido: true,
 					});
 
 					if (allAulasCompleted >= modulo.aulas.length) {
@@ -707,15 +722,21 @@ router.post("/quiz/:quizId/responder", authenticate, async (req: any, res) => {
 							await logActivity(req.userId, "Certificado Gerado", `Modulo: ${modulo.titulo}`);
 
 							// Notify gestor when ATENDENTE completes entire module
-							const quizUser = await prisma.user.findUnique({
-								where: { id: req.userId },
-								select: { id: true, nome: true, role: true, gestorId: true },
-							});
+							const quizUser = await db.findUnique(
+								"user",
+								{ id: req.userId },
+								{
+									select: { id: true, nome: true, role: true, gestorId: true },
+								},
+							);
 							if (quizUser?.role === "ATENDENTE" && quizUser.gestorId) {
-								const gestor = await prisma.user.findUnique({
-									where: { id: quizUser.gestorId },
-									select: { id: true, nome: true, email: true },
-								});
+								const gestor = await db.findUnique(
+									"user",
+									{ id: quizUser.gestorId },
+									{
+										select: { id: true, nome: true, email: true },
+									},
+								);
 								if (gestor) {
 									const titulo = "Modulo Completo";
 									const mensagem = `${quizUser.nome} completou o modulo "${modulo.titulo}" e recebeu o certificado.`;
@@ -744,7 +765,7 @@ router.get("/quiz/:quizId/resultados", authenticate, async (req: any, res) => {
 		if (req.userRole !== "ADMIN") {
 			where.userId = req.userId;
 		}
-		const responses = await prisma.quizResponse.findMany({
+		const responses = await db.findMany("quizResponse", {
 			where,
 			include: { user: { select: { id: true, nome: true, email: true } } },
 			orderBy: { createdAt: "desc" },
@@ -762,7 +783,7 @@ router.post("/:id/open", authenticate, async (req: any, res) => {
 		const id = getStringParam(req.params.id);
 		if (!id) return res.status(400).json({ error: "ID invalido" });
 
-		const modulo = await prisma.modulo.findUnique({ where: { id } });
+		const modulo = await db.findUnique("modulo", { id });
 		if (!modulo) return res.status(404).json({ error: "Modulo nao encontrado" });
 
 		await awardPointsIfNotAwarded(req.userId, "MODULE_OPEN", `MODULE_OPEN:modulo:${id}`);
@@ -781,7 +802,7 @@ router.post("/aula/:aulaId/view", authenticate, async (req: any, res) => {
 		const aulaId = getStringParam(req.params.aulaId);
 		if (!aulaId) return res.status(400).json({ error: "ID invalido" });
 
-		const aula = await prisma.aula.findUnique({ where: { id: aulaId }, select: { id: true, titulo: true } });
+		const aula = await db.findUnique("aula", { id: aulaId }, { select: { id: true, titulo: true } });
 		if (!aula) return res.status(404).json({ error: "Aula nao encontrada" });
 
 		// Award LESSON_VIEW points (dedup per aula per user — once per view session is enough)
@@ -798,13 +819,13 @@ router.post("/aula/:aulaId/view", authenticate, async (req: any, res) => {
 // GET /api/modulos/gamification/leaderboard - Get leaderboard
 router.get("/gamification/leaderboard", authenticate, async (_req: any, res) => {
 	try {
-		const users = await prisma.user.findMany({
+		const users = await db.findMany("user", {
 			select: { id: true, nome: true, email: true, role: true, xp: true },
 			orderBy: { xp: "desc" },
 			take: 20,
 		});
 
-		const result = users.map((u, i) => ({
+		const result = users.map((u: any, i: number) => ({
 			...u,
 			rank: i + 1,
 			level: Math.floor(u.xp / 2000) + 1,
@@ -820,13 +841,13 @@ router.get("/gamification/leaderboard", authenticate, async (_req: any, res) => 
 // GET /api/modulos/gamification/stats - Get gamification stats
 router.get("/gamification/stats", authenticate, async (_req: any, res) => {
 	try {
-		const totalXpResult = await prisma.user.aggregate({
+		const totalXpResult = await db.aggregate("user", {
 			_sum: { xp: true },
 			_avg: { xp: true },
 			_count: { id: true },
 		});
 
-		const topActions = await prisma.pointsTransaction.groupBy({
+		const topActions = await db.groupBy("pointsTransaction", {
 			by: ["action"],
 			_sum: { points: true },
 			_count: { id: true },

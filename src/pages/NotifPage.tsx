@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useConfirm, useToast } from "../components/Toast";
 import { useAbility } from "../hooks/useAbility";
 import type { User } from "../hooks/useAuth";
@@ -21,7 +21,7 @@ export function NotifPage({ user }: NotifPageProps) {
 	const [approvingId, setApprovingId] = useState<string | null>(null);
 	const [deletingId, setDeletingId] = useState<string | null>(null);
 
-	const loadData = async () => {
+	const loadData = useCallback(async () => {
 		try {
 			const [notifsData, usersData] = await Promise.all([
 				api.getNotifications(),
@@ -35,7 +35,7 @@ export function NotifPage({ user }: NotifPageProps) {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [isAdmin, isGestor]);
 
 	useEffect(() => {
 		loadData();
@@ -246,10 +246,10 @@ export function NotifPage({ user }: NotifPageProps) {
 									onChange={(e) => setNewNotif({ ...newNotif, toRole: e.target.value })}
 								>
 									<option value="">— Selecione o perfil —</option>
-									<option value="ADMIN">Administradores</option>
+									<option value="ADMIN">SuperAdministradores</option>
 									<option value="GESTOR">Gestores de Posto</option>
 									<option value="ATENDENTE">Atendentes</option>
-									<option value="PARCEIRO_ACREDITADO">Parceiros Acreditados</option>
+									<option value="PARCEIRO_ACREDITADO">Administradores</option>
 									<option value="ERPS_REPRESENTANTE">ERPs Representantes</option>
 								</select>
 							</div>

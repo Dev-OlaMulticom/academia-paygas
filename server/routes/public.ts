@@ -1,6 +1,6 @@
 import { Router } from "express";
+import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 
 const router = Router();
 
@@ -8,10 +8,10 @@ const router = Router();
 router.get("/stats", async (_req, res) => {
 	try {
 		const [totalUsers, totalModulos, totalAulas, totalCertificates] = await Promise.all([
-			prisma.user.count(),
-			prisma.modulo.count(),
-			prisma.aula.count(),
-			prisma.certificate.count(),
+			db.count("user"),
+			db.count("modulo"),
+			db.count("aula"),
+			db.count("certificate"),
 		]);
 
 		res.json({

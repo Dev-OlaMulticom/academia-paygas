@@ -59,6 +59,21 @@ NHOST_URL="..."     # Legacy Nhost backup (fallback if PG_URL_* not set)
 
 **Naming gotcha:** The DB table is `Modulo` but the frontend/CMS calls it "Curso". The field `moduloId` is `cursoId` in frontend context. This is cosmetic only — the schema is not changing.
 
+#### Naming map (DB ↔ UI)
+
+| Database (Prisma) | UI / API / CMS | Notes |
+|-------------------|---------------|-------|
+| `Modulo` | **Curso** | Top-level learning unit. |
+| `Aula` | Aula / Lesson section | Sub-unit of a Curso. |
+| `Licao` | Lição / Lesson content | Leaf unit (video, text, PDF). |
+| `RolesPermitidos` (JSON) | "Visible para…" field | Comma-separated at UI level. |
+| `autoCertificado` | "Certificado automático" | Boolean feature flag per Curso. |
+| `nivel` (User) | "Nível" | Derived `Math.floor(xp/2000)+1`. |
+| `xp` (Float) | Pontos / XP | Configurable via `XPConfig`. |
+| `gestorId` | "Meu gestor" / "Equipe" | Hierarchy link in team pages. |
+
+When in doubt, the canonical identity is the **DB model name**. UI strings should map via this table, never invent new names.
+
 ### Data Access Layer (DAL)
 
 All database access goes through `server/lib/db.ts`. Never call `prisma.*` directly in routes.
@@ -161,19 +176,21 @@ PORT=3001 nohup node dist/server/index.js > logs/app.log 2>&1 &
 - `pnpm build` must run `prisma generate` (PG + MySQL) before vite/tsc — the build script chains this automatically.
 - `.htaccess` does nothing on nginx (production server). The nginx snippet in `deploy.sh` replaces its functionality.
 - Vite dev server proxies `/api` to `http://localhost:3001` (not https).
-- **Dev mode has no failover**: Health checks, keepalive, and background sync only run when `NODE_ENV=production`. In dev, if the primary DB is down, reads fail immediately with no fallback.
-- **CASL action list is hardcoded** in `authorize()` middleware (`server/middleware/auth.ts:95`) — if you add a new CASL action in `server/auth/casl/actions.ts`, you must also add it to the detection list in `server/middleware/auth.ts`, otherwise it falls through to role-based auth.
+- **Dev mode has no failover**: Health checks, keepalive, and background sync only run when `NODE_ENV=production`. In dev, if the primary DB is down, reads fail immediately with no fallback. **Override**: set `DB_INFRA_DEV=1` to enable the same infra services during local development.
+- **CASL action list is centralized** in `shared/casl/actions.ts` (re-exported by `server/auth/casl/actions.ts`). `KNOWN_ACTIONS` derives from this single source — adding a new action here is enough for `authorize()` to detect it. Frontend imports the same file via `@shared/casl/actions`, so it cannot drift.
 - **CASL conditions must be JSON.stringified** when passed as third arg: `authorize('update', 'User', JSON.stringify({ gestorId: req.userId }))`.
 - **Frontend CASL is custom** — `src/hooks/useAbility.ts` does NOT use the `@casl/ability` library at runtime. It implements a lightweight rule engine. The backend is always the source of truth.
 - **Prisma uses PrismaPg adapter** (`@prisma/adapter-pg`), not the default binary engine. Connection goes through the `pg` driver with `ssl: { rejectUnauthorized: false }`.
 - **MySQL uses MariaDB adapter** (`@prisma/adapter-mariadb`) — MariaDB is wire-compatible with MySQL but there could be edge cases.
-- **Two PrismaClient instances for PG_URL_1**: `server/lib/prisma.ts` creates one, `server/config/databases.ts` registry creates another. They share the same connection string but have separate connection pools.
-- **`db-models.ts` always uses `allEntries[0]` as primary** regardless of health status, while `databases.ts` has a health-aware `getPrimary()`. These two "primary" concepts can diverge.
+- **Single PrismaClient for PG_URL_1**: `server/lib/prisma.ts` is a shim over `dbRegistry.getPrimary()` (server/config/databases.ts). Both `db.transaction()` and the DAL share the same pool. The DAL re-resolves the primary whenever `db-health` invalidates the cache.
+- **`db-models.ts` uses health-aware `getPrimary()`** from the registry. When a database transitions health state, `db-health` calls `invalidateDelegateCache()` so reads re-route through the new primary.
+- **Backup tiers warn on missing config**: at DAL startup, if `MYSQL_URL`, `NHOST_URL`, or additional `PG_URL_*` are not configured the DAL logs a single warning so silent degradation is visible to operators.
 - **HTTPS auto-detection**: Server looks for `server/certs/key.pem` and `cert.pem` relative to `__dirname`. If found, creates HTTPS; otherwise plain HTTP.
 - **JWT_SECRET fallback chain**: env var → `.jwt-secret` file → auto-generate random 64-byte hex and persist to `.jwt-secret`.
-- When `MYSQL_URL` is not set, `prismaMysql` is `null` and all dual-write operations silently skip MySQL.
+- When `MYSQL_URL` is not set, `prismaMysql` is `null` and all dual-write operations silently skip MySQL. **A warning is logged** so this isn't invisible.
 - When `NHOST_URL` is not set, `prismaNhost` is `null` and all dual-write operations silently skip Nhost.
 - `PG_URL_1` takes precedence over `DATABASE_URL` as primary. If neither is set, the server won't start.
 - Prisma migrations live in `prisma/migrations/`. Use `prisma migrate dev` to create new ones locally.
 - MySQL client is generated to `prisma/generated/mysql/` — this path is in `.gitignore`.
 - `prisma-mysql.ts` uses `path.resolve(__dirname, ...)` for dynamic require because compiled output (`dist/server/lib/`) is deeper than source (`server/lib/`).
+- **Shared CASL constants** live in `shared/casl/actions.ts`. Both server (`server/auth/casl/`) and client (`src/auth/casl/`) re-export from there. Never duplicate the literal arrays inline.

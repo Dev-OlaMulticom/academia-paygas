@@ -8,7 +8,6 @@
 import { Router } from "express";
 import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 import { authenticate, authorize } from "../middleware/auth";
 import { getAllRoleConfigs, invalidateRoleCache } from "../services/role-permissions";
 
@@ -17,10 +16,13 @@ const router = Router();
 // GET /api/role-permissions — get current user's role permissions
 router.get("/", authenticate, async (req: any, res) => {
 	try {
-		const row = await prisma.roleConfig.findUnique({
-			where: { role: req.userRole },
-			select: { role: true, label: true, description: true, permissions: true },
-		});
+		const row = await db.findUnique(
+			"roleConfig",
+			{ role: req.userRole },
+			{
+				select: { role: true, label: true, description: true, permissions: true },
+			},
+		);
 
 		if (!row) {
 			return res.json({ role: req.userRole, label: req.userRole, permissions: [] });
@@ -51,7 +53,7 @@ router.put("/:role", authenticate, authorize("ADMIN"), async (req: any, res) => 
 		const { permissions, label, description, ativo, ordem } = req.body;
 
 		// Validate role exists
-		const existing = await prisma.roleConfig.findUnique({ where: { role } });
+		const existing = await db.findUnique("roleConfig", { role });
 		if (!existing) {
 			return res.status(404).json({ error: "Role não encontrada" });
 		}
@@ -85,7 +87,7 @@ router.post("/", authenticate, authorize("ADMIN"), async (req: any, res) => {
 			return res.status(400).json({ error: "role e label são obrigatórios" });
 		}
 
-		const existing = await prisma.roleConfig.findUnique({ where: { role } });
+		const existing = await db.findUnique("roleConfig", { role });
 		if (existing) {
 			return res.status(409).json({ error: "Role já existe" });
 		}

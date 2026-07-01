@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 import { authenticate, authorize } from "../middleware/auth";
 import { logActivity } from "../services/log";
 
@@ -36,7 +35,7 @@ router.get("/", authenticate, authorize("ADMIN"), async (req: any, res) => {
 		}
 
 		const [logs, total] = await Promise.all([
-			prisma.activityLog.findMany({
+			db.findMany("activityLog", {
 				where,
 				include: {
 					user: {
@@ -47,7 +46,7 @@ router.get("/", authenticate, authorize("ADMIN"), async (req: any, res) => {
 				skip,
 				take: limit,
 			}),
-			prisma.activityLog.count({ where }),
+			db.count("activityLog", where),
 		]);
 
 		res.json({
@@ -68,7 +67,7 @@ router.get("/", authenticate, authorize("ADMIN"), async (req: any, res) => {
 // GET /api/logs/users - List users with activity summary (ADMIN only)
 router.get("/users", authenticate, authorize("ADMIN"), async (_req: any, res) => {
 	try {
-		const users = await prisma.user.findMany({
+		const users = await db.findMany("user", {
 			select: {
 				id: true,
 				nome: true,
@@ -94,7 +93,7 @@ router.delete("/:id", authenticate, authorize("ADMIN"), async (req: any, res) =>
 		const id = String(req.params.id);
 		if (!id) return res.status(400).json({ error: "ID inválido" });
 
-		const existing = await prisma.activityLog.findUnique({ where: { id } });
+		const existing = await db.findUnique("activityLog", { id });
 		if (!existing) return res.status(404).json({ error: "Registro de log não encontrado" });
 
 		await db.delete("activityLog", { id });
@@ -127,7 +126,7 @@ router.delete("/", authenticate, authorize("ADMIN"), async (req: any, res) => {
 			if (endDate) where.createdAt.lte = new Date(`${endDate}T23:59:59.999Z`);
 		}
 
-		const result = await prisma.activityLog.deleteMany({ where });
+		const result = await db.deleteMany("activityLog", where);
 
 		if (req.userId) {
 			await logActivity(req.userId, "Excluir Logs", `Bulk delete: ${result.count} registros`);
@@ -156,15 +155,15 @@ router.get("/stats", authenticate, authorize("ADMIN"), async (req: any, res) => 
 		}
 
 		const [totalLogs, byAction, byUser] = await Promise.all([
-			prisma.activityLog.count({ where }),
-			prisma.activityLog.groupBy({
+			db.count("activityLog", where),
+			db.groupBy("activityLog", {
 				by: ["acao"],
 				where,
 				_count: { id: true },
 				orderBy: { _count: { id: "desc" } },
 				take: 20,
 			}),
-			prisma.activityLog.groupBy({
+			db.groupBy("activityLog", {
 				by: ["userId"],
 				where,
 				_count: { id: true },
@@ -174,7 +173,7 @@ router.get("/stats", authenticate, authorize("ADMIN"), async (req: any, res) => 
 		]);
 
 		const userIds = byUser.map((b: any) => b.userId);
-		const users = await prisma.user.findMany({
+		const users = await db.findMany("user", {
 			where: { id: { in: userIds } },
 			select: { id: true, nome: true, email: true, role: true },
 		});
@@ -185,7 +184,7 @@ router.get("/stats", authenticate, authorize("ADMIN"), async (req: any, res) => 
 			totalLogs,
 			byAction: byAction.map((b: any) => ({ acao: b.acao, count: b._count.id })),
 			byUser: byUser.map((b: any) => ({
-				...userMap.get(b.userId),
+				...(userMap.get(b.userId) || {}),
 				count: b._count.id,
 			})),
 		});

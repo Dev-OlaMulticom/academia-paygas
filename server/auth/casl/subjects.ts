@@ -1,29 +1,10 @@
 /**
  * CASL Subjects — centralized subject definitions.
  * Each subject maps to a Prisma model or domain concept.
+ *
+ * Canonical source is `shared/casl/subjects.ts` (re-exported below).
  */
-export const Subjects = {
-	User: "User",
-	Modulo: "Modulo",
-	Aula: "Aula",
-	Licao: "Licao",
-	Quiz: "Quiz",
-	QuizPergunta: "QuizPergunta",
-	QuizResponse: "QuizResponse",
-	Progresso: "Progresso",
-	Certificate: "Certificate",
-	Notification: "Notification",
-	ActivityLog: "ActivityLog",
-	PointsTransaction: "PointsTransaction",
-	ForumPost: "ForumPost",
-	ModuleConfig: "ModuleConfig",
-	XPConfig: "XPConfig",
-	Conquista: "Conquista",
-	UserConquista: "UserConquista",
-	Team: "Team",
-	Message: "Message",
-	Dashboard: "Dashboard",
-	All: "all",
-} as const;
+import { SHARED_SUBJECT_OBJECT, type SharedSubject } from "../../../shared/casl/actions";
 
-export type Subject = (typeof Subjects)[keyof typeof Subjects];
+export const Subjects = SHARED_SUBJECT_OBJECT;
+export type Subject = SharedSubject;

@@ -65,7 +65,7 @@ export function ModulosPage() {
 	const [restartRequested, setRestartRequested] = useState(false);
 	const isMobile = useIsMobile();
 
-	const loadModulo = async () => {
+	const loadModulo = useCallback(async () => {
 		if (!moduloNombre) return;
 		try {
 			const allMods = await api.getCmsModulos();
@@ -85,7 +85,7 @@ export function ModulosPage() {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, [moduloNombre]);
 
 	const loadQuizResults = useCallback(async () => {
 		if (!modulo) return;
@@ -117,7 +117,7 @@ export function ModulosPage() {
 		}
 	}, [modulo]);
 
-	const isLessonCompleted = (lesson: any) => lesson.concluido === true;
+	const isLessonCompleted = useCallback((lesson: any) => lesson.concluido === true, []);
 
 	useEffect(() => {
 		loadModulo();

@@ -309,6 +309,7 @@ export function CertificadosPage({ user }: { user?: any }) {
 								</div>
 								<div
 									className="cert-template-preview"
+									// biome-ignore lint/security/noDangerouslySetInnerHtml: certificate template preview
 									dangerouslySetInnerHTML={{
 										__html: renderPreview(mod.certificadoTemplate || DEFAULT_CERT_TEMPLATE, mod),
 									}}
@@ -342,6 +343,7 @@ export function CertificadosPage({ user }: { user?: any }) {
 									<div
 										id="template-preview"
 										className="cert-modal-preview"
+										// biome-ignore lint/security/noDangerouslySetInnerHtml: certificate template preview
 										dangerouslySetInnerHTML={{ __html: renderPreview(templateText, editingModulo) }}
 									/>
 								</div>

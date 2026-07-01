@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 import { type AuthRequest, authenticate, authorize } from "../middleware/auth";
 import { getStringParam } from "../utils/queryParams";
 
@@ -13,22 +12,22 @@ router.get("/", authenticate, async (req: AuthRequest, res) => {
 		const userId = req.userId!;
 		const userRole = req.userRole!;
 
-		const conquistas = await prisma.conquista.findMany({
+		const conquistas = await db.findMany("conquista", {
 			orderBy: { ordem: "asc" },
 		});
 
 		if (userRole === "ATENDENTE") {
-			const user = await prisma.user.findUnique({ where: { id: userId }, select: { xp: true } });
+			const user = await db.findUnique("user", { id: userId }, { select: { xp: true } });
 			const userXp = user?.xp || 0;
-			const userConquistas = await prisma.userConquista.findMany({ where: { userId } });
-			const earnedIds = new Set(userConquistas.map((uc) => uc.conquistaId));
+			const userConquistas = await db.findMany("userConquista", { where: { userId } });
+			const earnedIds = new Set(userConquistas.map((uc: any) => uc.conquistaId));
 
 			const filtered = conquistas
-				.filter((c) => c.ativo)
-				.map((c) => ({
+				.filter((c: any) => c.ativo)
+				.map((c: any) => ({
 					...c,
 					earned: earnedIds.has(c.id),
-					dataConquista: userConquistas.find((uc) => uc.conquistaId === c.id)?.dataConquista || null,
+					dataConquista: userConquistas.find((uc: any) => uc.conquistaId === c.id)?.dataConquista || null,
 					progresso: userXp >= c.pontosMinimos ? 100 : Math.round((userXp / Math.max(c.pontosMinimos, 1)) * 100),
 					disponivel: userXp >= c.pontosMinimos,
 				}));
@@ -36,7 +35,7 @@ router.get("/", authenticate, async (req: AuthRequest, res) => {
 			return res.json(filtered);
 		}
 
-		const result = conquistas.map((c) => ({
+		const result = conquistas.map((c: any) => ({
 			...c,
 			earned: false,
 			dataConquista: null,
@@ -120,12 +119,12 @@ router.delete("/:id", authenticate, authorize("ADMIN"), async (req: AuthRequest,
 router.get("/my", authenticate, async (req: AuthRequest, res) => {
 	try {
 		const userId = req.userId!;
-		const userConquistas = await prisma.userConquista.findMany({
+		const userConquistas = await db.findMany("userConquista", {
 			where: { userId },
 			include: { conquista: true },
 		});
 		res.json(
-			userConquistas.map((uc) => ({
+			userConquistas.map((uc: any) => ({
 				...uc.conquista,
 				dataConquista: uc.dataConquista,
 			})),

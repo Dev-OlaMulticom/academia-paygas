@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 import { authenticate, authorize } from "../middleware/auth";
 import { logActivity } from "../services/log";
 import { getStringParam } from "../utils/queryParams";
@@ -22,7 +21,7 @@ router.get("/", authenticate, async (req: any, res) => {
 			where = {};
 		} else if (req.userRole === "GESTOR") {
 			// Gestor sees own + team members' certificates
-			const teamMembers = await prisma.user.findMany({
+			const teamMembers = await db.findMany("user", {
 				where: { gestorId: req.userId },
 				select: { id: true },
 			});
@@ -34,7 +33,7 @@ router.get("/", authenticate, async (req: any, res) => {
 		}
 
 		const [certs, total] = await Promise.all([
-			prisma.certificate.findMany({
+			db.findMany("certificate", {
 				where,
 				orderBy: { createdAt: "desc" },
 				skip,
@@ -48,7 +47,7 @@ router.get("/", authenticate, async (req: any, res) => {
 					},
 				},
 			}),
-			prisma.certificate.count({ where }),
+			db.count("certificate", where),
 		]);
 
 		res.json({

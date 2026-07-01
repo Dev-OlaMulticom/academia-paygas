@@ -9,6 +9,16 @@
  *   MYSQL_URL → separate MySQL client
  *
  * Adding a new PG database = just add PG_URL_N to .env. DAL auto-discovers it.
+ *
+ * "Primary" semantics:
+ *   The PRIMARY delegate is the database chosen by `dbRegistry.getPrimary()`,
+ *   which is health-aware (prefers `connected > degraded > unknown >
+ *   disconnected`, sorted by registry priority). This is the source used for
+ *   authoritative reads and writes.
+ *
+ *   Backups = every other healthy PG entry, fire-and-forget for writes.
+ *
+ *   MySQL is a third-tier backup that only gets writes.
  */
 import { type DatabaseEntry, dbRegistry } from "../config/databases";
 import { prismaMysql } from "./prisma-mysql";
@@ -17,15 +27,11 @@ import { prismaMysql } from "./prisma-mysql";
 type ModelDelegate = any;
 
 export interface ModelDelegates {
-	primary: ModelDelegate; // First healthy PG (for reads)
-	backups: ModelDelegate[]; // All other healthy PGs (fire-and-forget writes)
-	mysql: ModelDelegate | null; // MySQL backup
+	primary: ModelDelegate;
+	backups: ModelDelegate[];
+	mysql: ModelDelegate | null;
 }
 
-/**
- * Lazily resolve model delegates from the registry.
- * Registry clients are PrismaClients — we access model via (client as any)[modelName]
- */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 const delegateCache = new Map<string, ModelDelegates>();
 
@@ -34,6 +40,20 @@ function getRegistryClientModel(entry: DatabaseEntry, modelName: string): ModelD
 	// PrismaClient delegates are accessed as client.user, client.modulo, etc.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return (entry.client as any)[modelName] || null;
+}
+
+/**
+ * Pick the primary database entry using the health-aware registry method.
+ * Falls back to the first registered entry only when the registry is empty
+ * (cold-start codepath).
+ */
+function resolvePrimaryEntry(): DatabaseEntry {
+	const healthy = dbRegistry.getHealthy();
+	const candidates = healthy.length > 0 ? healthy : dbRegistry.getAll();
+	if (candidates.length === 0) {
+		throw new Error("[DB] No databases registered. Set PG_URL_1 or DATABASE_URL");
+	}
+	return dbRegistry.getPrimary() ?? candidates[0];
 }
 
 export function getModelDelegates(modelName: string): ModelDelegates {
@@ -45,14 +65,14 @@ export function getModelDelegates(modelName: string): ModelDelegates {
 		throw new Error("[DB] No databases registered. Set PG_URL_1 or DATABASE_URL");
 	}
 
-	// Primary = first registered (PG_URL_1)
-	const primaryEntry = allEntries[0];
+	const primaryEntry = resolvePrimaryEntry();
 	const primary = getRegistryClientModel(primaryEntry, modelName);
 
-	// Backups = all other PGs
+	// Backups = every other PG entry that has a client
 	const backups: ModelDelegate[] = [];
-	for (let i = 1; i < allEntries.length; i++) {
-		const delegate = getRegistryClientModel(allEntries[i], modelName);
+	for (const entry of allEntries) {
+		if (entry.name === primaryEntry.name) continue;
+		const delegate = getRegistryClientModel(entry, modelName);
 		if (delegate) backups.push(delegate);
 	}
 
@@ -62,6 +82,14 @@ export function getModelDelegates(modelName: string): ModelDelegates {
 	const result: ModelDelegates = { primary, backups, mysql };
 	delegateCache.set(modelName, result);
 	return result;
+}
+
+/**
+ * Invalidate the delegate cache. Call after the registry re-evaluates health
+ * status (e.g. after a failover) so reads start routing through the new primary.
+ */
+export function invalidateDelegateCache(): void {
+	delegateCache.clear();
 }
 
 // Backward compatibility export — used by db.ts getReadClient

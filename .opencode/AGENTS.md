@@ -1,42 +1,50 @@
 # AGENTS.md — Academia PayGas
 
-> **Centralized documentation:** All agent documentation lives in `.ai/`.
-
-## Documentation Index
-
-| Document | Location | Description |
-|----------|----------|-------------|
-| Architecture | [`../.ai/architecture.md`](../.ai/architecture.md) | Project structure, database, auth, deployment, gotchas |
-| Coding Rules | [`../.ai/coding-rules.md`](../.ai/coding-rules.md) | Style conventions, security rules, anti-patterns |
-| Workflow | [`../.ai/workflow.md`](../.ai/workflow.md) | 10-step development workflow, error handling, scenarios |
-| Task Master | [`../.ai/taskmaster.md`](../.ai/taskmaster.md) | Task management with Task Master AI |
-| Memory | [`../.ai/memory.md`](../.ai/memory.md) | codebase-memory-mcp usage, priority, best practices |
-| Testing | [`../.ai/testing.md`](../.ai/testing.md) | Verification commands, manual testing, seed data |
+> **Full documentation:** [`../AGENTS.md`](../AGENTS.md)
 
 ## Quick Reference
 
 ### Commands
 
 ```bash
-pnpm dev              # Dev (frontend + backend)
-pnpm build            # Build (prisma + vite + tsc)
-pnpm lint             # Lint (biome check)
-pnpm lint:fix         # Lint fix
-npx tsc --noEmit      # Typecheck frontend
-npx tsc --project tsconfig.server.json --noEmit  # Typecheck backend
+pnpm dev              # frontend + backend concurrently
+pnpm build            # prisma generate → vite build + tsc server
+pnpm lint             # biome check .
+pnpm lint:fix         # biome check --write .
+pnpm test             # node --import tsx --test tests/*.test.ts
+npx tsc --noEmit      # typecheck frontend
+npx tsc --project tsconfig.server.json --noEmit  # typecheck backend
 ```
+
+### Key Rules
+
+- **DAL**: Always use `server/lib/db.ts`, never `prisma.*` directly in routes
+- **CASL**: Backend is source of truth; frontend CASL is custom UI hints only
+- **CASL conditions**: Must be JSON.stringified as third arg to `authorize()`
+- **Multi-DB**: `db.transaction()` only uses primary, no replication to backups
+- **Dev mode**: No failover, no health checks, no background sync
+- **Biome**: Tabs, double quotes, trailing commas, lineWidth 120
 
 ### Codebase Tools
 
+- `codebase-memory-mcp` — PRIMARY code discovery (search_graph, trace_path, get_code_snippet, query_graph)
 - `rg` for text search (never `grep`)
 - `fd` for file search (never `find`)
 - `ast-grep` for refactoring
 - `LSP` for symbol navigation
-- `codebase-memory-mcp` for code discovery
 
-### Key Gotchas
+### Task Management
 
-- **DAL**: Always use `server/lib/db.ts`, never `prisma.*` directly in routes
-- **CASL**: Backend is source of truth; frontend CASL is custom UI hints only
-- **Multi-DB**: `db.transaction()` only uses primary, no replication to backups
-- **Dev mode**: No failover, no health checks, no background sync
+- `task-master-ai` — task list in `.taskmaster/tasks/tasks.json`
+- `npx task-master next` / `list` / `show <id>` / `set-status --id=<id> --status=done`
+
+### Documentation
+
+| Document | Location |
+|----------|----------|
+| Architecture | [`../.ai/architecture.md`](../.ai/architecture.md) |
+| Coding Rules | [`../.ai/coding-rules.md`](../.ai/coding-rules.md) |
+| Workflow | [`../.ai/workflow.md`](../.ai/workflow.md) |
+| Task Master | [`../.ai/taskmaster.md`](../.ai/taskmaster.md) |
+| Memory | [`../.ai/memory.md`](../.ai/memory.md) |
+| Testing | [`../.ai/testing.md`](../.ai/testing.md) |

@@ -1,104 +1,64 @@
 # AGENTS.md — Academia PayGas
 
-> **Centralized documentation:** All agent documentation lives in `.ai/`.
->
-> | Document | Location |
-> |----------|----------|
-> | Architecture | [`ai/architecture.md`](ai/architecture.md) |
-> | Coding Rules | [`ai/coding-rules.md`](ai/coding-rules.md) |
-> | Workflow | [`ai/workflow.md`](ai/workflow.md) |
-> | Task Master | [`ai/taskmaster.md`](ai/taskmaster.md) |
-> | Memory | [`ai/memory.md`](ai/memory.md) |
-> | Testing | [`ai/testing.md`](ai/testing.md) |
-
 Corporate LMS for PayGas gas station employees. React SPA + Express API + PostgreSQL (primary) + MySQL (backup).
+
+> **Extended docs** live in `.ai/` — architecture, coding rules, workflow, testing, task-master, memory.
 
 ## Commands
 
 ```bash
-# Dev (both frontend + backend concurrently)
-pnpm dev
+pnpm dev              # frontend (Vite :5173) + backend (tsx watch :3001) concurrently
+pnpm build            # prisma generate (PG+MySQL) → vite build + tsc server
+pnpm start            # node dist/server/index.js (requires build first)
+pnpm lint             # biome check .
+pnpm lint:fix         # biome check --write .
+pnpm format           # biome format --write .
+pnpm test             # node --import tsx --test tests/*.test.ts
 
-# Dev individual
-pnpm dev:client          # Vite on :5173
-pnpm dev:server          # tsx watch server/index.ts on :3001
+# Typecheck (no dedicated script)
+npx tsc --noEmit                                    # frontend
+npx tsc --project tsconfig.server.json --noEmit     # server
 
-# Build (required before deploy or start)
-pnpm build               # prisma generate (PG+MySQL) + vite build + tsc server
+# Database
+npx prisma generate                                # PG client
+npx prisma generate --schema=prisma/schema.mysql.prisma  # MySQL client
+npx prisma migrate deploy                          # apply migrations
+pnpm db:seed                                       # test users (admin/gestor/atendentes)
+pnpm db:reset                                      # reset + seed
+pnpm db:sync-mysql                                 # initial PG → MySQL copy
 
-# Build individual
-npx vite build            # frontend only
-npx tsc --project tsconfig.server.json  # server only
-
-# Start (production, requires build first)
-pnpm start               # node dist/server/index.js
-pnpm start:prod          # NODE_ENV=production node dist/server/index.js
-
-# Lint
-pnpm lint                # biome check .
-pnpm lint:fix            # biome check --write .
-pnpm format              # biome format --write .
-
-# Typecheck (no dedicated script — run manually)
-npx tsc --noEmit                           # frontend
-npx tsc --project tsconfig.server.json --noEmit  # server
-
-# Database - PostgreSQL (primary)
-npx prisma generate      # generate PG client
-npx prisma migrate deploy
-pnpm db:seed             # tsx prisma/seed.ts (test users)
-pnpm db:reset            # reset + seed
-
-# Database - MySQL (backup)
-npx prisma generate --schema=prisma/schema.mysql.prisma  # generate MySQL client
-pnpm db:generate:mysql   # same as above
-pnpm db:sync-mysql       # initial sync PG → MySQL (runs pg-dump + mysql import)
-
-# Deploy (cPanel/production)
-./deploy.sh              # auto-detects nginx, compiles, restarts
+# Deploy
+./deploy.sh              # auto-detects nginx, builds, restarts
 ```
 
-No test framework. Verification is manual via API health check and seed data.
-
-## Pre-flight Checks
-
-Before starting development or running commands, verify:
-
-1. **pnpm installed**: Run `pnpm --version` — if not found, install with `npm install -g pnpm`
-2. **Dependencies installed**: Run `pnpm install` in project root
-3. **.env file exists**: Copy `.env.example` to `.env` if missing, configure required vars
+**Pre-flight:** `pnpm --version`, `pnpm install`, `.env` exists (copy from `.env.example`).
 
 ## Architecture
 
-**Single package** — not a monorepo. Two compilation targets:
+Single package, two compilation targets:
 
-- `src/` → frontend (Vite, React 19, outputs to `dist/`)
-- `server/` → backend (TSC, Express 5, outputs to `dist/server/`)
+| Target | Source | Output | Config |
+|--------|--------|--------|--------|
+| Frontend | `src/` | `dist/` | `tsconfig.json` (ESNext/bundler, `noEmit: true`) |
+| Backend | `server/` | `dist/server/` | `tsconfig.server.json` (CommonJS/node) |
+| Shared | `shared/` | (imported by both) | `@shared/*` alias in both tsconfigs + vite |
 
-Backend entry: `server/index.ts` (Express on port 3001).
-Frontend entry: `src/main.tsx` → `src/App.tsx` (React Router, BrowserRouter).
+Entry points: `server/index.ts` (Express :3001), `src/main.tsx` → `src/App.tsx` (React Router).
 
 ### Path aliases
 
-- `@/*` → `./src/*` (frontend, via tsconfig.json + vite.config.ts)
-
-### Two tsconfigs
-
-| Config | Scope | Module | Notes |
-|--------|-------|--------|-------|
-| `tsconfig.json` | `src/` (frontend) | ESNext/bundler | `noEmit: true`, excludes `server/` |
-| `tsconfig.server.json` | `server/` | CommonJS/node | Outputs to `dist/server/` |
+- `@/*` → `./src/*` (frontend only)
+- `@shared/*` → `./shared/*` (both frontend and backend)
 
 ### Linter
 
-**Biome** (not ESLint). Config in `biome.json`. Tabs, double quotes, trailing commas.
-- `pnpm lint` → `biome check .`
-- `pnpm lint:fix` → `biome check --write .`
-- `pnpm format` → `biome format --write .`
+**Biome** (not ESLint). Config in `biome.json`. Tabs, double quotes, trailing commas, lineWidth 120.
+Excludes: `dist/`, `node_modules/`, `*.js`, `wordpress-plugin-academia-paygas/`, `api/`, `styles/`.
 
-### UI stack
+### UI
 
-shadcn/ui (new-york style), Radix UI primitives, TailwindCSS 4, Lucide icons. Components in `src/components/ui/`.
+shadcn/ui (new-york style), Radix UI, TailwindCSS 4, Lucide icons. Components in `src/components/ui/`.
+Config: `components.json`, `tailwind.config.ts`, `postcss.config.mjs`.
 
 ### Backend routes
 
@@ -107,61 +67,41 @@ All under `/api/`. Route files in `server/routes/`:
 
 ### Database
 
-**Multi-database architecture with failover**: Reads failover to next healthy database. Writes go to all healthy databases in parallel. Background sync reconciles empty databases when they recover.
+Multi-PG with failover. Reads failover to next healthy PG. Writes go to all healthy PGs in parallel + MySQL (fire-and-forget).
 
 ```env
-# .env — Multi-PG configuration
-PG_URL_1="postgres://...@supabase.co:5432/postgres?sslmode=require"   # Primary (takes precedence over DATABASE_URL)
-PG_URL_2="postgres://...@nhost.run:5432/project?sslmode=require"     # Backup, failover for reads
-DATABASE_URL="..."  # Legacy fallback (used if PG_URL_1 not set). Required by Prisma migrations.
-MYSQL_URL="..."     # MySQL backup (different engine, third-tier)
-NHOST_URL="..."     # Legacy Nhost backup (fallback if PG_URL_* not set)
+PG_URL_1="postgres://..."    # Primary (takes precedence over DATABASE_URL)
+PG_URL_2="postgres://..."    # Backup, failover for reads
+PG_URL_3..10                  # Additional backups (auto-discovered)
+DATABASE_URL="..."            # Legacy fallback, required by Prisma migrations
+MYSQL_URL="..."               # MySQL backup (different engine, third-tier)
+NHOST_URL="..."               # Legacy Nhost backup (fallback if no PG_URL_*)
 ```
 
-- **PG_URL_1** through **PG_URL_10** supported — the registry scans dynamically.
-- **Health checks**: Every 60s, monitors all databases. Exponential backoff for disconnected ones.
-- **Keep-alive**: Pings all databases every 12h to prevent free-tier pauses.
-- **Background sync**: When a completely empty database recovers, syncs all data from healthiest database.
-
-**Naming gotcha:** The DB table is `Modulo` but the frontend/CMS calls it "Curso". The field `moduloId` is `cursoId` in frontend context. This is cosmetic only — the schema is not changing.
+Health checks every 60s, keep-alive every 12h, background sync on recovery. **Dev mode has no failover** — health checks/sync only run in production (or with `DB_INFRA_DEV=1`).
 
 ### Data Access Layer (DAL)
 
-All database access goes through `server/lib/db.ts`. Never call `prisma.*` directly in routes.
+All DB access through `server/lib/db.ts`. **Never call `prisma.*` directly in routes.**
 
 ```ts
 import { db } from '../lib/db'
-
-// CRUD operations (dual-write to backups)
 await db.create('user', { email, nome, senha })
 await db.findUnique('user', { id: '123' })
-await db.update('user', { id: '123' }, { nome: 'New' })
-await db.upsert('progresso', { ... }, { ... }, { ... })
-await db.delete('user', { id: '123' })
-
-// Reads always use primary (PG_URL_1)
 await db.findMany('modulo', { where: { ativo: true } })
+await db.update('user', { id: '123' }, { nome: 'New' })
+await db.delete('user', { id: '123' })
 ```
 
-Models are configured in `server/lib/db-models.ts`. Each model maps PG, Nhost, and MySQL delegates. Nhost and MySQL are `null` when their URL env vars are not set — dual-write gracefully degrades.
-
-**Gotcha:** `db.transaction()` only uses the primary Prisma client — no replication to backups. Raw queries (`db.queryRaw()`) also only hit primary.
-
-### Encryption
-
-AES-256-GCM payloads between client and server. Client fetches key from `GET /api/config` (requires auth token) before login. See `src/lib/crypto.ts` (client) and `server/middleware/encryption.ts` (server).
-
-### Email Service
-
-Centralized email dispatch via `server/services/email.ts`. Primary: Gmail SMTP. Backup: Resend SMTP. Auto-fallback on failure. Every email BCCs `email@academia.paygas.com.br`. `sendEmail()` returns `{ success, messageId, error }`.
+Models configured in `server/lib/db-models.ts`. MySQL and Nhost are `null` when unconfigured — dual-write silently skips them.
 
 ### Auth & Authorization
 
-**Authentication**: JWT + bcryptjs. Five roles: `ADMIN`, `GESTOR`, `ATENDENTE`, `PARCEIRO_ACREDITADO`, `ERPS_REPRESENTANTE`. GESTOR is restricted to their own team members. Tokens verified via `server/middleware/auth.ts`.
+JWT + bcryptjs. Five roles: `ADMIN`, `GESTOR`, `ATENDENTE`, `PARCEIRO_ACREDITADO`, `ERPS_REPRESENTANTE`.
+Tokens verified via `server/middleware/auth.ts`.
 
-**Authorization**: CASL-based RBAC/ABAC. All permission logic centralized in `server/auth/casl/`. Permissions are DB-driven via `RoleConfig` table — adding a new role is just a DB insert.
+CASL-based RBAC/ABAC centralized in `server/auth/casl/`. Permissions DB-driven via `RoleConfig` table.
 
-**Middleware** (`server/middleware/auth.ts`) supports both patterns:
 ```ts
 // Role-based (backward compat)
 router.get('/users', authenticate, authorize('ADMIN', 'GESTOR'), handler)
@@ -171,73 +111,65 @@ router.post('/users', authenticate, authorize('create', 'User'), handler)
 router.put('/users/:id', authenticate, authorize('update', 'User', JSON.stringify({ gestorId: req.userId })))
 ```
 
-**Frontend permissions** (`src/hooks/useAbility.ts`):
-```tsx
-const { can, cannot, isAdmin, isGestor, isAtendente, isParceiro, isErps } = useAbility()
-if (can('delete', 'User')) { /* show delete button */ }
-```
+Frontend permissions via `src/hooks/useAbility.ts` (custom lightweight engine, NOT `@casl/ability` runtime).
 
-### Gamification / XP
+### Encryption
 
-XP points are configurable via the `XPConfig` table (editable by ADMIN at `/xp-config`). Values are decimals (Float). The `awardPoints` function in `server/services/gamification.ts` reads config from DB with a 60s in-memory cache, falling back to hardcoded defaults.
+AES-256-GCM between client and server. Client fetches key from `GET /api/config` (requires auth token) before login.
+Client: `src/lib/crypto.ts`. Server: `server/middleware/encryption.ts`.
 
-Level = `Math.floor(xp / 2000) + 1`. `awardPointsIfNotAwarded` deduplicates by (userId, action, details-as-dedupKey). `awardLoginPointsDaily` limits login XP to once per calendar day.
+### Email
+
+Centralized via `server/services/email.ts`. Gmail SMTP primary, Resend SMTP backup, auto-fallback. Every email BCCs `email@academia.paygas.com.br`.
+
+### Gamification
+
+XP configurable via `XPConfig` table. Level = `Math.floor(xp / 2000) + 1`. `awardPoints` in `server/services/gamification.ts` with 60s cache.
 
 ### Activity Logs
 
-All user actions are logged to the `ActivityLog` table via the shared `logActivity(userId, acao, detalhes)` service (`server/services/log.ts`). ADMIN can view logs at `/logs` with filters by user, action type, and date range.
+All user actions logged via `logActivity(userId, acao, detalhes)` in `server/services/log.ts`.
 
-## Herramientas preferidas
+## Gotchas
 
-Para buscar texto usa SIEMPRE: `rg`
-Nunca uses: `grep`
-
-------------
-
-Para buscar archivos usa: `fd`
-Nunca uses: `find`
-
-------------
-
-Para refactorizaciones usa: `ast-grep`
-
-------------
-
-Para navegar símbolos usa: `LSP`
-
-------------
-
-Solo usa grep/find si las herramientas anteriores no están disponibles.
+- **CASL action list is hardcoded** in `authorize()` middleware — if you add a new CASL action in `shared/casl/actions.ts`, it's auto-detected via `KNOWN_ACTIONS` from `server/auth/casl/actions.ts`. Verify the import chain stays intact.
+- **CASL conditions must be JSON.stringified**: `authorize('update', 'User', JSON.stringify({ gestorId: req.userId }))`.
+- **Frontend CASL is custom** — `src/hooks/useAbility.ts` does NOT use `@casl/ability` at runtime. Backend is always source of truth.
+- **Naming gotcha:** DB table is `Modulo` but frontend/CMS calls it "Curso". `moduloId` = `cursoId` in frontend. Cosmetic only.
+- **`prisma.config.ts`** auto-detects `--schema` arg to pick PG vs MySQL URL. Don't hardcode the datasource URL in `schema.prisma`.
+- **`pnpm build`** must run `prisma generate` (PG + MySQL) before vite/tsc — the script chains this automatically.
+- **Two PrismaClient instances** for PG_URL_1: `server/lib/prisma.ts` (lazy Proxy) and `server/config/databases.ts` (registry). They now share the same pool via `getPrimaryPrisma()`.
+- **`db.transaction()`** only uses primary Prisma client — no replication to backups. Raw queries (`db.queryRaw()`) also only hit primary.
+- **Prisma uses PrismaPg adapter** (`@prisma/adapter-pg`), not the default binary engine. SSL: `{ rejectUnauthorized: false }`.
+- **MySQL uses MariaDB adapter** (`@prisma/adapter-mariadb`). MySQL schema uses `prisma db push` (no migrations).
+- **MySQL client generated to `prisma/generated/mysql/`** — this path is in `.gitignore`.
+- **HTTPS auto-detection**: Server looks for `server/certs/key.pem` and `cert.pem` relative to `__dirname`.
+- **JWT_SECRET fallback chain**: env var (≥32 chars) → `.jwt-secret` file (≥16 chars) → auto-generate 64-byte hex and persist.
+- **`.htaccess` does nothing on nginx** — the nginx snippet in `deploy.sh` replaces its functionality.
+- **Vite dev proxy**: `/api` → `http://localhost:3001` (not https).
+- **`app.js` and `Passengerfile.json`** exist for Phusion Passenger but are NOT used by `deploy.sh`.
+- **`prisma-mysql.ts`** uses `path.resolve(__dirname, ...)` for dynamic require because compiled output is deeper than source.
 
 ## Conventions
 
 - **Commit format:** `tipo: descripcion` — types: feat, fix, security, docs, chore, deploy
-- **Language:** UI strings are in Portuguese (pt-BR). Code identifiers also use Portuguese naming (`modulo`, `aula`, `licao`, `equipe`, `certificados`).
-- **No test framework.** Verification is manual via API health check and seed data.
-- **Deploy target:** cPanel with nginx reverse proxy. `deploy.sh` handles nginx snippet creation, build, and restart. Production runs `node dist/server/index.js` directly (not Passenger).
+- **Language:** UI strings in Portuguese (pt-BR). Code identifiers also Portuguese (`modulo`, `aula`, `licao`, `equipe`, `certificados`).
+- **Deploy target:** cPanel with nginx reverse proxy. `deploy.sh` handles nginx snippet, build, restart. Production runs `node dist/server/index.js` directly (not Passenger).
 
-## Gotchas
+## Tests
 
-- `pnpm build` must run `prisma generate` (PG + MySQL) before vite/tsc — the build script chains this automatically.
-- `.htaccess` does nothing on nginx (production server). The nginx snippet in `deploy.sh` replaces its functionality.
-- Vite dev server proxies `/api` to `http://localhost:3001` (not https).
-- `app.js` and `Passengerfile.json` exist for Phusion Passenger but are NOT used by `deploy.sh`.
-- **Dev mode has no failover**: Health checks, keepalive, and background sync only run when `NODE_ENV=production`. In dev, if the primary DB is down, reads fail immediately with no fallback.
-- **CASL action list is hardcoded** in `authorize()` middleware (`server/middleware/auth.ts:95`) — if you add a new CASL action in `server/auth/casl/actions.ts`, you must also add it to the detection list in `server/middleware/auth.ts`, otherwise it falls through to role-based auth.
-- **CASL conditions must be JSON.stringified** when passed as third arg: `authorize('update', 'User', JSON.stringify({ gestorId: req.userId }))`.
-- **Frontend CASL is custom** — `src/hooks/useAbility.ts` does NOT use the `@casl/ability` library at runtime. It implements a lightweight rule engine. The backend is always the source of truth.
-- **Prisma uses PrismaPg adapter** (`@prisma/adapter-pg`), not the default binary engine. Connection goes through the `pg` driver with `ssl: { rejectUnauthorized: false }`.
-- **MySQL uses MariaDB adapter** (`@prisma/adapter-mariadb`) — MariaDB is wire-compatible with MySQL but there could be edge cases.
-- **Two PrismaClient instances for PG_URL_1**: `server/lib/prisma.ts` creates one, `server/config/databases.ts` registry creates another. They share the same connection string but have separate connection pools.
-- **`db-models.ts` always uses `allEntries[0]` as primary** regardless of health status, while `databases.ts` has a health-aware `getPrimary()`. These two "primary" concepts can diverge.
-- **HTTPS auto-detection**: Server looks for `server/certs/key.pem` and `cert.pem` relative to `__dirname`. If found, creates HTTPS; otherwise plain HTTP.
-- **JWT_SECRET fallback chain**: env var → `.jwt-secret` file → auto-generate random 64-byte hex and persist to `.jwt-secret`.
-- When `MYSQL_URL` is not set, `prismaMysql` is `null` and all dual-write operations silently skip MySQL.
-- When `NHOST_URL` is not set, `prismaNhost` is `null` and all dual-write operations silently skip Nhost.
-- `PG_URL_1` takes precedence over `DATABASE_URL` as primary. If neither is set, the server won't start.
-- Prisma migrations live in `prisma/migrations/`. Use `prisma migrate dev` to create new ones locally.
-- MySQL client is generated to `prisma/generated/mysql/` — this path is in `.gitignore`.
-- `prisma-mysql.ts` uses `path.resolve(__dirname, ...)` for dynamic require because compiled output (`dist/server/lib/`) is deeper than source (`server/lib/`).
+Smoke tests using Node.js built-in test runner + tsx loader (no Jest/Vitest):
+
+```bash
+pnpm test    # runs tests/*.test.ts
+```
+
+| File | Covers |
+|------|--------|
+| `tests/casl-shared.test.ts` | `shared/casl/actions.ts` consistency |
+| `tests/jwt-fallback.test.ts` | JWT_SECRET fallback chain |
+
+Add a new test file → picked up automatically by `pnpm test`.
 
 ## Codebase Tools
 
@@ -283,3 +215,25 @@ npx task-master expand --id=<id>  # break into subtasks
 **Note:** AI features (parse-prd, expand, add-task with --prompt) require API keys in `.env`:
 - `ANTHROPIC_API_KEY` (recommended) or `OPENAI_API_KEY` or `GOOGLE_API_KEY`
 - `PERPLEXITY_API_KEY` (optional, for research mode)
+
+### Preferred CLI Tools
+
+| Task | Tool | NOT |
+|------|------|-----|
+| Text search | `rg` | `grep` |
+| File search | `fd` | `find` |
+| Refactoring | `ast-grep` | — |
+| Symbol navigation | LSP | — |
+
+Fallback to grep/find only if the above are unavailable.
+
+## Documentation Index
+
+| Document | Location |
+|----------|----------|
+| Architecture | `.ai/architecture.md` |
+| Coding Rules | `.ai/coding-rules.md` |
+| Workflow | `.ai/workflow.md` |
+| Task Master | `.ai/taskmaster.md` |
+| Memory | `.ai/memory.md` |
+| Testing | `.ai/testing.md` |

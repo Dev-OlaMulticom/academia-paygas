@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 import { type AuthRequest, authenticate, authorize } from "../middleware/auth";
 import { logActivity } from "../services/log";
 
@@ -34,7 +33,7 @@ router.get("/", authenticate, async (_req: AuthRequest, res) => {
 			await db.upsert("moduleConfig", { key: mod.key }, mod, {});
 		}
 
-		const modules = await prisma.moduleConfig.findMany({
+		const modules = await db.findMany("moduleConfig", {
 			orderBy: { key: "asc" },
 		});
 
@@ -74,12 +73,12 @@ router.put("/:key", authenticate, authorize("ADMIN"), async (req: AuthRequest, r
 // GET /api/admin/modules/enabled - Get only enabled module keys (public-ish, for sidebar)
 router.get("/enabled", authenticate, async (_req: AuthRequest, res) => {
 	try {
-		const modules = await prisma.moduleConfig.findMany({
+		const modules = await db.findMany("moduleConfig", {
 			where: { enabled: true },
 			select: { key: true },
 		});
 
-		res.json(modules.map((m) => m.key));
+		res.json(modules.map((m: any) => m.key));
 	} catch (error) {
 		logger.error("[MODULES ENABLED ERROR]", error);
 		res.status(500).json({ error: "Erro ao buscar modulos ativos" });

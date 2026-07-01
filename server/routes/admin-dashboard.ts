@@ -44,28 +44,40 @@ router.get("/", authenticate, authorize("ADMIN"), async (_req: AuthRequest, res)
 			take: 20,
 		});
 
+		// Aggregated query: get aula counts and progress counts per modulo in bulk (avoids N+1)
+		const aulaCounts = (await db.groupBy("aula", {
+			by: ["moduloId"],
+			_count: { id: true },
+		})) as any[];
+		const aulaCountMap = new Map(aulaCounts.map((ac: any) => [ac.moduloId, ac._count.id]));
+
+		const progressCounts = (await db.groupBy("progresso", {
+			by: ["moduloId", "concluido"],
+			_count: { id: true },
+		})) as any[];
+		// Aggregate: total accesses and total concluded per modulo
+		const progressMap = new Map<string, { acessos: number; concluidos: number }>();
+		for (const pc of progressCounts) {
+			const existing = progressMap.get(pc.moduloId) || { acessos: 0, concluidos: 0 };
+			existing.acessos += pc._count.id;
+			if (pc.concluido) existing.concluidos += pc._count.id;
+			progressMap.set(pc.moduloId, existing);
+		}
+
 		const modulos = (await db.findMany("modulo")) as any[];
 
-		const cursosRecentes = await Promise.all(
-			modulos.map(async (m: any) => {
-				const aulas = (await db.findMany("aula", { where: { moduloId: m.id } })) as any[];
-				let totalAcessos = 0;
-				let totalConcluidos = 0;
-				for (const a of aulas) {
-					const progressos = (await db.findMany("progresso", { where: { aulaId: a.id } })) as any[];
-					totalAcessos += progressos.length;
-					totalConcluidos += progressos.filter((p: any) => p.concluido).length;
-				}
-				return {
-					id: m.id,
-					titulo: m.titulo,
-					totalAulas: aulas.length,
-					acessos: totalAcessos,
-					concluidos: totalConcluidos,
-					percentual: totalAcessos > 0 ? Math.round((totalConcluidos / totalAcessos) * 100) : 0,
-				};
-			}),
-		);
+		const cursosRecentes = modulos.map((m: any) => {
+			const totalAulas = aulaCountMap.get(m.id) || 0;
+			const prog = progressMap.get(m.id) || { acessos: 0, concluidos: 0 };
+			return {
+				id: m.id,
+				titulo: m.titulo,
+				totalAulas,
+				acessos: prog.acessos,
+				concluidos: prog.concluidos,
+				percentual: prog.acessos > 0 ? Math.round((prog.concluidos / prog.acessos) * 100) : 0,
+			};
+		});
 		cursosRecentes.sort((a: any, b: any) => b.acessos - a.acessos);
 		const topCursos = cursosRecentes.slice(0, 10);
 
@@ -117,7 +129,7 @@ router.post("/send-email", authenticate, authorize("ADMIN"), async (req: AuthReq
         <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
           <div style="background:linear-gradient(135deg,#f59e0b 0%,#d97706 100%);color:white;padding:30px;text-align:center;">
             <h1 style="margin:0;font-size:22px;">Academia PayGas</h1>
-            <p style="margin:5px 0 0;font-size:14px;">Mensagem do Administrador</p>
+            <p style="margin:5px 0 0;font-size:14px;">Mensagem do SuperAdministrador</p>
           </div>
           <div style="padding:30px;">
             <h2 style="margin:0 0 8px;color:#333;">Olá, ${targetUser.nome || targetUser.email}!</h2>

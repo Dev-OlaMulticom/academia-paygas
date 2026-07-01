@@ -9,23 +9,42 @@ interface DashboardPageProps {
 	user?: any;
 }
 
+// Module-level cache: persists across re-mounts within the same session (5 min TTL)
+// Keyed by userId to prevent cross-user data leakage after logout/login
+let dashCache: { data: any; ts: number; userId?: string } | null = null;
+const DASH_CACHE_TTL = 5 * 60 * 1000;
+
 export function DashboardPage({ xp, user }: DashboardPageProps) {
 	const navigate = useNavigate();
 	const { isAdmin } = useAbility();
-	const [dashData, setDashData] = useState<any>(null);
-
-	const loadDashboard = async () => {
-		try {
-			const data = await api.getDashboard();
-			setDashData(data);
-		} catch {
-			setDashData(null);
+	const [dashData, setDashData] = useState<any>(() => {
+		// Use cache only if fresh AND same user (avoids cross-user data leakage)
+		if (dashCache && user?.id && Date.now() - dashCache.ts < DASH_CACHE_TTL && dashCache.userId === user.id) {
+			return dashCache.data;
 		}
-	};
+		return null;
+	});
 
 	useEffect(() => {
-		loadDashboard();
-	}, [loadDashboard]);
+		// Skip fetch if cache is fresh AND same user
+		if (dashCache && user?.id && Date.now() - dashCache.ts < DASH_CACHE_TTL && dashCache.userId === user.id) return;
+
+		let cancelled = false;
+		api
+			.getDashboard()
+			.then((data) => {
+				if (!cancelled) {
+					setDashData(data);
+					dashCache = { data, ts: Date.now(), userId: user?.id };
+				}
+			})
+			.catch(() => {
+				if (!cancelled) setDashData(null);
+			});
+		return () => {
+			cancelled = true;
+		};
+	}, [user?.id]);
 
 	const level = dashData?.level || Math.floor(xp / XP_PER_LEVEL) + 1;
 	const currentLevelXp = (level - 1) * XP_PER_LEVEL;

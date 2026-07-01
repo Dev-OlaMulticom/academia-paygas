@@ -1,7 +1,8 @@
 import { Router } from "express";
+import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 import { type AuthRequest, authenticate } from "../middleware/auth";
+import { getAllRoleConfigs } from "../services/role-permissions";
 
 const router = Router();
 
@@ -12,21 +13,21 @@ router.get("/overview", authenticate, async (_req: AuthRequest, res) => {
 		const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
 		const [totalUsers, totalAulas, _totalProgressos, totalCertificates, quizzesAprovados] = await Promise.all([
-			prisma.user.count(),
-			prisma.aula.count(),
-			prisma.progresso.count({ where: { concluido: true } }),
-			prisma.certificate.count(),
-			prisma.quizResponse.count({ where: { concluido: true } }),
+			db.count("user"),
+			db.count("aula"),
+			db.count("progresso", { concluido: true }),
+			db.count("certificate"),
+			db.count("quizResponse", { concluido: true }),
 		]);
 
-		const totalModulos = await prisma.modulo.count();
+		const totalModulos = await db.count("modulo");
 
-		const progressosMes = await prisma.progresso.count({
-			where: { createdAt: { gte: thirtyDaysAgo } },
+		const progressosMes = await db.count("progresso", {
+			createdAt: { gte: thirtyDaysAgo },
 		});
 
-		const usersMes = await prisma.user.count({
-			where: { createdAt: { gte: thirtyDaysAgo } },
+		const usersMes = await db.count("user", {
+			createdAt: { gte: thirtyDaysAgo },
 		});
 
 		res.json({
@@ -50,7 +51,7 @@ router.get("/overview", authenticate, async (_req: AuthRequest, res) => {
 // GET /api/analytics/modules
 router.get("/modules", authenticate, async (_req: AuthRequest, res) => {
 	try {
-		const modulos = await prisma.modulo.findMany({
+		const modulos = await db.findMany("modulo", {
 			include: {
 				aulas: {
 					include: {
@@ -60,19 +61,22 @@ router.get("/modules", authenticate, async (_req: AuthRequest, res) => {
 			},
 		});
 
-		const _totalUsers = await prisma.user.count();
+		const _totalUsers = await db.count("user");
 
 		const result = modulos
-			.map((m) => {
-				const totalAcessos = m.aulas.reduce((sum, a) => sum + a.progressos.length, 0);
-				const totalConcluidos = m.aulas.reduce((sum, a) => sum + a.progressos.filter((p) => p.concluido).length, 0);
+			.map((m: any) => {
+				const totalAcessos = m.aulas.reduce((sum: number, a: any) => sum + a.progressos.length, 0);
+				const totalConcluidos = m.aulas.reduce(
+					(sum: number, a: any) => sum + a.progressos.filter((p: any) => p.concluido).length,
+					0,
+				);
 				return {
 					titulo: m.titulo,
 					acessos: totalAcessos,
 					conclusao: totalAcessos > 0 ? Math.round((totalConcluidos / totalAcessos) * 100) : 0,
 				};
 			})
-			.sort((a, b) => b.acessos - a.acessos);
+			.sort((a: any, b: any) => b.acessos - a.acessos);
 
 		res.json(result);
 	} catch (error) {
@@ -84,20 +88,18 @@ router.get("/modules", authenticate, async (_req: AuthRequest, res) => {
 // GET /api/analytics/personas
 router.get("/personas", authenticate, async (_req: AuthRequest, res) => {
 	try {
-		const users = await prisma.user.groupBy({
+		const users = await db.groupBy("user", {
 			by: ["role"],
 			_count: { id: true },
 			_avg: { xp: true },
 		});
 
-		const roleLabels: Record<string, string> = {
-			ADMIN: "Admin PayGas",
-			GESTOR: "Gestor",
-			ATENDENTE: "Atendente",
-		};
+		// Get role labels from database with cache (60s TTL)
+		const roleConfigs = await getAllRoleConfigs();
+		const roleLabels = new Map(roleConfigs.map((rc) => [rc.role, rc.label]));
 
-		const result = users.map((u) => ({
-			persona: roleLabels[u.role] || u.role,
+		const result = users.map((u: any) => ({
+			persona: roleLabels.get(u.role) || u.role,
 			users: u._count.id,
 			xp: Math.round(u._avg.xp || 0),
 		}));
@@ -112,7 +114,7 @@ router.get("/personas", authenticate, async (_req: AuthRequest, res) => {
 // GET /api/analytics/regions
 router.get("/regions", authenticate, async (_req: AuthRequest, res) => {
 	try {
-		const users = await prisma.user.findMany({
+		const users = await db.findMany("user", {
 			select: { xp: true, progressos: { select: { concluido: true } } },
 		});
 
@@ -142,7 +144,7 @@ router.get("/regions", authenticate, async (_req: AuthRequest, res) => {
 // GET /api/analytics/municipios
 router.get("/municipios", authenticate, async (_req: AuthRequest, res) => {
 	try {
-		const totalUsers = await prisma.user.count();
+		const totalUsers = await db.count("user");
 
 		const municipios = [
 			{

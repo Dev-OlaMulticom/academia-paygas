@@ -1,11 +1,12 @@
 import { Router } from "express";
 import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 import { authenticate, authorize } from "../middleware/auth";
 import { logActivity } from "../services/log";
 
 const router = Router();
+
+// ==================== CSV UTILITIES ====================
 
 function escapeCsvField(value: string | number | boolean | null | undefined): string {
 	if (value === null || value === undefined) return "";
@@ -76,15 +77,77 @@ function sendCsv(res: any, filename: string, csvContent: string) {
 	res.send(`\uFEFF${csvContent}`);
 }
 
-// ==================== EXPORT ====================
+function parseBool(val: string | undefined): boolean {
+	if (!val) return false;
+	const v = val.trim().toLowerCase();
+	return v === "true" || v === "1" || v === "sim";
+}
+
+function parseIntSafe(val: string | undefined): number | null {
+	if (!val?.trim()) return null;
+	const n = Number.parseInt(val.trim(), 10);
+	return Number.isNaN(n) ? null : n;
+}
+
+const VALID_TIPOS = ["VIDEO", "PDF", "TEXTO"];
+const VALID_CORRETA = ["A", "B", "C", "D"];
+
+// Unified CSV column order
+const UNIFIED_HEADERS = [
+	"tipo",
+	"id",
+	"modulo_id",
+	"modulo_titulo",
+	"aula_id",
+	"aula_titulo",
+	"titulo",
+	"descricao",
+	"ordem",
+	"obrigatorio",
+	"autoCertificado",
+	"videoUrl",
+	"pdfUrl",
+	"tipo_aula",
+	"duracaoMin",
+	"videoInicio",
+	"videoFim",
+	"conteudo",
+	"inicioSeg",
+	"fimSeg",
+	"quiz_titulo",
+	"notaMinima",
+	"autoGerarCertificado",
+	"pergunta_id",
+	"pergunta",
+	"opcaoA",
+	"opcaoB",
+	"opcaoC",
+	"opcaoD",
+	"correta",
+];
+
+type CsvType = "curso" | "aula" | "licao" | "quiz_pergunta";
+
+function detectCsvType(headers: string[]): CsvType | null {
+	const h = new Set(headers.map((x) => x.toLowerCase().trim()));
+	if (h.has("tipo")) return null; // unified CSV, read tipo from each row
+	if (h.has("pergunta")) return "quiz_pergunta";
+	if (h.has("aula_titulo") && (h.has("conteudo") || h.has("inicioseg") || (h.has("titulo") && !h.has("modulo_titulo"))))
+		return "licao";
+	if (h.has("modulo_titulo") && h.has("titulo") && !h.has("pergunta")) return "aula";
+	if (h.has("titulo") && h.has("descricao") && !h.has("modulo_titulo")) return "curso";
+	return null;
+}
+
+// ==================== EXPORT (with IDs) ====================
 
 router.get("/export/cursos", authenticate, authorize("ADMIN"), async (_req: any, res) => {
 	try {
-		const modulos = await prisma.modulo.findMany({
-			include: { _count: { select: { aulas: true } } },
+		const modulos = await db.findMany("modulo", {
 			orderBy: { ordem: "asc" },
 		});
 		const headers = [
+			"id",
 			"titulo",
 			"descricao",
 			"ordem",
@@ -94,8 +157,8 @@ router.get("/export/cursos", authenticate, authorize("ADMIN"), async (_req: any,
 			"videoInicio",
 			"videoFim",
 		];
-		const rows = modulos.map((m) => headers.map((h) => escapeCsvField((m as any)[h])));
-		const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+		const rows = modulos.map((m: any) => headers.map((h: string) => escapeCsvField((m as any)[h])));
+		const csv = [headers.join(","), ...rows.map((r: string[]) => r.join(","))].join("\n");
 		sendCsv(res, "cursos.csv", csv);
 	} catch (error) {
 		logger.error("[EXPORT ERROR]", error);
@@ -105,11 +168,13 @@ router.get("/export/cursos", authenticate, authorize("ADMIN"), async (_req: any,
 
 router.get("/export/aulas", authenticate, authorize("ADMIN"), async (_req: any, res) => {
 	try {
-		const aulas = await prisma.aula.findMany({
-			include: { modulo: { select: { titulo: true } } },
+		const aulas = await db.findMany("aula", {
+			include: { modulo: { select: { id: true, titulo: true } } },
 			orderBy: [{ modulo: { ordem: "asc" } }, { ordem: "asc" }],
 		});
 		const headers = [
+			"id",
+			"modulo_id",
 			"modulo_titulo",
 			"titulo",
 			"descricao",
@@ -121,7 +186,9 @@ router.get("/export/aulas", authenticate, authorize("ADMIN"), async (_req: any, 
 			"videoInicio",
 			"videoFim",
 		];
-		const rows = aulas.map((a) => [
+		const rows = aulas.map((a: any) => [
+			escapeCsvField(a.id),
+			escapeCsvField(a.modulo.id),
 			escapeCsvField(a.modulo.titulo),
 			escapeCsvField(a.titulo),
 			escapeCsvField(a.descricao),
@@ -133,7 +200,7 @@ router.get("/export/aulas", authenticate, authorize("ADMIN"), async (_req: any, 
 			escapeCsvField(a.videoInicio),
 			escapeCsvField(a.videoFim),
 		]);
-		const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+		const csv = [headers.join(","), ...rows.map((r: string[]) => r.join(","))].join("\n");
 		sendCsv(res, "aulas.csv", csv);
 	} catch (error) {
 		logger.error("[EXPORT ERROR]", error);
@@ -143,15 +210,36 @@ router.get("/export/aulas", authenticate, authorize("ADMIN"), async (_req: any, 
 
 router.get("/export/licoes", authenticate, authorize("ADMIN"), async (_req: any, res) => {
 	try {
-		const licoes = await prisma.licao.findMany({
+		const licoes = await db.findMany("licao", {
 			include: {
-				aula: { select: { titulo: true, modulo: { select: { titulo: true } } } },
+				aula: {
+					select: {
+						id: true,
+						titulo: true,
+						modulo: { select: { id: true, titulo: true } },
+					},
+				},
 			},
 			orderBy: [{ aula: { modulo: { ordem: "asc" } } }, { aula: { ordem: "asc" } }, { ordem: "asc" }],
 		});
-		const headers = ["modulo_titulo", "aula_titulo", "titulo", "tipo", "conteudo", "duracaoMin", "inicioSeg", "fimSeg"];
-		const rows = licoes.map((l) => [
+		const headers = [
+			"id",
+			"modulo_id",
+			"modulo_titulo",
+			"aula_id",
+			"aula_titulo",
+			"titulo",
+			"tipo",
+			"conteudo",
+			"duracaoMin",
+			"inicioSeg",
+			"fimSeg",
+		];
+		const rows = licoes.map((l: any) => [
+			escapeCsvField(l.id),
+			escapeCsvField(l.aula.modulo.id),
 			escapeCsvField(l.aula.modulo.titulo),
+			escapeCsvField(l.aula.id),
 			escapeCsvField(l.aula.titulo),
 			escapeCsvField(l.titulo),
 			escapeCsvField(l.tipo),
@@ -160,7 +248,7 @@ router.get("/export/licoes", authenticate, authorize("ADMIN"), async (_req: any,
 			escapeCsvField(l.inicioSeg),
 			escapeCsvField(l.fimSeg),
 		]);
-		const csv = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+		const csv = [headers.join(","), ...rows.map((r: string[]) => r.join(","))].join("\n");
 		sendCsv(res, "licoes.csv", csv);
 	} catch (error) {
 		logger.error("[EXPORT ERROR]", error);
@@ -170,19 +258,29 @@ router.get("/export/licoes", authenticate, authorize("ADMIN"), async (_req: any,
 
 router.get("/export/quiz", authenticate, authorize("ADMIN"), async (_req: any, res) => {
 	try {
-		const quizzes = await prisma.quiz.findMany({
+		const quizzes = await db.findMany("quiz", {
 			include: {
 				perguntas: { orderBy: { ordem: "asc" } },
-				aula: { select: { titulo: true, modulo: { select: { titulo: true } } } },
+				aula: {
+					select: {
+						id: true,
+						titulo: true,
+						modulo: { select: { id: true, titulo: true } },
+					},
+				},
 			},
 			orderBy: [{ aula: { modulo: { ordem: "asc" } } }, { aula: { ordem: "asc" } }],
 		});
 		const headers = [
+			"modulo_id",
 			"modulo_titulo",
+			"aula_id",
 			"aula_titulo",
+			"quiz_id",
 			"quiz_titulo",
 			"notaMinima",
 			"autoGerarCertificado",
+			"pergunta_id",
 			"pergunta",
 			"opcaoA",
 			"opcaoB",
@@ -194,11 +292,15 @@ router.get("/export/quiz", authenticate, authorize("ADMIN"), async (_req: any, r
 		for (const quiz of quizzes) {
 			if (quiz.perguntas.length === 0) {
 				rows.push([
+					escapeCsvField(quiz.aula.modulo.id),
 					escapeCsvField(quiz.aula.modulo.titulo),
+					escapeCsvField(quiz.aula.id),
 					escapeCsvField(quiz.aula.titulo),
+					escapeCsvField(quiz.id),
 					escapeCsvField(quiz.titulo),
 					escapeCsvField(quiz.notaMinima),
 					escapeCsvField(quiz.autoGerarCertificado),
+					"",
 					"",
 					"",
 					"",
@@ -209,11 +311,15 @@ router.get("/export/quiz", authenticate, authorize("ADMIN"), async (_req: any, r
 			} else {
 				for (const p of quiz.perguntas) {
 					rows.push([
+						escapeCsvField(quiz.aula.modulo.id),
 						escapeCsvField(quiz.aula.modulo.titulo),
+						escapeCsvField(quiz.aula.id),
 						escapeCsvField(quiz.aula.titulo),
+						escapeCsvField(quiz.id),
 						escapeCsvField(quiz.titulo),
 						escapeCsvField(quiz.notaMinima),
 						escapeCsvField(quiz.autoGerarCertificado),
+						escapeCsvField(p.id),
 						escapeCsvField(p.pergunta),
 						escapeCsvField(p.opcaoA),
 						escapeCsvField(p.opcaoB),
@@ -232,7 +338,727 @@ router.get("/export/quiz", authenticate, authorize("ADMIN"), async (_req: any, r
 	}
 });
 
-// ==================== IMPORT ====================
+// ==================== EXPORT ALL (unified CSV) ====================
+
+router.get("/export/all", authenticate, authorize("ADMIN"), async (_req: any, res) => {
+	try {
+		const rows: string[][] = [];
+
+		// Cursos
+		const modulos = await db.findMany("modulo", { orderBy: { ordem: "asc" } });
+		for (const m of modulos) {
+			rows.push([
+				"curso",
+				escapeCsvField(m.id),
+				"",
+				escapeCsvField(m.titulo),
+				"",
+				"",
+				escapeCsvField(m.titulo),
+				escapeCsvField(m.descricao),
+				escapeCsvField(m.ordem),
+				escapeCsvField(m.obrigatorio),
+				escapeCsvField(m.autoCertificado),
+				escapeCsvField(m.videoUrl),
+				"",
+				"",
+				"",
+				escapeCsvField(m.videoInicio),
+				escapeCsvField(m.videoFim),
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+			]);
+		}
+
+		// Aulas
+		const aulas = await db.findMany("aula", {
+			include: { modulo: { select: { id: true, titulo: true } } },
+			orderBy: [{ modulo: { ordem: "asc" } }, { ordem: "asc" }],
+		});
+		for (const a of aulas) {
+			rows.push([
+				"aula",
+				escapeCsvField(a.id),
+				escapeCsvField(a.modulo.id),
+				escapeCsvField(a.modulo.titulo),
+				"",
+				"",
+				escapeCsvField(a.titulo),
+				escapeCsvField(a.descricao),
+				escapeCsvField(a.ordem),
+				escapeCsvField(a.obrigatorio),
+				"",
+				escapeCsvField(a.videoUrl),
+				escapeCsvField(a.pdfUrl),
+				escapeCsvField(a.tipo),
+				escapeCsvField(a.duracaoMin),
+				escapeCsvField(a.videoInicio),
+				escapeCsvField(a.videoFim),
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+			]);
+		}
+
+		// Licoes
+		const licoes = await db.findMany("licao", {
+			include: {
+				aula: {
+					select: {
+						id: true,
+						titulo: true,
+						modulo: { select: { id: true, titulo: true } },
+					},
+				},
+			},
+			orderBy: [{ aula: { modulo: { ordem: "asc" } } }, { aula: { ordem: "asc" } }, { ordem: "asc" }],
+		});
+		for (const l of licoes) {
+			rows.push([
+				"licao",
+				escapeCsvField(l.id),
+				escapeCsvField(l.aula.modulo.id),
+				escapeCsvField(l.aula.modulo.titulo),
+				escapeCsvField(l.aula.id),
+				escapeCsvField(l.aula.titulo),
+				escapeCsvField(l.titulo),
+				"",
+				escapeCsvField(l.ordem),
+				"",
+				"",
+				"",
+				"",
+				escapeCsvField(l.tipo),
+				escapeCsvField(l.duracaoMin),
+				"",
+				"",
+				escapeCsvField(l.conteudo),
+				escapeCsvField(l.inicioSeg),
+				escapeCsvField(l.fimSeg),
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+				"",
+			]);
+		}
+
+		// Quiz perguntas
+		const quizzes = await db.findMany("quiz", {
+			include: {
+				perguntas: { orderBy: { ordem: "asc" } },
+				aula: {
+					select: {
+						id: true,
+						titulo: true,
+						modulo: { select: { id: true, titulo: true } },
+					},
+				},
+			},
+			orderBy: [{ aula: { modulo: { ordem: "asc" } } }, { aula: { ordem: "asc" } }],
+		});
+		for (const quiz of quizzes) {
+			if (quiz.perguntas.length === 0) {
+				rows.push([
+					"quiz_pergunta",
+					"",
+					escapeCsvField(quiz.aula.modulo.id),
+					escapeCsvField(quiz.aula.modulo.titulo),
+					escapeCsvField(quiz.aula.id),
+					escapeCsvField(quiz.aula.titulo),
+					"",
+					"",
+					"",
+					"",
+					escapeCsvField(quiz.autoGerarCertificado),
+					"",
+					"",
+					"",
+					"",
+					"",
+					"",
+					"",
+					"",
+					"",
+					escapeCsvField(quiz.titulo),
+					escapeCsvField(quiz.notaMinima),
+					escapeCsvField(quiz.autoGerarCertificado),
+					"",
+					"",
+					"",
+					"",
+					"",
+					"",
+					"",
+				]);
+			} else {
+				for (const p of quiz.perguntas) {
+					rows.push([
+						"quiz_pergunta",
+						"",
+						escapeCsvField(quiz.aula.modulo.id),
+						escapeCsvField(quiz.aula.modulo.titulo),
+						escapeCsvField(quiz.aula.id),
+						escapeCsvField(quiz.aula.titulo),
+						"",
+						"",
+						"",
+						"",
+						escapeCsvField(quiz.autoGerarCertificado),
+						"",
+						"",
+						"",
+						"",
+						"",
+						"",
+						"",
+						"",
+						"",
+						escapeCsvField(quiz.titulo),
+						escapeCsvField(quiz.notaMinima),
+						escapeCsvField(quiz.autoGerarCertificado),
+						escapeCsvField(p.id),
+						escapeCsvField(p.pergunta),
+						escapeCsvField(p.opcaoA),
+						escapeCsvField(p.opcaoB),
+						escapeCsvField(p.opcaoC),
+						escapeCsvField(p.opcaoD),
+						escapeCsvField(p.correta),
+					]);
+				}
+			}
+		}
+
+		const csv = [UNIFIED_HEADERS.join(","), ...rows.map((r) => r.join(","))].join("\n");
+		sendCsv(res, "conteudo-completo.csv", csv);
+	} catch (error) {
+		logger.error("[EXPORT ALL ERROR]", error);
+		res.status(500).json({ error: "Erro ao exportar dados" });
+	}
+});
+
+// ==================== DETECT ====================
+
+router.post("/detect", authenticate, authorize("ADMIN"), async (req: any, res) => {
+	try {
+		const { csv: csvText } = req.body;
+		if (!csvText || typeof csvText !== "string") {
+			return res.status(400).json({ error: "Dados CSV invalidos" });
+		}
+		const { headers, rows } = parseCsv(csvText);
+		if (headers.length === 0) {
+			return res.status(400).json({ error: "CSV sem cabecalhos" });
+		}
+
+		const hasTipoColumn = headers.some((h) => h.toLowerCase().trim() === "tipo");
+		let detectedType: string;
+		const rowCount = rows.length;
+
+		if (hasTipoColumn) {
+			const tipoIdx = headers.findIndex((h) => h.toLowerCase().trim() === "tipo");
+			const tipos = new Set(rows.map((r) => (r[tipoIdx] || "").trim().toLowerCase()).filter(Boolean));
+			if (tipos.size === 1) {
+				detectedType = [...tipos][0];
+			} else if (tipos.size > 1) {
+				detectedType = "misto";
+			} else {
+				detectedType = "desconhecido";
+			}
+		} else {
+			detectedType = detectCsvType(headers) || "desconhecido";
+		}
+
+		// Validate required columns per type
+		const missingRequired: string[] = [];
+		const warnings: string[] = [];
+		const lowerHeaders = headers.map((h) => h.toLowerCase().trim());
+		const has = (col: string) => lowerHeaders.includes(col.toLowerCase());
+
+		if (detectedType === "curso" && !has("titulo")) missingRequired.push("titulo");
+		if (detectedType === "aula") {
+			if (!has("titulo")) missingRequired.push("titulo");
+			if (!has("modulo_titulo") && !has("modulo_id")) missingRequired.push("modulo_titulo ou modulo_id");
+		}
+		if (detectedType === "licao") {
+			if (!has("titulo")) missingRequired.push("titulo");
+			if (!has("aula_titulo") && !has("aula_id")) missingRequired.push("aula_titulo ou aula_id");
+		}
+		if (detectedType === "quiz_pergunta") {
+			if (!has("pergunta")) missingRequired.push("pergunta");
+			if (!has("aula_titulo") && !has("aula_id")) missingRequired.push("aula_titulo ou aula_id");
+		}
+
+		if (detectedType === "misto" && !has("tipo")) {
+			missingRequired.push("tipo");
+		}
+
+		// Check for potentially wrong columns
+		if (has("tipo") && !has("tipo_aula") && lowerHeaders.includes("tipo")) {
+			const tipoValues = rows.map((r) => {
+				const idx = lowerHeaders.indexOf("tipo");
+				return (r[idx] || "").trim().toUpperCase();
+			});
+			const hasAulaTipos = tipoValues.some((v) => VALID_TIPOS.includes(v));
+			if (hasAulaTipos && !hasTipoColumn) {
+				warnings.push(
+					'Coluna "tipo" parece conter valores de tipo de aula (VIDEO/PDF/TEXTO). Considere renomear para "tipo_aula".',
+				);
+			}
+		}
+
+		const preview = rows.slice(0, 3).map((row) => {
+			const obj: Record<string, string> = {};
+			headers.forEach((h, i) => {
+				obj[h] = row[i] || "";
+			});
+			return obj;
+		});
+
+		res.json({
+			type: detectedType,
+			columns: headers,
+			rowCount,
+			missingRequired,
+			warnings,
+			valid: missingRequired.length === 0,
+			preview,
+		});
+	} catch (error) {
+		logger.error("[DETECT ERROR]", error);
+		res.status(500).json({ error: "Erro ao detectar CSV" });
+	}
+});
+
+// ==================== UNIFIED IMPORT ====================
+
+router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any, res) => {
+	try {
+		const { csv: csvText, mode = "create" } = req.body;
+		if (!csvText || typeof csvText !== "string") {
+			return res.status(400).json({ error: "Dados CSV invalidos" });
+		}
+		const { headers, rows } = parseCsv(csvText);
+		if (headers.length === 0 || rows.length === 0) {
+			return res.status(400).json({ error: "CSV vazio ou sem cabecalhos" });
+		}
+
+		const objects = rowsToObjects(headers, rows);
+		const isUpsert = mode === "upsert";
+		const lowerHeaders = headers.map((h) => h.toLowerCase().trim());
+		const hasTipoColumn = lowerHeaders.includes("tipo");
+		const errors: { row: number; field: string; message: string }[] = [];
+
+		// Pre-load lookups
+		const allModulos = await db.findMany("modulo", { select: { id: true, titulo: true } });
+		const moduloByTitulo = new Map(allModulos.map((m: any) => [m.titulo, m.id]));
+		const moduloById = new Map(allModulos.map((m: any) => [m.id, m.titulo]));
+
+		const allAulas = await db.findMany("aula", { select: { id: true, titulo: true, moduloId: true } });
+		const aulaByKey = new Map(allAulas.map((a: any) => [`${a.moduloId}:${a.titulo}`, a.id]));
+		const aulaById = new Map(allAulas.map((a: any) => [a.id, a]));
+
+		// Resolve helper: get moduloId from row (prefer ID over titulo)
+		function resolveModuloId(obj: Record<string, string>): string | null {
+			const id = obj.modulo_id?.trim();
+			if (id && moduloById.has(id)) return id;
+			const titulo = obj.modulo_titulo?.trim();
+			if (titulo) return (moduloByTitulo.get(titulo) as string) || null;
+			return null;
+		}
+
+		// Resolve helper: get aulaId from row
+		function resolveAulaId(obj: Record<string, string>, moduloId: string): string | null {
+			const id = obj.aula_id?.trim();
+			if (id && aulaById.has(id)) return id;
+			const titulo = obj.aula_titulo?.trim();
+			if (titulo) return (aulaByKey.get(`${moduloId}:${titulo}`) as string) || null;
+			return null;
+		}
+
+		// Group rows by type
+		const typeGroups: Record<CsvType, Record<string, string>[]> = {
+			curso: [],
+			aula: [],
+			licao: [],
+			quiz_pergunta: [],
+		};
+
+		if (hasTipoColumn) {
+			for (let i = 0; i < objects.length; i++) {
+				const rawTipo = (objects[i].tipo || "")
+					.trim()
+					.toLowerCase()
+					.replace(/[_\s]+/g, "_");
+				const tipoMap: Record<string, CsvType> = {
+					curso: "curso",
+					cursos: "curso",
+					modulo: "curso",
+					modulos: "curso",
+					aula: "aula",
+					aulas: "aula",
+					licao: "licao",
+					licoes: "licao",
+					quiz: "quiz_pergunta",
+					quiz_pergunta: "quiz_pergunta",
+					pergunta: "quiz_pergunta",
+					perguntas: "quiz_pergunta",
+				};
+				const tipo = tipoMap[rawTipo];
+				if (!tipo) {
+					errors.push({ row: i + 2, field: "tipo", message: `Tipo desconhecido: "${objects[i].tipo}"` });
+					continue;
+				}
+				typeGroups[tipo].push(objects[i]);
+			}
+		} else {
+			const detected = detectCsvType(headers);
+			if (!detected) {
+				return res.status(400).json({ error: "Nao foi possivel detectar o tipo do CSV. Adicione a coluna 'tipo'." });
+			}
+			typeGroups[detected] = objects;
+		}
+
+		const result = { created: 0, updated: 0, skipped: 0, total: objects.length, errors };
+
+		// Process in order: cursos → aulas → licoes → quiz
+		// CURSOS
+		for (const obj of typeGroups.curso) {
+			const titulo = obj.titulo?.trim();
+			if (!titulo) {
+				result.skipped++;
+				continue;
+			}
+
+			if (isUpsert && obj.id?.trim()) {
+				const existing = await db.findUnique("modulo", { id: obj.id.trim() });
+				if (existing) {
+					await db.update(
+						"modulo",
+						{ id: obj.id.trim() },
+						{
+							titulo,
+							descricao: obj.descricao || "",
+							obrigatorio: parseBool(obj.obrigatorio),
+							autoCertificado: parseBool(obj.autoCertificado),
+							videoUrl: obj.videoUrl || null,
+							videoInicio: parseIntSafe(obj.videoInicio),
+							videoFim: parseIntSafe(obj.videoFim),
+						},
+					);
+					result.updated++;
+					continue;
+				}
+			}
+
+			const existingByTitle = await db.findFirst("modulo", { titulo });
+			if (existingByTitle) {
+				result.skipped++;
+				continue;
+			}
+
+			const maxOrdem = (await db.aggregate("modulo", { _max: { ordem: true } }))._max.ordem || 0;
+			const created = await db.create("modulo", {
+				titulo,
+				descricao: obj.descricao || "",
+				ordem: parseIntSafe(obj.ordem) ?? maxOrdem + 1,
+				obrigatorio: parseBool(obj.obrigatorio),
+				autoCertificado: parseBool(obj.autoCertificado),
+				videoUrl: obj.videoUrl || null,
+				videoInicio: parseIntSafe(obj.videoInicio),
+				videoFim: parseIntSafe(obj.videoFim),
+			});
+			// Update lookup maps for subsequent rows
+			moduloByTitulo.set(titulo, (created as any).id);
+			moduloById.set((created as any).id, titulo);
+			result.created++;
+		}
+
+		// AULAS
+		for (const obj of typeGroups.aula) {
+			const titulo = obj.titulo?.trim();
+			const moduloId = resolveModuloId(obj);
+			if (!titulo || !moduloId) {
+				result.skipped++;
+				continue;
+			}
+
+			const tipoAula = (obj.tipo_aula || obj.tipo || "VIDEO").trim().toUpperCase();
+			if (!VALID_TIPOS.includes(tipoAula)) {
+				errors.push({ row: 0, field: "tipo_aula", message: `Tipo invalido: "${tipoAula}". Use: VIDEO, PDF ou TEXTO` });
+				result.skipped++;
+				continue;
+			}
+
+			if (isUpsert && obj.id?.trim()) {
+				const existing = await db.findUnique("aula", { id: obj.id.trim() });
+				if (existing) {
+					await db.update(
+						"aula",
+						{ id: obj.id.trim() },
+						{
+							titulo,
+							descricao: obj.descricao || "",
+							tipo: tipoAula as any,
+							videoUrl: obj.videoUrl || null,
+							pdfUrl: obj.pdfUrl || null,
+							obrigatorio: parseBool(obj.obrigatorio),
+							duracaoMin: parseIntSafe(obj.duracaoMin),
+							videoInicio: parseIntSafe(obj.videoInicio),
+							videoFim: parseIntSafe(obj.videoFim),
+						},
+					);
+					result.updated++;
+					continue;
+				}
+			}
+
+			const existingAula = await db.findFirst("aula", { moduloId, titulo });
+			if (existingAula) {
+				result.skipped++;
+				continue;
+			}
+
+			const maxOrdem = (await db.aggregate("aula", { where: { moduloId }, _max: { ordem: true } }))._max.ordem || 0;
+			const created = await db.create("aula", {
+				moduloId,
+				titulo,
+				descricao: obj.descricao || "",
+				ordem: parseIntSafe(obj.ordem) ?? maxOrdem + 1,
+				tipo: tipoAula as any,
+				videoUrl: obj.videoUrl || null,
+				pdfUrl: obj.pdfUrl || null,
+				obrigatorio: parseBool(obj.obrigatorio),
+				duracaoMin: parseIntSafe(obj.duracaoMin),
+				videoInicio: parseIntSafe(obj.videoInicio),
+				videoFim: parseIntSafe(obj.videoFim),
+			});
+			aulaByKey.set(`${moduloId}:${titulo}`, (created as any).id);
+			aulaById.set((created as any).id, { id: (created as any).id, titulo, moduloId });
+			result.created++;
+		}
+
+		// LICOES
+		for (const obj of typeGroups.licao) {
+			const titulo = obj.titulo?.trim();
+			const moduloId = resolveModuloId(obj);
+			if (!moduloId) {
+				result.skipped++;
+				continue;
+			}
+			const aulaId = resolveAulaId(obj, moduloId);
+			if (!titulo || !aulaId) {
+				result.skipped++;
+				continue;
+			}
+
+			const tipoLicao = (obj.tipo_aula || obj.tipo || "TEXTO").trim().toUpperCase();
+			if (!VALID_TIPOS.includes(tipoLicao)) {
+				errors.push({ row: 0, field: "tipo", message: `Tipo invalido: "${tipoLicao}". Use: VIDEO, PDF ou TEXTO` });
+				result.skipped++;
+				continue;
+			}
+
+			if (isUpsert && obj.id?.trim()) {
+				const existing = await db.findUnique("licao", { id: obj.id.trim() });
+				if (existing) {
+					await db.update(
+						"licao",
+						{ id: obj.id.trim() },
+						{
+							titulo,
+							tipo: tipoLicao as any,
+							conteudo: obj.conteudo || null,
+							duracaoMin: parseIntSafe(obj.duracaoMin),
+							inicioSeg: parseIntSafe(obj.inicioSeg),
+							fimSeg: parseIntSafe(obj.fimSeg),
+						},
+					);
+					result.updated++;
+					continue;
+				}
+			}
+
+			const existingLicao = await db.findFirst("licao", { aulaId, titulo });
+			if (existingLicao) {
+				result.skipped++;
+				continue;
+			}
+
+			const maxOrdem = (await db.aggregate("licao", { where: { aulaId }, _max: { ordem: true } }))._max.ordem || 0;
+			await db.create("licao", {
+				aulaId,
+				titulo,
+				tipo: tipoLicao as any,
+				conteudo: obj.conteudo || null,
+				duracaoMin: parseIntSafe(obj.duracaoMin),
+				inicioSeg: parseIntSafe(obj.inicioSeg),
+				fimSeg: parseIntSafe(obj.fimSeg),
+				ordem: parseIntSafe(obj.ordem) ?? maxOrdem + 1,
+			});
+			result.created++;
+		}
+
+		// QUIZ PERGUNTAS
+		const quizGroups = new Map<string, { aulaId: string; rows: Record<string, string>[] }>();
+		for (const obj of typeGroups.quiz_pergunta) {
+			const moduloId = resolveModuloId(obj);
+			if (!moduloId) {
+				result.skipped++;
+				continue;
+			}
+			const aulaId = resolveAulaId(obj, moduloId);
+			if (!aulaId) {
+				result.skipped++;
+				continue;
+			}
+
+			if (!quizGroups.has(aulaId)) quizGroups.set(aulaId, { aulaId, rows: [] });
+			quizGroups.get(aulaId)!.rows.push(obj);
+		}
+
+		for (const [, group] of quizGroups) {
+			const { aulaId, rows: groupRows } = group;
+			const first = groupRows[0];
+			const quizTitulo = first.quiz_titulo?.trim() || "Quiz";
+			const notaMinima = parseIntSafe(first.notaMinima) ?? 7;
+			const autoGerar = parseBool(first.autoGerarCertificado) || parseBool(first.autoGerar);
+
+			let quiz = await db.findUnique("quiz", { aulaId });
+			if (!quiz) {
+				const newQuiz = await db.create("quiz", {
+					aulaId,
+					titulo: quizTitulo,
+					notaMinima,
+					autoGerarCertificado: autoGerar,
+				});
+				quiz = newQuiz as any;
+				result.created++;
+			}
+
+			const existingPerguntas = await db.findMany("quizPergunta", { where: { quizId: quiz!.id } });
+			const existingByPergunta = new Map(existingPerguntas.map((p: any) => [p.pergunta, p]));
+			const existingById = new Map(existingPerguntas.map((p: any) => [p.id, p]));
+
+			const maxOrdem =
+				(await db.aggregate("quizPergunta", { where: { quizId: quiz!.id }, _max: { ordem: true } }))._max.ordem || 0;
+
+			let ordemCounter = maxOrdem;
+			for (const r of groupRows) {
+				const perguntaText = r.pergunta?.trim();
+				if (!perguntaText) {
+					result.skipped++;
+					continue;
+				}
+
+				const correta = (r.correta || "A").trim().toUpperCase();
+				if (!VALID_CORRETA.includes(correta)) {
+					errors.push({
+						row: 0,
+						field: "correta",
+						message: `Resposta correta invalida: "${correta}". Use: A, B, C ou D`,
+					});
+					result.skipped++;
+					continue;
+				}
+
+				if (!r.opcaoA?.trim() || !r.opcaoB?.trim()) {
+					errors.push({ row: 0, field: "opcaoA/opcaoB", message: "opcaoA e opcaoB sao obrigatorias" });
+					result.skipped++;
+					continue;
+				}
+
+				// Upsert by pergunta_id
+				if (isUpsert && r.pergunta_id?.trim()) {
+					const existing = existingById.get(r.pergunta_id.trim());
+					if (existing) {
+						await db.update(
+							"quizPergunta",
+							{ id: r.pergunta_id.trim() },
+							{
+								pergunta: perguntaText,
+								opcaoA: r.opcaoA.trim(),
+								opcaoB: r.opcaoB.trim(),
+								opcaoC: r.opcaoC?.trim() || null,
+								opcaoD: r.opcaoD?.trim() || null,
+								correta,
+							},
+						);
+						result.updated++;
+						continue;
+					}
+				}
+
+				// Dedup by pergunta text
+				if (existingByPergunta.has(perguntaText)) {
+					result.skipped++;
+					continue;
+				}
+
+				ordemCounter++;
+				await db.create("quizPergunta", {
+					quizId: quiz!.id,
+					pergunta: perguntaText,
+					opcaoA: r.opcaoA.trim(),
+					opcaoB: r.opcaoB.trim(),
+					opcaoC: r.opcaoC?.trim() || null,
+					opcaoD: r.opcaoD?.trim() || null,
+					correta,
+					ordem: ordemCounter,
+				});
+				existingByPergunta.set(perguntaText, {} as any);
+				result.created++;
+			}
+		}
+
+		const typeLabel = hasTipoColumn
+			? "CSV unificado"
+			: typeGroups.curso.length > 0
+				? "cursos"
+				: typeGroups.aula.length > 0
+					? "aulas"
+					: typeGroups.licao.length > 0
+						? "licoes"
+						: "quiz";
+		await logActivity(
+			req.userId!,
+			`Importar ${typeLabel}`,
+			`Criados: ${result.created}, Atualizados: ${result.updated}, Ignorados: ${result.skipped}, Erros: ${errors.length}`,
+		);
+
+		res.json(result);
+	} catch (error) {
+		logger.error("[UNIFIED IMPORT ERROR]", error);
+		res.status(500).json({ error: "Erro ao importar dados" });
+	}
+});
+
+// ==================== LEGACY IMPORT (kept for backward compat) ====================
 
 router.post("/import/cursos", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
@@ -245,11 +1071,11 @@ router.post("/import/cursos", authenticate, authorize("ADMIN"), async (req: any,
 			return res.status(400).json({ error: "CSV vazio ou sem cabeçalhos" });
 		}
 		const objects = rowsToObjects(headers, rows);
-		const existing = await prisma.modulo.findMany({ select: { titulo: true } });
-		const existingTitles = new Set(existing.map((m) => m.titulo));
+		const existing = await db.findMany("modulo", { select: { titulo: true } });
+		const existingTitles = new Set(existing.map((m: any) => m.titulo));
 		let created = 0;
 		let skipped = 0;
-		const maxOrdem = (await prisma.modulo.aggregate({ _max: { ordem: true } }))._max.ordem || 0;
+		const maxOrdem = (await db.aggregate("modulo", { _max: { ordem: true } }))._max.ordem || 0;
 		for (let i = 0; i < objects.length; i++) {
 			const obj = objects[i];
 			const titulo = obj.titulo?.trim();
@@ -265,17 +1091,17 @@ router.post("/import/cursos", authenticate, authorize("ADMIN"), async (req: any,
 				titulo,
 				descricao: obj.descricao || "",
 				ordem: maxOrdem + i + 1,
-				obrigatorio: obj.obrigatorio === "true" || obj.obrigatorio === "1",
-				autoCertificado: obj.autoCertificado === "true" || obj.autoCertificado === "1",
+				obrigatorio: parseBool(obj.obrigatorio),
+				autoCertificado: parseBool(obj.autoCertificado),
 				videoUrl: obj.videoUrl || null,
-				videoInicio: obj.videoInicio ? parseInt(obj.videoInicio, 10) : null,
-				videoFim: obj.videoFim ? parseInt(obj.videoFim, 10) : null,
+				videoInicio: parseIntSafe(obj.videoInicio),
+				videoFim: parseIntSafe(obj.videoFim),
 			});
 			existingTitles.add(titulo);
 			created++;
 		}
 		await logActivity(req.userId!, "Importar Cursos", `Criados: ${created}, Ignorados: ${skipped}`);
-		res.json({ created, skipped, total: objects.length });
+		res.json({ created, skipped, total: objects.length, updated: 0, errors: [] });
 	} catch (error) {
 		logger.error("[IMPORT ERROR]", error);
 		res.status(500).json({ error: "Erro ao importar cursos" });
@@ -293,8 +1119,8 @@ router.post("/import/aulas", authenticate, authorize("ADMIN"), async (req: any, 
 			return res.status(400).json({ error: "CSV vazio ou sem cabeçalhos" });
 		}
 		const objects = rowsToObjects(headers, rows);
-		const modulos = await prisma.modulo.findMany({ select: { id: true, titulo: true } });
-		const moduloMap = new Map(modulos.map((m) => [m.titulo, m.id]));
+		const modulos = await db.findMany("modulo", { select: { id: true, titulo: true } });
+		const moduloMap = new Map(modulos.map((m: any) => [m.titulo, m.id]));
 		let created = 0;
 		let skipped = 0;
 		for (const obj of objects) {
@@ -304,34 +1130,35 @@ router.post("/import/aulas", authenticate, authorize("ADMIN"), async (req: any, 
 				skipped++;
 				continue;
 			}
-			const moduloId = moduloMap.get(moduloTitulo);
+			const moduloId = moduloMap.get(moduloTitulo) || (obj.modulo_id?.trim() && moduloMap.get(obj.modulo_id.trim()));
 			if (!moduloId) {
 				skipped++;
 				continue;
 			}
-			const existingAula = await prisma.aula.findFirst({ where: { moduloId, titulo } });
+			const existingAula = await db.findFirst("aula", { moduloId, titulo });
 			if (existingAula) {
 				skipped++;
 				continue;
 			}
-			const maxOrdem = (await prisma.aula.aggregate({ where: { moduloId }, _max: { ordem: true } }))._max.ordem || 0;
+			const maxOrdem = (await db.aggregate("aula", { where: { moduloId }, _max: { ordem: true } }))._max.ordem || 0;
+			const tipoAula = (obj.tipo_aula || obj.tipo || "VIDEO").trim().toUpperCase();
 			await db.create("aula", {
 				moduloId,
 				titulo,
 				descricao: obj.descricao || "",
 				ordem: maxOrdem + 1,
-				tipo: (obj.tipo as any) || "VIDEO",
+				tipo: VALID_TIPOS.includes(tipoAula) ? (tipoAula as any) : "VIDEO",
 				videoUrl: obj.videoUrl || null,
 				pdfUrl: obj.pdfUrl || null,
-				obrigatorio: obj.obrigatorio === "true" || obj.obrigatorio === "1",
-				duracaoMin: obj.duracaoMin ? parseInt(obj.duracaoMin, 10) : null,
-				videoInicio: obj.videoInicio ? parseInt(obj.videoInicio, 10) : null,
-				videoFim: obj.videoFim ? parseInt(obj.videoFim, 10) : null,
+				obrigatorio: parseBool(obj.obrigatorio),
+				duracaoMin: parseIntSafe(obj.duracaoMin),
+				videoInicio: parseIntSafe(obj.videoInicio),
+				videoFim: parseIntSafe(obj.videoFim),
 			});
 			created++;
 		}
 		await logActivity(req.userId!, "Importar Aulas", `Criadas: ${created}, Ignoradas: ${skipped}`);
-		res.json({ created, skipped, total: objects.length });
+		res.json({ created, skipped, total: objects.length, updated: 0, errors: [] });
 	} catch (error) {
 		logger.error("[IMPORT ERROR]", error);
 		res.status(500).json({ error: "Erro ao importar aulas" });
@@ -349,10 +1176,10 @@ router.post("/import/licoes", authenticate, authorize("ADMIN"), async (req: any,
 			return res.status(400).json({ error: "CSV vazio ou sem cabeçalhos" });
 		}
 		const objects = rowsToObjects(headers, rows);
-		const modulos = await prisma.modulo.findMany({ select: { id: true, titulo: true } });
-		const moduloMap = new Map(modulos.map((m) => [m.titulo, m.id]));
-		const aulas = await prisma.aula.findMany({ select: { id: true, titulo: true, moduloId: true } });
-		const aulaMap = new Map(aulas.map((a) => [`${a.moduloId}:${a.titulo}`, a.id]));
+		const modulos = await db.findMany("modulo", { select: { id: true, titulo: true } });
+		const moduloMap = new Map(modulos.map((m: any) => [m.titulo, m.id]));
+		const aulas = await db.findMany("aula", { select: { id: true, titulo: true, moduloId: true } });
+		const aulaMap = new Map(aulas.map((a: any) => [`${a.moduloId}:${a.titulo}`, a.id]));
 		let created = 0;
 		let skipped = 0;
 		for (const obj of objects) {
@@ -363,36 +1190,38 @@ router.post("/import/licoes", authenticate, authorize("ADMIN"), async (req: any,
 				skipped++;
 				continue;
 			}
-			const moduloId = moduloMap.get(moduloTitulo);
+			const moduloId = moduloMap.get(moduloTitulo) || (obj.modulo_id?.trim() && moduloMap.get(obj.modulo_id.trim()));
 			if (!moduloId) {
 				skipped++;
 				continue;
 			}
-			const aulaId = aulaMap.get(`${moduloId}:${aulaTitulo}`);
+			const aulaId =
+				aulaMap.get(`${moduloId}:${aulaTitulo}`) || (obj.aula_id?.trim() && aulaMap.get(obj.aula_id.trim()));
 			if (!aulaId) {
 				skipped++;
 				continue;
 			}
-			const existing = await prisma.licao.findFirst({ where: { aulaId, titulo } });
+			const existing = await db.findFirst("licao", { aulaId, titulo });
 			if (existing) {
 				skipped++;
 				continue;
 			}
-			const maxOrdem = (await prisma.licao.aggregate({ where: { aulaId }, _max: { ordem: true } }))._max.ordem || 0;
+			const maxOrdem = (await db.aggregate("licao", { where: { aulaId }, _max: { ordem: true } }))._max.ordem || 0;
+			const tipoLicao = (obj.tipo_aula || obj.tipo || "TEXTO").trim().toUpperCase();
 			await db.create("licao", {
 				aulaId,
 				titulo,
-				tipo: (obj.tipo as any) || "TEXTO",
+				tipo: VALID_TIPOS.includes(tipoLicao) ? (tipoLicao as any) : "TEXTO",
 				conteudo: obj.conteudo || null,
-				duracaoMin: obj.duracaoMin ? parseInt(obj.duracaoMin, 10) : null,
-				inicioSeg: obj.inicioSeg ? parseInt(obj.inicioSeg, 10) : null,
-				fimSeg: obj.fimSeg ? parseInt(obj.fimSeg, 10) : null,
+				duracaoMin: parseIntSafe(obj.duracaoMin),
+				inicioSeg: parseIntSafe(obj.inicioSeg),
+				fimSeg: parseIntSafe(obj.fimSeg),
 				ordem: maxOrdem + 1,
 			});
 			created++;
 		}
 		await logActivity(req.userId!, "Importar Licoes", `Criadas: ${created}, Ignoradas: ${skipped}`);
-		res.json({ created, skipped, total: objects.length });
+		res.json({ created, skipped, total: objects.length, updated: 0, errors: [] });
 	} catch (error) {
 		logger.error("[IMPORT ERROR]", error);
 		res.status(500).json({ error: "Erro ao importar lições" });
@@ -410,10 +1239,10 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 			return res.status(400).json({ error: "CSV vazio ou sem cabeçalhos" });
 		}
 		const objects = rowsToObjects(headers, rows);
-		const modulos = await prisma.modulo.findMany({ select: { id: true, titulo: true } });
-		const moduloMap = new Map(modulos.map((m) => [m.titulo, m.id]));
-		const aulas = await prisma.aula.findMany({ select: { id: true, titulo: true, moduloId: true } });
-		const aulaMap = new Map(aulas.map((a) => [`${a.moduloId}:${a.titulo}`, a.id]));
+		const modulos = await db.findMany("modulo", { select: { id: true, titulo: true } });
+		const moduloMap = new Map(modulos.map((m: any) => [m.titulo, m.id]));
+		const aulas = await db.findMany("aula", { select: { id: true, titulo: true, moduloId: true } });
+		const aulaMap = new Map(aulas.map((a: any) => [`${a.moduloId}:${a.titulo}`, a.id]));
 		let created = 0;
 		let skipped = 0;
 		const quizGroups = new Map<string, Record<string, string>[]>();
@@ -425,17 +1254,18 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 				skipped++;
 				continue;
 			}
-			const moduloId = moduloMap.get(moduloTitulo);
+			const moduloId = moduloMap.get(moduloTitulo) || (obj.modulo_id?.trim() && moduloMap.get(obj.modulo_id.trim()));
 			if (!moduloId) {
 				skipped++;
 				continue;
 			}
-			const aulaId = aulaMap.get(`${moduloId}:${aulaTitulo}`);
+			const aulaId =
+				aulaMap.get(`${moduloId}:${aulaTitulo}`) || (obj.aula_id?.trim() ? aulaMap.get(obj.aula_id.trim()) : undefined);
 			if (!aulaId) {
 				skipped++;
 				continue;
 			}
-			const key = aulaId;
+			const key = aulaId as string;
 			if (!quizGroups.has(key)) quizGroups.set(key, []);
 			quizGroups.get(key)!.push(obj);
 		}
@@ -443,10 +1273,10 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 		for (const [aulaId, group] of quizGroups) {
 			const first = group[0];
 			const quizTitulo = first.quiz_titulo?.trim() || `Quiz`;
-			const notaMinima = first.notaMinima ? parseInt(first.notaMinima, 10) : 7;
-			const autoGerar = first.autoGerarCertificado === "true" || first.autoGerarCertificado === "1";
+			const notaMinima = parseIntSafe(first.notaMinima) ?? 7;
+			const autoGerar = parseBool(first.autoGerarCertificado);
 
-			let quiz = await prisma.quiz.findUnique({ where: { aulaId } });
+			let quiz = await db.findUnique("quiz", { aulaId });
 			if (!quiz) {
 				const newQuiz = await db.create("quiz", {
 					aulaId,
@@ -458,19 +1288,22 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 				created++;
 			}
 
-			const existingPerguntas = await prisma.quizPergunta.findMany({ where: { quizId: quiz!.id } });
-			const existingPerguntaTexts = new Set(existingPerguntas.map((p) => p.pergunta));
+			const existingPerguntas = await db.findMany("quizPergunta", { where: { quizId: quiz!.id } });
+			const existingPerguntaTexts = new Set(existingPerguntas.map((p: any) => p.pergunta));
 
-			const perguntasToAdd = group.filter((r) => r.pergunta?.trim() && !existingPerguntaTexts.has(r.pergunta.trim()));
+			const perguntasToAdd = group.filter(
+				(r: Record<string, string>) => r.pergunta?.trim() && !existingPerguntaTexts.has(r.pergunta.trim()),
+			);
 			if (perguntasToAdd.length === 0) {
 				skipped += group.length;
 				continue;
 			}
 
 			const maxOrdem =
-				(await prisma.quizPergunta.aggregate({ where: { quizId: quiz!.id }, _max: { ordem: true } }))._max.ordem || 0;
+				(await db.aggregate("quizPergunta", { where: { quizId: quiz!.id }, _max: { ordem: true } }))._max.ordem || 0;
 			for (let i = 0; i < perguntasToAdd.length; i++) {
 				const p = perguntasToAdd[i];
+				const correta = (p.correta || "A").trim().toUpperCase();
 				await db.create("quizPergunta", {
 					quizId: quiz!.id,
 					pergunta: p.pergunta.trim(),
@@ -478,7 +1311,7 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 					opcaoB: p.opcaoB || "",
 					opcaoC: p.opcaoC || null,
 					opcaoD: p.opcaoD || null,
-					correta: p.correta || "A",
+					correta: VALID_CORRETA.includes(correta) ? correta : "A",
 					ordem: maxOrdem + i + 1,
 				});
 				created++;
@@ -486,7 +1319,7 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 		}
 
 		await logActivity(req.userId!, "Importar Quiz", `Criados: ${created}, Ignorados: ${skipped}`);
-		res.json({ created, skipped, total: objects.length });
+		res.json({ created, skipped, total: objects.length, updated: 0, errors: [] });
 	} catch (error) {
 		logger.error("[IMPORT ERROR]", error);
 		res.status(500).json({ error: "Erro ao importar quiz" });

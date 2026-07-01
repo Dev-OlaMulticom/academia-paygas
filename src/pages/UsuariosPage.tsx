@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { TablePagination, useClientPagination } from "../components/TablePagination";
 import { useConfirm, useToast } from "../components/Toast";
 import { PERSONAS } from "../data/constants";
@@ -27,7 +27,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 
 	const canValidate = isAdmin || isGestor;
 
-	const loadUsuarios = async () => {
+	const loadUsuarios = useCallback(async () => {
 		try {
 			const result = await api.getUsuarios();
 			setUsuarios(result);
@@ -36,25 +36,25 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, []);
 
-	const loadGestores = async () => {
+	const loadGestores = useCallback(async () => {
 		try {
 			const result = await api.getUsuarios();
 			setGestores(result.filter((u: any) => u.role === "GESTOR"));
 		} catch {
 			setGestores([]);
 		}
-	};
+	}, []);
 
-	const loadEquipeDetalhe = async () => {
+	const loadEquipeDetalhe = useCallback(async () => {
 		try {
 			const data = await api.getEquipeDetalhe();
 			setEquipeDetalhe(data);
 		} catch {
 			setEquipeDetalhe([]);
 		}
-	};
+	}, []);
 
 	useEffect(() => {
 		loadUsuarios();
@@ -521,10 +521,10 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 									}
 								>
 									<option value="">— Selecione —</option>
-									{isAdmin && <option value="ADMIN">Administrador</option>}
+									{isAdmin && <option value="ADMIN">SuperAdministrador</option>}
 									<option value="GESTOR">Gestor / Líder</option>
 									<option value="ATENDENTE">Atendente/Frentista</option>
-									<option value="PARCEIRO_ACREDITADO">Parceiro Acreditado</option>
+									<option value="PARCEIRO_ACREDITADO">Administrador</option>
 									<option value="ERPS_REPRESENTANTE">ERPs Representante</option>
 								</select>
 							</div>
@@ -596,10 +596,10 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 									})
 								}
 							>
-								<option value="ADMIN">Administrador</option>
+								<option value="ADMIN">SuperAdministrador</option>
 								<option value="GESTOR">Gestor / Líder</option>
 								<option value="ATENDENTE">Atendente</option>
-								<option value="PARCEIRO_ACREDITADO">Parceiro Acreditado</option>
+								<option value="PARCEIRO_ACREDITADO">Administrador</option>
 								<option value="ERPS_REPRESENTANTE">ERPs Representante</option>
 							</select>
 						</div>

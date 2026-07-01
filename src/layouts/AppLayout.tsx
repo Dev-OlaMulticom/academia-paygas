@@ -2,11 +2,11 @@ import type React from "react";
 import { useCallback, useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { PERSONAS } from "../data/constants";
+import { ROLE_VISUALS } from "../data/constants";
+import { getRoleLabel } from "../data/role-labels";
 import { useAbility } from "../hooks/useAbility";
 import type { User } from "../hooks/useAuth";
 import { api } from "../lib/api";
-import { APP_VERSION } from "../lib/constants";
 
 interface AppLayoutProps {
 	user: User;
@@ -21,7 +21,8 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
 	const [enabledModules, setEnabledModules] = useState<string[]>([]);
 	const location = useLocation();
 	const navigate = useNavigate();
-	const persona = PERSONAS[user.role as keyof typeof PERSONAS];
+	const persona = ROLE_VISUALS[user.role as keyof typeof ROLE_VISUALS];
+	const _roleLabel = getRoleLabel(user.role);
 	const { isAdmin, isGestor } = useAbility();
 	const currentPath = location.pathname;
 
@@ -84,7 +85,7 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
 					<div className="header-logo-icon">PG</div>
 					<div>
 						<div className="header-logo-name">Academia PayGas</div>
-						<div className="header-logo-ver">{APP_VERSION} — Sistema</div>
+						<div className="header-logo-ver">Plataforma de capacitação</div>
 					</div>
 				</div>
 				<div className="header-right">
@@ -276,7 +277,7 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
 							</div>
 							<div className="user-info">
 								<b>{user?.nome || "Usuario"}</b>
-								<span>{persona?.label}</span>
+								<span>{_roleLabel}</span>
 							</div>
 						</div>
 						<Button id="btn-logout" variant="outline" className="btn-logout-sidebar" onClick={onLogout}>

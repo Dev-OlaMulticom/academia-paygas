@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
 import { authenticate } from "../middleware/auth";
 import { awardPointsIfNotAwarded } from "../services/gamification";
 import { logActivity } from "../services/log";
@@ -117,7 +116,7 @@ router.post("/restart-request", authenticate, async (req: any, res) => {
 		let targetType = "GESTOR";
 		if (!targetId) {
 			// No gestor — find first admin
-			const admin = await prisma.user.findFirst({ where: { role: "ADMIN" }, select: { id: true } });
+			const admin = await db.findFirst("user", { role: "ADMIN" }, { select: { id: true } });
 			targetId = admin?.id || null;
 			targetType = "ADMIN";
 		}
@@ -174,9 +173,10 @@ router.put("/restart", authenticate, async (req: any, res) => {
 		if (aulaId) where.aulaId = aulaId;
 
 		// Logical restart: mark as restarted, increment count, set concluido=false
-		const result = await prisma.progresso.updateMany({
-			where,
-			data: { concluido: false, reiniciado: true, restartCount: { increment: 1 } },
+		const result = await db.updateMany("progresso", where, {
+			concluido: false,
+			reiniciado: true,
+			restartCount: { increment: 1 },
 		});
 
 		const modulo = (await db.findUnique("modulo", { id: moduloId })) as any;

@@ -23,7 +23,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 	const [expandedModulo, setExpandedModulo] = useState<Record<string, boolean>>({});
 	const [expandedAula, setExpandedAula] = useState<Record<string, boolean>>({});
 
-	const loadEquipe = async () => {
+	const loadEquipe = useCallback(async () => {
 		try {
 			const data = await api.getEquipe();
 			setTeamData(data);
@@ -32,7 +32,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 		} finally {
 			setLoading(false);
 		}
-	};
+	}, []);
 
 	const loadDetail = useCallback(async () => {
 		try {

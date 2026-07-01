@@ -6,58 +6,28 @@
  *
  * IMPORTANT: Backend is always the source of truth.
  * This is only for UI hints — never trust client-side abilities for security.
+ *
+ * The Actions / Subjects constant lists come from `shared/casl/actions.ts`
+ * so that frontend and backend can't diverge.
  */
+import { SHARED_ACTION_OBJECT, SHARED_ACTIONS, SHARED_SUBJECT_OBJECT, SHARED_SUBJECTS } from "@shared/casl/actions";
 
 /**
- * Actions available in the system
+ * Actions available in the system — re-exported for component ergonomics.
  */
-export const Actions = {
-	create: "create",
-	read: "read",
-	update: "update",
-	delete: "delete",
-	manage: "manage",
-	assignRole: "assignRole",
-	sendNotification: "sendNotification",
-	approveCertificate: "approveCertificate",
-	issueCertificate: "issueCertificate",
-	viewTeam: "viewTeam",
-	exportData: "exportData",
-	deleteActivityLog: "deleteActivityLog",
-	deleteNotification: "deleteNotification",
-	deleteXPConfig: "deleteXPConfig",
-} as const;
-
-export type Action = (typeof Actions)[keyof typeof Actions];
+export const Actions = SHARED_ACTION_OBJECT;
+export type Action = (typeof SHARED_ACTION_OBJECT)[keyof typeof SHARED_ACTION_OBJECT];
 
 /**
- * Subjects (entities) available in the system
+ * Subjects (entities) available in the system.
  */
-export const Subjects = {
-	User: "User",
-	Modulo: "Modulo",
-	Aula: "Aula",
-	Licao: "Licao",
-	Quiz: "Quiz",
-	QuizPergunta: "QuizPergunta",
-	QuizResponse: "QuizResponse",
-	Certificate: "Certificate",
-	Notification: "Notification",
-	ActivityLog: "ActivityLog",
-	PointsTransaction: "PointsTransaction",
-	ForumPost: "ForumPost",
-	ModuleConfig: "ModuleConfig",
-	XPConfig: "XPConfig",
-	Conquista: "Conquista",
-	UserConquista: "UserConquista",
-	Progresso: "Progresso",
-	Team: "Team",
-	Message: "Message",
-	Dashboard: "Dashboard",
-	All: "all",
-} as const;
+export const Subjects = SHARED_SUBJECT_OBJECT;
+export type Subject = (typeof SHARED_SUBJECT_OBJECT)[keyof typeof SHARED_SUBJECT_OBJECT];
 
-export type Subject = (typeof Subjects)[keyof typeof Subjects];
+// Type guards pointing at the canonical string lists — used by tests and
+// runtime validation to make sure no caller ever invents an unknown token.
+export const KNOWN_ACTIONS = SHARED_ACTIONS;
+export const KNOWN_SUBJECTS = SHARED_SUBJECTS;
 
 interface AbilityRule {
 	action: string;
@@ -156,21 +126,80 @@ let dbPermissionsCache: Record<string, AbilityRule[]> = {};
 
 /**
  * Load permissions from the API for the current user's role.
- * Called once on login. Falls back to hardcoded on error.
+ * Skips if already cached (deduplication across multiple useAbility consumers).
+ * Falls back to hardcoded on error.
  */
+let loadRolePermissionsPromise: Promise<void> | null = null;
+
 export async function loadRolePermissions(): Promise<void> {
+	const token = localStorage.getItem("token") || "";
+	if (!token) return;
+
+	// Get current role from stored user to check cache
 	try {
-		const res = await fetch("/api/role-permissions", {
-			headers: { Authorization: `Bearer ${localStorage.getItem("token") || ""}` },
-		});
-		if (res.ok) {
-			const data = await res.json();
-			if (data.role && Array.isArray(data.permissions)) {
-				dbPermissionsCache[data.role] = data.permissions;
+		const stored = localStorage.getItem("user");
+		if (stored) {
+			const userData = JSON.parse(stored);
+			if (userData.role && dbPermissionsCache[userData.role]) {
+				return; // Already cached — skip API call
 			}
 		}
 	} catch {
-		// Fallback: will use hardcoded rules
+		// Continue to fetch
+	}
+
+	// Deduplicate concurrent calls (e.g. AppLayout + DashboardPage mount simultaneously)
+	if (loadRolePermissionsPromise) return loadRolePermissionsPromise;
+
+	loadRolePermissionsPromise = (async () => {
+		try {
+			const res = await fetch("/api/role-permissions", {
+				headers: { Authorization: `Bearer ${token}` },
+			});
+			if (res.ok) {
+				const data = await res.json();
+				if (data.role && Array.isArray(data.permissions)) {
+					dbPermissionsCache[data.role] = data.permissions;
+				}
+			}
+		} catch {
+			// Fallback: will use hardcoded rules
+		} finally {
+			loadRolePermissionsPromise = null;
+		}
+	})();
+
+	return loadRolePermissionsPromise;
+}
+
+/**
+ * Load all role configs (for admin UI / role labels).
+ * Called on login for admin users.
+ */
+export async function loadAllRoleConfigs(): Promise<void> {
+	try {
+		const token = localStorage.getItem("token");
+		if (!token) return;
+
+		const res = await fetch("/api/role-permissions/all", {
+			headers: { Authorization: `Bearer ${token}` },
+		});
+		if (res.ok) {
+			const data = await res.json();
+			if (Array.isArray(data)) {
+				// Store role labels in a separate cache for UI components
+				const roleLabelsCache: Record<string, string> = {};
+				for (const rc of data) {
+					if (rc.role && rc.label) {
+						roleLabelsCache[rc.role] = rc.label;
+					}
+				}
+				// Store in localStorage for sync access across components
+				localStorage.setItem("roleLabels", JSON.stringify(roleLabelsCache));
+			}
+		}
+	} catch {
+		// Fallback: will use hardcoded labels
 	}
 }
 
