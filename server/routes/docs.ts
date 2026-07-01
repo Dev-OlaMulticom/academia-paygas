@@ -30,7 +30,7 @@ function getApiSpec() {
 		},
 		roles: {
 			ADMIN: { description: "Administrador completo - acceso total a todas las operaciones CRUD" },
-			GESTOR: { description: "Gestor de Posto - puede gestionar usuarios ATENDENTE y contenido" },
+			GESTOR: { description: "Gestor / Líder - puede gestionar usuarios ATENDENTE y contenido" },
 			ATENDENTE: { description: "Atendente - solo lectura y progreso propio" },
 		},
 		endpoints: [

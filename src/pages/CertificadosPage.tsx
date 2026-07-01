@@ -32,7 +32,7 @@ const DEFAULT_CERT_TEMPLATE = `<div style="width:800px;padding:40px;background:#
     <div style="text-align:left;">
       <div style="font-size:12px;color:#999;">{{DATA_HORA}}</div>
       <div style="margin-top:30px;border-top:1px solid #ccc;padding-top:6px;font-size:13px;font-weight:600;color:#333;">{{GESTOR_NOME}}</div>
-      <div style="font-size:11px;color:#999;">Gestor de Posto</div>
+      <div style="font-size:11px;color:#999;">Gestor / Líder</div>
     </div>
     <div style="width:80px;height:80px;background:#F47C20;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:bold;color:#fff;">PG</div>
   </div>

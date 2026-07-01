@@ -68,7 +68,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 			return;
 		}
 		if (newUser.role === "ATENDENTE" && !isGestor && !newUser.gestorId) {
-			toast("Selecione um Gestor de Posto para o atendente!", "info");
+			toast("Selecione um Gestor / Líder para o atendente!", "info");
 			return;
 		}
 		try {
@@ -522,7 +522,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 								>
 									<option value="">— Selecione —</option>
 									{isAdmin && <option value="ADMIN">Administrador</option>}
-									<option value="GESTOR">Gestor de Posto</option>
+									<option value="GESTOR">Gestor / Líder</option>
 									<option value="ATENDENTE">Atendente/Frentista</option>
 									<option value="PARCEIRO_ACREDITADO">Parceiro Acreditado</option>
 									<option value="ERPS_REPRESENTANTE">ERPs Representante</option>
@@ -531,7 +531,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 						)}
 						{(newUser.role === "ATENDENTE" || isGestor) && !isGestor && (
 							<div className="form-field">
-								<label className="form-label">Gestor de Posto</label>
+								<label className="form-label">Gestor / Líder</label>
 								<select
 									className="form-select"
 									value={newUser.gestorId}
@@ -597,7 +597,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 								}
 							>
 								<option value="ADMIN">Administrador</option>
-								<option value="GESTOR">Gestor de Posto</option>
+								<option value="GESTOR">Gestor / Líder</option>
 								<option value="ATENDENTE">Atendente</option>
 								<option value="PARCEIRO_ACREDITADO">Parceiro Acreditado</option>
 								<option value="ERPS_REPRESENTANTE">ERPs Representante</option>
@@ -605,7 +605,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 						</div>
 						{editingUser.role === "ATENDENTE" && (
 							<div className="form-field">
-								<label className="form-label">Gestor de Posto</label>
+								<label className="form-label">Gestor / Líder</label>
 								<select
 									className="form-select"
 									value={editingUser.gestorId || ""}

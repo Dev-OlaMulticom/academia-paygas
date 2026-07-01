@@ -94,7 +94,7 @@ export function ModulosListPage() {
 					<div className="empty-icon">🔒</div>
 					<p className="modlist-empty-msg">Acesso restrito</p>
 					<p className="modlist-empty-desc">
-						Você precisa ser associado a um Gestor de Posto para acessar os cursos. Aguarde a aprovação do seu gestor ou
+						Você precisa ser associado a um Gestor / Líder para acessar os cursos. Aguarde a aprovação do seu gestor ou
 						entre em contato com o administrador.
 					</p>
 				</div>
