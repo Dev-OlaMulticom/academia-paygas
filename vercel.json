@@ -1,12 +1,12 @@
 {
-  "buildCommand": "npx prisma generate && npx vite build && npx tsc --project tsconfig.server.json",
-  "outputDirectory": "dist",
-  "framework": null,
-  "installCommand": "pnpm install",
-  "rewrites": [
-    {
-      "source": "/((?!api/).*)",
-      "destination": "/index.html"
-    }
-  ]
+	"buildCommand": "npx prisma generate && npx vite build && npx tsc --project tsconfig.server.json",
+	"outputDirectory": "dist",
+	"framework": null,
+	"installCommand": "pnpm install",
+	"rewrites": [
+		{
+			"source": "/((?!api/).*)",
+			"destination": "/index.html"
+		}
+	]
 }

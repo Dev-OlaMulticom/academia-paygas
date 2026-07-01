@@ -24,7 +24,9 @@ pnpm start               # node dist/server/index.js
 pnpm start:prod          # NODE_ENV=production node dist/server/index.js
 
 # Lint
-pnpm lint                # eslint .
+pnpm lint                # biome check .
+pnpm lint:fix            # biome check --write .
+pnpm format              # biome format --write .
 
 # Typecheck (no dedicated script — run manually)
 npx tsc --noEmit                           # frontend
@@ -76,16 +78,21 @@ Frontend entry: `src/main.tsx` → `src/App.tsx` (React Router, BrowserRouter).
 | `tsconfig.json` | `src/` (frontend) | ESNext/bundler | `noEmit: true`, excludes `server/` |
 | `tsconfig.server.json` | `server/` | CommonJS/node | Outputs to `dist/server/` |
 
-ESLint uses the appropriate tsconfig per file group (configured in `eslint.config.js`).
+### Linter
+
+**Biome** (not ESLint). Config in `biome.json`. Tabs, double quotes, trailing commas.
+- `pnpm lint` → `biome check .`
+- `pnpm lint:fix` → `biome check --write .`
+- `pnpm format` → `biome format --write .`
 
 ### UI stack
 
-shadcn/ui (new-york style), Radix UI primitives, TailwindCSS 4, Lucide icons. Components live in `src/components/ui/`. Config in `components.json`.
+shadcn/ui (new-york style), Radix UI primitives, TailwindCSS 4, Lucide icons. Components in `src/components/ui/`.
 
 ### Backend routes
 
 All under `/api/`. Route files in `server/routes/`:
-`auth`, `usuarios`, `cms`, `certificates`, `notifications`, `progresso`, `dashboard`, `docs`, `analytics`, `forum`, `gamification`, `conquistas`, `public`, `modules`, `logs`, `xpconfig`, `import-export`, `adminDashboard`.
+`auth`, `usuarios`, `cms`, `certificates`, `notifications`, `progresso`, `dashboard`, `docs`, `analytics`, `forum`, `gamification`, `conquistas`, `public`, `modules`, `logs`, `xpconfig`, `import-export`, `adminDashboard`, `role-permissions`, `paygas-access`.
 
 ### Database
 
@@ -155,7 +162,7 @@ router.put('/users/:id', authenticate, authorize('update', 'User', JSON.stringif
 
 **Frontend permissions** (`src/hooks/useAbility.ts`):
 ```tsx
-const { can, cannot, isAdmin, isGestor } = useAbility()
+const { can, cannot, isAdmin, isGestor, isAtendente, isParceiro, isErps } = useAbility()
 if (can('delete', 'User')) { /* show delete button */ }
 ```
 

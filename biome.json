@@ -6,7 +6,15 @@
 		"useIgnoreFile": true
 	},
 	"files": {
-		"includes": ["**", "!!**/dist", "!!**/node_modules", "!!**/*.js", "!!wordpress-plugin-academia-paygas/**", "!!api/**", "!!app.js"],
+		"includes": [
+			"**",
+			"!!**/dist",
+			"!!**/node_modules",
+			"!!**/*.js",
+			"!!wordpress-plugin-academia-paygas",
+			"!!api",
+			"!!app.js"
+		],
 		"ignoreUnknown": true
 	},
 	"formatter": {

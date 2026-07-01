@@ -5,15 +5,15 @@ import { defineConfig } from "prisma/config";
 
 // Detect which schema is being used to pick the right database URL
 const schemaArg = process.argv.find((a) => a.includes("schema.mysql.prisma"));
-const url = schemaArg ? process.env.MYSQL_URL : (process.env.PG_URL_1 || process.env.DATABASE_URL);
+const url = schemaArg ? process.env.MYSQL_URL : process.env.PG_URL_1 || process.env.DATABASE_URL;
 
 export default defineConfig({
-  schema: schemaArg || "prisma/schema.prisma",
-  migrations: {
-    path: "prisma/migrations",
-    seed: "npx tsx prisma/seed.ts",
-  },
-  datasource: {
-    url,
-  },
+	schema: schemaArg || "prisma/schema.prisma",
+	migrations: {
+		path: "prisma/migrations",
+		seed: "npx tsx prisma/seed.ts",
+	},
+	datasource: {
+		url,
+	},
 });
