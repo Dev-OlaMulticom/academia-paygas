@@ -5172,7 +5172,8 @@ a {
 }
 
 .lesson-video .video-player-wrapper,
-.lesson-video .lesson-video-placeholder {
+.lesson-video .lesson-video-placeholder,
+.lesson-video .pdf-viewer-wrapper {
 	width: 100%;
 }
 

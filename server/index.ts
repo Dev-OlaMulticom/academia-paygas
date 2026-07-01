@@ -35,7 +35,11 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Security headers
-app.use(helmet());
+app.use(
+	helmet({
+		frameguard: false,
+	}),
+);
 
 // CORS configuration — fail closed when ALLOWED_ORIGINS is not set
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").filter(Boolean);

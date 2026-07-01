@@ -691,7 +691,7 @@ class ApiClient {
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = `${type}.csv`;
+		a.download = `${type}-${Date.now()}.csv`;
 		a.click();
 		URL.revokeObjectURL(url);
 	}
@@ -720,7 +720,7 @@ class ApiClient {
 		const url = URL.createObjectURL(blob);
 		const a = document.createElement("a");
 		a.href = url;
-		a.download = "conteudo-completo.csv";
+		a.download = `conteudo-completo-${Date.now()}.csv`;
 		a.click();
 		URL.revokeObjectURL(url);
 	}

@@ -47,8 +47,8 @@ export function PDFViewer({ url }: PDFViewerProps) {
 			className="pdf-viewer-wrapper"
 			style={{
 				position: "relative",
-				paddingBottom: "141.4%",
-				height: 0,
+				paddingBottom: "56.25%",
+				maxHeight: "50vh",
 				overflow: "hidden",
 				borderRadius: "var(--radius)",
 			}}

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { PDFViewer } from "../components/PDFViewer";
 import { TablePagination, useClientPagination } from "../components/TablePagination";
@@ -672,9 +672,8 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 									const aulaCount = mod._count?.aulas || 0;
 									const globalIdx = (modPage - 1) * 10 + idx;
 									return (
-										<>
+										<Fragment key={mod.id}>
 											<tr
-												key={mod.id}
 												className={`row-clickable ${expandedModRow === mod.id ? "row-expanded" : ""}`}
 												onClick={() => setExpandedModRow(expandedModRow === mod.id ? null : mod.id)}
 											>
@@ -794,7 +793,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 													</td>
 												</tr>
 											)}
-										</>
+										</Fragment>
 									);
 								})
 							) : (
@@ -830,9 +829,8 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 										aula.tipo === "VIDEO" ? (aula.ancoragemPoints as any[])?.length || 0 : aula.licoes?.length || 0;
 									const globalIdx = (aulaPage - 1) * 10 + idx;
 									return (
-										<>
+										<Fragment key={aula.id}>
 											<tr
-												key={aula.id}
 												className={`row-clickable ${expandedAulaRow === aula.id ? "row-expanded" : ""}`}
 												onClick={() => setExpandedAulaRow(expandedAulaRow === aula.id ? null : aula.id)}
 											>
@@ -973,7 +971,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 													</td>
 												</tr>
 											)}
-										</>
+										</Fragment>
 									);
 								})
 							) : (
