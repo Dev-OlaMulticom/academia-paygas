@@ -2,6 +2,7 @@ import React, { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { useToast } from '../components/Toast'
+import { ROLE_LABELS } from '../data/constants'
 
 const EMOJI_OPTIONS = ['📚', '🎓', '💪', '⭐', '🏆', '🎯', '🔥', '✅', '📖', '💡', '🚀', '🤝', '🛡️', '⛽', '🧑‍💼', '🔧', '📋', '🔑', '🏆', '🌟']
 
@@ -123,7 +124,7 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
                       setModulo({ ...modulo, rolesPermitidos: newRoles.length > 0 ? newRoles : null })
                     }}
                   />
-                  {role === 'ADMIN' ? 'Administrador' : role === 'GESTOR' ? 'Gestor de Posto' : role === 'ATENDENTE' ? 'Atendente/Frentista' : role === 'PARCEIRO_ACREDITADO' ? 'Parceiro Acreditado' : 'ERPs Representante'}
+                  {ROLE_LABELS[role] || role}
                 </label>
               )
             })}

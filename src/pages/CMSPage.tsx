@@ -7,6 +7,8 @@ import { VideoPreview } from '../components/VideoPreview'
 import { PDFViewer } from '../components/PDFViewer'
 import { useToast, useConfirm } from '../components/Toast'
 import { TablePagination, useClientPagination } from '../components/TablePagination'
+import { useAbility } from '../hooks/useAbility'
+import { ROLE_LABELS } from '../data/constants'
 
 const EMOJI_OPTIONS = ['📚', '🎓', '💪', '⭐', '🏆', '🎯', '🔥', '✅', '📖', '💡', '🚀', '🤝', '🛡️', '⛽', '🧑‍💼', '🔧', '📋', '🔑', '🏆', '🌟']
 
@@ -32,6 +34,7 @@ export function CMSPage({ user }: CMSPageProps) {
   const navigate = useNavigate()
   const { toast } = useToast()
   const { confirm } = useConfirm()
+  const { isAdmin } = useAbility()
   const [view, setView] = useState<'modulos' | 'aulas'>('modulos')
   const [selectedModulo, setSelectedModulo] = useState<any>(null)
   const [showAulaModal, setShowAulaModal] = useState(false)
@@ -48,8 +51,6 @@ export function CMSPage({ user }: CMSPageProps) {
   const { page: modPage, setPage: setModPage, paginatedItems: paginatedModulos, totalItems: totalModulos } = useClientPagination(modulos, 10)
   const { page: aulaPage, setPage: setAulaPage, paginatedItems: paginatedAulas, totalItems: totalAulas } = useClientPagination(aulas, 10)
 
-
-  const isAdmin = user?.role === 'ADMIN'
 
   const loadModulos = async () => {
     try {
@@ -409,7 +410,7 @@ export function CMSPage({ user }: CMSPageProps) {
                                   <span className="row-detail-label">Acesso</span>
                                   <span className="row-detail-value">
                                     {mod.rolesPermitidos && (mod.rolesPermitidos as string[]).length > 0
-                                      ? (mod.rolesPermitidos as string[]).map(r => r === 'ADMIN' ? 'Admin' : r === 'GESTOR' ? 'Gestor' : r === 'ATENDENTE' ? 'Atendente' : r === 'PARCEIRO_ACREDITADO' ? 'Parceiro' : 'ERPs').join(', ')
+                                      ? (mod.rolesPermitidos as string[]).map(r => ROLE_LABELS[r] || r).join(', ')
                                       : 'Todos os perfis'}
                                   </span>
                                 </div>
@@ -597,7 +598,7 @@ export function CMSPage({ user }: CMSPageProps) {
                           setEditingMod({ ...editingMod, rolesPermitidos: newRoles.length > 0 ? newRoles : null })
                         }}
                       />
-                      {role === 'ADMIN' ? 'Administrador' : role === 'GESTOR' ? 'Gestor de Posto' : role === 'ATENDENTE' ? 'Atendente/Frentista' : role === 'PARCEIRO_ACREDITADO' ? 'Parceiro Acreditado' : 'ERPs Representante'}
+                      {ROLE_LABELS[role] || role}
                     </label>
                   )
                 })}

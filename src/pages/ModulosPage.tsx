@@ -5,6 +5,7 @@ import { pluralize } from '../lib/utils'
 import { useAuth } from '../hooks/useAuth'
 import { VideoPlayer } from '../components/VideoPlayer'
 import { PDFViewer } from '../components/PDFViewer'
+import { useAbility } from '../hooks/useAbility'
 
 function slugify(text: string): string {
   return text
@@ -28,6 +29,7 @@ export function ModulosPage() {
   const navigate = useNavigate()
   const { moduloNombre } = useParams<{ moduloNombre: string }>()
   const { user } = useAuth()
+  const { isAtendente } = useAbility()
   const [currentLesson, setCurrentLesson] = useState(0)
   const [showQuiz, setShowQuiz] = useState(false)
   const [showAllQuizzes, setShowAllQuizzes] = useState(false)
@@ -244,7 +246,6 @@ export function ModulosPage() {
   const allCompleted = lessons.length > 0 && lessons.every((l: any) => isLessonCompleted(l))
   const isLastLesson = currentLesson === lessons.length - 1
   const current = lessons[currentLesson]
-  const isAtendente = user?.role === 'ATENDENTE'
   const semGestor = isAtendente && !user?.gestorId
   const quizzesWithLesson = lessons.filter(l => l.quiz)
   const hasCertificate = !!certificate
@@ -1047,7 +1048,7 @@ export function ModulosPage() {
           </div>
 
           {/* Restart Request Button */}
-          {user?.role === 'ATENDENTE' && (
+          {isAtendente && (
             <div className="sidebar-extra-item">
               <div className={`sidebar-extra-btn ${restartRequested ? 'requested' : ''}`} onClick={async () => {
                 if (restartRequested) return

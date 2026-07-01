@@ -3,6 +3,8 @@ import { Link } from 'react-router-dom'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
 import { XP_PER_LEVEL } from '../lib/constants'
+import { useAbility } from '../hooks/useAbility'
+import { ROLE_COLORS } from '../data/constants'
 
 interface PerfilPageProps {
   user: User
@@ -10,7 +12,7 @@ interface PerfilPageProps {
 }
 
 export function PerfilPage({ user, xp }: PerfilPageProps) {
-  const isAdmin = user?.role === 'ADMIN'
+  const { isAdmin } = useAbility()
   const [stats, setStats] = useState<any>(null)
   const [teamStats, setTeamStats] = useState<any>(null)
   const [currentPassword, setCurrentPassword] = useState('')
@@ -191,7 +193,7 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
               </div>
               <div className="perfil-demo-list">
                 {demoUsers.map((u) => {
-                  const personaColor = u.role === 'ADMIN' ? 'var(--pg-red)' : u.role === 'GESTOR' ? 'var(--pg-gold)' : u.role === 'PARCEIRO_ACREDITADO' ? '#8b5cf6' : u.role === 'ERPS_REPRESENTANTE' ? '#06b6d4' : 'var(--pg-green)'
+                  const personaColor = ROLE_COLORS[u.role] || ROLE_COLORS.ATENDENTE
                   return (
                     <div key={u.email} className="perfil-demo-item">
                       <div className="user-avatar perfil-demo-avatar" style={{ background: personaColor }}>

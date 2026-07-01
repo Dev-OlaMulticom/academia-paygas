@@ -5,6 +5,7 @@ import { api } from '../lib/api'
 import { XP_PER_LEVEL } from '../lib/constants'
 import { pluralize } from '../lib/utils'
 import { useToast } from '../components/Toast'
+import { useAbility } from '../hooks/useAbility'
 
 
 interface EquipePageProps {
@@ -12,8 +13,7 @@ interface EquipePageProps {
 }
 
 export function EquipePage({ user }: EquipePageProps) {
-  const isAdmin = user?.role === 'ADMIN'
-  const isGestor = user?.role === 'GESTOR'
+  const { isAdmin, isGestor } = useAbility()
   const { toast } = useToast()
   const [teamData, setTeamData] = useState<any>(null)
   const [loading, setLoading] = useState(true)

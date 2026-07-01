@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
+import { useAbility } from '../hooks/useAbility'
+import { ROLE_LABELS } from '../data/constants'
 
 interface Certificate {
   id: string
@@ -37,6 +39,7 @@ const DEFAULT_CERT_TEMPLATE = `<div style="width:800px;padding:40px;background:#
 </div>`
 
 export function CertificadosPage({ user }: { user?: any }) {
+  const { isAdmin, isGestor } = useAbility()
   const [certificates, setCertificates] = useState<Certificate[]>([])
   const [modulos, setModulos] = useState<ModuloCert[]>([])
   const [loading, setLoading] = useState(true)
@@ -44,8 +47,6 @@ export function CertificadosPage({ user }: { user?: any }) {
   const [editingModulo, setEditingModulo] = useState<ModuloCert | null>(null)
   const [templateText, setTemplateText] = useState('')
   const [saving, setSaving] = useState(false)
-
-  const isAdmin = user?.role === 'ADMIN'
 
   const loadCertificates = useCallback(async () => {
     try {
@@ -205,9 +206,9 @@ export function CertificadosPage({ user }: { user?: any }) {
               const certDate = cert.createdAt ? new Date(cert.createdAt) : null
               const dateStr = certDate ? certDate.toLocaleDateString('pt-BR') : ''
               const timeStr = certDate ? certDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : ''
-              const showUserInfo = isAdmin || user?.role === 'GESTOR'
+              const showUserInfo = isAdmin || isGestor
               const isOtherUser = cert.user && cert.user.id !== user?.id
-              const roleLabel = cert.user?.role === 'ADMIN' ? 'Admin' : cert.user?.role === 'GESTOR' ? 'Gestor' : cert.user?.role === 'PARCEIRO_ACREDITADO' ? 'Parceiro' : cert.user?.role === 'ERPS_REPRESENTANTE' ? 'ERPs' : 'Atendente'
+              const roleLabel = ROLE_LABELS[cert.user?.role || ''] || ROLE_LABELS.ATENDENTE
               return (
                 <div key={cert.id} className="stat-card cert-card">
                   <div className="cert-card-header">

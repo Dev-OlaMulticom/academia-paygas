@@ -13,3 +13,19 @@ export const ROLE_LABELS: Record<string, string> = {
   PARCEIRO_ACREDITADO: 'Parceiro Acreditado',
   ERPS_REPRESENTANTE: 'ERPs Representante',
 }
+
+export const ROLE_COLORS: Record<string, string> = {
+  ADMIN: 'var(--pg-red)',
+  GESTOR: 'var(--pg-gold)',
+  ATENDENTE: 'var(--pg-green)',
+  PARCEIRO_ACREDITADO: '#8b5cf6',
+  ERPS_REPRESENTANTE: '#06b6d4',
+}
+
+export const ROLE_CSS_CLASSES: Record<string, string> = {
+  ADMIN: 'admin',
+  GESTOR: 'gestor',
+  ATENDENTE: 'atendente',
+  PARCEIRO_ACREDITADO: 'parceiro',
+  ERPS_REPRESENTANTE: 'erps',
+}

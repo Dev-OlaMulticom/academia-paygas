@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
+import { useAbility } from '../hooks/useAbility'
 
 interface RelatoriosPageProps {
   user: User
@@ -27,8 +28,7 @@ const ACTION_COLORS: Record<string, string> = {
 }
 
 export function RelatoriosPage({ user }: RelatoriosPageProps) {
-  const isAdmin = user?.role === 'ADMIN'
-  const isGestor = user?.role === 'GESTOR'
+  const { isAdmin, isGestor } = useAbility()
   const [stats, setStats] = useState<any>(null)
   const [leaderboard, setLeaderboard] = useState<any[]>([])
   const [moduleStats, setModuleStats] = useState<any[]>([])

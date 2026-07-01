@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
 import { useToast, useConfirm } from '../components/Toast'
+import { useAbility } from '../hooks/useAbility'
 
 const ICONES = ['🏆', '🎯', '🚀', '⭐', '👑', '🔥', '📊', '🤝', '💎', '🎖️', '🏅', '⚡', '🌟', '🎓', '💪']
 const CORES = ['#F47C20', '#16A34A', '#0A2E6E', '#DC2626', '#8B5CF6', '#06B6D4', '#EC4899', '#D97706', '#14B8A6', '#3B82F6']
@@ -29,6 +30,7 @@ interface ConquistasPageProps {
 export function ConquistasPage({ user }: ConquistasPageProps) {
   const { toast } = useToast()
   const { confirm } = useConfirm()
+  const { isAdmin, isGestor } = useAbility()
   const [conquistas, setConquistas] = useState<ConquistaData[]>([])
   const [loading, setLoading] = useState(true)
   const [showModal, setShowModal] = useState(false)
@@ -38,8 +40,6 @@ export function ConquistasPage({ user }: ConquistasPageProps) {
     pontosMinimos: 0, xpRecompensa: 0, ativo: true, ordem: 0,
   })
 
-  const isAdmin = user?.role === 'ADMIN'
-  const isGestor = user?.role === 'GESTOR'
   const canManage = isAdmin || isGestor
 
   const load = async () => {

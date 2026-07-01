@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import type { User } from '../hooks/useAuth'
 import { api } from '../lib/api'
 import { useToast, useConfirm } from '../components/Toast'
+import { useAbility } from '../hooks/useAbility'
 
 interface NotifPageProps {
   user: User
@@ -10,6 +11,7 @@ interface NotifPageProps {
 export function NotifPage({ user }: NotifPageProps) {
   const { toast } = useToast()
   const { confirm } = useConfirm()
+  const { isAdmin, isGestor } = useAbility()
   const [showSendModal, setShowSendModal] = useState(false)
   const [sendTarget, setSendTarget] = useState<'user' | 'all' | 'role' | 'team'>('user')
   const [newNotif, setNewNotif] = useState({ titulo: '', mensagem: '', toUserId: '', toRole: '' })
@@ -18,9 +20,6 @@ export function NotifPage({ user }: NotifPageProps) {
   const [loading, setLoading] = useState(true)
   const [approvingId, setApprovingId] = useState<string | null>(null)
   const [deletingId, setDeletingId] = useState<string | null>(null)
-
-  const isAdmin = user?.role === 'ADMIN'
-  const isGestor = user?.role === 'GESTOR'
 
   const loadData = async () => {
     try {

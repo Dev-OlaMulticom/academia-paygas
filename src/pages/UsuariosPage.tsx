@@ -4,6 +4,7 @@ import { PERSONAS } from '../data/constants'
 import { api } from '../lib/api'
 import { useToast, useConfirm } from '../components/Toast'
 import { TablePagination, useClientPagination } from '../components/TablePagination'
+import { useAbility } from '../hooks/useAbility'
 
 
 interface UsuariosPageProps {
@@ -13,6 +14,7 @@ interface UsuariosPageProps {
 export function UsuariosPage({ user }: UsuariosPageProps) {
   const { toast } = useToast()
   const { confirm } = useConfirm()
+  const { isAdmin, isGestor } = useAbility()
   const [showCreateModal, setShowCreateModal] = useState(false)
   const [editingUser, setEditingUser] = useState<any>(null)
   const [newUser, setNewUser] = useState({ nome: '', email: '', senha: '', role: '', gestorId: '' })
@@ -24,8 +26,6 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
   const [expandedRow, setExpandedRow] = useState<string | null>(null)
   const { page, setPage, paginatedItems: paginatedUsuarios, totalItems } = useClientPagination(usuarios, 10)
 
-  const isAdmin = user?.role === 'ADMIN'
-  const isGestor = user?.role === 'GESTOR'
   const canValidate = isAdmin || isGestor
 
   const loadUsuarios = async () => {

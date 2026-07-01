@@ -5,6 +5,7 @@ import type { User } from '../hooks/useAuth'
 import { PERSONAS } from '../data/constants'
 import { APP_VERSION } from '../lib/constants'
 import { api } from '../lib/api'
+import { useAbility } from '../hooks/useAbility'
 
 interface AppLayoutProps {
   user: User
@@ -20,8 +21,7 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
   const location = useLocation()
   const navigate = useNavigate()
   const persona = PERSONAS[user.role as keyof typeof PERSONAS]
-  const isAdmin = user?.role === 'ADMIN'
-  const isGestor = user?.role === 'GESTOR'
+  const { isAdmin, isGestor } = useAbility()
   const currentPath = location.pathname
 
   const isModuleEnabled = useCallback((key: string) => {

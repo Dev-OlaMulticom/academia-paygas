@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { pluralize } from '../lib/utils'
 import { useAuth } from '../hooks/useAuth'
+import { useAbility } from '../hooks/useAbility'
 
 function slugify(text: string): string {
   return text
@@ -18,12 +19,12 @@ const MODULO_COLORS = ['#FEF3C7', '#DCFCE7', '#E6EEF9', '#F3E8FF', '#FCE7F3', '#
 export function ModulosListPage() {
   const navigate = useNavigate()
   const { user } = useAuth()
+  const { isAtendente } = useAbility()
   const [modulos, setModulos] = useState<any[]>([])
   const [loading, setLoading] = useState(true)
   const [progressMap, setProgressMap] = useState<Record<string, number>>({})
   const [certMap, setCertMap] = useState<Record<string, boolean>>({})
 
-  const isAtendente = user?.role === 'ATENDENTE'
   const semGestor = isAtendente && !user?.gestorId
 
   const loadModulos = async () => {

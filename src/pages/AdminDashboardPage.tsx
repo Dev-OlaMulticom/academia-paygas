@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
 import type { User } from '../hooks/useAuth'
 import { TablePagination, useClientPagination } from '../components/TablePagination'
+import { ROLE_CSS_CLASSES } from '../data/constants'
 
 interface AdminDashboardPageProps {
   user: User
@@ -63,13 +64,7 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
     return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
   }
 
-  const roleClass = (role: string) => {
-    if (role === 'ADMIN') return 'admin'
-    if (role === 'GESTOR') return 'gestor'
-    if (role === 'PARCEIRO_ACREDITADO') return 'parceiro'
-    if (role === 'ERPS_REPRESENTANTE') return 'erps'
-    return 'atendente'
-  }
+  const roleClass = (role: string) => ROLE_CSS_CLASSES[role] || ROLE_CSS_CLASSES.ATENDENTE
 
   if (loading) {
     return (

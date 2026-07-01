@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { pluralize } from '../lib/utils'
 import { useToast, useConfirm } from '../components/Toast'
+import { useAbility } from '../hooks/useAbility'
 
 interface QuizEditorPageProps {
   user: any
@@ -13,6 +14,7 @@ export function QuizEditorPage({ user }: QuizEditorPageProps) {
   const navigate = useNavigate()
   const { toast } = useToast()
   const { confirm } = useConfirm()
+  const { isAdmin } = useAbility()
 
   const [aula, setAula] = useState<any>(null)
   const [modulo, setModulo] = useState<any>(null)
@@ -28,8 +30,6 @@ export function QuizEditorPage({ user }: QuizEditorPageProps) {
   const [activeQuestion, setActiveQuestion] = useState<string | null>(null)
   const [formData, setFormData] = useState({ pergunta: '', opcaoA: '', opcaoB: '', opcaoC: '', opcaoD: '', correta: 'A' })
   const [isEditing, setIsEditing] = useState(false)
-
-  const isAdmin = user?.role === 'ADMIN'
 
   const loadData = useCallback(async () => {
     if (!moduloId || !aulaId) return

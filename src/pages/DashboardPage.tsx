@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api } from '../lib/api'
 import { XP_PER_LEVEL } from '../lib/constants'
+import { useAbility } from '../hooks/useAbility'
 
 interface DashboardPageProps {
   xp: number
@@ -10,6 +11,7 @@ interface DashboardPageProps {
 
 export function DashboardPage({ xp, user }: DashboardPageProps) {
   const navigate = useNavigate()
+  const { isAdmin } = useAbility()
   const [dashData, setDashData] = useState<any>(null)
 
   const loadDashboard = async () => {
@@ -81,7 +83,7 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
       <div className="cards-grid" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))' }}>
         <button
           className="quick-action-card"
-          onClick={() => navigate(user?.role === 'ADMIN' ? '/cms' : '/modulos')}
+          onClick={() => navigate(isAdmin ? '/cms' : '/modulos')}
         >
           <div className="qa-icon" style={{ background: '#EEF2FF' }}>
             <i className="icon-book-open" style={{ color: '#667eea' }} />

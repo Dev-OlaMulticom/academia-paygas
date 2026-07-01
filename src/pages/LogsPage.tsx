@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { api } from '../lib/api'
 import type { User } from '../hooks/useAuth'
 import { useToast, useConfirm } from '../components/Toast'
+import { ROLE_COLORS } from '../data/constants'
 
 interface LogsPageProps {
   user: User
@@ -157,13 +158,7 @@ export function LogsPage({ user: _user }: LogsPageProps) {
     return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
   }
 
-  const roleColor = (role: string) => {
-    if (role === 'ADMIN') return 'var(--pg-red)'
-    if (role === 'GESTOR') return 'var(--pg-gold)'
-    if (role === 'PARCEIRO_ACREDITADO') return '#8b5cf6'
-    if (role === 'ERPS_REPRESENTANTE') return '#06b6d4'
-    return 'var(--pg-green)'
-  }
+  const roleColor = (role: string) => ROLE_COLORS[role] || ROLE_COLORS.ATENDENTE
 
   return (
     <div className="page active">
