@@ -4,7 +4,7 @@
 		"module": "commonjs",
 		"moduleResolution": "node",
 		"lib": ["ES2020"],
-		"outDir": "./dist/server",
+		"outDir": "./dist",
 		"rootDir": "./",
 		"strict": true,
 		"esModuleInterop": true,

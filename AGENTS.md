@@ -40,8 +40,8 @@ Single package, two compilation targets:
 | Target | Source | Output | Config |
 |--------|--------|--------|--------|
 | Frontend | `src/` | `dist/` | `tsconfig.json` (ESNext/bundler, `noEmit: true`) |
-| Backend | `server/` | `dist/server/` | `tsconfig.server.json` (CommonJS/node) |
-| Shared | `shared/` | (imported by both) | `@shared/*` alias in both tsconfigs + vite |
+| Backend | `server/` | `dist/server/` | `tsconfig.server.json` (CommonJS/node, `rootDir: "./"`, `outDir: "./dist"`) |
+| Shared | `shared/` | `dist/shared/` (compiled by tsc) | `@shared/*` alias in both tsconfigs + vite |
 
 Entry points: `server/index.ts` (Express :3001), `src/main.tsx` → `src/App.tsx` (React Router).
 
@@ -138,6 +138,7 @@ All user actions logged via `logActivity(userId, acao, detalhes)` in `server/ser
 - **Naming gotcha:** DB table is `Modulo` but frontend/CMS calls it "Curso". `moduloId` = `cursoId` in frontend. Cosmetic only.
 - **`prisma.config.ts`** auto-detects `--schema` arg to pick PG vs MySQL URL. Don't hardcode the datasource URL in `schema.prisma`.
 - **`pnpm build`** must run `prisma generate` (PG + MySQL) before vite/tsc — the script chains this automatically.
+- **`tsconfig.server.json`** uses `rootDir: "./"` with `outDir: "./dist"`. This means `server/index.ts` compiles to `dist/server/index.js` and `shared/casl/actions.ts` compiles to `dist/shared/casl/actions.js`. Do NOT change `outDir` to `"./dist/server"` — it would produce `dist/server/server/index.js` (double `server`) breaking the start command.
 - **Two PrismaClient instances** for PG_URL_1: `server/lib/prisma.ts` (lazy Proxy) and `server/config/databases.ts` (registry). They now share the same pool via `getPrimaryPrisma()`.
 - **`db.transaction()`** only uses primary Prisma client — no replication to backups. Raw queries (`db.queryRaw()`) also only hit primary.
 - **Prisma uses PrismaPg adapter** (`@prisma/adapter-pg`), not the default binary engine. SSL: `{ rejectUnauthorized: false }`.

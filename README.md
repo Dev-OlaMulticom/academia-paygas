@@ -915,6 +915,8 @@ killall -9 node
 PORT=3001 nohup node dist/server/index.js > logs/app.log 2>&1 &
 ```
 
+**NOTA sobre tsconfig.server.json:** `rootDir: "./"` con `outDir: "./dist"` genera `dist/server/index.js` correctamente. No cambiar `outDir` a `"./dist/server"` — produciria `dist/server/server/index.js` (doble `server`) rompiendo el start.
+
 ### Proxy Reverso en nginx
 
 El snippet `nodejs-app.conf` configura el proxy:
