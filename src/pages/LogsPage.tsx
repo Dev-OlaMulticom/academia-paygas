@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AppSelect } from "../components/AppSelect";
 import { useConfirm, useToast } from "../components/Toast";
 import { ROLE_COLORS } from "../data/constants";
 import type { User } from "../hooks/useAuth";
@@ -191,18 +192,20 @@ export function LogsPage({ user: _user }: LogsPageProps) {
 				<div className="logs-filters-grid">
 					<div className="form-field">
 						<label className="form-label logs-filters-label">Usuário</label>
-						<select
-							className="form-input"
-							value={filters.userId}
-							onChange={(e) => handleFilterChange("userId", e.target.value)}
-						>
-							<option value="">Todos</option>
-							{users.map((u: any) => (
-								<option key={u.id} value={u.id}>
-									{u.nome} ({u.email})
-								</option>
-							))}
-						</select>
+						<AppSelect
+							id="logs-filtro-usuario"
+							options={[
+								...users.map((u: any) => ({
+									value: u.id,
+									label: `${u.nome} (${u.email})`,
+								})),
+							]}
+							value={filters.userId || null}
+							onChange={(v) => handleFilterChange("userId", v || "")}
+							placeholder="Todos"
+							isClearable
+							isSearchable
+						/>
 					</div>
 					<div className="form-field">
 						<label className="form-label logs-filters-label">Ação</label>

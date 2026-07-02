@@ -7709,3 +7709,69 @@ tr.row-detail > td {
 		grid-template-columns: 1fr 1fr;
 	}
 }
+
+/* ─── Password input with eye toggle ─── */
+.pg-pwd-wrap {
+	position: relative;
+	width: 100%;
+}
+
+.pg-pwd-wrap .pg-pwd-input {
+	width: 100%;
+	padding: 9px 40px 9px 12px;
+	border: 1.5px solid var(--gray-200);
+	border-radius: var(--radius-sm);
+	font-size: 13px;
+	outline: none;
+	transition: 0.2s;
+	background: #fff;
+	color: var(--text, #111827);
+	box-sizing: border-box;
+}
+
+.pg-pwd-wrap .pg-pwd-input:focus {
+	border-color: var(--pg-orange);
+}
+
+.pg-pwd-wrap .pg-pwd-toggle {
+	position: absolute;
+	top: 50%;
+	right: 8px;
+	transform: translateY(-50%);
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	background: transparent;
+	border: 0;
+	padding: 4px;
+	border-radius: 4px;
+	color: var(--gray-500, #6b7280);
+	cursor: pointer;
+	transition: 0.15s;
+}
+
+.pg-pwd-wrap .pg-pwd-toggle:hover:not(:disabled) {
+	color: var(--pg-orange, #f47c20);
+	background: rgba(244, 124, 32, 0.08);
+}
+
+.pg-pwd-wrap .pg-pwd-toggle:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+/* ─── react-select wrapper — visual match with form-input/form-select ─── */
+.pg-select {
+	width: 100%;
+	font-size: 13px;
+}
+
+.pg-select__micro-wrap {
+	min-height: 32px;
+	width: 70px;
+}
+
+.form-select,
+select.form-select {
+	width: 100%;
+}

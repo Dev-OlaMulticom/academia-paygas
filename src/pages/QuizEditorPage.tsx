@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
+import { AppSelect } from "../components/AppSelect";
 import { useConfirm, useToast } from "../components/Toast";
 import { useAbility } from "../hooks/useAbility";
 import { api } from "../lib/api";
@@ -260,14 +261,15 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 						</div>
 						<div className="form-field">
 							<label className="form-label">Certificado Automático</label>
-							<select
-								className="form-select"
+							<AppSelect
+								id="quiz-autocert"
+								options={[
+									{ value: "false", label: "Não" },
+									{ value: "true", label: "Sim (ao aprovar)" },
+								]}
 								value={autoCert ? "true" : "false"}
-								onChange={(e) => setAutoCert(e.target.value === "true")}
-							>
-								<option value="false">Não</option>
-								<option value="true">Sim (ao aprovar)</option>
-							</select>
+								onChange={(v) => setAutoCert(v === "true")}
+							/>
 						</div>
 					</div>
 					<div className="quiz-settings-actions">

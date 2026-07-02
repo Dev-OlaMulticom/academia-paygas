@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { PasswordInput } from "../components/PasswordInput";
 import { ROLE_COLORS } from "../data/constants";
 import { useAbility } from "../hooks/useAbility";
 import type { User } from "../hooks/useAuth";
@@ -121,32 +122,29 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
 						<div className="section-title">Seguranca</div>
 						<div className="form-field">
 							<label className="form-label">Senha Atual</label>
-							<input
-								className="form-input"
-								type="password"
-								placeholder="Digite sua senha atual"
+							<PasswordInput
 								value={currentPassword}
-								onChange={(e) => setCurrentPassword(e.target.value)}
+								onChange={setCurrentPassword}
+								placeholder="Digite sua senha atual"
+								autoComplete="current-password"
 							/>
 						</div>
 						<div className="form-field">
 							<label className="form-label">Nova Senha</label>
-							<input
-								className="form-input"
-								type="password"
-								placeholder="Minimo 8 caracteres"
+							<PasswordInput
 								value={newPassword}
-								onChange={(e) => setNewPassword(e.target.value)}
+								onChange={setNewPassword}
+								placeholder="Minimo 8 caracteres"
+								autoComplete="new-password"
 							/>
 						</div>
 						<div className="form-field">
 							<label className="form-label">Confirmar Senha</label>
-							<input
-								className="form-input"
-								type="password"
-								placeholder="Repita a senha"
+							<PasswordInput
 								value={confirmPassword}
-								onChange={(e) => setConfirmPassword(e.target.value)}
+								onChange={setConfirmPassword}
+								placeholder="Repita a senha"
+								autoComplete="new-password"
 							/>
 						</div>
 						{passwordMsg && (

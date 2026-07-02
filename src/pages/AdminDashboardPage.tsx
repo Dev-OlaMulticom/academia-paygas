@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AppSelect } from "../components/AppSelect";
 import { TablePagination, useClientPagination } from "../components/TablePagination";
 import { ROLE_CSS_CLASSES } from "../data/constants";
 import type { User } from "../hooks/useAuth";
@@ -369,18 +370,19 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
 						<div className="admin-email-form">
 							<div className="form-field">
 								<label className="form-label">Destinatario</label>
-								<select
-									className="form-input"
-									value={emailForm.userId}
-									onChange={(e) => setEmailForm((prev) => ({ ...prev, userId: e.target.value }))}
-								>
-									<option value="">Selecione um usuario...</option>
-									{users.map((u: any) => (
-										<option key={u.id} value={u.id}>
-											{u.nome || u.email} ({u.email})
-										</option>
-									))}
-								</select>
+								<AppSelect
+									id="admin-email-destinatario"
+									options={[
+										...users.map((u: any) => ({
+											value: u.id,
+											label: `${u.nome || u.email} (${u.email})`,
+										})),
+									]}
+									value={emailForm.userId || null}
+									onChange={(v) => setEmailForm({ ...emailForm, userId: v || "" })}
+									placeholder="Selecione um usuario..."
+									noOptionsLabel="Nenhum usuario disponivel"
+								/>
 							</div>
 							<div className="form-field">
 								<label className="form-label">Assunto</label>

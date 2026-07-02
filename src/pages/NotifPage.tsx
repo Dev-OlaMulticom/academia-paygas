@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AppSelect } from "../components/AppSelect";
 import { useConfirm, useToast } from "../components/Toast";
 import { useAbility } from "../hooks/useAbility";
 import type { User } from "../hooks/useAuth";
@@ -240,36 +241,37 @@ export function NotifPage({ user }: NotifPageProps) {
 						{sendTarget === "role" && isAdmin && (
 							<div className="form-field">
 								<label className="form-label">Perfil</label>
-								<select
-									className="form-select"
-									value={newNotif.toRole}
-									onChange={(e) => setNewNotif({ ...newNotif, toRole: e.target.value })}
-								>
-									<option value="">— Selecione o perfil —</option>
-									<option value="ADMIN">SuperAdministradores</option>
-									<option value="GESTOR">Gestores de Posto</option>
-									<option value="ATENDENTE">Atendentes</option>
-									<option value="PARCEIRO_ACREDITADO">Administradores</option>
-									<option value="ERPS_REPRESENTANTE">ERPs Representantes</option>
-								</select>
+								<AppSelect
+									id="notif-role"
+									options={[
+										{ value: "ADMIN", label: "SuperAdministradores" },
+										{ value: "GESTOR", label: "Gestores de Posto" },
+										{ value: "ATENDENTE", label: "Atendentes" },
+										{ value: "PARCEIRO_ACREDITADO", label: "Administradores" },
+										{ value: "ERPS_REPRESENTANTE", label: "ERPs Representantes" },
+									]}
+									value={newNotif.toRole || null}
+									onChange={(v) => setNewNotif({ ...newNotif, toRole: v || "" })}
+									placeholder="— Selecione o perfil —"
+									isClearable
+								/>
 							</div>
 						)}
 
 						{sendTarget === "user" && (
 							<div className="form-field">
 								<label className="form-label">Usuario</label>
-								<select
-									className="form-select"
-									value={newNotif.toUserId}
-									onChange={(e) => setNewNotif({ ...newNotif, toUserId: e.target.value })}
-								>
-									<option value="">— Selecione —</option>
-									{getTeamMembers().map((u: any) => (
-										<option key={u.id} value={u.id}>
-											{u.nome} ({u.role})
-										</option>
-									))}
-								</select>
+								<AppSelect
+									id="notif-user"
+									options={getTeamMembers().map((u: any) => ({
+										value: u.id,
+										label: `${u.nome} (${u.role})`,
+									}))}
+									value={newNotif.toUserId || null}
+									onChange={(v) => setNewNotif({ ...newNotif, toUserId: v || "" })}
+									placeholder="— Selecione —"
+									isClearable
+								/>
 							</div>
 						)}
 

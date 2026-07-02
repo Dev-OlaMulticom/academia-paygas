@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
+import { AppSelect } from "../components/AppSelect";
+import { PasswordInput } from "../components/PasswordInput";
 import { TablePagination, useClientPagination } from "../components/TablePagination";
 import { useConfirm, useToast } from "../components/Toast";
 import { PERSONAS } from "../data/constants";
@@ -499,51 +501,48 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 						</div>
 						<div className="form-field">
 							<label className="form-label">Senha</label>
-							<input
-								className="form-input"
-								type="password"
+							<PasswordInput
 								value={newUser.senha}
-								onChange={(e) => setNewUser({ ...newUser, senha: e.target.value })}
+								onChange={(v) => setNewUser({ ...newUser, senha: v })}
+								autoComplete="new-password"
 							/>
 						</div>
 						{!isGestor && (
 							<div className="form-field">
 								<label className="form-label">Perfil</label>
-								<select
-									className="form-select"
-									value={newUser.role}
-									onChange={(e) =>
+								<AppSelect
+									id="criar-usuario-perfil"
+									options={[
+										...(isAdmin ? [{ value: "ADMIN", label: "SuperAdministrador" }] : []),
+										{ value: "GESTOR", label: "Gestor / Líder" },
+										{ value: "ATENDENTE", label: "Atendente/Frentista" },
+										{ value: "PARCEIRO_ACREDITADO", label: "Administrador" },
+										{ value: "ERPS_REPRESENTANTE", label: "ERPs Representante" },
+									]}
+									value={newUser.role || null}
+									onChange={(v) =>
 										setNewUser({
 											...newUser,
-											role: e.target.value,
-											gestorId: e.target.value !== "ATENDENTE" ? "" : newUser.gestorId,
+											role: v || "",
+											gestorId: v !== "ATENDENTE" ? "" : newUser.gestorId,
 										})
 									}
-								>
-									<option value="">— Selecione —</option>
-									{isAdmin && <option value="ADMIN">SuperAdministrador</option>}
-									<option value="GESTOR">Gestor / Líder</option>
-									<option value="ATENDENTE">Atendente/Frentista</option>
-									<option value="PARCEIRO_ACREDITADO">Administrador</option>
-									<option value="ERPS_REPRESENTANTE">ERPs Representante</option>
-								</select>
+									placeholder="— Selecione —"
+									isClearable
+								/>
 							</div>
 						)}
 						{(newUser.role === "ATENDENTE" || isGestor) && !isGestor && (
 							<div className="form-field">
 								<label className="form-label">Gestor / Líder</label>
-								<select
-									className="form-select"
-									value={newUser.gestorId}
-									onChange={(e) => setNewUser({ ...newUser, gestorId: e.target.value })}
-								>
-									<option value="">— Selecione o Gestor —</option>
-									{gestores.map((g) => (
-										<option key={g.id} value={g.id}>
-											{g.nome}
-										</option>
-									))}
-								</select>
+								<AppSelect
+									id="criar-usuario-gestor"
+									options={gestores.map((g) => ({ value: g.id, label: g.nome }))}
+									value={newUser.gestorId || null}
+									onChange={(v) => setNewUser({ ...newUser, gestorId: v || "" })}
+									placeholder="— Selecione o Gestor —"
+									isClearable
+								/>
 							</div>
 						)}
 						{isGestor && (
@@ -585,39 +584,36 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 						</div>
 						<div className="form-field">
 							<label className="form-label">Perfil</label>
-							<select
-								className="form-select"
-								value={editingUser.role}
-								onChange={(e) =>
+							<AppSelect
+								id="editar-usuario-perfil"
+								options={[
+									{ value: "ADMIN", label: "SuperAdministrador" },
+									{ value: "GESTOR", label: "Gestor / Líder" },
+									{ value: "ATENDENTE", label: "Atendente" },
+									{ value: "PARCEIRO_ACREDITADO", label: "Administrador" },
+									{ value: "ERPS_REPRESENTANTE", label: "ERPs Representante" },
+								]}
+								value={editingUser.role || null}
+								onChange={(v) =>
 									setEditingUser({
 										...editingUser,
-										role: e.target.value,
-										gestorId: e.target.value !== "ATENDENTE" ? null : editingUser.gestorId || "",
+										role: v || "",
+										gestorId: v !== "ATENDENTE" ? null : editingUser.gestorId || "",
 									})
 								}
-							>
-								<option value="ADMIN">SuperAdministrador</option>
-								<option value="GESTOR">Gestor / Líder</option>
-								<option value="ATENDENTE">Atendente</option>
-								<option value="PARCEIRO_ACREDITADO">Administrador</option>
-								<option value="ERPS_REPRESENTANTE">ERPs Representante</option>
-							</select>
+							/>
 						</div>
 						{editingUser.role === "ATENDENTE" && (
 							<div className="form-field">
 								<label className="form-label">Gestor / Líder</label>
-								<select
-									className="form-select"
-									value={editingUser.gestorId || ""}
-									onChange={(e) => setEditingUser({ ...editingUser, gestorId: e.target.value })}
-								>
-									<option value="">— Selecione o Gestor —</option>
-									{gestores.map((g) => (
-										<option key={g.id} value={g.id}>
-											{g.nome}
-										</option>
-									))}
-								</select>
+								<AppSelect
+									id="editar-usuario-gestor"
+									options={gestores.map((g) => ({ value: g.id, label: g.nome }))}
+									value={editingUser.gestorId || null}
+									onChange={(v) => setEditingUser({ ...editingUser, gestorId: v || "" })}
+									placeholder="— Selecione o Gestor —"
+									isClearable
+								/>
 							</div>
 						)}
 						<div className="modal-actions">

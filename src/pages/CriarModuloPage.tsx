@@ -1,6 +1,7 @@
 import type React from "react";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AppSelect } from "../components/AppSelect";
 import { useToast } from "../components/Toast";
 import { ROLE_LABELS } from "../data/constants";
 import { api } from "../lib/api";
@@ -134,15 +135,15 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
 
 				<div className="form-field">
 					<label className="form-label">Obrigatório</label>
-					<select
+					<AppSelect
 						id="criar-obrigatorio"
-						className="form-select"
+						options={[
+							{ value: "false", label: "Não" },
+							{ value: "true", label: "Sim — Usuários devem concluir este módulo" },
+						]}
 						value={curso.obrigatorio ? "true" : "false"}
-						onChange={(e) => setModulo({ ...curso, obrigatorio: e.target.value === "true" })}
-					>
-						<option value="false">Não</option>
-						<option value="true">Sim — Usuários devem concluir este módulo</option>
-					</select>
+						onChange={(v) => setModulo({ ...curso, obrigatorio: v === "true" })}
+					/>
 				</div>
 
 				<div className="form-field">
@@ -151,15 +152,15 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
 						Ativado: O certificado é gerado automaticamente ao concluir todas as aulas e quizzes do curso. Desativado:
 						Requer aprovação do gestor/admin para emitir o certificado.
 					</p>
-					<select
+					<AppSelect
 						id="criar-auto-cert"
-						className="form-select"
+						options={[
+							{ value: "false", label: "Não (Requer aprovação)" },
+							{ value: "true", label: "Sim (Automático ao concluir)" },
+						]}
 						value={curso.autoCertificado ? "true" : "false"}
-						onChange={(e) => setModulo({ ...curso, autoCertificado: e.target.value === "true" })}
-					>
-						<option value="false">Não (Requer aprovação)</option>
-						<option value="true">Sim (Automático ao concluir)</option>
-					</select>
+						onChange={(v) => setModulo({ ...curso, autoCertificado: v === "true" })}
+					/>
 				</div>
 
 				<div className="form-field">
@@ -167,28 +168,17 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
 					<div style={{ fontSize: "12px", color: "var(--gray-500)", marginBottom: "6px" }}>
 						Se nenhum perfil selecionado, todos terão acesso.
 					</div>
-					<div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-						{["ADMIN", "GESTOR", "ATENDENTE", "PARCEIRO_ACREDITADO", "ERPS_REPRESENTANTE"].map((role) => {
-							const currentRoles: string[] = curso.rolesPermitidos || [];
-							const checked = currentRoles.includes(role);
-							return (
-								<label
-									key={role}
-									style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "13px" }}
-								>
-									<input
-										type="checkbox"
-										checked={checked}
-										onChange={() => {
-											const newRoles = checked ? currentRoles.filter((r) => r !== role) : [...currentRoles, role];
-											setModulo({ ...curso, rolesPermitidos: newRoles.length > 0 ? newRoles : null });
-										}}
-									/>
-									{ROLE_LABELS[role] || role}
-								</label>
-							);
-						})}
-					</div>
+					<AppSelect
+						id="criar-roles"
+						isMulti
+						options={Object.entries(ROLE_LABELS).map(([value, label]) => ({
+							value,
+							label,
+						}))}
+						value={curso.rolesPermitidos || []}
+						onChange={(values) => setModulo({ ...curso, rolesPermitidos: values.length > 0 ? values : null })}
+						placeholder="Todos os perfis"
+					/>
 				</div>
 
 				<div className="criar-actions">

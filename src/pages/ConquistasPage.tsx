@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { AppSelect } from "../components/AppSelect";
 import { useConfirm, useToast } from "../components/Toast";
 import { useAbility } from "../hooks/useAbility";
 import type { User } from "../hooks/useAuth";
@@ -374,14 +375,15 @@ export function ConquistasPage({ user: _user }: ConquistasPageProps) {
 							</div>
 							<div className="form-field">
 								<label className="form-label">Status</label>
-								<select
-									className="form-select"
+								<AppSelect
+									id="conquista-status"
+									options={[
+										{ value: "true", label: "Ativo" },
+										{ value: "false", label: "Inativo" },
+									]}
 									value={form.ativo ? "true" : "false"}
-									onChange={(e) => setForm({ ...form, ativo: e.target.value === "true" })}
-								>
-									<option value="true">Ativo</option>
-									<option value="false">Inativo</option>
-								</select>
+									onChange={(v) => setForm({ ...form, ativo: v === "true" })}
+								/>
 							</div>
 						</div>
 

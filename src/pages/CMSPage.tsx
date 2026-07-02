@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { AppSelect, type SelectOption } from "../components/AppSelect";
 import { PDFViewer } from "../components/PDFViewer";
 import { TablePagination, useClientPagination } from "../components/TablePagination";
 import { useConfirm, useToast } from "../components/Toast";
@@ -1038,27 +1039,27 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 						</div>
 						<div className="form-field">
 							<label className="form-label">Obrigatório</label>
-							<select
+							<AppSelect
 								id="mod-edit-obrigatorio"
-								className="form-select"
+								options={[
+									{ value: "false", label: "Não" },
+									{ value: "true", label: "Sim" },
+								]}
 								value={editingMod.obrigatorio ? "true" : "false"}
-								onChange={(e) => setEditingMod({ ...editingMod, obrigatorio: e.target.value === "true" })}
-							>
-								<option value="false">Não</option>
-								<option value="true">Sim</option>
-							</select>
+								onChange={(v) => setEditingMod({ ...editingMod, obrigatorio: v === "true" })}
+							/>
 						</div>
 						<div className="form-field">
 							<label className="form-label">Gerar Certificado Automaticamente</label>
-							<select
+							<AppSelect
 								id="mod-edit-autoCert"
-								className="form-select"
+								options={[
+									{ value: "false", label: "Não (Requer aprovação do gestor)" },
+									{ value: "true", label: "Sim (Automático ao concluir)" },
+								]}
 								value={editingMod.autoCertificado ? "true" : "false"}
-								onChange={(e) => setEditingMod({ ...editingMod, autoCertificado: e.target.value === "true" })}
-							>
-								<option value="false">Não (Requer aprovação do gestor)</option>
-								<option value="true">Sim (Automático ao concluir)</option>
-							</select>
+								onChange={(v) => setEditingMod({ ...editingMod, autoCertificado: v === "true" })}
+							/>
 						</div>
 						<div className="form-field">
 							<label className="form-label">Acesso por Perfil</label>
@@ -1067,28 +1068,19 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 									? `Restrito a: ${(editingMod.rolesPermitidos as string[]).join(", ")}`
 									: "Todos os perfis têm acesso"}
 							</div>
-							<div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-								{["ADMIN", "GESTOR", "ATENDENTE", "PARCEIRO_ACREDITADO", "ERPS_REPRESENTANTE"].map((role) => {
-									const currentRoles: string[] = editingMod.rolesPermitidos || [];
-									const checked = currentRoles.includes(role);
-									return (
-										<label
-											key={role}
-											style={{ display: "flex", alignItems: "center", gap: "6px", cursor: "pointer", fontSize: "13px" }}
-										>
-											<input
-												type="checkbox"
-												checked={checked}
-												onChange={() => {
-													const newRoles = checked ? currentRoles.filter((r) => r !== role) : [...currentRoles, role];
-													setEditingMod({ ...editingMod, rolesPermitidos: newRoles.length > 0 ? newRoles : null });
-												}}
-											/>
-											{ROLE_LABELS[role] || role}
-										</label>
-									);
-								})}
-							</div>
+							<AppSelect
+								id="mod-edit-roles"
+								isMulti
+								options={Object.entries(ROLE_LABELS).map(([value, label]) => ({
+									value,
+									label,
+								}))}
+								value={(editingMod.rolesPermitidos as string[]) || []}
+								onChange={(values) =>
+									setEditingMod({ ...editingMod, rolesPermitidos: values.length > 0 ? values : null })
+								}
+								placeholder="Todos os perfis"
+							/>
 						</div>
 						<div className="modal-actions">
 							<button id="mod-edit-salvar" className="btn-primary" onClick={handleEditModulo}>
@@ -1118,18 +1110,15 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 								</div>
 								<div className="form-field">
 									<label className="form-label">Tipo</label>
-									<select
-										className="form-select"
+									<AppSelect
+										id="new-aula-tipo"
+										options={[
+											{ value: "VIDEO", label: "Vídeo (YouTube)" },
+											{ value: "PDF", label: "PDF" },
+										]}
 										value={newAula.tipo}
-										onChange={(e) => setNewAula({ ...newAula, tipo: e.target.value as "VIDEO" | "PDF" })}
-									>
-										<option value="VIDEO">
-											<i className="icon-video icon-sm" /> Vídeo (YouTube)
-										</option>
-										<option value="PDF">
-											<i className="icon-file-text icon-sm" /> PDF
-										</option>
-									</select>
+										onChange={(v) => setNewAula({ ...newAula, tipo: (v || "VIDEO") as "VIDEO" | "PDF" })}
+									/>
 								</div>
 								<div className="form-field">
 									<label className="form-label">
@@ -1149,65 +1138,70 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 								</div>
 								<div className="form-field">
 									<label className="form-label">Obrigatório (bloquear próxima aula até concluir)</label>
-									<select
-										className="form-select"
+									<AppSelect
+										id="new-aula-obrigatorio"
+										options={[
+											{ value: "false", label: "Não" },
+											{ value: "true", label: "Sim — Usuário deve concluir antes de avançar" },
+										]}
 										value={newAula.obrigatorio ? "true" : "false"}
-										onChange={(e) => setNewAula({ ...newAula, obrigatorio: e.target.value === "true" })}
-									>
-										<option value="false">Não</option>
-										<option value="true">Sim — Usuário deve concluir antes de avançar</option>
-									</select>
+										onChange={(v) => setNewAula({ ...newAula, obrigatorio: v === "true" })}
+									/>
 								</div>
 								{newAula.tipo === "VIDEO" && (
 									<div className="form-field">
 										<label className="form-label">Lições (pontos de ancoragem)</label>
 										{newAula.licoesAncoragem.map((ml, i) => {
 											const { maxMinutes, maxSeconds } = getMaxTime(newAula.duration, ml.hours);
+											const hourOpts: SelectOption[] = Array.from({ length: newAula.duration.hours + 1 }, (_, i) => ({
+												value: String(i),
+												label: String(i),
+											}));
+											const minOpts: SelectOption[] = Array.from({ length: maxMinutes + 1 }, (_, i) => ({
+												value: String(i),
+												label: i.toString().padStart(2, "0"),
+											}));
+											const secOpts: SelectOption[] = Array.from(
+												{ length: (ml.minutes < maxMinutes ? 60 : maxSeconds) + 1 },
+												(_, i) => ({
+													value: String(i),
+													label: i.toString().padStart(2, "0"),
+												}),
+											);
 											return (
 												<div key={i} className="cms-micro-row">
 													<div className="cms-micro-col">
 														<label className="cms-micro-label">Hora</label>
-														<select
-															className="form-select cms-micro-select"
-															value={ml.hours}
-															onChange={(e) => updateLicaoAncoragem(i, "hours", parseInt(e.target.value, 10) || 0)}
-														>
-															{Array.from({ length: newAula.duration.hours + 1 }, (_, i) => i).map((h) => (
-																<option key={h} value={h}>
-																	{h}
-																</option>
-															))}
-														</select>
+														<AppSelect
+															options={hourOpts}
+															value={String(ml.hours)}
+															onChange={(v) => updateLicaoAncoragem(i, "hours", parseInt(v || "0", 10))}
+															isSearchable={false}
+															isClearable={false}
+															placeholder=""
+														/>
 													</div>
 													<div className="cms-micro-col">
 														<label className="cms-micro-label">Min</label>
-														<select
-															className="form-select cms-micro-select"
-															value={ml.minutes}
-															onChange={(e) => updateLicaoAncoragem(i, "minutes", parseInt(e.target.value, 10) || 0)}
-														>
-															{Array.from({ length: maxMinutes + 1 }, (_, i) => i).map((m) => (
-																<option key={m} value={m}>
-																	{m.toString().padStart(2, "0")}
-																</option>
-															))}
-														</select>
+														<AppSelect
+															options={minOpts}
+															value={String(ml.minutes)}
+															onChange={(v) => updateLicaoAncoragem(i, "minutes", parseInt(v || "0", 10))}
+															isSearchable={false}
+															isClearable={false}
+															placeholder=""
+														/>
 													</div>
 													<div className="cms-micro-col">
 														<label className="cms-micro-label">Seg</label>
-														<select
-															className="form-select cms-micro-select"
-															value={ml.seconds}
-															onChange={(e) => updateLicaoAncoragem(i, "seconds", parseInt(e.target.value, 10) || 0)}
-														>
-															{Array.from({ length: (ml.minutes < maxMinutes ? 60 : maxSeconds) + 1 }, (_, i) => i).map(
-																(s) => (
-																	<option key={s} value={s}>
-																		{s.toString().padStart(2, "0")}
-																	</option>
-																),
-															)}
-														</select>
+														<AppSelect
+															options={secOpts}
+															value={String(ml.seconds)}
+															onChange={(v) => updateLicaoAncoragem(i, "seconds", parseInt(v || "0", 10))}
+															isSearchable={false}
+															isClearable={false}
+															placeholder=""
+														/>
 													</div>
 													<div className="cms-micro-title-input">
 														<input
@@ -1284,18 +1278,15 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 								</div>
 								<div className="form-field">
 									<label className="form-label">Tipo</label>
-									<select
-										className="form-select"
+									<AppSelect
+										id="edit-aula-tipo"
+										options={[
+											{ value: "VIDEO", label: "Vídeo (YouTube)" },
+											{ value: "PDF", label: "PDF" },
+										]}
 										value={editingAula.tipo}
-										onChange={(e) => setEditingAula({ ...editingAula, tipo: e.target.value as "VIDEO" | "PDF" })}
-									>
-										<option value="VIDEO">
-											<i className="icon-video icon-sm" /> Vídeo (YouTube)
-										</option>
-										<option value="PDF">
-											<i className="icon-file-text icon-sm" /> PDF
-										</option>
-									</select>
+										onChange={(v) => setEditingAula({ ...editingAula, tipo: (v || "VIDEO") as "VIDEO" | "PDF" })}
+									/>
 								</div>
 								<div className="form-field">
 									<label className="form-label">{editingAula.tipo === "VIDEO" ? "URL do Vídeo" : "URL do PDF"}</label>
@@ -1310,14 +1301,15 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 								</div>
 								<div className="form-field">
 									<label className="form-label">Obrigatório</label>
-									<select
-										className="form-select"
+									<AppSelect
+										id="edit-aula-obrigatorio"
+										options={[
+											{ value: "false", label: "Não" },
+											{ value: "true", label: "Sim" },
+										]}
 										value={editingAula.obrigatorio ? "true" : "false"}
-										onChange={(e) => setEditingAula({ ...editingAula, obrigatorio: e.target.value === "true" })}
-									>
-										<option value="false">Não</option>
-										<option value="true">Sim</option>
-									</select>
+										onChange={(v) => setEditingAula({ ...editingAula, obrigatorio: v === "true" })}
+									/>
 								</div>
 								{editingAula.tipo === "VIDEO" && (
 									<div className="form-field">
@@ -1325,64 +1317,67 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 										{(editingAula.licoesAncoragem || []).map((ml: LicaoAncoragem, i: number) => {
 											const dur = editingAula.duration || { hours: 0, minutes: 0, seconds: 0 };
 											const { maxMinutes, maxSeconds } = getMaxTime(dur, ml.hours || 0);
+											const hourOpts: SelectOption[] = Array.from({ length: dur.hours + 1 }, (_, i) => ({
+												value: String(i),
+												label: String(i),
+											}));
+											const minOpts: SelectOption[] = Array.from({ length: maxMinutes + 1 }, (_, i) => ({
+												value: String(i),
+												label: i.toString().padStart(2, "0"),
+											}));
+											const secOpts: SelectOption[] = Array.from(
+												{ length: ((ml.minutes || 0) < maxMinutes ? 60 : maxSeconds) + 1 },
+												(_, i) => ({
+													value: String(i),
+													label: i.toString().padStart(2, "0"),
+												}),
+											);
 											return (
 												<div key={i} className="cms-micro-row">
 													<div className="cms-micro-col">
 														<label className="cms-micro-label">Hora</label>
-														<select
-															className="form-select cms-micro-select"
-															value={ml.hours || 0}
-															onChange={(e) => {
+														<AppSelect
+															options={hourOpts}
+															value={String(ml.hours || 0)}
+															onChange={(v) => {
 																const updated = [...(editingAula.licoesAncoragem || [])];
-																updated[i] = { ...updated[i], hours: parseInt(e.target.value, 10) || 0 };
+																updated[i] = { ...updated[i], hours: parseInt(v || "0", 10) };
 																setEditingAula({ ...editingAula, licoesAncoragem: updated });
 															}}
-														>
-															{Array.from({ length: dur.hours + 1 }, (_, i) => i).map((h) => (
-																<option key={h} value={h}>
-																	{h}
-																</option>
-															))}
-														</select>
+															isSearchable={false}
+															isClearable={false}
+															placeholder=""
+														/>
 													</div>
 													<div className="cms-micro-col">
 														<label className="cms-micro-label">Min</label>
-														<select
-															className="form-select cms-micro-select"
-															value={ml.minutes || 0}
-															onChange={(e) => {
+														<AppSelect
+															options={minOpts}
+															value={String(ml.minutes || 0)}
+															onChange={(v) => {
 																const updated = [...(editingAula.licoesAncoragem || [])];
-																updated[i] = { ...updated[i], minutes: parseInt(e.target.value, 10) || 0 };
+																updated[i] = { ...updated[i], minutes: parseInt(v || "0", 10) };
 																setEditingAula({ ...editingAula, licoesAncoragem: updated });
 															}}
-														>
-															{Array.from({ length: maxMinutes + 1 }, (_, i) => i).map((m) => (
-																<option key={m} value={m}>
-																	{m.toString().padStart(2, "0")}
-																</option>
-															))}
-														</select>
+															isSearchable={false}
+															isClearable={false}
+															placeholder=""
+														/>
 													</div>
 													<div className="cms-micro-col">
 														<label className="cms-micro-label">Seg</label>
-														<select
-															className="form-select cms-micro-select"
-															value={ml.seconds || 0}
-															onChange={(e) => {
+														<AppSelect
+															options={secOpts}
+															value={String(ml.seconds || 0)}
+															onChange={(v) => {
 																const updated = [...(editingAula.licoesAncoragem || [])];
-																updated[i] = { ...updated[i], seconds: parseInt(e.target.value, 10) || 0 };
+																updated[i] = { ...updated[i], seconds: parseInt(v || "0", 10) };
 																setEditingAula({ ...editingAula, licoesAncoragem: updated });
 															}}
-														>
-															{Array.from(
-																{ length: ((ml.minutes || 0) < maxMinutes ? 60 : maxSeconds) + 1 },
-																(_, i) => i,
-															).map((s) => (
-																<option key={s} value={s}>
-																	{s.toString().padStart(2, "0")}
-																</option>
-															))}
-														</select>
+															isSearchable={false}
+															isClearable={false}
+															placeholder=""
+														/>
 													</div>
 													<div className="cms-micro-title-input">
 														<input

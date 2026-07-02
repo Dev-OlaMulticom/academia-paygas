@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { PasswordInput } from "../components/PasswordInput";
 import { api } from "../lib/api";
 import { APP_VERSION } from "../lib/constants";
 
@@ -202,7 +203,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 			</div>
 			<div className="field">
 				<label>Senha</label>
-				<input type="password" value={password} onChange={(e) => setPassword(e.target.value)} placeholder="••••••••" />
+				<PasswordInput value={password} onChange={setPassword} placeholder="••••••••" autoComplete="current-password" />
 			</div>
 			<button className="btn-login" onClick={handleLogin} disabled={loading}>
 				{loading ? "Entrando..." : "Acessar Academia"}
@@ -332,20 +333,20 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 			{resetSuccess && <div className="login-alert success">{resetSuccess}</div>}
 			<div className="field">
 				<label>Nova Senha</label>
-				<input
-					type="password"
+				<PasswordInput
 					value={resetNewPassword}
-					onChange={(e) => setResetNewPassword(e.target.value)}
+					onChange={setResetNewPassword}
 					placeholder="Minimo 8 caracteres"
+					autoComplete="new-password"
 				/>
 			</div>
 			<div className="field">
 				<label>Confirmar Senha</label>
-				<input
-					type="password"
+				<PasswordInput
 					value={resetConfirmPassword}
-					onChange={(e) => setResetConfirmPassword(e.target.value)}
+					onChange={setResetConfirmPassword}
 					placeholder="Repita a senha"
+					autoComplete="new-password"
 				/>
 			</div>
 			<button className="btn-login" onClick={handleResetPassword} disabled={resetLoading}>
