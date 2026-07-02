@@ -7,6 +7,25 @@ interface RelatoriosPageProps {
 	user: User;
 }
 
+function downloadCsv(filename: string, csv: string) {
+	const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement("a");
+	a.href = url;
+	a.download = filename;
+	a.click();
+	URL.revokeObjectURL(url);
+}
+
+function escapeCsvField(value: string | number | boolean | null | undefined): string {
+	if (value === null || value === undefined) return "";
+	const str = String(value);
+	if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+		return `"${str.replace(/"/g, '""')}"`;
+	}
+	return str;
+}
+
 const ACTION_LABELS: Record<string, string> = {
 	LOGIN: "Acesso",
 	MODULE_OPEN: "Abriu Curso",
@@ -68,6 +87,49 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
 		loadRelatorios();
 	}, [loadRelatorios]);
 
+	const handleExportCsv = () => {
+		const rows: string[][] = [];
+		const headers = ["Curso", "Concluidos", "Em Andamento", "Total Aulas", "Taxa Conclusao (%)"];
+		rows.push(headers.map(escapeCsvField));
+		for (const mod of moduleStats) {
+			rows.push([
+				escapeCsvField(mod.nome),
+				escapeCsvField(mod.concluidos),
+				escapeCsvField(mod.emAndamento),
+				escapeCsvField(mod.total),
+				escapeCsvField(mod.taxaConclusao),
+			]);
+		}
+		if (leaderboard.length > 0) {
+			rows.push([]);
+			rows.push(["Ranking XP"]);
+			rows.push(["#", "Usuario", "Perfil", "Nivel", "XP"]);
+			for (const u of leaderboard) {
+				rows.push([
+					escapeCsvField(u.rank),
+					escapeCsvField(u.nome),
+					escapeCsvField(u.role),
+					escapeCsvField(`Lv. ${u.level}`),
+					escapeCsvField(u.xp),
+				]);
+			}
+		}
+		if (stats?.pointsByAction && stats.pointsByAction.length > 0) {
+			rows.push([]);
+			rows.push(["Pontos por Acao"]);
+			rows.push(["Acao", "Total XP", "Quantidade"]);
+			for (const item of stats.pointsByAction) {
+				rows.push([
+					escapeCsvField(ACTION_LABELS[item.action] || item.action),
+					escapeCsvField(item.totalPoints),
+					escapeCsvField(item.count),
+				]);
+			}
+		}
+		const csv = rows.map((r) => r.join(",")).join("\n");
+		downloadCsv(`relatorios-${Date.now()}.csv`, csv);
+	};
+
 	if (loading) {
 		return (
 			<div className="page active">
@@ -89,6 +151,11 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
 		<div className="page active">
 			<div className="page-header">
 				<div className="page-title">Relatorios</div>
+				<div className="cms-header-actions">
+					<button className="btn-secondary" onClick={handleExportCsv}>
+						<i className="icon-download icon-xs" /> Baixar CSV
+					</button>
+				</div>
 			</div>
 
 			<div className="section-title">Gamificacao</div>

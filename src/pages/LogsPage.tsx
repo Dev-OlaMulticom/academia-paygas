@@ -6,6 +6,25 @@ import { ROLE_COLORS } from "../data/constants";
 import type { User } from "../hooks/useAuth";
 import { api } from "../lib/api";
 
+function downloadCsv(filename: string, csv: string) {
+	const blob = new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" });
+	const url = URL.createObjectURL(blob);
+	const a = document.createElement("a");
+	a.href = url;
+	a.download = filename;
+	a.click();
+	URL.revokeObjectURL(url);
+}
+
+function escapeCsvField(value: string | number | boolean | null | undefined): string {
+	if (value === null || value === undefined) return "";
+	const str = String(value);
+	if (str.includes(",") || str.includes('"') || str.includes("\n")) {
+		return `"${str.replace(/"/g, '""')}"`;
+	}
+	return str;
+}
+
 interface LogsPageProps {
 	user: User;
 }
@@ -167,10 +186,32 @@ export function LogsPage({ user: _user }: LogsPageProps) {
 
 	const roleColor = (role: string) => ROLE_COLORS[role] || ROLE_COLORS.ATENDENTE;
 
+	const handleExportCsv = () => {
+		const headers = ["Data", "Usuario", "Email", "Perfil", "Acao", "Detalhes"];
+		const rows: string[][] = [headers.map(escapeCsvField)];
+		for (const log of logs) {
+			rows.push([
+				escapeCsvField(formatDate(log.createdAt)),
+				escapeCsvField(log.user?.nome),
+				escapeCsvField(log.user?.email),
+				escapeCsvField(log.user?.role),
+				escapeCsvField(log.acao),
+				escapeCsvField(log.detalhes),
+			]);
+		}
+		const csv = rows.map((r) => r.join(",")).join("\n");
+		downloadCsv(`logs-atividade-${Date.now()}.csv`, csv);
+	};
+
 	return (
 		<div className="page active">
 			<div className="page-header">
 				<div className="page-title">Logs de Atividade</div>
+				<div className="cms-header-actions">
+					<button className="btn-secondary" onClick={handleExportCsv} disabled={logs.length === 0}>
+						<i className="icon-download icon-xs" /> Baixar CSV
+					</button>
+				</div>
 			</div>
 
 			{stats && (

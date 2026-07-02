@@ -563,6 +563,174 @@ router.get("/export/all", authenticate, authorize("ADMIN"), async (_req: any, re
 	}
 });
 
+// ==================== EXPORT PER ITEM ====================
+
+router.get("/export/curso/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
+	try {
+		const curso = await db.findUnique("curso", { id: req.params.id });
+		if (!curso) return res.status(404).json({ error: "Curso nao encontrado" });
+		const headers = ["id", "titulo", "descricao", "ordem", "obrigatorio", "autoCertificado", "videoUrl", "videoInicio", "videoFim"];
+		const row = headers.map((h) => escapeCsvField((curso as any)[h]));
+		const csv = [headers.join(","), row.join(",")].join("\n");
+		const safeName = (curso as any).titulo.replace(/[^a-zA-Z0-9-_]/g, "_").substring(0, 40);
+		sendCsv(res, `curso-${safeName}-${curso.id.substring(0, 8)}.csv`, csv);
+	} catch (error) {
+		logger.error("[EXPORT CURSO ERROR]", error);
+		res.status(500).json({ error: "Erro ao exportar curso" });
+	}
+});
+
+router.get("/export/aula/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
+	try {
+		const aula = await db.findUnique("aula", { id: req.params.id }, { include: { curso: { select: { id: true, titulo: true } } } });
+		if (!aula) return res.status(404).json({ error: "Aula nao encontrada" });
+		const headers = ["id", "curso_id", "curso_titulo", "titulo", "descricao", "tipo", "videoUrl", "pdfUrl", "obrigatorio", "duracaoMin", "videoInicio", "videoFim"];
+		const row = [
+			escapeCsvField(aula.id),
+			escapeCsvField((aula as any).curso.id),
+			escapeCsvField((aula as any).curso.titulo),
+			escapeCsvField(aula.titulo),
+			escapeCsvField(aula.descricao),
+			escapeCsvField(aula.tipo),
+			escapeCsvField(aula.videoUrl),
+			escapeCsvField(aula.pdfUrl),
+			escapeCsvField(aula.obrigatorio),
+			escapeCsvField(aula.duracaoMin),
+			escapeCsvField(aula.videoInicio),
+			escapeCsvField(aula.videoFim),
+		];
+		const csv = [headers.join(","), row.join(",")].join("\n");
+		const safeName = aula.titulo.replace(/[^a-zA-Z0-9-_]/g, "_").substring(0, 40);
+		sendCsv(res, `aula-${safeName}-${aula.id.substring(0, 8)}.csv`, csv);
+	} catch (error) {
+		logger.error("[EXPORT AULA ERROR]", error);
+		res.status(500).json({ error: "Erro ao exportar aula" });
+	}
+});
+
+router.get("/export/licao/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
+	try {
+		const licao = await db.findUnique("licao", {
+			id: req.params.id,
+		}, {
+			include: { aula: { select: { id: true, titulo: true, curso: { select: { id: true, titulo: true } } } } },
+		});
+		if (!licao) return res.status(404).json({ error: "Licao nao encontrada" });
+		const headers = ["id", "curso_id", "curso_titulo", "aula_id", "aula_titulo", "titulo", "tipo", "conteudo", "duracaoMin", "inicioSeg", "fimSeg", "ordem"];
+		const row = [
+			escapeCsvField(licao.id),
+			escapeCsvField((licao as any).aula.curso.id),
+			escapeCsvField((licao as any).aula.curso.titulo),
+			escapeCsvField((licao as any).aula.id),
+			escapeCsvField((licao as any).aula.titulo),
+			escapeCsvField(licao.titulo),
+			escapeCsvField(licao.tipo),
+			escapeCsvField(licao.conteudo),
+			escapeCsvField(licao.duracaoMin),
+			escapeCsvField(licao.inicioSeg),
+			escapeCsvField(licao.fimSeg),
+			escapeCsvField(licao.ordem),
+		];
+		const csv = [headers.join(","), row.join(",")].join("\n");
+		const safeName = licao.titulo.replace(/[^a-zA-Z0-9-_]/g, "_").substring(0, 40);
+		sendCsv(res, `licao-${safeName}-${licao.id.substring(0, 8)}.csv`, csv);
+	} catch (error) {
+		logger.error("[EXPORT LICAO ERROR]", error);
+		res.status(500).json({ error: "Erro ao exportar licao" });
+	}
+});
+
+router.get("/export/quiz/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
+	try {
+		const quiz = await db.findUnique("quiz", {
+			id: req.params.id,
+		}, {
+			include: {
+				perguntas: { orderBy: { ordem: "asc" } },
+				aula: { select: { id: true, titulo: true, curso: { select: { id: true, titulo: true } } } },
+			},
+		});
+		if (!quiz) return res.status(404).json({ error: "Quiz nao encontrado" });
+		const headers = ["curso_titulo", "aula_titulo", "quiz_titulo", "notaMinima", "autoGerarCertificado", "pergunta", "opcaoA", "opcaoB", "opcaoC", "opcaoD", "correta"];
+		const rows = quiz.perguntas.map((p: any) => [
+			escapeCsvField((quiz as any).aula.curso.titulo),
+			escapeCsvField((quiz as any).aula.titulo),
+			escapeCsvField(quiz.titulo),
+			escapeCsvField(quiz.notaMinima),
+			escapeCsvField(quiz.autoGerarCertificado),
+			escapeCsvField(p.pergunta),
+			escapeCsvField(p.opcaoA),
+			escapeCsvField(p.opcaoB),
+			escapeCsvField(p.opcaoC),
+			escapeCsvField(p.opcaoD),
+			escapeCsvField(p.correta),
+		]);
+		const csv = [headers.join(","), ...rows.map((r: string[]) => r.join(","))].join("\n");
+		const safeName = quiz.titulo.replace(/[^a-zA-Z0-9-_]/g, "_").substring(0, 40);
+		sendCsv(res, `quiz-${safeName}-${quiz.id.substring(0, 8)}.csv`, csv);
+	} catch (error) {
+		logger.error("[EXPORT QUIZ ERROR]", error);
+		res.status(500).json({ error: "Erro ao exportar quiz" });
+	}
+});
+
+// ==================== LIST ITEMS (for UI) ====================
+
+router.get("/list/cursos", authenticate, authorize("ADMIN"), async (_req: any, res) => {
+	try {
+		const cursos = await db.findMany("curso", {
+			orderBy: { ordem: "asc" },
+			include: { _count: { select: { aulas: true } } },
+		});
+		res.json(cursos.map((c: any) => ({ id: c.id, titulo: c.titulo, ordem: c.ordem, aulaCount: c._count.aulas })));
+	} catch (error) {
+		logger.error("[LIST CURSOS ERROR]", error);
+		res.status(500).json({ error: "Erro ao listar cursos" });
+	}
+});
+
+router.get("/list/aulas", authenticate, authorize("ADMIN"), async (_req: any, res) => {
+	try {
+		const aulas = await db.findMany("aula", {
+			include: { curso: { select: { id: true, titulo: true } }, _count: { select: { licoes: true } } },
+			orderBy: [{ curso: { ordem: "asc" } }, { ordem: "asc" }],
+		});
+		res.json(aulas.map((a: any) => ({ id: a.id, titulo: a.titulo, cursoId: a.curso.id, cursoTitulo: a.curso.titulo, tipo: a.tipo, licaoCount: a._count.licoes })));
+	} catch (error) {
+		logger.error("[LIST AULAS ERROR]", error);
+		res.status(500).json({ error: "Erro ao listar aulas" });
+	}
+});
+
+router.get("/list/licoes", authenticate, authorize("ADMIN"), async (_req: any, res) => {
+	try {
+		const licoes = await db.findMany("licao", {
+			include: { aula: { select: { id: true, titulo: true, curso: { select: { id: true, titulo: true } } } } },
+			orderBy: [{ aula: { curso: { ordem: "asc" } } }, { aula: { ordem: "asc" } }, { ordem: "asc" }],
+		});
+		res.json(licoes.map((l: any) => ({ id: l.id, titulo: l.titulo, aulaId: l.aula.id, aulaTitulo: l.aula.titulo, cursoId: l.aula.curso.id, cursoTitulo: l.aula.curso.titulo, tipo: l.tipo })));
+	} catch (error) {
+		logger.error("[LIST LICOES ERROR]", error);
+		res.status(500).json({ error: "Erro ao listar licoes" });
+	}
+});
+
+router.get("/list/quizzes", authenticate, authorize("ADMIN"), async (_req: any, res) => {
+	try {
+		const quizzes = await db.findMany("quiz", {
+			include: {
+				aula: { select: { id: true, titulo: true, curso: { select: { id: true, titulo: true } } } },
+				_count: { select: { perguntas: true } },
+			},
+			orderBy: [{ aula: { curso: { ordem: "asc" } } }, { aula: { ordem: "asc" } }],
+		});
+		res.json(quizzes.map((q: any) => ({ id: q.id, titulo: q.titulo, aulaId: q.aula.id, aulaTitulo: q.aula.titulo, cursoId: q.aula.curso.id, cursoTitulo: q.aula.curso.titulo, perguntaCount: q._count.perguntas })));
+	} catch (error) {
+		logger.error("[LIST QUIZZES ERROR]", error);
+		res.status(500).json({ error: "Erro ao listar quizzes" });
+	}
+});
+
 // ==================== DETECT ====================
 
 router.post("/detect", authenticate, authorize("ADMIN"), async (req: any, res) => {
@@ -742,7 +910,7 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 			typeGroups[detected] = objects;
 		}
 
-		const result = { created: 0, updated: 0, skipped: 0, total: objects.length, errors };
+		const result = { created: 0, updated: 0, skipped: 0, total: objects.length, errors, createdItems: [] as { type: string; id: string; titulo: string; cursoId?: string; aulaId?: string }[] };
 
 		// Process in order: cursos → aulas → licoes → quiz
 		// CURSOS
@@ -794,6 +962,7 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 			// Update lookup maps for subsequent rows
 			cursoByTitulo.set(titulo, (created as any).id);
 			cursoById.set((created as any).id, titulo);
+			result.createdItems.push({ type: "curso", id: (created as any).id, titulo });
 			result.created++;
 		}
 
@@ -858,6 +1027,7 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 			});
 			aulaByKey.set(`${cursoId}:${titulo}`, (created as any).id);
 			aulaById.set((created as any).id, { id: (created as any).id, titulo, cursoId });
+			result.createdItems.push({ type: "aula", id: (created as any).id, titulo, cursoId });
 			result.created++;
 		}
 
@@ -919,6 +1089,7 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				fimSeg: parseIntSafe(obj.fimSeg),
 				ordem: parseIntSafe(obj.ordem) ?? maxOrdem + 1,
 			});
+			result.createdItems.push({ type: "licao", id: (await db.findFirst("licao", { aulaId, titulo }))?.id || "", titulo, aulaId });
 			result.created++;
 		}
 
@@ -956,6 +1127,8 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 					autoGerarCertificado: autoGerar,
 				});
 				quiz = newQuiz as any;
+				const cursoIdForQuiz = resolveModuloId(first);
+				result.createdItems.push({ type: "quiz", id: (quiz as any).id, titulo: quizTitulo, aulaId, cursoId: cursoIdForQuiz || undefined });
 				result.created++;
 			}
 
@@ -1321,6 +1494,51 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 	} catch (error) {
 		logger.error("[IMPORT ERROR]", error);
 		res.status(500).json({ error: "Erro ao importar quiz" });
+	}
+});
+
+// ==================== SEARCH BY TITLES (for post-import links) ====================
+
+router.post("/search-by-titles", authenticate, authorize("ADMIN"), async (req: any, res) => {
+	try {
+		const { titles } = req.body;
+		if (!Array.isArray(titles) || titles.length === 0) {
+			return res.status(400).json({ error: "Array de titulos invalido" });
+		}
+
+		const results: { type: string; id: string; titulo: string; cursoId?: string; aulaId?: string }[] = [];
+
+		// Search cursos
+		const cursos = await db.findMany("curso", {
+			where: { titulo: { in: titles } },
+			select: { id: true, titulo: true },
+		});
+		for (const c of cursos) {
+			results.push({ type: "curso", id: c.id, titulo: c.titulo });
+		}
+
+		// Search aulas (with parent curso info)
+		const aulas = await db.findMany("aula", {
+			where: { titulo: { in: titles } },
+			select: { id: true, titulo: true, cursoId: true },
+		});
+		for (const a of aulas) {
+			results.push({ type: "aula", id: a.id, titulo: a.titulo, cursoId: a.cursoId });
+		}
+
+		// Search quizzes (with parent aula and curso info)
+		const quizzes = await db.findMany("quiz", {
+			where: { titulo: { in: titles } },
+			select: { id: true, titulo: true, aulaId: true, aula: { select: { cursoId: true } } },
+		});
+		for (const q of quizzes) {
+			results.push({ type: "quiz", id: q.id, titulo: q.titulo, aulaId: q.aulaId, cursoId: q.aula?.cursoId });
+		}
+
+		res.json(results);
+	} catch (error) {
+		logger.error("[SEARCH BY TITLES ERROR]", error);
+		res.status(500).json({ error: "Erro ao buscar por titulos" });
 	}
 });
 

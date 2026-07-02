@@ -11,6 +11,7 @@ import { ConquistasPage } from "./pages/ConquistasPage";
 import { CriarModuloPage } from "./pages/CriarModuloPage";
 import { DashboardPage } from "./pages/DashboardPage";
 import { EquipePage } from "./pages/EquipePage";
+import { ExImpPage } from "./pages/ExImpPage";
 import { LoginPage } from "./pages/LoginPage";
 import { LogsPage } from "./pages/LogsPage";
 import { ModulosListPage } from "./pages/ModulosListPage";
@@ -104,6 +105,14 @@ export default function App() {
 												element={
 													<RoleRoute user={user} allowedRoles={["ADMIN"]}>
 														<QuizEditorPage user={user!} />
+													</RoleRoute>
+												}
+											/>
+											<Route
+												path="/cms/ex-imp"
+												element={
+													<RoleRoute user={user} allowedRoles={["ADMIN"]}>
+														<ExImpPage user={user!} />
 													</RoleRoute>
 												}
 											/>

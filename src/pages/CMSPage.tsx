@@ -74,12 +74,6 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 	const [cursos, setModulos] = useState<any[]>([]);
 	const [aulas, setAulas] = useState<any[]>([]);
 	const [_gestores, setGestores] = useState<any[]>([]);
-	const [showImportExport, setShowImportExport] = useState(false);
-	const [importing, setImporting] = useState(false);
-	const [csvText, setCsvText] = useState("");
-	const [detectResult, setDetectResult] = useState<any>(null);
-	const [importResult, setImportResult] = useState<any>(null);
-	const [importMode, setImportMode] = useState<"create" | "upsert">("create");
 	const [expandedModRow, setExpandedModRow] = useState<string | null>(null);
 	const [expandedAulaRow, setExpandedAulaRow] = useState<string | null>(null);
 	const {
@@ -319,69 +313,13 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 		setNewAula({ ...newAula, licoesAncoragem: updated });
 	};
 
-	const handleExportAll = async () => {
-		try {
-			await api.downloadAll();
-			toast("Exportação concluída!", "success");
-		} catch (err: any) {
-			toast(err.message || "Erro ao exportar", "error");
-		}
-	};
-
-	const handleExportSingle = async (type: "cursos" | "aulas" | "licoes" | "quiz") => {
-		try {
-			await api.downloadCsv(type);
-			toast(`Exportação de ${type} concluída!`, "success");
-		} catch (err: any) {
-			toast(err.message || "Erro ao exportar", "error");
-		}
-	};
-
-	const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
-		const file = e.target.files?.[0];
-		if (!file) return;
-		setCsvText("");
-		setDetectResult(null);
-		setImportResult(null);
-		try {
-			const text = await file.text();
-			setCsvText(text);
-			const result = await api.detectCsv(text);
-			setDetectResult(result);
-		} catch (err: any) {
-			toast(err.message || "Erro ao ler CSV", "error");
-		}
-		e.target.value = "";
-	};
-
-	const handleUnifiedImport = async () => {
-		if (!csvText) return;
-		setImporting(true);
-		setImportResult(null);
-		try {
-			const result = await api.importUnified(csvText, importMode);
-			setImportResult(result);
-			toast(
-				`Importação concluída: ${result.created} criados, ${result.updated} atualizados, ${result.skipped} ignorados`,
-				"success",
-			);
-			loadModulos();
-		} catch (err: any) {
-			toast(err.message || "Erro ao importar", "error");
-		} finally {
-			setImporting(false);
-		}
-	};
-
-	const resetImportPanel = () => {
-		setCsvText("");
-		setDetectResult(null);
-		setImportResult(null);
-		setImportMode("create");
-	};
-
 	return (
 		<div className="page active">
+			{view === "aulas" && (
+				<button id="btn-voltar-cursos" className="btn-secondary cms-back-btn" onClick={() => setView("cursos")} style={{ marginBottom: 16 }}>
+					<i className="icon-arrow-left icon-sm" /> Voltar aos Cursos
+				</button>
+			)}
 			<div className="page-header">
 				<div>
 					<div className="page-title">Gestão de Conteúdo</div>
@@ -395,9 +333,9 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 							<button
 								id="btn-import-export-toggle"
 								className="btn-secondary cms-import-btn"
-								onClick={() => setShowImportExport(!showImportExport)}
+								onClick={() => navigate("/cms/ex-imp")}
 							>
-								<i className="icon-download icon-xs" /> Importar/Exportar
+								<i className="icon-arrow-left-right icon-xs" /> Importar/Exportar
 							</button>
 						)}
 						{isAdmin && (
@@ -407,254 +345,15 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 						)}
 					</div>
 				) : (
-					<>
-						<button id="btn-voltar-cursos" className="btn-secondary cms-back-btn" onClick={() => setView("cursos")}>
-							<i className="icon-arrow-left icon-sm" /> Voltar aos Cursos
-						</button>
+					<div className="cms-header-actions">
 						{isAdmin && (
 							<button id="btn-nova-aula" className="btn-primary" onClick={() => setShowAulaModal(true)}>
 								+ Nova Aula
 							</button>
 						)}
-					</>
+					</div>
 				)}
 			</div>
-
-			{showImportExport && view === "cursos" && (
-				<div className="cms-import-section">
-					<div className="cms-import-header">
-						<h4 style={{ margin: 0 }}>Importar / Exportar Dados</h4>
-						<button
-							className="btn-secondary cms-import-close"
-							onClick={() => {
-								setShowImportExport(false);
-								resetImportPanel();
-							}}
-						>
-							Fechar
-						</button>
-					</div>
-
-					<div style={{ display: "flex", gap: "12px", marginBottom: "16px", flexWrap: "wrap" }}>
-						<button className="btn-primary" onClick={handleExportAll} disabled={importing}>
-							<i className="icon-download icon-xs" /> Exportar Tudo (CSV)
-						</button>
-						<div style={{ display: "flex", gap: "6px" }}>
-							{(["cursos", "aulas", "licoes", "quiz"] as const).map((type) => (
-								<button
-									key={type}
-									className="btn-secondary cms-import-card-btn"
-									onClick={() => handleExportSingle(type)}
-									disabled={importing}
-								>
-									<i className="icon-download icon-xs" /> {type}
-								</button>
-							))}
-						</div>
-					</div>
-
-					<div style={{ borderTop: "1px solid var(--border, #e5e7eb)", paddingTop: "16px", marginBottom: "16px" }}>
-						<h5 style={{ margin: "0 0 12px 0", fontWeight: 600 }}>Importar CSV</h5>
-						<label
-							className="btn-secondary"
-							style={{
-								display: "inline-flex",
-								alignItems: "center",
-								gap: "6px",
-								cursor: "pointer",
-								padding: "8px 16px",
-							}}
-						>
-							<i className="icon-upload icon-xs" /> Selecionar arquivo .csv
-							<input type="file" accept=".csv" onChange={handleFileSelect} style={{ display: "none" }} />
-						</label>
-					</div>
-
-					{detectResult && (
-						<div
-							style={{
-								background: "var(--bg-secondary, #f9fafb)",
-								border: "1px solid var(--border, #e5e7eb)",
-								borderRadius: "8px",
-								padding: "16px",
-								marginBottom: "16px",
-							}}
-						>
-							<div
-								style={{
-									display: "grid",
-									gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
-									gap: "12px",
-									marginBottom: "12px",
-								}}
-							>
-								<div>
-									<div style={{ fontSize: "11px", color: "var(--text-muted, #6b7280)", marginBottom: "2px" }}>
-										Tipo detectado
-									</div>
-									<div style={{ fontWeight: 600 }}>{detectResult.type}</div>
-								</div>
-								<div>
-									<div style={{ fontSize: "11px", color: "var(--text-muted, #6b7280)", marginBottom: "2px" }}>
-										Linhas
-									</div>
-									<div style={{ fontWeight: 600 }}>{detectResult.rowCount}</div>
-								</div>
-								<div>
-									<div style={{ fontSize: "11px", color: "var(--text-muted, #6b7280)", marginBottom: "2px" }}>
-										Colunas
-									</div>
-									<div style={{ fontWeight: 600 }}>{detectResult.columns.length}</div>
-								</div>
-								<div>
-									<div style={{ fontSize: "11px", color: "var(--text-muted, #6b7280)", marginBottom: "2px" }}>
-										Status
-									</div>
-									<div style={{ fontWeight: 600, color: detectResult.valid ? "#16a34a" : "#dc2626" }}>
-										{detectResult.valid ? "Válido" : "Colunas faltando"}
-									</div>
-								</div>
-							</div>
-							{detectResult.missingRequired?.length > 0 && (
-								<div style={{ color: "#dc2626", fontSize: "13px", marginBottom: "8px" }}>
-									Colunas obrigatórias ausentes: {detectResult.missingRequired.join(", ")}
-								</div>
-							)}
-							{detectResult.warnings?.length > 0 && (
-								<div style={{ color: "#d97706", fontSize: "13px", marginBottom: "8px" }}>
-									{detectResult.warnings.join(" ")}
-								</div>
-							)}
-							{detectResult.preview?.length > 0 && (
-								<details style={{ marginTop: "8px" }}>
-									<summary style={{ cursor: "pointer", fontSize: "13px", color: "var(--text-muted, #6b7280)" }}>
-										Preview (primeiras 3 linhas)
-									</summary>
-									<div style={{ overflowX: "auto", marginTop: "8px" }}>
-										<table style={{ fontSize: "12px", borderCollapse: "collapse", width: "100%" }}>
-											<thead>
-												<tr>
-													{detectResult.columns.map((col: string) => (
-														<th
-															key={col}
-															style={{
-																borderBottom: "1px solid var(--border, #e5e7eb)",
-																padding: "4px 8px",
-																textAlign: "left",
-																fontWeight: 600,
-															}}
-														>
-															{col}
-														</th>
-													))}
-												</tr>
-											</thead>
-											<tbody>
-												{detectResult.preview.map((row: Record<string, string>, i: number) => (
-													<tr key={i}>
-														{detectResult.columns.map((col: string) => (
-															<td
-																key={col}
-																style={{
-																	borderBottom: "1px solid var(--border, #e5e7eb)",
-																	padding: "4px 8px",
-																	maxWidth: "200px",
-																	overflow: "hidden",
-																	textOverflow: "ellipsis",
-																	whiteSpace: "nowrap",
-																}}
-															>
-																{row[col] || ""}
-															</td>
-														))}
-													</tr>
-												))}
-											</tbody>
-										</table>
-									</div>
-								</details>
-							)}
-						</div>
-					)}
-
-					{detectResult?.valid && (
-						<div style={{ display: "flex", alignItems: "center", gap: "16px", marginBottom: "16px", flexWrap: "wrap" }}>
-							<div style={{ display: "flex", gap: "12px" }}>
-								<label
-									style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", fontSize: "14px" }}
-								>
-									<input
-										type="radio"
-										name="importMode"
-										checked={importMode === "create"}
-										onChange={() => setImportMode("create")}
-									/>{" "}
-									Apenas criar
-								</label>
-								<label
-									style={{ display: "flex", alignItems: "center", gap: "4px", cursor: "pointer", fontSize: "14px" }}
-								>
-									<input
-										type="radio"
-										name="importMode"
-										checked={importMode === "upsert"}
-										onChange={() => setImportMode("upsert")}
-									/>{" "}
-									Criar ou atualizar
-								</label>
-							</div>
-							<button className="btn-primary" onClick={handleUnifiedImport} disabled={importing}>
-								{importing ? "Importando..." : "Importar"}
-							</button>
-						</div>
-					)}
-
-					{importResult && (
-						<div
-							style={{
-								background: "var(--bg-secondary, #f9fafb)",
-								border: "1px solid var(--border, #e5e7eb)",
-								borderRadius: "8px",
-								padding: "16px",
-								marginBottom: "16px",
-							}}
-						>
-							<h5 style={{ margin: "0 0 12px 0", fontWeight: 600 }}>Resultado</h5>
-							<div style={{ display: "flex", gap: "20px", flexWrap: "wrap", fontSize: "14px" }}>
-								<span>
-									Criados: <b>{importResult.created}</b>
-								</span>
-								<span>
-									Atualizados: <b>{importResult.updated}</b>
-								</span>
-								<span>
-									Ignorados: <b>{importResult.skipped}</b>
-								</span>
-								<span>
-									Total: <b>{importResult.total}</b>
-								</span>
-							</div>
-							{importResult.errors?.length > 0 && (
-								<div style={{ marginTop: "12px", color: "#dc2626", fontSize: "13px" }}>
-									<b>Erros ({importResult.errors.length}):</b>
-									<ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
-										{importResult.errors.slice(0, 10).map((err: any, i: number) => (
-											<li key={i}>
-												Linha {err.row}: {err.field} — {err.message}
-											</li>
-										))}
-										{importResult.errors.length > 10 && <li>... e mais {importResult.errors.length - 10} erros</li>}
-									</ul>
-								</div>
-							)}
-						</div>
-					)}
-
-					<div className="cms-import-hint">
-						Dica: Use "Exportar Tudo" para obter o formato correto com IDs. Qualquer IA pode preencher o CSV unificado.
-					</div>
-				</div>
-			)}
 
 			{view === "cursos" ? (
 				<div className="table-wrap">

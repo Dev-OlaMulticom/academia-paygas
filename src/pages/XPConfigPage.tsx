@@ -28,6 +28,9 @@ export function XPConfigPage({ user: _user }: XPConfigPageProps) {
 		description: "",
 	});
 	const [deletingAction, setDeletingAction] = useState<string | null>(null);
+	const [showCreateModal, setShowCreateModal] = useState(false);
+	const [creating, setCreating] = useState(false);
+	const [newConfig, setNewConfig] = useState({ action: "", label: "", points: "", description: "" });
 
 	const loadConfigs = useCallback(async () => {
 		try {
@@ -96,12 +99,54 @@ export function XPConfigPage({ user: _user }: XPConfigPageProps) {
 		}
 	};
 
+	const handleCreate = async () => {
+		const action = newConfig.action.trim();
+		const label = newConfig.label.trim();
+		const points = parseFloat(newConfig.points);
+
+		if (!action) {
+			toast("Acao e obrigatoria", "error");
+			return;
+		}
+		if (!label) {
+			toast("Label e obrigatorio", "error");
+			return;
+		}
+		if (Number.isNaN(points) || points < 0) {
+			toast("Pontos deve ser um numero valido e nao negativo", "error");
+			return;
+		}
+
+		setCreating(true);
+		try {
+			await api.createXPConfig({
+				action,
+				label,
+				points,
+				description: newConfig.description.trim() || undefined,
+			});
+			toast("Configuracao criada!", "success");
+			setShowCreateModal(false);
+			setNewConfig({ action: "", label: "", points: "", description: "" });
+			loadConfigs();
+		} catch (err: any) {
+			toast(err.message || "Erro ao criar configuracao", "error");
+		} finally {
+			setCreating(false);
+		}
+	};
+
 	return (
 		<div className="page active">
 			<div className="page-header">
 				<div>
 					<div className="page-title">Configuração de Pontos (XP)</div>
 					<div className="page-subtitle">Ajuste os pontos acumulados por cada ação na plataforma</div>
+				</div>
+				<div className="cms-header-actions">
+					<button className="btn-primary" onClick={() => setShowCreateModal(true)}>
+						+ Nova Configuração
+					</button>
 				</div>
 			</div>
 
@@ -219,6 +264,70 @@ export function XPConfigPage({ user: _user }: XPConfigPageProps) {
 					</tbody>
 				</table>
 			</div>
+
+			{showCreateModal && (
+				<div className="modal-overlay" onClick={() => setShowCreateModal(false)}>
+					<div className="modal-card" onClick={(e) => e.stopPropagation()}>
+						<div className="modal-header">
+							<h4>Nova Configuração de XP</h4>
+							<button className="btn-secondary btn-sm" onClick={() => setShowCreateModal(false)}>
+								<i className="icon-x icon-sm" />
+							</button>
+						</div>
+						<div className="modal-body">
+							<div className="form-field">
+								<label className="form-label">Chave da Ação *</label>
+								<input
+									className="form-input"
+									placeholder="Ex: MY_CUSTOM_ACTION"
+									value={newConfig.action}
+									onChange={(e) => setNewConfig({ ...newConfig, action: e.target.value.toUpperCase().replace(/\s+/g, "_") })}
+								/>
+								<div className="form-hint">Identificador unico (maiúsculas, sem espacos)</div>
+							</div>
+							<div className="form-field">
+								<label className="form-label">Label (nome exibido) *</label>
+								<input
+									className="form-input"
+									placeholder="Ex: Ação Personalizada"
+									value={newConfig.label}
+									onChange={(e) => setNewConfig({ ...newConfig, label: e.target.value })}
+								/>
+							</div>
+							<div className="form-field">
+								<label className="form-label">Pontos (XP) *</label>
+								<input
+									className="form-input"
+									type="number"
+									step="0.01"
+									min="0"
+									placeholder="Ex: 10"
+									style={{ width: "120px" }}
+									value={newConfig.points}
+									onChange={(e) => setNewConfig({ ...newConfig, points: e.target.value })}
+								/>
+							</div>
+							<div className="form-field">
+								<label className="form-label">Descrição</label>
+								<input
+									className="form-input"
+									placeholder="Descrição opcional..."
+									value={newConfig.description}
+									onChange={(e) => setNewConfig({ ...newConfig, description: e.target.value })}
+								/>
+							</div>
+						</div>
+						<div className="modal-footer">
+							<button className="btn-secondary" onClick={() => setShowCreateModal(false)} disabled={creating}>
+								Cancelar
+							</button>
+							<button className="btn-primary" onClick={handleCreate} disabled={creating}>
+								{creating ? "Criando..." : "Criar Configuração"}
+							</button>
+						</div>
+					</div>
+				</div>
+			)}
 		</div>
 	);
 }

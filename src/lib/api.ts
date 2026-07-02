@@ -696,6 +696,41 @@ class ApiClient {
 		URL.revokeObjectURL(url);
 	}
 
+	// Per-item export (triggers download with server-generated filename)
+	async downloadItemCsv(type: "curso" | "aula" | "licao" | "quiz", id: string): Promise<void> {
+		const response = await fetch(`${API_BASE}/import-export/export/${type}/${id}`, {
+			headers: { Authorization: `Bearer ${this.token}` },
+		});
+		if (!response.ok) throw new Error("Erro ao exportar");
+		const disposition = response.headers.get("content-disposition");
+		const filenameMatch = disposition?.match(/filename="?([^"]+)"?/);
+		const filename = filenameMatch ? filenameMatch[1] : `${type}-${id.substring(0, 8)}.csv`;
+		const blob = await response.blob();
+		const url = URL.createObjectURL(blob);
+		const a = document.createElement("a");
+		a.href = url;
+		a.download = filename;
+		a.click();
+		URL.revokeObjectURL(url);
+	}
+
+	// List items per type
+	async listCursos(): Promise<{ id: string; titulo: string; ordem: number; aulaCount: number }[]> {
+		return this.request<any>("/import-export/list/cursos");
+	}
+
+	async listAulas(): Promise<{ id: string; titulo: string; cursoId: string; cursoTitulo: string; tipo: string; licaoCount: number }[]> {
+		return this.request<any>("/import-export/list/aulas");
+	}
+
+	async listLicoes(): Promise<{ id: string; titulo: string; aulaId: string; aulaTitulo: string; cursoId: string; cursoTitulo: string; tipo: string }[]> {
+		return this.request<any>("/import-export/list/licoes");
+	}
+
+	async listQuizzes(): Promise<{ id: string; titulo: string; aulaId: string; aulaTitulo: string; cursoId: string; cursoTitulo: string; perguntaCount: number }[]> {
+		return this.request<any>("/import-export/list/quizzes");
+	}
+
 	async importCsv(
 		type: "cursos" | "aulas" | "licoes" | "quiz",
 		csvText: string,
@@ -749,10 +784,20 @@ class ApiClient {
 		skipped: number;
 		total: number;
 		errors: { row: number; field: string; message: string }[];
+		createdItems: { type: string; id: string; titulo: string; cursoId?: string; aulaId?: string }[];
 	}> {
 		return this.request<any>("/import-export/import/unified", {
 			method: "POST",
 			body: JSON.stringify({ csv: csvText, mode }),
+		});
+	}
+
+	async searchByTitles(
+		titles: string[],
+	): Promise<{ type: string; id: string; titulo: string; cursoId?: string; aulaId?: string }[]> {
+		return this.request<any>("/import-export/search-by-titles", {
+			method: "POST",
+			body: JSON.stringify({ titles }),
 		});
 	}
 
