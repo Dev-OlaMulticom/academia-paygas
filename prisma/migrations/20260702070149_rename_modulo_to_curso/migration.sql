@@ -5,7 +5,7 @@ ALTER TABLE "Modulo" RENAME TO "Curso";
 ALTER TABLE "Aula" RENAME COLUMN "moduloId" TO "cursoId";
 ALTER TABLE "Aula" RENAME CONSTRAINT "Aula_moduloId_fkey" TO "Aula_cursoId_fkey";
 
--- Rename index in Aula
+-- Rename index in Aula  
 ALTER INDEX "Aula_moduloId_idx" RENAME TO "Aula_cursoId_idx";
 
 -- Rename foreign key and column in Progresso
