@@ -17,7 +17,8 @@ interface ActionMenuProps {
 
 export function ActionMenu({ items, align = "right" }: ActionMenuProps) {
 	const [open, setOpen] = useState(false);
-	const ref = useRef<HTMLDivElement>(null);
+	const triggerRef = useRef<HTMLDivElement>(null);
+	const dropdownRef = useRef<HTMLDivElement>(null);
 	const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
 
 	const visibleItems = items.filter((i) => !i.hidden);
@@ -27,7 +28,10 @@ export function ActionMenu({ items, align = "right" }: ActionMenuProps) {
 	useEffect(() => {
 		if (!open) return;
 		const handler = (e: MouseEvent) => {
-			if (ref.current && !ref.current.contains(e.target as Node)) close();
+			const target = e.target as Node;
+			const inTrigger = triggerRef.current?.contains(target);
+			const inDropdown = dropdownRef.current?.contains(target);
+			if (!inTrigger && !inDropdown) close();
 		};
 		document.addEventListener("mousedown", handler);
 		return () => document.removeEventListener("mousedown", handler);
@@ -43,8 +47,8 @@ export function ActionMenu({ items, align = "right" }: ActionMenuProps) {
 	}, [open, close]);
 
 	const handleToggle = useCallback(() => {
-		if (!open && ref.current) {
-			const rect = ref.current.getBoundingClientRect();
+		if (!open && triggerRef.current) {
+			const rect = triggerRef.current.getBoundingClientRect();
 			setMenuPos({
 				top: rect.bottom + 4,
 				left: align === "left" ? rect.left : rect.right - 160,
@@ -56,23 +60,16 @@ export function ActionMenu({ items, align = "right" }: ActionMenuProps) {
 	if (visibleItems.length === 0) return null;
 
 	return (
-		<div className={`action-menu ${align === "left" ? "action-menu-left" : ""}`} ref={ref}>
-			<button
-				className="action-menu-trigger"
-				onClick={(e) => {
-					e.stopPropagation();
-					handleToggle();
-				}}
-				title="Acoes"
-			>
+		<div className={`action-menu ${align === "left" ? "action-menu-left" : ""}`} ref={triggerRef}>
+			<button className="action-menu-trigger" onClick={(e) => { e.stopPropagation(); handleToggle(); }} title="Acoes">
 				<i className="icon-ellipsis icon-xs" />
 			</button>
 			{open &&
 				createPortal(
 					<div
+						ref={dropdownRef}
 						className="action-menu-dropdown"
 						style={{ position: "fixed", top: menuPos.top, left: menuPos.left }}
-						onClick={(e) => e.stopPropagation()}
 					>
 						{visibleItems.map((item, idx) => (
 							<button
