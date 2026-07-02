@@ -1,0 +1,96 @@
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+
+export interface ActionMenuItem {
+	label: string;
+	icon?: string;
+	onClick: () => void;
+	variant?: "default" | "danger" | "success" | "primary";
+	disabled?: boolean;
+	hidden?: boolean;
+}
+
+interface ActionMenuProps {
+	items: ActionMenuItem[];
+	align?: "left" | "right";
+}
+
+export function ActionMenu({ items, align = "right" }: ActionMenuProps) {
+	const [open, setOpen] = useState(false);
+	const ref = useRef<HTMLDivElement>(null);
+	const [menuPos, setMenuPos] = useState<{ top: number; left: number }>({ top: 0, left: 0 });
+
+	const visibleItems = items.filter((i) => !i.hidden);
+
+	const close = useCallback(() => setOpen(false), []);
+
+	useEffect(() => {
+		if (!open) return;
+		const handler = (e: MouseEvent) => {
+			if (ref.current && !ref.current.contains(e.target as Node)) close();
+		};
+		document.addEventListener("mousedown", handler);
+		return () => document.removeEventListener("mousedown", handler);
+	}, [open, close]);
+
+	useEffect(() => {
+		if (!open) return;
+		const handler = (e: KeyboardEvent) => {
+			if (e.key === "Escape") close();
+		};
+		document.addEventListener("keydown", handler);
+		return () => document.removeEventListener("keydown", handler);
+	}, [open, close]);
+
+	const handleToggle = useCallback(() => {
+		if (!open && ref.current) {
+			const rect = ref.current.getBoundingClientRect();
+			setMenuPos({
+				top: rect.bottom + 4,
+				left: align === "left" ? rect.left : rect.right - 160,
+			});
+		}
+		setOpen((v) => !v);
+	}, [open, align]);
+
+	if (visibleItems.length === 0) return null;
+
+	return (
+		<div className={`action-menu ${align === "left" ? "action-menu-left" : ""}`} ref={ref}>
+			<button
+				className="action-menu-trigger"
+				onClick={(e) => {
+					e.stopPropagation();
+					handleToggle();
+				}}
+				title="Acoes"
+			>
+				<i className="icon-ellipsis icon-xs" />
+			</button>
+			{open &&
+				createPortal(
+					<div
+						className="action-menu-dropdown"
+						style={{ position: "fixed", top: menuPos.top, left: menuPos.left }}
+						onClick={(e) => e.stopPropagation()}
+					>
+						{visibleItems.map((item, idx) => (
+							<button
+								key={`${item.label}-${idx}`}
+								className={`action-menu-item ${item.variant === "danger" ? "action-menu-danger" : ""} ${item.variant === "success" ? "action-menu-success" : ""} ${item.variant === "primary" ? "action-menu-primary" : ""}`}
+								disabled={item.disabled}
+								onClick={() => {
+									close();
+									item.onClick();
+								}}
+							>
+								{item.icon && <i className={`${item.icon} icon-xs`} />}
+								<span>{item.label}</span>
+							</button>
+						))}
+					</div>,
+					document.body,
+				)}
+		</div>
+	);
+}

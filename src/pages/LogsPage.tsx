@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ActionMenu } from "../components/ActionMenu";
 import { AppSelect } from "../components/AppSelect";
 import { useConfirm, useToast } from "../components/Toast";
 import { ROLE_COLORS } from "../data/constants";
@@ -330,14 +331,18 @@ export function LogsPage({ user: _user }: LogsPageProps) {
 											<td className="logs-td-acao">{log.acao}</td>
 											<td className="logs-td-detalhes">{log.detalhes || "—"}</td>
 											<td onClick={(e) => e.stopPropagation()}>
-												<button
-													className="btn-secondary logs-row-delete-btn"
-													onClick={() => handleDeleteLog(log)}
-													disabled={deletingId === log.id}
-													title="Excluir este registro"
-												>
-													<i className="icon-trash-2 icon-xs" />
-												</button>
+												<ActionMenu
+													align="right"
+													items={[
+														{
+															label: "Excluir",
+															icon: "icon-trash-2",
+															variant: "danger",
+															onClick: () => handleDeleteLog(log),
+															disabled: deletingId === log.id,
+														},
+													]}
+												/>
 											</td>
 										</tr>
 										{expandedRow === log.id && (

@@ -1,8 +1,8 @@
-# Design System - Academia PayGas V27
+# Design System - Academia PayGas V28
 
 ## Visao Geral
 
-O design system da Academia PayGas define os padroes visuais, componentes e interacoes utilizados em toda a plataforma. Versao atual: **V27 - Cores Unificadas**.
+O design system da Academia PayGas define os padroes visuais, componentes e interacoes utilizados em toda a plataforma. Versao atual: **V28 - ActionMenu, AppSelect e PasswordInput**.
 
 ### Regra de Ouro: Cor Primaria
 
@@ -407,6 +407,111 @@ th: 11px / 700 / uppercase / var(--gray-500)
 td: 13px / var(--gray-700)
 ```
 
+#### Text Overflow em Tabelas
+
+Colunas com textos longos (emails, detalhes, URLs) devem usar `text-overflow: ellipsis` para nao distorcer o layout:
+
+```css
+/* Helper classes para overflow */
+.td-overflow {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.td-overflow-lg {
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+```
+
+Classes especificas ja aplicadas:
+- `.user-td-email` — max-width: 200px
+- `.user-td-gestor` — max-width: 150px
+- `.logs-td-acao` — max-width: 160px
+- `.logs-td-detalhes` — max-width: 200px
+- `.cms-td-url` — max-width: 200px
+
+#### ActionMenu (Dropdown de Acoes)
+
+Substitui multiplos botoes de acao em tabelas por um unico botao `...` (ellipsis) com dropdown.
+
+**Componente:** `src/components/ActionMenu.tsx`
+
+```tsx
+import { ActionMenu } from "../components/ActionMenu";
+
+<ActionMenu
+  align="right"
+  items={[
+    { label: "Editar", icon: "icon-pencil", onClick: () => handleEdit(item) },
+    { label: "Excluir", icon: "icon-trash-2", variant: "danger", onClick: () => handleDelete(item) },
+  ]}
+/>
+```
+
+**Props:**
+
+| Prop | Tipo | Default | Descricao |
+|------|------|---------|-----------|
+| `items` | `ActionMenuItem[]` | — | Lista de acoes do dropdown |
+| `align` | `"left" \| "right"` | `"right"` | Alinhamento do menu |
+
+**ActionMenuItem:**
+
+| Prop | Tipo | Descricao |
+|------|------|-----------|
+| `label` | `string` | Texto do item |
+| `icon` | `string` | Classe do icone lucide (ex: `"icon-pencil"`) |
+| `onClick` | `() => void` | Acao ao clicar |
+| `variant` | `"default" \| "danger" \| "success" \| "primary"` | Variante visual |
+| `disabled` | `boolean` | Desabilita o item |
+| `hidden` | `boolean` | Esconde o item |
+
+**Estilo:**
+
+```css
+.action-menu { position: relative; display: inline-flex; }
+.action-menu-trigger {
+  width: 32px; height: 32px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--gray-500);
+  cursor: pointer;
+}
+.action-menu-trigger:hover {
+  border-color: var(--pg-orange);
+  color: var(--pg-orange);
+}
+.action-menu-dropdown {
+  position: fixed;  /* portals to body, escapes overflow:hidden */
+  min-width: 160px;
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+  z-index: 100;
+  padding: 4px;
+}
+```
+
+**Variante danger:** texto vermelho + hover com fundo vermelho claro.
+**Variante success:** texto verde + hover com fundo verde claro.
+**Variante primary:** texto laranja + hover com fundo laranja claro.
+
+**Paginas que usam ActionMenu:**
+
+| Pagina | Antes | Depois |
+|--------|-------|--------|
+| UsuariosPage | 2-4 botoes por linha | 1 dropdown |
+| CMSPage (cursos) | 1-3 botoes por linha | 1 dropdown |
+| CMSPage (aulas) | 0-2 botoes por linha | 1 dropdown |
+| LogsPage | 1 botao por linha | 1 dropdown |
+| XPConfigPage | 2 botoes por linha | 1 dropdown |
+
 ### 3.7 Formularios
 
 ```css
@@ -725,6 +830,10 @@ Todas as classes CSS usam **nomes em portugues** seguindo o padrao:
 | `stat-` | Cards de metricas | `.stat-info`, `.stat-card-icon` |
 | `modal-` | Modais genericos | `.modal-overlay`, `.modal-card` |
 | `form-` | Formularios | `.form-field`, `.form-grid-2` |
+| `action-` | ActionMenu dropdown | `.action-menu`, `.action-menu-trigger`, `.action-menu-dropdown` |
+| `pg-select` | AppSelect wrapper | `.pg-select` |
+| `pg-pwd-` | PasswordInput | `.pg-pwd-wrap`, `.pg-pwd-toggle` |
+| `td-overflow` | Text overflow em tabelas | `.td-overflow`, `.td-overflow-lg` |
 
 ### 8.3 Classes Utilitarias Recentes
 
@@ -813,19 +922,59 @@ import { Input } from '@/components/ui/input'
 
 ### Select / Dropdown
 
-```tsx
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+**Componente:** `src/components/AppSelect.tsx` (wrapper sobre react-select)
 
-<Select>
-  <SelectTrigger className="form-input">
-    <SelectValue placeholder="Selecione uma opção..." />
-  </SelectTrigger>
-  <SelectContent>
-    <SelectItem value="opt1">Opção 1</SelectItem>
-    <SelectItem value="opt2">Opção 2</SelectItem>
-  </SelectContent>
-</Select>
+```tsx
+import { AppSelect } from "../components/AppSelect";
+
+const OPTIONS = [
+  { value: "ADMIN", label: "Admin" },
+  { value: "GESTOR", label: "Gestor" },
+];
+
+// Single select
+<AppSelect
+  options={OPTIONS}
+  value={selectedValue}
+  onChange={(val) => setSelectedValue(val)}
+  placeholder="Selecione..."
+/>
+
+// Multi select
+<AppSelect
+  isMulti
+  options={OPTIONS}
+  value={selectedValues}
+  onChange={(vals) => setSelectedValues(vals)}
+  placeholder="Selecione varios..."
+/>
 ```
+
+**Props:**
+
+| Prop | Tipo | Default | Descricao |
+|------|------|---------|-----------|
+| `options` | `SelectOption[]` | — | Opcoes `{ value, label }` |
+| `value` | `string \| string[] \| null` | — | Valor selecionado |
+| `onChange` | `(val) => void` | — | Callback ao mudar |
+| `isMulti` | `boolean` | `false` | Habilita selecao multipla |
+| `placeholder` | `string` | — | Texto placeholder |
+| `isDisabled` | `boolean` | `false` | Desabilita o select |
+| `isSearchable` | `boolean` | `true` | Habilita busca |
+| `isClearable` | `boolean` | `false` | Permite limpar selecao |
+| `noOptionsLabel` | `string` | `"Nenhuma opcao disponivel"` | Texto quando vazio |
+
+**Estilo customizado (laranja PayGas):**
+
+```css
+.pg-select { width: 100%; }
+/* Control: border laranja no focus, border-radius 8px */
+/* Menu: portaled a document.body, z-index alto para modais */
+/* Option: fundo laranja selecionado, hover laranja claro */
+/* MultiValue: badge laranja claro com texto marrom */
+```
+
+**Nota:** O menu e portaled para `document.body` via `menuPortalTarget` para evitar clipping por `overflow: hidden` em modais e tabelas.
 
 ### Checkbox
 
@@ -837,6 +986,51 @@ import { Checkbox } from '@/components/ui/checkbox'
   <label htmlFor="agree" className="form-label">Concordo com os termos</label>
 </div>
 ```
+
+### Password Input
+
+**Componente:** `src/components/PasswordInput.tsx`
+
+Input de senha com botao de toggle para mostrar/ocultar senha.
+
+```tsx
+import { PasswordInput } from "../components/PasswordInput";
+
+<PasswordInput
+  placeholder="Digite sua senha"
+  value={senha}
+  onChange={(e) => setSenha(e.target.value)}
+/>
+```
+
+**Props:** Mesmos props nativos de `<input type="password">` (placeholder, value, onChange, disabled, etc).
+
+**Estilo:**
+
+```css
+.pg-pwd-wrap {
+  position: relative;
+  width: 100%;
+}
+.pg-pwd-wrap input {
+  width: 100%;
+  padding-right: 40px;  /* espaco para o botao */
+}
+.pg-pwd-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--gray-400);
+  cursor: pointer;
+  padding: 4px;
+}
+.pg-pwd-toggle:hover { color: var(--pg-orange); }
+```
+
+**Paginas que usam:** LoginPage, PerfilPage, UsuariosPage.
 
 ### Radio Group
 
@@ -973,7 +1167,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 |-----------|------|-------|
 | Button | `ui/button` | Primary actions, secondary, destructive, ghost, link |
 | Input | `ui/input` | Text, email, password, number inputs |
-| Select | `ui/select` | Dropdowns |
+| Select | `ui/select` | Dropdowns (legacy, prefer AppSelect) |
 | Checkbox | `ui/checkbox` | Multiple selections |
 | Radio Group | `ui/radio-group` | Single selection |
 | Label | `ui/label` | Form labels |
@@ -989,6 +1183,14 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 | Badge | `ui/badge` | Status badges |
 | Avatar | `ui/avatar` | User avatars |
 
+**Custom PayGas components** (in `src/components/`):
+
+| Component | Path | Usage |
+|-----------|------|-------|
+| ActionMenu | `ActionMenu.tsx` | Dropdown de acoes em tabelas (substitui multiplos botoes) |
+| AppSelect | `AppSelect.tsx` | Wrapper react-select com tema laranja PayGas |
+| PasswordInput | `PasswordInput.tsx` | Input de senha com toggle de visibilidade (eye icon) |
+
 **All components from Radix UI** — see [shadcn/ui documentation](https://ui.shadcn.com) for full API.
 
 ---
@@ -997,6 +1199,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 | Version | Date | Changes |
 |---------|------|---------|
+| V28 | Jul 2025 | ActionMenu dropdown for tables, AppSelect (react-select), PasswordInput with eye toggle, text-overflow on table cells |
 | V27 | Jul 2024 | Unified orange brand, new roles (PARCEIRO_ACREDITADO, ERPS_REPRESENTANTE), mobile accordion |
 | V26 | May 2024 | Biome linter, CSS vanilla migration, form patterns |
 | V25 | Mar 2024 | Gamification badges, trophy cards, XP visualization |
@@ -1008,22 +1211,29 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 ### When implementing a new page/component:
 
-1. **Check if component exists** in `src/components/ui/`
+1. **Check if component exists** in `src/components/ui/` or `src/components/`
 2. **Use CSS classes** for styling (no inline styles)
 3. **Follow naming convention** — use Portuguese class names with appropriate prefix
 4. **Use `--pg-orange`** for primary actions
 5. **Add tooltips** for non-obvious interactive elements
 6. **Test responsive** — mobile accordion for <768px
 7. **Verify accessibility** — keyboard navigation, ARIA labels, color contrast
+8. **Tables:** Use `ActionMenu` for row actions (never multiple buttons)
+9. **Selects:** Use `AppSelect` (not native `<select>`)
+10. **Passwords:** Use `PasswordInput` (not native `<input type="password">`)
 
 ### Golden Rules
 
 ✅ **DO**
 - Use shadcn/ui components from `src/components/ui/`
+- Use `ActionMenu` for table row actions (single dropdown button)
+- Use `AppSelect` for all select/dropdowns (react-select with PayGas theme)
+- Use `PasswordInput` for all password fields (includes eye toggle)
 - Define styles in `src/index.css` with class names
 - Use `@shared/*` for shared types
 - Style with CSS classes (dynamic values via `style={{}}` only)
 - Follow Portuguese naming for classes and identifiers
+- Apply `text-overflow: ellipsis` on columns with long text (emails, URLs, details)
 
 ❌ **DON'T**
 - Use inline styles for static properties
@@ -1032,3 +1242,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 - Use Tailwind utility classes directly
 - Hardcode colors (use CSS variables)
 - Mix Portuguese and English in class names
+- Use native `<select>` elements (use `AppSelect`)
+- Use native `<input type="password">` (use `PasswordInput`)
+- Put multiple action buttons in table rows (use `ActionMenu`)

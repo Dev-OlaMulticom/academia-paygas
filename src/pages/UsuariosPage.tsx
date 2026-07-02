@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ActionMenu } from "../components/ActionMenu";
 import { AppSelect } from "../components/AppSelect";
 import { PasswordInput } from "../components/PasswordInput";
 import { TablePagination, useClientPagination } from "../components/TablePagination";
@@ -288,33 +289,42 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 											{u.lastLogin ? new Date(u.lastLogin).toLocaleDateString("pt-BR") : "Nunca"}
 										</td>
 										<td className="user-actions" onClick={(e) => e.stopPropagation()}>
-											<button className="btn-secondary user-action-btn" onClick={() => setEditingUser({ ...u })}>
-												<i className="icon-pencil icon-xs" /> Editar
-											</button>
-											{canValidate && !u.emailVerificado && (
-												<>
-													<button
-														className="btn-secondary user-action-btn user-action-green"
-														onClick={() => handleValidateAccount(u.id, u.nome)}
-													>
-														<i className="icon-check icon-xs" /> Validar
-													</button>
-													<button
-														className="btn-secondary user-action-btn user-action-blue"
-														onClick={() => handleResendVerification(u.id, u.nome)}
-													>
-														<i className="icon-mail icon-xs" /> Reenviar
-													</button>
-												</>
-											)}
-											{isAdmin && (
-												<button
-													className="btn-secondary user-action-btn user-action-red"
-													onClick={() => handleDelete(u.id)}
-												>
-													<i className="icon-trash-2 icon-xs" />
-												</button>
-											)}
+											<ActionMenu
+												align="right"
+												items={[
+													{
+														label: "Editar",
+														icon: "icon-pencil",
+														onClick: () => setEditingUser({ ...u }),
+													},
+													...(canValidate && !u.emailVerificado
+														? [
+																{
+																	label: "Validar",
+																	icon: "icon-check",
+																	variant: "success" as const,
+																	onClick: () => handleValidateAccount(u.id, u.nome),
+																},
+																{
+																	label: "Reenviar",
+																	icon: "icon-mail",
+																	variant: "primary" as const,
+																	onClick: () => handleResendVerification(u.id, u.nome),
+																},
+															]
+														: []),
+													...(isAdmin
+														? [
+																{
+																	label: "Excluir",
+																	icon: "icon-trash-2",
+																	variant: "danger" as const,
+																	onClick: () => handleDelete(u.id),
+																},
+															]
+														: []),
+												]}
+											/>
 										</td>
 									</tr>
 									{expandedRow === u.id && (

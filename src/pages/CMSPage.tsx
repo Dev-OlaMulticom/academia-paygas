@@ -1,5 +1,6 @@
 import { Fragment, useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { ActionMenu } from "../components/ActionMenu";
 import { AppSelect, type SelectOption } from "../components/AppSelect";
 import { PDFViewer } from "../components/PDFViewer";
 import { TablePagination, useClientPagination } from "../components/TablePagination";
@@ -718,40 +719,39 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 													</span>
 												</td>
 												<td className="cms-table-td-actions" onClick={(e) => e.stopPropagation()}>
-													<button
-														id={`btn-mod-aulas-${mod.id}`}
-														className="btn-secondary cms-table-action-btn"
-														onClick={() => {
-															setSelectedModulo(mod);
-															setView("aulas");
-														}}
-													>
-														<i className="icon-book-open icon-xs" /> Aulas
-													</button>
-													{isAdmin && (
-														<button
-															id={`btn-mod-editar-${mod.id}`}
-															className="btn-secondary cms-table-action-btn"
-															onClick={() =>
-																setEditingMod({
-																	...mod,
-																	obrigatorio: mod.obrigatorio || false,
-																	autoCertificado: mod.autoCertificado || false,
-																})
-															}
-														>
-															<i className="icon-pencil icon-xs" /> Editar
-														</button>
-													)}
-													{isAdmin && (
-														<button
-															id={`btn-mod-excluir-${mod.id}`}
-															className="btn-secondary cms-table-action-btn cms-table-action-red"
-															onClick={() => handleDeleteModulo(mod.id)}
-														>
-															<i className="icon-trash-2 icon-xs" />
-														</button>
-													)}
+													<ActionMenu
+														align="right"
+														items={[
+															{
+																label: "Aulas",
+																icon: "icon-book-open",
+																onClick: () => {
+																	setSelectedModulo(mod);
+																	setView("aulas");
+																},
+															},
+															...(isAdmin
+																? [
+																		{
+																			label: "Editar",
+																			icon: "icon-pencil",
+																			onClick: () =>
+																				setEditingMod({
+																					...mod,
+																					obrigatorio: mod.obrigatorio || false,
+																					autoCertificado: mod.autoCertificado || false,
+																				}),
+																		},
+																		{
+																			label: "Excluir",
+																			icon: "icon-trash-2",
+																			variant: "danger" as const,
+																			onClick: () => handleDeleteModulo(mod.id),
+																		},
+																	]
+																: []),
+														]}
+													/>
 												</td>
 											</tr>
 											{expandedModRow === mod.id && (
@@ -896,35 +896,37 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 													</span>
 												</td>
 												<td className="cms-table-td-actions" onClick={(e) => e.stopPropagation()}>
-													{isAdmin && (
-														<button
-															id={`btn-aula-editar-${aula.id}`}
-															className="btn-secondary cms-table-action-btn"
-															onClick={() => {
-																const ancPoints = (aula.ancoragemPoints || []) as any[];
-																setEditingAula({
-																	...aula,
-																	licoesAncoragem: ancPoints.map((p: any) => ({
-																		hours: p.hours || 0,
-																		minutes: p.minutes || 0,
-																		seconds: p.seconds || 0,
-																		titulo: p.titulo || "",
-																	})),
-																});
-															}}
-														>
-															<i className="icon-pencil icon-xs" /> Editar
-														</button>
-													)}
-													{isAdmin && (
-														<button
-															id={`btn-aula-excluir-${aula.id}`}
-															className="btn-secondary cms-table-action-btn cms-table-action-red"
-															onClick={() => handleDeleteAula(aula.id)}
-														>
-															<i className="icon-trash-2 icon-xs" />
-														</button>
-													)}
+													<ActionMenu
+														align="right"
+														items={[
+															...(isAdmin
+																? [
+																		{
+																			label: "Editar",
+																			icon: "icon-pencil",
+																			onClick: () => {
+																				const ancPoints = (aula.ancoragemPoints || []) as any[];
+																				setEditingAula({
+																					...aula,
+																					licoesAncoragem: ancPoints.map((p: any) => ({
+																						hours: p.hours || 0,
+																						minutes: p.minutes || 0,
+																						seconds: p.seconds || 0,
+																						titulo: p.titulo || "",
+																					})),
+																				});
+																			},
+																		},
+																		{
+																			label: "Excluir",
+																			icon: "icon-trash-2",
+																			variant: "danger" as const,
+																			onClick: () => handleDeleteAula(aula.id),
+																		},
+																	]
+																: []),
+														]}
+													/>
 												</td>
 											</tr>
 											{expandedAulaRow === aula.id && (

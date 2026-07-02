@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
+import { ActionMenu } from "../components/ActionMenu";
 import { useConfirm, useToast } from "../components/Toast";
 import type { User } from "../hooks/useAuth";
 import { api } from "../lib/api";
@@ -193,19 +194,23 @@ export function XPConfigPage({ user: _user }: XPConfigPageProps) {
 												</button>
 											</div>
 										) : (
-											<div className="xp-edit-actions" style={{ display: "flex", gap: 6, alignItems: "center" }}>
-												<button className="btn-secondary xp-edit-trigger" onClick={() => handleEdit(config)}>
-													<i className="icon-pencil icon-xs" /> Editar
-												</button>
-												<button
-													className="btn-secondary xp-edit-delete"
-													onClick={() => handleDelete(config)}
-													disabled={deletingAction === config.action}
-													title="Excluir esta ação de XP"
-												>
-													<i className="icon-trash-2 icon-xs" />
-												</button>
-											</div>
+											<ActionMenu
+												align="right"
+												items={[
+													{
+														label: "Editar",
+														icon: "icon-pencil",
+														onClick: () => handleEdit(config),
+													},
+													{
+														label: "Excluir",
+														icon: "icon-trash-2",
+														variant: "danger",
+														onClick: () => handleDelete(config),
+														disabled: deletingAction === config.action,
+													},
+												]}
+											/>
 										)}
 									</td>
 								</tr>
