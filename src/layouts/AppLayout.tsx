@@ -121,10 +121,10 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
 						{isModuleEnabled("trilhas") && (
 							<button
 								id="nav-trilhas"
-								className={`nav-item ${currentPath === "/modulos" || currentPath.startsWith("/modulo/") ? "active" : ""}`}
+								className={`nav-item ${currentPath === "/cursos" || currentPath.startsWith("/curso/") ? "active" : ""}`}
 								onClick={() => {
 									setSidebarOpen(false);
-									navigate("/modulos");
+									navigate("/cursos");
 								}}
 							>
 								<i className="icon-book-open nav-icon" /> Trilhas de Aprendizado

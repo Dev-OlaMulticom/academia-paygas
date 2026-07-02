@@ -9,7 +9,7 @@ import { getStringParam } from "../utils/queryParams";
 
 const router = Router();
 
-// GET /api/cms/modulos - accessible to all authenticated users, filtered by role
+// GET /api/cms/cursos - accessible to all authenticated users, filtered by role
 router.get("/", authenticate, async (req: any, res) => {
 	try {
 		const page = Math.max(1, parseInt(req.query.page as string, 10) || 1);
@@ -20,18 +20,18 @@ router.get("/", authenticate, async (req: any, res) => {
 		const isAdmin = userRole === "ADMIN";
 
 		const [allModulos, _total] = await Promise.all([
-			db.findMany("modulo", {
+			db.findMany("curso", {
 				include: {
 					aulas: { select: { id: true } },
 					_count: { select: { aulas: true, progressos: true } },
 				},
 				orderBy: { createdAt: "desc" },
 			}),
-			db.count("modulo"),
+			db.count("curso"),
 		]);
 
 		// Filter by role: admin sees all; others see modules with no restriction or their role included
-		const modulos = isAdmin
+		const cursos = isAdmin
 			? allModulos
 			: allModulos.filter((mod: any) => {
 					if (!mod.rolesPermitidos) return true;
@@ -40,8 +40,8 @@ router.get("/", authenticate, async (req: any, res) => {
 					return roles.includes(userRole);
 				});
 
-		const filteredTotal = modulos.length;
-		const paginatedModulos = modulos.slice(skip, skip + limit);
+		const filteredTotal = cursos.length;
+		const paginatedModulos = cursos.slice(skip, skip + limit);
 
 		res.json({
 			data: paginatedModulos,
@@ -54,17 +54,17 @@ router.get("/", authenticate, async (req: any, res) => {
 		});
 	} catch (error) {
 		logger.error("[ROUTE ERROR]", error);
-		res.status(500).json({ error: "Erro ao buscar modulos" });
+		res.status(500).json({ error: "Erro ao buscar cursos" });
 	}
 });
 
-// GET /api/cms/:id - Get single modulo
+// GET /api/cms/:id - Get single curso
 router.get("/:id", authenticate, async (req: any, res) => {
 	try {
 		const id = getStringParam(req.params.id);
 		if (!id) return res.status(400).json({ error: "ID inválido" });
-		const modulo = await db.findUnique(
-			"modulo",
+		const curso = await db.findUnique(
+			"curso",
 			{ id },
 			{
 				include: {
@@ -73,15 +73,15 @@ router.get("/:id", authenticate, async (req: any, res) => {
 				},
 			},
 		);
-		if (!modulo) return res.status(404).json({ error: "Módulo não encontrado" });
-		res.json(modulo);
+		if (!curso) return res.status(404).json({ error: "Módulo não encontrado" });
+		res.json(curso);
 	} catch (error) {
 		logger.error("[ROUTE ERROR]", error);
 		res.status(500).json({ error: "Erro ao buscar módulo" });
 	}
 });
 
-// POST /api/cms/modulos
+// POST /api/cms/cursos
 router.post("/", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
 		const {
@@ -101,11 +101,11 @@ router.post("/", authenticate, authorize("ADMIN"), async (req: any, res) => {
 			return res.status(400).json({ error: "Título é obrigatório" });
 		}
 
-		const maxOrdem = await db.aggregate("modulo", {
+		const maxOrdem = await db.aggregate("curso", {
 			_max: { ordem: true },
 		});
 
-		const modulo = await db.create("modulo", {
+		const curso = await db.create("curso", {
 			titulo,
 			descricao: descricao || "",
 			ordem: ordem ?? (maxOrdem._max.ordem ?? 0) + 1,
@@ -118,15 +118,15 @@ router.post("/", authenticate, authorize("ADMIN"), async (req: any, res) => {
 			certificadoTemplate: certificadoTemplate || null,
 			rolesPermitidos: rolesPermitidos || null,
 		});
-		await logActivity(req.userId!, "Criar Modulo", `Modulo: ${titulo}`);
-		res.status(201).json(modulo);
+		await logActivity(req.userId!, "Criar Curso", `Curso: ${titulo}`);
+		res.status(201).json(curso);
 	} catch (error) {
 		logger.error("[ROUTE ERROR]", error);
 		res.status(500).json({ error: "Erro ao criar módulo" });
 	}
 });
 
-// PUT /api/cms/modulos/:id
+// PUT /api/cms/cursos/:id
 router.put("/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
 		const {
@@ -144,8 +144,8 @@ router.put("/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
 		} = req.body;
 		const id = getStringParam(req.params.id);
 		if (!id) return res.status(400).json({ error: "ID inválido" });
-		const modulo = await db.update(
-			"modulo",
+		const curso = await db.update(
+			"curso",
 			{ id },
 			{
 				titulo,
@@ -161,21 +161,21 @@ router.put("/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
 				rolesPermitidos,
 			},
 		);
-		await logActivity(req.userId!, "Editar Modulo", `Modulo: ${modulo.titulo}`);
-		res.json(modulo);
+		await logActivity(req.userId!, "Editar Curso", `Curso: ${curso.titulo}`);
+		res.json(curso);
 	} catch (error) {
 		logger.error("[ROUTE ERROR]", error);
 		res.status(500).json({ error: "Erro ao atualizar módulo" });
 	}
 });
 
-// DELETE /api/cms/modulos/:id
+// DELETE /api/cms/cursos/:id
 router.delete("/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
 		const id = getStringParam(req.params.id);
 		if (!id) return res.status(400).json({ error: "ID inválido" });
-		await db.delete("modulo", { id });
-		await logActivity(req.userId!, "Excluir Modulo", `Modulo ID: ${id}`);
+		await db.delete("curso", { id });
+		await logActivity(req.userId!, "Excluir Curso", `Curso ID: ${id}`);
 		res.json({ success: true });
 	} catch (error) {
 		logger.error("[ROUTE ERROR]", error);
@@ -183,20 +183,20 @@ router.delete("/:id", authenticate, authorize("ADMIN"), async (req: any, res) =>
 	}
 });
 
-// GET /api/modulos/:id/aulas
+// GET /api/cursos/:id/aulas
 router.get("/:id/aulas", authenticate, async (req: any, res) => {
 	try {
-		const moduloId = getStringParam(req.params.id);
-		if (!moduloId) return res.status(400).json({ error: "ID inválido" });
+		const cursoId = getStringParam(req.params.id);
+		if (!cursoId) return res.status(400).json({ error: "ID inválido" });
 
-		const moduloExists = await db.findUnique("modulo", { id: moduloId }, { select: { id: true } });
-		if (!moduloExists) return res.status(404).json({ error: "Módulo não encontrado" });
+		const cursoExists = await db.findUnique("curso", { id: cursoId }, { select: { id: true } });
+		if (!cursoExists) return res.status(404).json({ error: "Módulo não encontrado" });
 
 		const userRole = req.userRole;
 		const isAdmin = userRole === "ADMIN";
 
 		let aulas = await db.findMany("aula", {
-			where: { moduloId },
+			where: { cursoId },
 			include: {
 				quiz: { include: { perguntas: true } },
 				licoes: { orderBy: { ordem: "asc" } },
@@ -251,7 +251,7 @@ router.get("/:id/aulas", authenticate, async (req: any, res) => {
 	}
 });
 
-// POST /api/modulos/:id/aulas
+// POST /api/cursos/:id/aulas
 router.post("/:id/aulas", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
 		const {
@@ -267,16 +267,16 @@ router.post("/:id/aulas", authenticate, authorize("ADMIN"), async (req: any, res
 			ancoragemPoints,
 			rolesPermitidos,
 		} = req.body;
-		const moduloId = getStringParam(req.params.id);
-		if (!moduloId) return res.status(400).json({ error: "ID inválido" });
+		const cursoId = getStringParam(req.params.id);
+		if (!cursoId) return res.status(400).json({ error: "ID inválido" });
 
 		const maxOrdem = await db.aggregate("aula", {
-			where: { moduloId },
+			where: { cursoId },
 			_max: { ordem: true },
 		});
 
 		const aula = await db.create("aula", {
-			moduloId,
+			cursoId,
 			titulo,
 			descricao: descricao || "",
 			ordem: (maxOrdem._max.ordem ?? 0) + 1,
@@ -452,8 +452,8 @@ router.delete("/licoes/:id", authenticate, authorize("ADMIN"), async (req: any, 
 
 // ==================== QUIZ ENDPOINTS ====================
 
-// POST /api/modulos/:moduloId/quiz - Create quiz for an aula
-router.post("/:moduloId/quiz", authenticate, authorize("ADMIN"), async (req: any, res) => {
+// POST /api/cursos/:cursoId/quiz - Create quiz for an aula
+router.post("/:cursoId/quiz", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
 		const { aulaId, titulo, autoGerarCertificado, notaMinima, rolesPermitidos } = req.body;
 		if (!aulaId || !titulo) {
@@ -480,8 +480,8 @@ router.post("/:moduloId/quiz", authenticate, authorize("ADMIN"), async (req: any
 	}
 });
 
-// GET /api/modulos/:moduloId/quiz/:aulaId - Get quiz with questions
-router.get("/:moduloId/quiz/:aulaId", authenticate, async (req: any, res) => {
+// GET /api/cursos/:cursoId/quiz/:aulaId - Get quiz with questions
+router.get("/:cursoId/quiz/:aulaId", authenticate, async (req: any, res) => {
 	try {
 		const aulaId = getStringParam(req.params.aulaId);
 		if (!aulaId) return res.status(400).json({ error: "ID inválido" });
@@ -504,7 +504,7 @@ router.get("/:moduloId/quiz/:aulaId", authenticate, async (req: any, res) => {
 	}
 });
 
-// PUT /api/modulos/quiz/:quizId - Update quiz
+// PUT /api/cursos/quiz/:quizId - Update quiz
 router.put("/quiz/:quizId", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
 		const { titulo, autoGerarCertificado, notaMinima, rolesPermitidos } = req.body;
@@ -528,7 +528,7 @@ router.put("/quiz/:quizId", authenticate, authorize("ADMIN"), async (req: any, r
 	}
 });
 
-// DELETE /api/modulos/quiz/:quizId - Delete quiz
+// DELETE /api/cursos/quiz/:quizId - Delete quiz
 router.delete("/quiz/:quizId", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
 		const quizId = getStringParam(req.params.quizId);
@@ -542,7 +542,7 @@ router.delete("/quiz/:quizId", authenticate, authorize("ADMIN"), async (req: any
 	}
 });
 
-// POST /api/modulos/quiz/:quizId/perguntas - Add question to quiz
+// POST /api/cursos/quiz/:quizId/perguntas - Add question to quiz
 router.post("/quiz/:quizId/perguntas", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
 		const { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta } = req.body;
@@ -574,7 +574,7 @@ router.post("/quiz/:quizId/perguntas", authenticate, authorize("ADMIN"), async (
 	}
 });
 
-// PUT /api/modulos/perguntas/:perguntaId - Update question
+// PUT /api/cursos/perguntas/:perguntaId - Update question
 router.put("/perguntas/:perguntaId", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
 		const { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta, ordem } = req.body;
@@ -600,7 +600,7 @@ router.put("/perguntas/:perguntaId", authenticate, authorize("ADMIN"), async (re
 	}
 });
 
-// DELETE /api/modulos/perguntas/:perguntaId - Delete question
+// DELETE /api/cursos/perguntas/:perguntaId - Delete question
 router.delete("/perguntas/:perguntaId", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
 		const perguntaId = getStringParam(req.params.perguntaId);
@@ -613,7 +613,7 @@ router.delete("/perguntas/:perguntaId", authenticate, authorize("ADMIN"), async 
 	}
 });
 
-// POST /api/modulos/quiz/:quizId/responder - Submit quiz answers
+// POST /api/cursos/quiz/:quizId/responder - Submit quiz answers
 router.post("/quiz/:quizId/responder", authenticate, async (req: any, res) => {
 	try {
 		const { respostas } = req.body; // { perguntaId: 'A'|'B'|'C'|'D' }
@@ -652,12 +652,12 @@ router.post("/quiz/:quizId/responder", authenticate, async (req: any, res) => {
 			await logActivity(req.userId, "Quiz Aprovado", `Quiz: ${quiz.titulo} — Nota ${nota}/10`);
 
 			// Mark lesson as completed only when quiz is passed
-			const quizAula = await db.findUnique("aula", { id: quiz.aulaId }, { select: { moduloId: true } });
+			const quizAula = await db.findUnique("aula", { id: quiz.aulaId }, { select: { cursoId: true } });
 			if (quizAula) {
 				await db.upsert(
 					"progresso",
-					{ moduloId_aulaId_userId: { moduloId: quizAula.moduloId, aulaId: quiz.aulaId, userId: req.userId } },
-					{ moduloId: quizAula.moduloId, aulaId: quiz.aulaId, userId: req.userId, concluido: true },
+					{ cursoId_aulaId_userId: { cursoId: quizAula.cursoId, aulaId: quiz.aulaId, userId: req.userId } },
+					{ cursoId: quizAula.cursoId, aulaId: quiz.aulaId, userId: req.userId, concluido: true },
 					{ concluido: true },
 				);
 			}
@@ -691,35 +691,35 @@ router.post("/quiz/:quizId/responder", authenticate, async (req: any, res) => {
 			await logActivity(req.userId, "Quiz Reprovado", `Quiz: ${quiz.titulo} — Nota ${nota}/10`);
 		}
 
-		// Auto-generate certificate if: quiz passed + (autoGerarCertificado OR modulo.autoCertificado) + ALL aulas completed
+		// Auto-generate certificate if: quiz passed + (autoGerarCertificado OR curso.autoCertificado) + ALL aulas completed
 		if (concluido) {
 			const aula = await db.findUnique("aula", { id: quiz.aulaId });
 			if (aula) {
-				const modulo = await db.findUnique(
-					"modulo",
-					{ id: aula.moduloId },
+				const curso = await db.findUnique(
+					"curso",
+					{ id: aula.cursoId },
 					{
 						include: { aulas: true },
 					},
 				);
-				if (modulo && (quiz.autoGerarCertificado || modulo.autoCertificado)) {
+				if (curso && (quiz.autoGerarCertificado || curso.autoCertificado)) {
 					const allAulasCompleted = await db.count("progresso", {
-						moduloId: aula.moduloId,
+						cursoId: aula.cursoId,
 						userId: req.userId,
 						concluido: true,
 					});
 
-					if (allAulasCompleted >= modulo.aulas.length) {
-						const certStatus = modulo.autoCertificado ? "APPROVED" : "PENDING";
+					if (allAulasCompleted >= curso.aulas.length) {
+						const certStatus = curso.autoCertificado ? "APPROVED" : "PENDING";
 						try {
 							await db.upsert(
 								"certificate",
-								{ userId_moduloId: { userId: req.userId, moduloId: aula.moduloId } },
-								{ userId: req.userId, moduloId: aula.moduloId, status: certStatus },
+								{ userId_cursoId: { userId: req.userId, cursoId: aula.cursoId } },
+								{ userId: req.userId, cursoId: aula.cursoId, status: certStatus },
 								{},
 							);
-							await awardPointsIfNotAwarded(req.userId, "CERTIFICATE", `CERTIFICATE:modulo:${aula.moduloId}`);
-							await logActivity(req.userId, "Certificado Gerado", `Modulo: ${modulo.titulo}`);
+							await awardPointsIfNotAwarded(req.userId, "CERTIFICATE", `CERTIFICATE:curso:${aula.cursoId}`);
+							await logActivity(req.userId, "Certificado Gerado", `Curso: ${curso.titulo}`);
 
 							// Notify gestor when ATENDENTE completes entire module
 							const quizUser = await db.findUnique(
@@ -738,8 +738,8 @@ router.post("/quiz/:quizId/responder", authenticate, async (req: any, res) => {
 									},
 								);
 								if (gestor) {
-									const titulo = "Modulo Completo";
-									const mensagem = `${quizUser.nome} completou o modulo "${modulo.titulo}" e recebeu o certificado.`;
+									const titulo = "Curso Completo";
+									const mensagem = `${quizUser.nome} completou o curso "${curso.titulo}" e recebeu o certificado.`;
 									db.create("notification", { fromId: req.userId, toId: gestor.id, titulo, mensagem }).catch(() => {});
 								}
 							}
@@ -758,7 +758,7 @@ router.post("/quiz/:quizId/responder", authenticate, async (req: any, res) => {
 	}
 });
 
-// GET /api/modulos/quiz/:quizId/resultados - Get quiz results
+// GET /api/cursos/quiz/:quizId/resultados - Get quiz results
 router.get("/quiz/:quizId/resultados", authenticate, async (req: any, res) => {
 	try {
 		const where: any = { quizId: req.params.quizId };
@@ -777,26 +777,26 @@ router.get("/quiz/:quizId/resultados", authenticate, async (req: any, res) => {
 	}
 });
 
-// POST /api/modulos/:id/open - Track module open
+// POST /api/cursos/:id/open - Track module open
 router.post("/:id/open", authenticate, async (req: any, res) => {
 	try {
 		const id = getStringParam(req.params.id);
 		if (!id) return res.status(400).json({ error: "ID invalido" });
 
-		const modulo = await db.findUnique("modulo", { id });
-		if (!modulo) return res.status(404).json({ error: "Modulo nao encontrado" });
+		const curso = await db.findUnique("curso", { id });
+		if (!curso) return res.status(404).json({ error: "Curso nao encontrado" });
 
-		await awardPointsIfNotAwarded(req.userId, "MODULE_OPEN", `MODULE_OPEN:modulo:${id}`);
-		await logActivity(req.userId, "Modulo Aberto", `Modulo: ${modulo.titulo}`);
+		await awardPointsIfNotAwarded(req.userId, "MODULE_OPEN", `MODULE_OPEN:curso:${id}`);
+		await logActivity(req.userId, "Curso Aberto", `Curso: ${curso.titulo}`);
 
-		res.json({ message: "Modulo registrado" });
+		res.json({ message: "Curso registrado" });
 	} catch (error) {
 		logger.error("[ROUTE ERROR]", error);
-		res.status(500).json({ error: "Erro ao registrar abertura do modulo" });
+		res.status(500).json({ error: "Erro ao registrar abertura do curso" });
 	}
 });
 
-// POST /api/modulos/aula/:aulaId/view - Track lesson view (XP for viewing a lesson)
+// POST /api/cursos/aula/:aulaId/view - Track lesson view (XP for viewing a lesson)
 router.post("/aula/:aulaId/view", authenticate, async (req: any, res) => {
 	try {
 		const aulaId = getStringParam(req.params.aulaId);
@@ -816,7 +816,7 @@ router.post("/aula/:aulaId/view", authenticate, async (req: any, res) => {
 	}
 });
 
-// GET /api/modulos/gamification/leaderboard - Get leaderboard
+// GET /api/cursos/gamification/leaderboard - Get leaderboard
 router.get("/gamification/leaderboard", authenticate, async (_req: any, res) => {
 	try {
 		const users = await db.findMany("user", {
@@ -838,7 +838,7 @@ router.get("/gamification/leaderboard", authenticate, async (_req: any, res) => 
 	}
 });
 
-// GET /api/modulos/gamification/stats - Get gamification stats
+// GET /api/cursos/gamification/stats - Get gamification stats
 router.get("/gamification/stats", authenticate, async (_req: any, res) => {
 	try {
 		const totalXpResult = await db.aggregate("user", {

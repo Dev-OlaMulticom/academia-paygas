@@ -10,14 +10,14 @@ interface QuizEditorPageProps {
 }
 
 export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
-	const { moduloId, aulaId } = useParams<{ moduloId: string; aulaId: string }>();
+	const { cursoId, aulaId } = useParams<{ cursoId: string; aulaId: string }>();
 	const navigate = useNavigate();
 	const { toast } = useToast();
 	const { confirm } = useConfirm();
 	const { isAdmin } = useAbility();
 
 	const [aula, setAula] = useState<any>(null);
-	const [modulo, setModulo] = useState<any>(null);
+	const [curso, setModulo] = useState<any>(null);
 	const [quiz, setQuiz] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
@@ -39,13 +39,13 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 	const [_isEditing, setIsEditing] = useState(false);
 
 	const loadData = useCallback(async () => {
-		if (!moduloId || !aulaId) return;
+		if (!cursoId || !aulaId) return;
 		try {
 			setLoading(true);
 			const [mod, al, qz] = await Promise.all([
-				api.getModulo(moduloId),
-				api.getAula(moduloId, aulaId).catch(() => null),
-				api.getQuiz(moduloId, aulaId).catch(() => null),
+				api.getModulo(cursoId),
+				api.getAula(cursoId, aulaId).catch(() => null),
+				api.getQuiz(cursoId, aulaId).catch(() => null),
 			]);
 			setModulo(mod);
 			setAula(al);
@@ -60,21 +60,21 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 		} finally {
 			setLoading(false);
 		}
-	}, [moduloId, aulaId, toast]);
+	}, [cursoId, aulaId, toast]);
 
 	useEffect(() => {
 		loadData();
 	}, [loadData]);
 
 	const handleCreateQuiz = async () => {
-		if (!moduloId || !aulaId) return;
+		if (!cursoId || !aulaId) return;
 		if (!quizTitle.trim()) {
 			toast("Título é obrigatório", "error");
 			return;
 		}
 		try {
 			setSaving(true);
-			const q = await api.createQuiz(moduloId, {
+			const q = await api.createQuiz(cursoId, {
 				aulaId,
 				titulo: quizTitle,
 				autoGerarCertificado: autoCert,
@@ -131,7 +131,7 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 			setSaving(true);
 			await api.addPergunta(quiz.id, formData);
 			setFormData({ pergunta: "", opcaoA: "", opcaoB: "", opcaoC: "", opcaoD: "", correta: "A" });
-			const updated = await api.getQuiz(moduloId!, aulaId!);
+			const updated = await api.getQuiz(cursoId!, aulaId!);
 			setQuiz(updated);
 			toast("Pergunta adicionada", "success");
 		} catch (err: any) {
@@ -174,7 +174,7 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 				await api.addPergunta(quiz.id, formData);
 				toast("Pergunta adicionada", "success");
 			}
-			const updated = await api.getQuiz(moduloId!, aulaId!);
+			const updated = await api.getQuiz(cursoId!, aulaId!);
 			setQuiz(updated);
 			handleNewQuestion();
 		} catch (err: any) {
@@ -190,7 +190,7 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 		try {
 			await api.deletePergunta(id);
 			if (activeQuestion === id) handleNewQuestion();
-			const updated = await api.getQuiz(moduloId!, aulaId!);
+			const updated = await api.getQuiz(cursoId!, aulaId!);
 			setQuiz(updated);
 			toast("Pergunta excluída", "success");
 		} catch (err: any) {
@@ -210,7 +210,7 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 				</button>
 				<div className="quiz-editor-header-info">
 					<h2 className="quiz-editor-header-title">
-						{modulo?.titulo || "Módulo"} → {aula?.titulo || "Aula"}
+						{curso?.titulo || "Módulo"} → {aula?.titulo || "Aula"}
 					</h2>
 					<p className="quiz-editor-header-sub">
 						{quiz

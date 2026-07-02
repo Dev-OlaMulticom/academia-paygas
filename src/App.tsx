@@ -71,8 +71,8 @@ export default function App() {
 									<AppLayout user={user!} xp={xp} onLogout={handleLogout}>
 										<Routes>
 											<Route path="/" element={<DashboardPage xp={xp} user={user} />} />
-											<Route path="/modulos" element={<ModulosListPage />} />
-											<Route path="/modulo/:moduloNombre" element={<ModulosPage />} />
+											<Route path="/cursos" element={<ModulosListPage />} />
+											<Route path="/curso/:cursoNombre" element={<ModulosPage />} />
 											<Route path="/certificados" element={<CertificadosPage user={user} />} />
 											<Route
 												path="/equipe"
@@ -92,7 +92,7 @@ export default function App() {
 											/>
 											<Route path="/cms" element={<CMSPage user={user!} />} />
 											<Route
-												path="/cms/criar-modulo"
+												path="/cms/criar-curso"
 												element={
 													<RoleRoute user={user} allowedRoles={["ADMIN"]}>
 														<CriarModuloPage user={user!} />
@@ -100,7 +100,7 @@ export default function App() {
 												}
 											/>
 											<Route
-												path="/cms/:moduloId/quiz/:aulaId"
+												path="/cms/:cursoId/quiz/:aulaId"
 												element={
 													<RoleRoute user={user} allowedRoles={["ADMIN"]}>
 														<QuizEditorPage user={user!} />

@@ -57,13 +57,13 @@ NHOST_URL="..."     # Legacy Nhost backup (fallback if PG_URL_* not set)
 - **Keep-alive**: Pings all databases every 12h to prevent free-tier pauses.
 - **Background sync**: When a completely empty database recovers, syncs all data from healthiest database.
 
-**Naming gotcha:** The DB table is `Modulo` but the frontend/CMS calls it "Curso". The field `moduloId` is `cursoId` in frontend context. This is cosmetic only — the schema is not changing.
+**Naming gotcha:** The DB table is `Curso` but the frontend/CMS calls it "Curso". The field `cursoId` is `cursoId` in frontend context. This is cosmetic only — the schema is not changing.
 
 #### Naming map (DB ↔ UI)
 
 | Database (Prisma) | UI / API / CMS | Notes |
 |-------------------|---------------|-------|
-| `Modulo` | **Curso** | Top-level learning unit. |
+| `Curso` | **Curso** | Top-level learning unit. |
 | `Aula` | Aula / Lesson section | Sub-unit of a Curso. |
 | `Licao` | Lição / Lesson content | Leaf unit (video, text, PDF). |
 | `RolesPermitidos` (JSON) | "Visible para…" field | Comma-separated at UI level. |
@@ -89,7 +89,7 @@ await db.upsert('progresso', { ... }, { ... }, { ... })
 await db.delete('user', { id: '123' })
 
 // Reads always use primary (PG_URL_1)
-await db.findMany('modulo', { where: { ativo: true } })
+await db.findMany('curso', { where: { ativo: true } })
 ```
 
 Models are configured in `server/lib/db-models.ts`. Each model maps PG, Nhost, and MySQL delegates. Nhost and MySQL are `null` when their URL env vars are not set — dual-write gracefully degrades.

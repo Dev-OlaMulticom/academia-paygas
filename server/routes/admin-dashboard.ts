@@ -24,7 +24,7 @@ router.get("/", authenticate, authorize("ADMIN"), async (_req: AuthRequest, res)
 			progressThisMonth,
 		] = await Promise.all([
 			db.count("user"),
-			db.count("modulo"),
+			db.count("curso"),
 			db.count("aula"),
 			db.count("certificate"),
 			db.count("quizResponse", { concluido: true }),
@@ -44,29 +44,29 @@ router.get("/", authenticate, authorize("ADMIN"), async (_req: AuthRequest, res)
 			take: 20,
 		});
 
-		// Aggregated query: get aula counts and progress counts per modulo in bulk (avoids N+1)
+		// Aggregated query: get aula counts and progress counts per curso in bulk (avoids N+1)
 		const aulaCounts = (await db.groupBy("aula", {
-			by: ["moduloId"],
+			by: ["cursoId"],
 			_count: { id: true },
 		})) as any[];
-		const aulaCountMap = new Map(aulaCounts.map((ac: any) => [ac.moduloId, ac._count.id]));
+		const aulaCountMap = new Map(aulaCounts.map((ac: any) => [ac.cursoId, ac._count.id]));
 
 		const progressCounts = (await db.groupBy("progresso", {
-			by: ["moduloId", "concluido"],
+			by: ["cursoId", "concluido"],
 			_count: { id: true },
 		})) as any[];
-		// Aggregate: total accesses and total concluded per modulo
+		// Aggregate: total accesses and total concluded per curso
 		const progressMap = new Map<string, { acessos: number; concluidos: number }>();
 		for (const pc of progressCounts) {
-			const existing = progressMap.get(pc.moduloId) || { acessos: 0, concluidos: 0 };
+			const existing = progressMap.get(pc.cursoId) || { acessos: 0, concluidos: 0 };
 			existing.acessos += pc._count.id;
 			if (pc.concluido) existing.concluidos += pc._count.id;
-			progressMap.set(pc.moduloId, existing);
+			progressMap.set(pc.cursoId, existing);
 		}
 
-		const modulos = (await db.findMany("modulo")) as any[];
+		const cursos = (await db.findMany("curso")) as any[];
 
-		const cursosRecentes = modulos.map((m: any) => {
+		const cursosRecentes = cursos.map((m: any) => {
 			const totalAulas = aulaCountMap.get(m.id) || 0;
 			const prog = progressMap.get(m.id) || { acessos: 0, concluidos: 0 };
 			return {

@@ -30,7 +30,7 @@ const GAMIFICATION_ACHIEVEMENTS = [
 		id: "3",
 		titulo: "Mestre do Filtro",
 		descricao: "Complete todas as aulas do filtro",
-		tipo: "MODULO",
+		tipo: "CURSO",
 		meta: 4,
 		xp: 500,
 		icone: "🏆",
@@ -50,7 +50,7 @@ const GAMIFICATION_ACHIEVEMENTS = [
 		id: "5",
 		titulo: "Especialista",
 		descricao: "Complete 5 módulos",
-		tipo: "MODULO",
+		tipo: "CURSO",
 		meta: 5,
 		xp: 750,
 		icone: "⭐",
@@ -99,9 +99,9 @@ router.get("/achievements", authenticate, async (req: AuthRequest, res) => {
 				.groupBy("progresso", { by: ["aulaId"], where: { userId, concluido: true } })
 				.then((groups) => {
 					const aulaIds = groups.map((g: any) => g.aulaId);
-					return db.findMany("aula", { where: { id: { in: aulaIds } }, select: { moduloId: true } });
+					return db.findMany("aula", { where: { id: { in: aulaIds } }, select: { cursoId: true } });
 				})
-				.then((aulas: any[]) => new Set(aulas.map((a: any) => a.moduloId)).size),
+				.then((aulas: any[]) => new Set(aulas.map((a: any) => a.cursoId)).size),
 			db.count("quizResponse", { userId, concluido: true }),
 			db.findUnique("user", { id: userId }, { select: { xp: true, level: true } }),
 		]);
@@ -119,7 +119,7 @@ router.get("/achievements", authenticate, async (req: AuthRequest, res) => {
 					progress = Math.min(user?.level || 0, a.meta);
 					earned = (user?.level || 0) >= a.meta;
 					break;
-				case "MODULO":
+				case "CURSO":
 					progress = Math.min(totalModulosConcluidos, a.meta);
 					earned = totalModulosConcluidos >= a.meta;
 					break;

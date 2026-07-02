@@ -23,21 +23,21 @@ router.get("/", authenticate, async (req: any, res) => {
 // PUT /api/progresso
 router.put("/", authenticate, async (req: any, res) => {
 	try {
-		const { moduloId, aulaId, concluido } = req.body;
-		if (!moduloId || !aulaId) {
-			return res.status(400).json({ error: "moduloId e aulaId são obrigatórios" });
+		const { cursoId, aulaId, concluido } = req.body;
+		if (!cursoId || !aulaId) {
+			return res.status(400).json({ error: "cursoId e aulaId são obrigatórios" });
 		}
 
 		const existing = await db.findFirst("progresso", {
-			moduloId,
+			cursoId,
 			aulaId,
 			userId: req.userId,
 		});
 
 		const progresso = await db.upsert(
 			"progresso",
-			{ moduloId_aulaId_userId: { moduloId, aulaId, userId: req.userId } },
-			{ moduloId, aulaId, userId: req.userId, concluido: concluido !== false },
+			{ cursoId_aulaId_userId: { cursoId, aulaId, userId: req.userId } },
+			{ cursoId, aulaId, userId: req.userId, concluido: concluido !== false },
 			{ concluido: concluido !== false },
 		);
 
@@ -47,18 +47,18 @@ router.put("/", authenticate, async (req: any, res) => {
 			await awardPointsIfNotAwarded(req.userId, "LESSON_COMPLETE", `LESSON_COMPLETE:aula:${aulaId}`);
 			await logActivity(req.userId, "Aula Concluida", `Aula: ${aula?.titulo || aulaId}`);
 
-			// Check if all aulas in the modulo are completed
-			const modulo = (await db.findUnique("modulo", { id: moduloId })) as any;
-			if (modulo) {
+			// Check if all aulas in the curso are completed
+			const curso = (await db.findUnique("curso", { id: cursoId })) as any;
+			if (curso) {
 				const completedCount = await db.count("progresso", {
-					moduloId,
+					cursoId,
 					userId: req.userId,
 					concluido: true,
 				});
 
-				if (completedCount >= modulo.aulas?.length) {
-					await awardPointsIfNotAwarded(req.userId, "MODULE_COMPLETE", `MODULE_COMPLETE:modulo:${moduloId}`);
-					await logActivity(req.userId, "Modulo Concluido", `Modulo: ${modulo.titulo}`);
+				if (completedCount >= curso.aulas?.length) {
+					await awardPointsIfNotAwarded(req.userId, "MODULE_COMPLETE", `MODULE_COMPLETE:curso:${cursoId}`);
+					await logActivity(req.userId, "Curso Concluido", `Curso: ${curso.titulo}`);
 				}
 			}
 		}
@@ -79,8 +79,8 @@ router.get("/stats", authenticate, async (req: any, res) => {
 			concluido: true,
 		});
 
-		const modulosIniciados = await db.groupBy("progresso", {
-			by: ["moduloId"],
+		const cursosIniciados = await db.groupBy("progresso", {
+			by: ["cursoId"],
 			where: { userId: req.userId },
 		});
 
@@ -90,7 +90,7 @@ router.get("/stats", authenticate, async (req: any, res) => {
 			totalAulas,
 			concluidas,
 			percentual: totalAulas > 0 ? Math.round((concluidas / totalAulas) * 100) : 0,
-			modulosIniciados: modulosIniciados.length,
+			cursosIniciados: cursosIniciados.length,
 			xp: user?.xp || 0,
 		});
 	} catch (error) {
@@ -102,14 +102,14 @@ router.get("/stats", authenticate, async (req: any, res) => {
 // POST /api/progresso/restart-request — user requests restart of module/aula progress
 router.post("/restart-request", authenticate, async (req: any, res) => {
 	try {
-		const { moduloId, aulaId } = req.body;
-		if (!moduloId) return res.status(400).json({ error: "moduloId é obrigatório" });
+		const { cursoId, aulaId } = req.body;
+		if (!cursoId) return res.status(400).json({ error: "cursoId é obrigatório" });
 
 		const user = (await db.findUnique("user", { id: req.userId })) as any;
 		if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
 
-		const modulo = (await db.findUnique("modulo", { id: moduloId })) as any;
-		const moduloTitulo = modulo?.titulo || moduloId;
+		const curso = (await db.findUnique("curso", { id: cursoId })) as any;
+		const cursoTitulo = curso?.titulo || cursoId;
 
 		// Determine recipient: gestor or admin
 		let targetId = user.gestorId;
@@ -125,7 +125,7 @@ router.post("/restart-request", authenticate, async (req: any, res) => {
 			return res.status(400).json({ error: "Nenhum gestor ou administrador disponível para receber a solicitação" });
 		}
 
-		const scope = aulaId ? `aula "${moduloTitulo}"` : `modulo "${moduloTitulo}"`;
+		const scope = aulaId ? `aula "${cursoTitulo}"` : `curso "${cursoTitulo}"`;
 		const titulo = `Solicitação de Reinício`;
 		const mensagem = `${user.nome} (${user.role}) solicitou reinício de progresso da ${scope}.`;
 
@@ -136,8 +136,8 @@ router.post("/restart-request", authenticate, async (req: any, res) => {
 			mensagem,
 			data: JSON.stringify({
 				type: "restart-request",
-				moduloId,
-				moduloTitulo,
+				cursoId,
+				cursoTitulo,
 				userId: req.userId,
 				userName: user.nome,
 			}),
@@ -155,9 +155,9 @@ router.post("/restart-request", authenticate, async (req: any, res) => {
 // PUT /api/progresso/restart — gestor/admin approves and restarts progress
 router.put("/restart", authenticate, async (req: any, res) => {
 	try {
-		const { userId, moduloId, aulaId } = req.body;
-		if (!userId || !moduloId) {
-			return res.status(400).json({ error: "userId e moduloId são obrigatórios" });
+		const { userId, cursoId, aulaId } = req.body;
+		if (!userId || !cursoId) {
+			return res.status(400).json({ error: "userId e cursoId são obrigatórios" });
 		}
 
 		const requester = (await db.findUnique("user", { id: req.userId })) as any;
@@ -169,7 +169,7 @@ router.put("/restart", authenticate, async (req: any, res) => {
 			return res.status(403).json({ error: "Sem permissão para reiniciar este usuário" });
 		}
 
-		const where: any = { userId, moduloId };
+		const where: any = { userId, cursoId };
 		if (aulaId) where.aulaId = aulaId;
 
 		// Logical restart: mark as restarted, increment count, set concluido=false
@@ -179,8 +179,8 @@ router.put("/restart", authenticate, async (req: any, res) => {
 			restartCount: { increment: 1 },
 		});
 
-		const modulo = (await db.findUnique("modulo", { id: moduloId })) as any;
-		const scope = aulaId ? `aula` : `modulo "${modulo?.titulo || moduloId}"`;
+		const curso = (await db.findUnique("curso", { id: cursoId })) as any;
+		const scope = aulaId ? `aula` : `curso "${curso?.titulo || cursoId}"`;
 		await logActivity(req.userId, "Reinício Aprovado", `Reiniciou progresso de ${scope} para ${targetUser.nome}`);
 
 		// Notify the user that their restart was approved

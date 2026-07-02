@@ -20,7 +20,7 @@ router.get("/overview", authenticate, async (_req: AuthRequest, res) => {
 			db.count("quizResponse", { concluido: true }),
 		]);
 
-		const totalModulos = await db.count("modulo");
+		const totalModulos = await db.count("curso");
 
 		const progressosMes = await db.count("progresso", {
 			createdAt: { gte: thirtyDaysAgo },
@@ -51,7 +51,7 @@ router.get("/overview", authenticate, async (_req: AuthRequest, res) => {
 // GET /api/analytics/modules
 router.get("/modules", authenticate, async (_req: AuthRequest, res) => {
 	try {
-		const modulos = await db.findMany("modulo", {
+		const cursos = await db.findMany("curso", {
 			include: {
 				aulas: {
 					include: {
@@ -63,7 +63,7 @@ router.get("/modules", authenticate, async (_req: AuthRequest, res) => {
 
 		const _totalUsers = await db.count("user");
 
-		const result = modulos
+		const result = cursos
 			.map((m: any) => {
 				const totalAcessos = m.aulas.reduce((sum: number, a: any) => sum + a.progressos.length, 0);
 				const totalConcluidos = m.aulas.reduce(

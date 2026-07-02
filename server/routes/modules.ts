@@ -40,7 +40,7 @@ router.get("/", authenticate, async (_req: AuthRequest, res) => {
 		res.json(modules);
 	} catch (error) {
 		logger.error("[MODULES ERROR]", error);
-		res.status(500).json({ error: "Erro ao buscar configuracao de modulos" });
+		res.status(500).json({ error: "Erro ao buscar configuracao de cursos" });
 	}
 });
 
@@ -57,16 +57,16 @@ router.put("/:key", authenticate, authorize("ADMIN"), async (req: AuthRequest, r
 		// Prevent disabling critical modules
 		const criticalModules = ["dashboard", "trilhas", "notificacoes", "perfil"];
 		if (!enabled && criticalModules.includes(key)) {
-			return res.status(400).json({ error: `O modulo "${key}" nao pode ser desativado` });
+			return res.status(400).json({ error: `O curso "${key}" nao pode ser desativado` });
 		}
 
 		const module = await db.upsert("moduleConfig", { key }, { key, label: String(key), enabled }, { enabled });
 
-		await logActivity(req.userId!, "Modulo Toggle", `${key}: ${enabled ? "ativado" : "desativado"}`);
+		await logActivity(req.userId!, "Curso Toggle", `${key}: ${enabled ? "ativado" : "desativado"}`);
 		res.json(module);
 	} catch (error) {
 		logger.error("[MODULE TOGGLE ERROR]", error);
-		res.status(500).json({ error: "Erro ao atualizar modulo" });
+		res.status(500).json({ error: "Erro ao atualizar curso" });
 	}
 });
 
@@ -81,7 +81,7 @@ router.get("/enabled", authenticate, async (_req: AuthRequest, res) => {
 		res.json(modules.map((m: any) => m.key));
 	} catch (error) {
 		logger.error("[MODULES ENABLED ERROR]", error);
-		res.status(500).json({ error: "Erro ao buscar modulos ativos" });
+		res.status(500).json({ error: "Erro ao buscar cursos ativos" });
 	}
 });
 

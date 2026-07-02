@@ -608,7 +608,7 @@ Em dispositivos moveis, o sidebar de aulas se transforma em um **acordeon vertic
 
 ```
 ┌─────────────────────────┐
-│ 📚 Modulo: Seguranca    │
+│ 📚 Curso: Seguranca    │
 │ 3/5 aulas concluidas    │
 ├─────────────────────────┤
 │ ▶ 1. Introducao    PDF  │  ← accordion header
@@ -757,7 +757,7 @@ Todas as classes CSS usam **nomes em portugues** seguindo o padrao:
 | `src/index.css` | Design system completo (~3400 linhas) | ~3400 |
 | `src/App.tsx` | Componentes React | ~136 |
 | `src/pages/DashboardPage.tsx` | Dashboard com gamificacao | ~120 |
-| `src/pages/ModulosPage.tsx` | Pagina de modulo com accordion mobile | ~976 |
+| `src/pages/ModulosPage.tsx` | Pagina de curso com accordion mobile | ~976 |
 | `src/layouts/AppLayout.tsx` | Layout principal | ~174 |
 | `server/services/email.ts` | Templates de email (orange) | ~349 |
 | `src/pages/VerificarEmailPage.tsx` | Verificacao de email (orange) | ~70 |
@@ -766,3 +766,269 @@ Todas as classes CSS usam **nomes em portugues** seguindo o padrao:
 | `src/pages/NotifPage.tsx` | Notificacoes (CSS classes) | ~140 |
 
 **Nota:** O sistema atual utiliza CSS vanilla customizado em vez de Tailwind utility classes, apesar do Tailwind estar configurado no projeto. Todos os estilos estao em `src/index.css` — nenhum inline style e usado nos componentes (exceto valores dinamicos).
+
+---
+
+## 10. Form Inputs & Controls
+
+### Input Text
+
+```tsx
+import { Input } from '@/components/ui/input'
+
+<Input 
+  type="text" 
+  placeholder="Digite aqui..."
+  className="form-input"
+/>
+```
+
+**Estilo:**
+```css
+.form-input {
+  width: 100%;
+  padding: 9px 12px;
+  font-size: 13px;
+  border: 1.5px solid var(--gray-200);
+  border-radius: 6px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus {
+  border-color: var(--pg-orange);
+  box-shadow: 0 0 0 3px var(--pg-orange-lt);
+}
+
+.form-input:disabled {
+  background: var(--gray-100);
+  color: var(--gray-400);
+  cursor: not-allowed;
+}
+
+.form-input.error {
+  border-color: var(--pg-red);
+}
+```
+
+### Select / Dropdown
+
+```tsx
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+
+<Select>
+  <SelectTrigger className="form-input">
+    <SelectValue placeholder="Selecione uma opção..." />
+  </SelectTrigger>
+  <SelectContent>
+    <SelectItem value="opt1">Opção 1</SelectItem>
+    <SelectItem value="opt2">Opção 2</SelectItem>
+  </SelectContent>
+</Select>
+```
+
+### Checkbox
+
+```tsx
+import { Checkbox } from '@/components/ui/checkbox'
+
+<div className="form-field">
+  <Checkbox id="agree" />
+  <label htmlFor="agree" className="form-label">Concordo com os termos</label>
+</div>
+```
+
+### Radio Group
+
+```tsx
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
+
+<RadioGroup defaultValue="opt1">
+  <div className="form-field">
+    <RadioGroupItem value="opt1" id="opt1" />
+    <label htmlFor="opt1">Opção 1</label>
+  </div>
+  <div className="form-field">
+    <RadioGroupItem value="opt2" id="opt2" />
+    <label htmlFor="opt2">Opção 2</label>
+  </div>
+</RadioGroup>
+```
+
+### Form Field Wrapper
+
+```tsx
+// Container padrão para um campo de formulário
+<div className="form-field">
+  <label className="form-label">Email</label>
+  <Input type="email" placeholder="seu@email.com" className="form-input" />
+  {error && <p className="form-error">{error}</p>}
+</div>
+```
+
+**Estilo:**
+```css
+.form-field {
+  margin-bottom: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-label {
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--gray-700);
+}
+
+.form-error {
+  font-size: 12px;
+  color: var(--pg-red);
+  margin-top: 2px;
+}
+
+.form-hint {
+  font-size: 11px;
+  color: var(--gray-400);
+  margin-top: 2px;
+}
+```
+
+---
+
+## 11. Accessibility (A11y)
+
+### Keyboard Navigation
+
+- **Tab order:** Segue a ordem visual (header → sidebar → main → footer)
+- **Focus outline:** Sempre visível com cor `var(--pg-orange)`
+- **Skip links:** `<a href="#main" className="sr-only">Pular para conteúdo</a>`
+
+### Semantic HTML
+
+```tsx
+// ✅ CORRETO
+<button onClick={...}>Ação</button>
+<a href="/path">Link</a>
+<label htmlFor="input">Label</label>
+
+// ❌ ERRADO
+<div onClick={...} role="button">Ação</div>
+<div onClick={...} role="link">Link</div>
+<span>Label</span>
+```
+
+### ARIA Attributes
+
+```tsx
+// Buttons
+<button aria-label="Abrir menu">☰</button>
+
+// Icons as buttons
+<button aria-label="Excluir item">
+  <Trash2 className="h-4 w-4" />
+</button>
+
+// Modals
+<dialog aria-modal="true" aria-labelledby="modal-title">
+  <h2 id="modal-title">Confirmar ação</h2>
+</dialog>
+
+// Notifications
+<div role="status" aria-live="polite">
+  Operação concluída com sucesso
+</div>
+```
+
+### Color Contrast
+
+- **Text on light backgrounds:** Minimum 4.5:1 ratio
+- **Use:** `var(--gray-900)` on `#fff` (AAA compliant)
+- **Links:** `var(--pg-orange)` on light backgrounds meets 4.5:1
+
+### Screen Reader Only
+
+```css
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+```
+
+---
+
+## 12. Component Gallery Reference
+
+**shadcn/ui components** (pre-configured in `src/components/ui/`):
+
+| Component | Path | Usage |
+|-----------|------|-------|
+| Button | `ui/button` | Primary actions, secondary, destructive, ghost, link |
+| Input | `ui/input` | Text, email, password, number inputs |
+| Select | `ui/select` | Dropdowns |
+| Checkbox | `ui/checkbox` | Multiple selections |
+| Radio Group | `ui/radio-group` | Single selection |
+| Label | `ui/label` | Form labels |
+| Textarea | `ui/textarea` | Multi-line text |
+| Card | `ui/card` | Container with border + shadow |
+| Dialog | `ui/dialog` | Modal dialogs |
+| Dropdown Menu | `ui/dropdown-menu` | Dropdown menus |
+| Popover | `ui/popover` | Floating popover |
+| Tooltip | `ui/tooltip` | Hover tooltips |
+| Tabs | `ui/tabs` | Tab navigation |
+| Accordion | `ui/accordion` | Collapsible sections |
+| Progress | `ui/progress` | Progress bars |
+| Badge | `ui/badge` | Status badges |
+| Avatar | `ui/avatar` | User avatars |
+
+**All components from Radix UI** — see [shadcn/ui documentation](https://ui.shadcn.com) for full API.
+
+---
+
+## 13. Design System Changelog
+
+| Version | Date | Changes |
+|---------|------|---------|
+| V27 | Jul 2024 | Unified orange brand, new roles (PARCEIRO_ACREDITADO, ERPS_REPRESENTANTE), mobile accordion |
+| V26 | May 2024 | Biome linter, CSS vanilla migration, form patterns |
+| V25 | Mar 2024 | Gamification badges, trophy cards, XP visualization |
+| Earlier | — | Foundation components, grid system, typography |
+
+---
+
+## 14. Quick Reference
+
+### When implementing a new page/component:
+
+1. **Check if component exists** in `src/components/ui/`
+2. **Use CSS classes** for styling (no inline styles)
+3. **Follow naming convention** — use Portuguese class names with appropriate prefix
+4. **Use `--pg-orange`** for primary actions
+5. **Add tooltips** for non-obvious interactive elements
+6. **Test responsive** — mobile accordion for <768px
+7. **Verify accessibility** — keyboard navigation, ARIA labels, color contrast
+
+### Golden Rules
+
+✅ **DO**
+- Use shadcn/ui components from `src/components/ui/`
+- Define styles in `src/index.css` with class names
+- Use `@shared/*` for shared types
+- Style with CSS classes (dynamic values via `style={{}}` only)
+- Follow Portuguese naming for classes and identifiers
+
+❌ **DON'T**
+- Use inline styles for static properties
+- Create new components when shadcn/ui exists
+- Import components from external UI libraries
+- Use Tailwind utility classes directly
+- Hardcode colors (use CSS variables)
+- Mix Portuguese and English in class names

@@ -209,17 +209,17 @@ class ApiClient {
 		return this.request<any[]>("/usuarios/equipe/detalhe");
 	}
 
-	async autoApprove(userId: string, tipo: "quiz" | "aula" | "modulo", targetId: string) {
+	async autoApprove(userId: string, tipo: "quiz" | "aula" | "curso", targetId: string) {
 		return this.request<any>(`/usuarios/${userId}/auto-approve`, {
 			method: "POST",
 			body: JSON.stringify({ tipo, targetId }),
 		});
 	}
 
-	async fixCert(userId: string, moduloId: string) {
+	async fixCert(userId: string, cursoId: string) {
 		return this.request<any>(`/usuarios/${userId}/fix-cert`, {
 			method: "POST",
-			body: JSON.stringify({ moduloId }),
+			body: JSON.stringify({ cursoId }),
 		});
 	}
 
@@ -230,14 +230,14 @@ class ApiClient {
 		});
 	}
 
-	async fixProgress(userId: string, aulaId: string, moduloId: string) {
+	async fixProgress(userId: string, aulaId: string, cursoId: string) {
 		return this.request<any>(`/usuarios/${userId}/fix-progress`, {
 			method: "POST",
-			body: JSON.stringify({ aulaId, moduloId }),
+			body: JSON.stringify({ aulaId, cursoId }),
 		});
 	}
 
-	// ==================== CMS - MODULOS ====================
+	// ==================== CMS - CURSOS ====================
 
 	async getCmsModulos() {
 		const result = await this.request<any>("/cms");
@@ -262,19 +262,19 @@ class ApiClient {
 		return this.request<any>(`/cms/${id}`);
 	}
 
-	async getAula(moduloId: string, aulaId: string) {
-		const aulas = await this.getAulas(moduloId);
+	async getAula(cursoId: string, aulaId: string) {
+		const aulas = await this.getAulas(cursoId);
 		return aulas.find((a: any) => a.id === aulaId) || null;
 	}
 
 	// ==================== AULAS ====================
 
-	async getAulas(moduloId: string) {
-		return this.request<any[]>(`/cms/${moduloId}/aulas`);
+	async getAulas(cursoId: string) {
+		return this.request<any[]>(`/cms/${cursoId}/aulas`);
 	}
 
-	async createAula(moduloId: string, data: any) {
-		return this.request<any>(`/cms/${moduloId}/aulas`, { method: "POST", body: JSON.stringify(data) });
+	async createAula(cursoId: string, data: any) {
+		return this.request<any>(`/cms/${cursoId}/aulas`, { method: "POST", body: JSON.stringify(data) });
 	}
 
 	async updateAula(id: string, data: any) {
@@ -306,14 +306,14 @@ class ApiClient {
 	// ==================== QUIZ ====================
 
 	async createQuiz(
-		moduloId: string,
+		cursoId: string,
 		data: { aulaId: string; titulo: string; autoGerarCertificado?: boolean; notaMinima?: number },
 	) {
-		return this.request<any>(`/cms/${moduloId}/quiz`, { method: "POST", body: JSON.stringify(data) });
+		return this.request<any>(`/cms/${cursoId}/quiz`, { method: "POST", body: JSON.stringify(data) });
 	}
 
-	async getQuiz(moduloId: string, aulaId: string) {
-		return this.request<any>(`/cms/${moduloId}/quiz/${aulaId}`);
+	async getQuiz(cursoId: string, aulaId: string) {
+		return this.request<any>(`/cms/${cursoId}/quiz/${aulaId}`);
 	}
 
 	async updateQuiz(quizId: string, data: { titulo?: string; autoGerarCertificado?: boolean; notaMinima?: number }) {
@@ -356,10 +356,10 @@ class ApiClient {
 		return this.request<any[]>("/progresso");
 	}
 
-	async updateProgresso(moduloId: string, aulaId: string, concluido: boolean) {
+	async updateProgresso(cursoId: string, aulaId: string, concluido: boolean) {
 		return this.request<any>("/progresso", {
 			method: "PUT",
-			body: JSON.stringify({ moduloId, aulaId, concluido }),
+			body: JSON.stringify({ cursoId, aulaId, concluido }),
 		});
 	}
 
@@ -367,17 +367,17 @@ class ApiClient {
 		return this.request<any>("/progresso/stats");
 	}
 
-	async requestRestart(moduloId: string, aulaId?: string) {
+	async requestRestart(cursoId: string, aulaId?: string) {
 		return this.request<any>("/progresso/restart-request", {
 			method: "POST",
-			body: JSON.stringify({ moduloId, aulaId }),
+			body: JSON.stringify({ cursoId, aulaId }),
 		});
 	}
 
-	async approveRestart(userId: string, moduloId: string, aulaId?: string) {
+	async approveRestart(userId: string, cursoId: string, aulaId?: string) {
 		return this.request<any>("/progresso/restart", {
 			method: "PUT",
-			body: JSON.stringify({ userId, moduloId, aulaId }),
+			body: JSON.stringify({ userId, cursoId, aulaId }),
 		});
 	}
 
@@ -390,10 +390,10 @@ class ApiClient {
 		return [];
 	}
 
-	async createCertificate(moduloId: string) {
+	async createCertificate(cursoId: string) {
 		return this.request<any>("/certificates", {
 			method: "POST",
-			body: JSON.stringify({ moduloId }),
+			body: JSON.stringify({ cursoId }),
 		});
 	}
 
@@ -450,8 +450,8 @@ class ApiClient {
 
 	// ==================== GAMIFICATION ====================
 
-	async trackModuleOpen(moduloId: string) {
-		return this.request<any>(`/cms/${moduloId}/open`, { method: "POST", body: JSON.stringify({}) });
+	async trackModuleOpen(cursoId: string) {
+		return this.request<any>(`/cms/${cursoId}/open`, { method: "POST", body: JSON.stringify({}) });
 	}
 
 	async trackLessonView(aulaId: string) {

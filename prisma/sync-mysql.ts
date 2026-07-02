@@ -28,9 +28,9 @@ const mysqlClient = new PrismaClient({
 const TABLES = [
 	{ name: "User", pg: () => pgClient.user.findMany(), insert: (d: any) => mysqlClient.user.createMany({ data: d }) },
 	{
-		name: "Modulo",
-		pg: () => pgClient.modulo.findMany(),
-		insert: (d: any) => mysqlClient.modulo.createMany({ data: d }),
+		name: "Curso",
+		pg: () => pgClient.curso.findMany(),
+		insert: (d: any) => mysqlClient.curso.createMany({ data: d }),
 	},
 	{ name: "Aula", pg: () => pgClient.aula.findMany(), insert: (d: any) => mysqlClient.aula.createMany({ data: d }) },
 	{ name: "Licao", pg: () => pgClient.licao.findMany(), insert: (d: any) => mysqlClient.licao.createMany({ data: d }) },

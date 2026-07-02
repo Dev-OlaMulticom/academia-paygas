@@ -55,7 +55,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 	const { toast } = useToast();
 	const { confirm } = useConfirm();
 	const { isAdmin } = useAbility();
-	const [view, setView] = useState<"modulos" | "aulas">("modulos");
+	const [view, setView] = useState<"cursos" | "aulas">("cursos");
 	const [selectedModulo, setSelectedModulo] = useState<any>(null);
 	const [showAulaModal, setShowAulaModal] = useState(false);
 	const [editingMod, setEditingMod] = useState<any>(null);
@@ -69,7 +69,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 		licoesAncoragem: [] as LicaoAncoragem[],
 		duration: { hours: 0, minutes: 0, seconds: 0 } as VideoDuration,
 	});
-	const [modulos, setModulos] = useState<any[]>([]);
+	const [cursos, setModulos] = useState<any[]>([]);
 	const [aulas, setAulas] = useState<any[]>([]);
 	const [_gestores, setGestores] = useState<any[]>([]);
 	const [showImportExport, setShowImportExport] = useState(false);
@@ -85,7 +85,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 		setPage: setModPage,
 		paginatedItems: paginatedModulos,
 		totalItems: totalModulos,
-	} = useClientPagination(modulos, 10);
+	} = useClientPagination(cursos, 10);
 	const {
 		page: aulaPage,
 		setPage: setAulaPage,
@@ -111,9 +111,9 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 		}
 	}, []);
 
-	const loadAulas = useCallback(async (moduloId: string) => {
+	const loadAulas = useCallback(async (cursoId: string) => {
 		try {
-			const lessons = await api.getAulas(moduloId);
+			const lessons = await api.getAulas(cursoId);
 			setAulas(lessons);
 		} catch {
 			setAulas([]);
@@ -151,7 +151,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 	};
 
 	const handleDeleteModulo = async (id: string) => {
-		const mod = modulos.find((m) => m.id === id);
+		const mod = cursos.find((m) => m.id === id);
 		const aulaCount = mod?._count?.aulas || 0;
 
 		let message = `¿Realmente deseas borrar el curso "${mod?.titulo}"?`;
@@ -384,10 +384,10 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 				<div>
 					<div className="page-title">Gestão de Conteúdo</div>
 					<div className="page-subtitle">
-						{view === "modulos" ? "Gerencie seus cursos" : selectedModulo?.titulo || "Aulas"}
+						{view === "cursos" ? "Gerencie seus cursos" : selectedModulo?.titulo || "Aulas"}
 					</div>
 				</div>
-				{view === "modulos" ? (
+				{view === "cursos" ? (
 					<div className="cms-header-actions">
 						{isAdmin && (
 							<button
@@ -399,14 +399,14 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 							</button>
 						)}
 						{isAdmin && (
-							<button id="btn-novo-curso" className="btn-primary" onClick={() => navigate("/cms/criar-modulo")}>
+							<button id="btn-novo-curso" className="btn-primary" onClick={() => navigate("/cms/criar-curso")}>
 								+ Novo Curso
 							</button>
 						)}
 					</div>
 				) : (
 					<>
-						<button id="btn-voltar-cursos" className="btn-secondary cms-back-btn" onClick={() => setView("modulos")}>
+						<button id="btn-voltar-cursos" className="btn-secondary cms-back-btn" onClick={() => setView("cursos")}>
 							<i className="icon-arrow-left icon-sm" /> Voltar aos Cursos
 						</button>
 						{isAdmin && (
@@ -418,7 +418,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 				)}
 			</div>
 
-			{showImportExport && view === "modulos" && (
+			{showImportExport && view === "cursos" && (
 				<div className="cms-import-section">
 					<div className="cms-import-header">
 						<h4 style={{ margin: 0 }}>Importar / Exportar Dados</h4>
@@ -654,7 +654,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 				</div>
 			)}
 
-			{view === "modulos" ? (
+			{view === "cursos" ? (
 				<div className="table-wrap">
 					<table>
 						<thead>

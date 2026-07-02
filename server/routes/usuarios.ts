@@ -303,14 +303,14 @@ router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async 
 				: (db.findMany("user", { where: { role: "ATENDENTE" } }) as Promise<any[]>);
 
 		// Fetch all required data in parallel
-		const [allUsers, modulos, progressosAll, quizResponsesAll, certificatesAll, notificationsAll, aulasAll] =
+		const [allUsers, cursos, progressosAll, quizResponsesAll, certificatesAll, notificationsAll, aulasAll] =
 			await Promise.all([
 				allUsersQuery,
-				db.findMany("modulo", { orderBy: { ordem: "asc" } }) as Promise<any[]>,
+				db.findMany("curso", { orderBy: { ordem: "asc" } }) as Promise<any[]>,
 				db.findMany("progresso", { where: { concluido: true } }) as Promise<any[]>,
 				db.findMany("quizResponse", {}) as Promise<any[]>,
 				db.findMany("certificate", {}) as Promise<any[]>,
-				db.findMany("notification", { where: { titulo: "Modulo Completo" } }) as Promise<any[]>,
+				db.findMany("notification", { where: { titulo: "Curso Completo" } }) as Promise<any[]>,
 				db.findMany("aula", { include: { quiz: { include: { perguntas: true } } } }) as Promise<any[]>,
 			]);
 
@@ -337,7 +337,7 @@ router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async 
 		for (const c of certificatesAll) {
 			if (!userIds.has(c.userId)) continue;
 			const map = certificatesByUser.get(c.userId) || new Map<string, any>();
-			map.set(c.moduloId, c);
+			map.set(c.cursoId, c);
 			certificatesByUser.set(c.userId, map);
 		}
 
@@ -349,12 +349,12 @@ router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async 
 			notificationsByUser.set(n.fromId, arr);
 		}
 
-		// Group aulas by moduloId
+		// Group aulas by cursoId
 		const aulasByModulo = new Map<string, any[]>();
 		for (const a of aulasAll) {
-			const arr = aulasByModulo.get(a.moduloId) || [];
+			const arr = aulasByModulo.get(a.cursoId) || [];
 			arr.push(a);
-			aulasByModulo.set(a.moduloId, arr);
+			aulasByModulo.set(a.cursoId, arr);
 		}
 
 		const result = allUsers.map((m: any) => {
@@ -363,7 +363,7 @@ router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async 
 			const certMap = certificatesByUser.get(m.id) || new Map<string, any>();
 			const notifications = notificationsByUser.get(m.id) || [];
 
-			const modulosProcessed = modulos.map((mod: any) => {
+			const cursosProcessed = cursos.map((mod: any) => {
 				const aulas = aulasByModulo.get(mod.id) || [];
 				const aulaIds = aulas.map((a: any) => a.id);
 				const concluidas = progressos.filter((p: any) => aulaIds.includes(p.aulaId)).length;
@@ -419,7 +419,7 @@ router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async 
 					autoProcessStatus.issues.push("Certificado esperado mas nao gerado");
 				}
 				if (allAulasCompleted && allQuizzesPassed && !hasCompletionNotif) {
-					autoProcessStatus.issues.push("Modulo completo mas notificacao nao enviada ao gestor");
+					autoProcessStatus.issues.push("Curso completo mas notificacao nao enviada ao gestor");
 				}
 
 				return {
@@ -444,7 +444,7 @@ router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async 
 				xp: m.xp,
 				lastLogin: m.lastLogin,
 				gestorId: m.gestorId,
-				modulos: modulosProcessed,
+				cursos: cursosProcessed,
 			};
 		});
 
@@ -552,7 +552,7 @@ router.post("/:id/resend-verification", authenticate, authorize("ADMIN", "GESTOR
 router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"), async (req: AuthRequest, res) => {
 	try {
 		const userId = getStringParam(req.params.userId)!;
-		const { tipo, targetId } = req.body; // tipo: 'quiz' | 'aula' | 'modulo', targetId: quiz/aula/modulo id
+		const { tipo, targetId } = req.body; // tipo: 'quiz' | 'aula' | 'curso', targetId: quiz/aula/curso id
 
 		const targetUser = (await db.findUnique("user", { id: userId })) as any;
 		if (!targetUser) return res.status(404).json({ error: "Usuario nao encontrado" });
@@ -583,8 +583,8 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 
 			await db.upsert(
 				"progresso",
-				{ moduloId_aulaId_userId: { moduloId: quiz.aula.moduloId, aulaId: quiz.aulaId, userId } },
-				{ moduloId: quiz.aula.moduloId, aulaId: quiz.aulaId, userId, concluido: true },
+				{ cursoId_aulaId_userId: { cursoId: quiz.aula.cursoId, aulaId: quiz.aulaId, userId } },
+				{ cursoId: quiz.aula.cursoId, aulaId: quiz.aulaId, userId, concluido: true },
 				{ concluido: true },
 			);
 
@@ -598,8 +598,8 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 
 			await db.upsert(
 				"progresso",
-				{ moduloId_aulaId_userId: { moduloId: aula.moduloId, aulaId: targetId, userId } },
-				{ moduloId: aula.moduloId, aulaId: targetId, userId, concluido: true },
+				{ cursoId_aulaId_userId: { cursoId: aula.cursoId, aulaId: targetId, userId } },
+				{ cursoId: aula.cursoId, aulaId: targetId, userId, concluido: true },
 				{ concluido: true },
 			);
 
@@ -626,21 +626,21 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 			return res.json({ message: "Aula aprovada com sucesso" });
 		}
 
-		if (tipo === "modulo" && targetId) {
-			const modulo = (await db.findUnique(
-				"modulo",
+		if (tipo === "curso" && targetId) {
+			const curso = (await db.findUnique(
+				"curso",
 				{ id: targetId },
 				{
 					include: { aulas: { include: { quiz: { include: { perguntas: true } } } } },
 				},
 			)) as any;
-			if (!modulo) return res.status(404).json({ error: "Modulo nao encontrado" });
+			if (!curso) return res.status(404).json({ error: "Curso nao encontrado" });
 
-			for (const aula of modulo.aulas) {
+			for (const aula of curso.aulas) {
 				await db.upsert(
 					"progresso",
-					{ moduloId_aulaId_userId: { moduloId: targetId, aulaId: aula.id, userId } },
-					{ moduloId: targetId, aulaId: aula.id, userId, concluido: true },
+					{ cursoId_aulaId_userId: { cursoId: targetId, aulaId: aula.id, userId } },
+					{ cursoId: targetId, aulaId: aula.id, userId, concluido: true },
 					{ concluido: true },
 				);
 
@@ -655,12 +655,12 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 				}
 			}
 
-			if (modulo.autoCertificado) {
-				const existing = (await db.findFirst("certificate", { where: { userId, moduloId: targetId } })) as any;
+			if (curso.autoCertificado) {
+				const existing = (await db.findFirst("certificate", { where: { userId, cursoId: targetId } })) as any;
 				if (!existing) {
 					await db.create("certificate", {
 						userId,
-						moduloId: targetId,
+						cursoId: targetId,
 						status: "APPROVED",
 					});
 				}
@@ -668,13 +668,13 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 
 			await logActivity(
 				req.userId!,
-				"Auto-Aprovar Modulo",
-				`Aprovou modulo "${modulo.titulo}" completo para ${targetUser.nome}`,
+				"Auto-Aprovar Curso",
+				`Aprovou curso "${curso.titulo}" completo para ${targetUser.nome}`,
 			);
-			return res.json({ message: "Modulo completo aprovado com sucesso" });
+			return res.json({ message: "Curso completo aprovado com sucesso" });
 		}
 
-		return res.status(400).json({ error: "Tipo invalido. Use: quiz, aula, ou modulo" });
+		return res.status(400).json({ error: "Tipo invalido. Use: quiz, aula, ou curso" });
 	} catch (error) {
 		logger.error("[ROUTE ERROR]", error);
 		res.status(500).json({ error: "Erro ao auto-aprovar" });
@@ -685,7 +685,7 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 router.post("/:userId/fix-cert", authenticate, authorize("ADMIN", "GESTOR"), async (req: AuthRequest, res) => {
 	try {
 		const userId = getStringParam(req.params.userId)!;
-		const { moduloId } = req.body as { moduloId: string };
+		const { cursoId } = req.body as { cursoId: string };
 
 		const targetUser = (await db.findUnique("user", { id: userId })) as any;
 		if (!targetUser) return res.status(404).json({ error: "Usuario nao encontrado" });
@@ -693,10 +693,10 @@ router.post("/:userId/fix-cert", authenticate, authorize("ADMIN", "GESTOR"), asy
 			return res.status(403).json({ error: "Voce so pode gerenciar atendentes da sua equipe" });
 		}
 
-		const modulo = (await db.findUnique("modulo", { id: moduloId })) as any;
-		if (!modulo) return res.status(404).json({ error: "Modulo nao encontrado" });
+		const curso = (await db.findUnique("curso", { id: cursoId })) as any;
+		if (!curso) return res.status(404).json({ error: "Curso nao encontrado" });
 
-		const existing = (await db.findFirst("certificate", { where: { userId, moduloId } })) as any;
+		const existing = (await db.findFirst("certificate", { where: { userId, cursoId } })) as any;
 		if (existing) {
 			if (existing.status !== "APPROVED") {
 				await db.update("certificate", { id: existing.id }, { status: "APPROVED" });
@@ -704,17 +704,17 @@ router.post("/:userId/fix-cert", authenticate, authorize("ADMIN", "GESTOR"), asy
 			await logActivity(
 				req.userId!,
 				"Fix Certificado",
-				`Corrigiu certificado do modulo "${modulo.titulo}" para ${targetUser.nome} (era ${existing.status}, agora APPROVED)`,
+				`Corrigiu certificado do curso "${curso.titulo}" para ${targetUser.nome} (era ${existing.status}, agora APPROVED)`,
 			);
 			return res.json({ message: "Certificado corrigido para APPROVED" });
 		}
 
-		await db.create("certificate", { userId, moduloId, status: "APPROVED" });
-		await awardPointsIfNotAwarded(userId, "CERTIFICATE", `CERTIFICATE:modulo:${moduloId}`);
+		await db.create("certificate", { userId, cursoId, status: "APPROVED" });
+		await awardPointsIfNotAwarded(userId, "CERTIFICATE", `CERTIFICATE:curso:${cursoId}`);
 		await logActivity(
 			req.userId!,
 			"Fix Certificado",
-			`Gerou certificado manualmente do modulo "${modulo.titulo}" para ${targetUser.nome}`,
+			`Gerou certificado manualmente do curso "${curso.titulo}" para ${targetUser.nome}`,
 		);
 		res.json({ message: "Certificado gerado com sucesso" });
 	} catch (error) {
@@ -761,7 +761,7 @@ router.post("/:userId/fix-notify", authenticate, authorize("ADMIN", "GESTOR"), a
 router.post("/:userId/fix-progress", authenticate, authorize("ADMIN", "GESTOR"), async (req: AuthRequest, res) => {
 	try {
 		const userId = getStringParam(req.params.userId)!;
-		const { aulaId, moduloId } = req.body;
+		const { aulaId, cursoId } = req.body;
 
 		const targetUser = (await db.findUnique("user", { id: userId })) as any;
 		if (!targetUser) return res.status(404).json({ error: "Usuario nao encontrado" });
@@ -771,8 +771,8 @@ router.post("/:userId/fix-progress", authenticate, authorize("ADMIN", "GESTOR"),
 
 		await db.upsert(
 			"progresso",
-			{ moduloId_aulaId_userId: { moduloId, aulaId, userId } },
-			{ moduloId, aulaId, userId, concluido: true },
+			{ cursoId_aulaId_userId: { cursoId, aulaId, userId } },
+			{ cursoId, aulaId, userId, concluido: true },
 			{ concluido: true },
 		);
 

@@ -9,9 +9,9 @@ interface RelatoriosPageProps {
 
 const ACTION_LABELS: Record<string, string> = {
 	LOGIN: "Acesso",
-	MODULE_OPEN: "Abriu Modulo",
+	MODULE_OPEN: "Abriu Curso",
 	LESSON_COMPLETE: "Aula Concluida",
-	MODULE_COMPLETE: "Modulo Concluido",
+	MODULE_COMPLETE: "Curso Concluido",
 	QUIZ_CORRECT: "Quiz Correto",
 	QUIZ_PASS: "Quiz Aprovado",
 	CERTIFICATE: "Certificado",
@@ -40,10 +40,10 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
 			setStats(dashboardData);
 			setLeaderboard(leaderData.users || []);
 
-			const modulos = await api.getCmsModulos();
+			const cursos = await api.getCmsModulos();
 			const progress = await api.getProgresso();
-			const modStats = modulos.map((m: any) => {
-				const modProgress = progress.filter((p: any) => p.moduloId === m.id);
+			const modStats = cursos.map((m: any) => {
+				const modProgress = progress.filter((p: any) => p.cursoId === m.id);
 				const completed = modProgress.filter((p: any) => p.concluido).length;
 				const total = m._count?.aulas || m.aulas?.length || 0;
 				return {
@@ -175,12 +175,12 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
 				</>
 			)}
 
-			<div className="section-title">Desempenho por Modulo</div>
+			<div className="section-title">Desempenho por Curso</div>
 			<div className="table-wrap rel-table-wrap">
 				<table>
 					<thead>
 						<tr>
-							<th>Modulo</th>
+							<th>Curso</th>
 							<th>Concluidos</th>
 							<th>Em Andamento</th>
 							<th>Taxa Conclusao</th>

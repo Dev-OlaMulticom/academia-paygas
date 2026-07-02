@@ -37,7 +37,7 @@ describe("SHARED_ACTION_OBJECT mirrors SHARED_ACTIONS", () => {
 
 describe("SHARED_SUBJECTS", () => {
 	it("includes the core LMS subjects", () => {
-		for (const v of ["User", "Modulo", "Aula", "Licao", "Quiz", "Certificate", "Progresso", "all"]) {
+		for (const v of ["User", "Curso", "Aula", "Licao", "Quiz", "Certificate", "Progresso", "all"]) {
 			assert.ok(SHARED_SUBJECTS.includes(v as never), `missing subject ${v}`);
 		}
 	});

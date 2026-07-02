@@ -466,8 +466,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
 						em um so lugar
 					</h1>
 					<p>
-						A Academia PayGas conecta postos, parceiros e comunidades em todo o Brasil com conteudo profissional,
-						modulos personalizados e certificacao reconhecida.
+						A Academia PayGas conecta postos, parceiros e comunidades em todo o Brasil com conteudo profissional, cursos
+						personalizados e certificacao reconhecida.
 					</p>
 					<div className="login-stats login-stats-grid">
 						<div className="login-stat">

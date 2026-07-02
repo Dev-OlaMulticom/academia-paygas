@@ -74,21 +74,21 @@ async function main() {
 	});
 	console.log("✅ Users created");
 
-	// ============ MODULO: EXCELencia NO ATENDIMENTO ============
-	const moduloData = {
+	// ============ CURSO: EXCELencia NO ATENDIMENTO ============
+	const cursoData = {
 		titulo: "Excelencia no Atendimento",
 		descricao:
-			"Modulo completo de treinamento em atendimento ao cliente para postos de combustivel. Aprenda tecnicas de comunicacao, resolucao de conflitos e vendas consultivas.",
+			"Curso completo de treinamento em atendimento ao cliente para postos de combustivel. Aprenda tecnicas de comunicacao, resolucao de conflitos e vendas consultivas.",
 		ordem: 1,
 	};
 
-	let modulo = await prisma.modulo.findFirst({
-		where: { titulo: moduloData.titulo },
+	let curso = await prisma.curso.findFirst({
+		where: { titulo: cursoData.titulo },
 	});
 
-	if (!modulo) {
-		modulo = await prisma.modulo.create({
-			data: moduloData,
+	if (!curso) {
+		curso = await prisma.curso.create({
+			data: cursoData,
 		});
 	}
 
@@ -255,14 +255,14 @@ async function main() {
 
 	for (const aulaData of aulasData) {
 		let aula = await prisma.aula.findFirst({
-			where: { titulo: aulaData.titulo, moduloId: modulo.id },
+			where: { titulo: aulaData.titulo, cursoId: curso.id },
 		});
 
 		if (!aula) {
 			const { quiz, ...aulaInfo } = aulaData;
 			aula = await prisma.aula.create({
 				data: {
-					moduloId: modulo.id,
+					cursoId: curso.id,
 					titulo: aulaInfo.titulo,
 					descricao: aulaInfo.descricao,
 					ordem: aulaInfo.ordem,
@@ -303,23 +303,23 @@ async function main() {
 			}
 		}
 	}
-	console.log("✅ Modulo Excelencia created with 4 aulas, 4 quizzes, 12 questions");
+	console.log("✅ Curso Excelencia created with 4 aulas, 4 quizzes, 12 questions");
 
-	// ============ MODULO: SEGURANCA E NORMAS ============
-	const modulo2Data = {
+	// ============ CURSO: SEGURANCA E NORMAS ============
+	const curso2Data = {
 		titulo: "Seguranca e Normas",
 		descricao:
 			"Capacitação em seguranca do trabalho, normas ABNT, procedimentos de emergencia e prevencao de acidentes em postos de combustivel.",
 		ordem: 2,
 	};
 
-	let modulo2 = await prisma.modulo.findFirst({
-		where: { titulo: modulo2Data.titulo },
+	let curso2 = await prisma.curso.findFirst({
+		where: { titulo: curso2Data.titulo },
 	});
 
-	if (!modulo2) {
-		modulo2 = await prisma.modulo.create({
-			data: modulo2Data,
+	if (!curso2) {
+		curso2 = await prisma.curso.create({
+			data: curso2Data,
 		});
 	}
 
@@ -488,14 +488,14 @@ async function main() {
 
 	for (const aulaData of aulas2Data) {
 		let aula = await prisma.aula.findFirst({
-			where: { titulo: aulaData.titulo, moduloId: modulo2.id },
+			where: { titulo: aulaData.titulo, cursoId: curso2.id },
 		});
 
 		if (!aula) {
 			const { quiz, ...aulaInfo } = aulaData;
 			aula = await prisma.aula.create({
 				data: {
-					moduloId: modulo2.id,
+					cursoId: curso2.id,
 					titulo: aulaInfo.titulo,
 					descricao: aulaInfo.descricao,
 					ordem: aulaInfo.ordem,
@@ -536,18 +536,18 @@ async function main() {
 			}
 		}
 	}
-	console.log("✅ Modulo Seguranca created with 4 aulas, 4 quizzes, 12 questions");
+	console.log("✅ Curso Seguranca created with 4 aulas, 4 quizzes, 12 questions");
 
 	// ============ PROGRESSO DE EXEMPLO ============
 	const allAulas = await prisma.aula.findMany({
-		where: { moduloId: modulo.id },
+		where: { cursoId: curso.id },
 		orderBy: { ordem: "asc" },
 	});
 
 	if (allAulas[0]) {
 		const existsP = await prisma.progresso.findFirst({
 			where: {
-				moduloId: modulo.id,
+				cursoId: curso.id,
 				aulaId: allAulas[0].id,
 				userId: atendente1.id,
 			},
@@ -555,7 +555,7 @@ async function main() {
 		if (!existsP)
 			await prisma.progresso.create({
 				data: {
-					moduloId: modulo.id,
+					cursoId: curso.id,
 					aulaId: allAulas[0].id,
 					userId: atendente1.id,
 					concluido: true,
@@ -565,7 +565,7 @@ async function main() {
 	if (allAulas[1]) {
 		const existsP = await prisma.progresso.findFirst({
 			where: {
-				moduloId: modulo.id,
+				cursoId: curso.id,
 				aulaId: allAulas[1].id,
 				userId: atendente1.id,
 			},
@@ -573,7 +573,7 @@ async function main() {
 		if (!existsP)
 			await prisma.progresso.create({
 				data: {
-					moduloId: modulo.id,
+					cursoId: curso.id,
 					aulaId: allAulas[1].id,
 					userId: atendente1.id,
 					concluido: true,
@@ -583,7 +583,7 @@ async function main() {
 	if (allAulas[0]) {
 		const existsP = await prisma.progresso.findFirst({
 			where: {
-				moduloId: modulo.id,
+				cursoId: curso.id,
 				aulaId: allAulas[0].id,
 				userId: atendente2.id,
 			},
@@ -591,7 +591,7 @@ async function main() {
 		if (!existsP)
 			await prisma.progresso.create({
 				data: {
-					moduloId: modulo.id,
+					cursoId: curso.id,
 					aulaId: allAulas[0].id,
 					userId: atendente2.id,
 					concluido: true,
@@ -624,7 +624,7 @@ async function main() {
 				userId: atendente1.id,
 				action: "MODULE_OPEN",
 				points: 20,
-				details: "Modulo aberto: Excelencia no Atendimento",
+				details: "Curso aberto: Excelencia no Atendimento",
 			},
 		});
 		await prisma.pointsTransaction.create({
@@ -678,7 +678,7 @@ async function main() {
 				userId: atendente2.id,
 				action: "MODULE_OPEN",
 				points: 20,
-				details: "Modulo aberto: Excelencia no Atendimento",
+				details: "Curso aberto: Excelencia no Atendimento",
 			},
 		});
 		await prisma.pointsTransaction.create({
@@ -712,7 +712,7 @@ async function main() {
 	await prisma.activityLog.create({
 		data: {
 			userId: atendente1.id,
-			acao: "Modulo Aberto",
+			acao: "Curso Aberto",
 			detalhes: "Excelencia no Atendimento",
 		},
 	});

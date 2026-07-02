@@ -136,18 +136,18 @@ async function getApiSpec() {
 				},
 			},
 
-			// CMS / MODULOS
+			// CMS / CURSOS
 			{
 				method: "GET",
 				path: "/api/cms",
-				summary: "Listar modulos (CMS)",
+				summary: "Listar cursos (CMS)",
 				tags: ["Modulos"],
 				permission: "ADMIN, GESTOR",
 			},
 			{
 				method: "POST",
 				path: "/api/cms",
-				summary: "Crear modulo",
+				summary: "Crear curso",
 				tags: ["Modulos"],
 				permission: "ADMIN, GESTOR",
 				request_body: {
@@ -166,22 +166,22 @@ async function getApiSpec() {
 			{
 				method: "PUT",
 				path: "/api/cms/:id",
-				summary: "Actualizar modulo",
+				summary: "Actualizar curso",
 				tags: ["Modulos"],
 				permission: "ADMIN, GESTOR",
 			},
-			{ method: "DELETE", path: "/api/cms/:id", summary: "Eliminar modulo", tags: ["Modulos"], permission: "ADMIN" },
+			{ method: "DELETE", path: "/api/cms/:id", summary: "Eliminar curso", tags: ["Modulos"], permission: "ADMIN" },
 			{
 				method: "GET",
-				path: "/api/modulos/:id/aulas",
-				summary: "Obtener aulas de un modulo",
+				path: "/api/cursos/:id/aulas",
+				summary: "Obtener aulas de un curso",
 				tags: ["Modulos"],
 				permission: "authenticated",
 			},
 			{
 				method: "POST",
-				path: "/api/modulos/:id/aulas",
-				summary: "Crear aula en modulo",
+				path: "/api/cursos/:id/aulas",
+				summary: "Crear aula en curso",
 				tags: ["Modulos"],
 				permission: "ADMIN, GESTOR",
 				request_body: {
@@ -213,7 +213,7 @@ async function getApiSpec() {
 				summary: "Solicitar certificado",
 				tags: ["Certificates"],
 				permission: "authenticated",
-				request_body: { required: ["moduloId"] },
+				request_body: { required: ["cursoId"] },
 			},
 			{
 				method: "PUT",
@@ -275,7 +275,7 @@ async function getApiSpec() {
 				summary: "Actualizar/crear progreso",
 				tags: ["Progresso"],
 				permission: "authenticated",
-				request_body: { required: ["moduloId", "aulaId"], optional: ["concluido"] },
+				request_body: { required: ["cursoId", "aulaId"], optional: ["concluido"] },
 			},
 			{
 				method: "GET",
@@ -287,7 +287,7 @@ async function getApiSpec() {
 					totalAulas: "number",
 					concluidas: "number",
 					percentual: "number",
-					modulosIniciados: "number",
+					cursosIniciados: "number",
 					xp: "number",
 				},
 			},
@@ -301,7 +301,7 @@ async function getApiSpec() {
 				permission: "authenticated",
 				response: {
 					totalModulos: "number",
-					modulosConcluidos: "number",
+					cursosConcluidos: "number",
 					totalCertificados: "number",
 					totalAulas: "number",
 					aulasConcluidas: "number",
@@ -357,7 +357,7 @@ async function getApiSpec() {
 				updatedAt: "datetime",
 				lastLogin: "datetime|null",
 			},
-			Modulo: {
+			Curso: {
 				id: "string (cuid)",
 				titulo: "string",
 				descricao: "string",
@@ -370,7 +370,7 @@ async function getApiSpec() {
 			},
 			Aula: {
 				id: "string (cuid)",
-				moduloId: "string (FK Modulo)",
+				cursoId: "string (FK Curso)",
 				titulo: "string",
 				descricao: "string",
 				ordem: "number",
@@ -412,7 +412,7 @@ async function getApiSpec() {
 			Certificate: {
 				id: "string (cuid)",
 				userId: "string (FK User)",
-				moduloId: "string (FK Modulo)",
+				cursoId: "string (FK Curso)",
 				status: "enum: PENDING | APPROVED | ISSUED",
 				pdfUrl: "string|null",
 				htmlContent: "string|null",
@@ -437,11 +437,11 @@ async function getApiSpec() {
 			},
 			Progresso: {
 				id: "string (cuid)",
-				moduloId: "string (FK Modulo)",
+				cursoId: "string (FK Curso)",
 				aulaId: "string (FK Aula)",
 				userId: "string (FK User)",
 				concluido: "boolean",
-				unique: "[moduloId, aulaId, userId]",
+				unique: "[cursoId, aulaId, userId]",
 			},
 		},
 		error_format: { error: "string (human-readable message)" },

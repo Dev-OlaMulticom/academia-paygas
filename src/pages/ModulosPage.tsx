@@ -28,7 +28,7 @@ function useIsMobile(breakpoint = 768) {
 
 export function ModulosPage() {
 	const navigate = useNavigate();
-	const { moduloNombre } = useParams<{ moduloNombre: string }>();
+	const { cursoNombre } = useParams<{ cursoNombre: string }>();
 	const { user } = useAuth();
 	const { isAtendente } = useAbility();
 	const [currentLesson, setCurrentLesson] = useState(0);
@@ -36,7 +36,7 @@ export function ModulosPage() {
 	const [showAllQuizzes, setShowAllQuizzes] = useState(false);
 	const [showCertificate, setShowCertificate] = useState(false);
 	const [lessons, setLessons] = useState<any[]>([]);
-	const [modulo, setModulo] = useState<any>(null);
+	const [curso, setModulo] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
 	const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
 	const [quizSubmitted, setQuizSubmitted] = useState(false);
@@ -66,10 +66,10 @@ export function ModulosPage() {
 	const isMobile = useIsMobile();
 
 	const loadModulo = useCallback(async () => {
-		if (!moduloNombre) return;
+		if (!cursoNombre) return;
 		try {
 			const allMods = await api.getCmsModulos();
-			const foundModulo = allMods.find((m: any) => slugify(m.titulo || m.title || "") === moduloNombre);
+			const foundModulo = allMods.find((m: any) => slugify(m.titulo || m.title || "") === cursoNombre);
 			if (foundModulo) {
 				setModulo(foundModulo);
 				const aulasData = await api.getAulas(foundModulo.id);
@@ -80,15 +80,15 @@ export function ModulosPage() {
 				setLessons([]);
 			}
 		} catch (err) {
-			console.error("Erro ao carregar modulo:", err);
+			console.error("Erro ao carregar curso:", err);
 			setLessons([]);
 		} finally {
 			setLoading(false);
 		}
-	}, [moduloNombre]);
+	}, [cursoNombre]);
 
 	const loadQuizResults = useCallback(async () => {
-		if (!modulo) return;
+		if (!curso) return;
 		try {
 			const results: Record<string, any> = {};
 			for (const lesson of lessons) {
@@ -103,19 +103,19 @@ export function ModulosPage() {
 			}
 			setAllQuizResults(results);
 		} catch {}
-	}, [modulo, lessons, user?.id]);
+	}, [curso, lessons, user?.id]);
 
 	const loadCertificate = useCallback(async () => {
-		if (!modulo) return;
+		if (!curso) return;
 		try {
 			const certs = await api.getCertificates();
 			const data = Array.isArray(certs) ? certs : (certs as any)?.data || [];
-			const myCert = data.find((c: any) => c.moduloId === modulo.id);
+			const myCert = data.find((c: any) => c.cursoId === curso.id);
 			setCertificate(myCert || null);
 		} catch {
 			setCertificate(null);
 		}
-	}, [modulo]);
+	}, [curso]);
 
 	const isLessonCompleted = useCallback((lesson: any) => lesson.concluido === true, []);
 
@@ -124,25 +124,25 @@ export function ModulosPage() {
 	}, [loadModulo]);
 
 	useEffect(() => {
-		if (modulo && lessons.length > 0) {
+		if (curso && lessons.length > 0) {
 			loadQuizResults();
 			loadCertificate();
 		}
-	}, [modulo, lessons, loadQuizResults, loadCertificate]);
+	}, [curso, lessons, loadQuizResults, loadCertificate]);
 
 	// Auto-request certificate for modules without quizzes when all lessons completed
 	useEffect(() => {
-		if (!modulo || lessons.length === 0 || certificate) return;
+		if (!curso || lessons.length === 0 || certificate) return;
 		const hasQuizzes = lessons.some((l: any) => l.quiz);
 		if (hasQuizzes) return;
 		const allDone = lessons.every((l: any) => isLessonCompleted(l));
 		if (allDone) {
 			api
-				.createCertificate(modulo.id)
+				.createCertificate(curso.id)
 				.then(() => loadCertificate())
 				.catch(() => {});
 		}
-	}, [lessons, modulo, certificate, loadCertificate, isLessonCompleted]);
+	}, [lessons, curso, certificate, loadCertificate, isLessonCompleted]);
 
 	const canAdvanceToLesson = (index: number) => {
 		if (index === 0) return true;
@@ -182,7 +182,7 @@ export function ModulosPage() {
 
 	const handleConcluir = async () => {
 		const lesson = lessons[currentLesson];
-		if (!lesson || !modulo) return;
+		if (!lesson || !curso) return;
 
 		if (lesson.quiz) {
 			setShowQuiz(true);
@@ -190,7 +190,7 @@ export function ModulosPage() {
 		}
 
 		try {
-			await api.updateProgresso(modulo.id, lesson.id, true);
+			await api.updateProgresso(curso.id, lesson.id, true);
 			const updated = [...lessons];
 			updated[currentLesson] = { ...updated[currentLesson], concluido: true };
 			setLessons(updated);
@@ -239,7 +239,7 @@ export function ModulosPage() {
 				loadQuizResults();
 				loadCertificate();
 
-				if (lesson.quiz.autoGerarCertificado || modulo?.autoCertificado) {
+				if (lesson.quiz.autoGerarCertificado || curso?.autoCertificado) {
 					setTimeout(() => {
 						setShowQuiz(false);
 						setShowCertificate(true);
@@ -267,7 +267,7 @@ export function ModulosPage() {
 		return (
 			<div className="page active">
 				<div className="page-header">
-					<div className="page-title">Carregando modulo...</div>
+					<div className="page-title">Carregando curso...</div>
 				</div>
 			</div>
 		);
@@ -278,7 +278,7 @@ export function ModulosPage() {
 			<div className="page active">
 				<div className="page-header">
 					<div>
-						<button className="btn-secondary back-btn" onClick={() => navigate("/modulos")}>
+						<button className="btn-secondary back-btn" onClick={() => navigate("/cursos")}>
 							<i className="icon-arrow-left icon-sm" /> Voltar
 						</button>
 						<div className="page-title">Acesso restrito</div>
@@ -293,15 +293,15 @@ export function ModulosPage() {
 		);
 	}
 
-	if (!modulo) {
+	if (!curso) {
 		return (
 			<div className="page active">
 				<div className="page-header">
 					<div>
-						<button className="btn-secondary back-btn" onClick={() => navigate("/modulos")}>
+						<button className="btn-secondary back-btn" onClick={() => navigate("/cursos")}>
 							<i className="icon-arrow-left icon-sm" /> Voltar
 						</button>
-						<div className="page-title">Modulo nao encontrado</div>
+						<div className="page-title">Curso nao encontrado</div>
 					</div>
 				</div>
 			</div>
@@ -324,7 +324,7 @@ export function ModulosPage() {
 						style={{ marginTop: "12px" }}
 						onClick={async () => {
 							try {
-								await api.createCertificate(modulo.id);
+								await api.createCertificate(curso.id);
 								loadCertificate();
 							} catch (_e) {
 								alert("Erro ao solicitar certificado");
@@ -359,10 +359,10 @@ export function ModulosPage() {
 		}
 		const DEFAULT_TEMPLATE = `<div style="width:800px;padding:40px;background:#ffffff;color:#1a1a1a;border-radius:12px;text-align:center;font-family:Arial,sans-serif;border:2px solid #F47C20;">
   <div style="font-size:14px;letter-spacing:3px;margin-bottom:8px;color:#0A2E6E;">ACADEMIA PAYGAS</div>
-  <div style="font-size:28px;margin-bottom:20px;">{{MODULO_ICONE}} {{MODULO_TITULO}}</div>
+  <div style="font-size:28px;margin-bottom:20px;">{{CURSO_ICONE}} {{CURSO_TITULO}}</div>
   <div style="font-size:14px;color:#666;margin-bottom:10px;">Certificamos que</div>
   <div style="font-size:32px;font-weight:bold;margin:20px 0;border-bottom:2px solid #F47C20;padding-bottom:20px;color:#0A2E6E;">{{USUARIO_NOME}}</div>
-  <div style="font-size:16px;margin-bottom:40px;color:#444;">concluiu o modulo de <strong>{{MODULO_TITULO}}</strong> com sucesso.</div>
+  <div style="font-size:16px;margin-bottom:40px;color:#444;">concluiu o curso de <strong>{{CURSO_TITULO}}</strong> com sucesso.</div>
   <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:40px;">
     <div style="text-align:left;">
       <div style="font-size:12px;color:#999;">{{DATA_HORA}}</div>
@@ -372,9 +372,9 @@ export function ModulosPage() {
     <div style="width:80px;height:80px;background:#F47C20;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:24px;font-weight:bold;color:#fff;">PG</div>
   </div>
 </div>`;
-		const template = certificate.moduloCertTemplate || certificate.modulo?.certificadoTemplate || DEFAULT_TEMPLATE;
-		const titulo = certificate.modulo?.titulo || modulo.titulo;
-		const icone = certificate.modulo?.icone || modulo.icone || "📚";
+		const template = certificate.cursoCertTemplate || certificate.curso?.certificadoTemplate || DEFAULT_TEMPLATE;
+		const titulo = certificate.curso?.titulo || curso.titulo;
+		const icone = certificate.curso?.icone || curso.icone || "📚";
 		const nome = user?.nome || "Usuario";
 		const gestorNome = "";
 		const certDate = certificate.createdAt ? new Date(certificate.createdAt) : new Date();
@@ -382,8 +382,8 @@ export function ModulosPage() {
 		const timeStr = certDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 		const certHtml = template
-			.replace(/\{\{MODULO_ICONE\}\}/g, icone)
-			.replace(/\{\{MODULO_TITULO\}\}/g, titulo)
+			.replace(/\{\{CURSO_ICONE\}\}/g, icone)
+			.replace(/\{\{CURSO_TITULO\}\}/g, titulo)
 			.replace(/\{\{USUARIO_NOME\}\}/g, nome)
 			.replace(/\{\{DATA\}\}/g, dateStr)
 			.replace(/\{\{DATA_HORA\}\}/g, `${dateStr} ${timeStr}`)
@@ -489,7 +489,7 @@ export function ModulosPage() {
 					.every((l: any) => updatedResults[l.quiz.id]?.concluido);
 				if (allLessonsDone && allQuizzesDone && !certificate) {
 					try {
-						await api.createCertificate(modulo.id);
+						await api.createCertificate(curso.id);
 						loadCertificate();
 					} catch {
 						/* silent */
@@ -671,7 +671,7 @@ export function ModulosPage() {
 				<h3 className="quizzes-title">📝 Todos os Quizzes</h3>
 				{quizzesWithLesson.length === 0 ? (
 					<div className="empty-state quizzes-empty-p">
-						<p className="quizzes-empty-text">Nenhum quiz disponivel neste modulo.</p>
+						<p className="quizzes-empty-text">Nenhum quiz disponivel neste curso.</p>
 					</div>
 				) : (
 					<div className="quizzes-list">
@@ -957,10 +957,10 @@ export function ModulosPage() {
 					<button className="btn-secondary back-btn" onClick={() => navigate(-1)}>
 						<i className="icon-arrow-left icon-sm" /> Voltar
 					</button>
-					<div className="page-title">{modulo.titulo}</div>
+					<div className="page-title">{curso.titulo}</div>
 					<div className="page-subtitle">
 						{lessons.length} {pluralize(lessons.length, "aula")}
-						{modulo.autoCertificado ? " · Certificado automatico" : ""}
+						{curso.autoCertificado ? " · Certificado automatico" : ""}
 					</div>
 				</div>
 			</div>
@@ -968,7 +968,7 @@ export function ModulosPage() {
 			<div className="lesson-layout">
 				<div className="lesson-sidebar">
 					<div className="lesson-sidebar-header">
-						<h3>{modulo.titulo}</h3>
+						<h3>{curso.titulo}</h3>
 						<p>
 							{lessons.filter((l) => isLessonCompleted(l)).length}/{lessons.length} concluidas
 						</p>
@@ -1232,8 +1232,8 @@ export function ModulosPage() {
 														Proxima Aula <i className="icon-chevron-right icon-sm" />
 													</button>
 												) : allCompleted ? (
-													<button className="btn-primary" onClick={() => navigate("/modulos")}>
-														<i className="icon-check-circle icon-sm" /> Finalizar Modulo
+													<button className="btn-primary" onClick={() => navigate("/cursos")}>
+														<i className="icon-check-circle icon-sm" /> Finalizar Curso
 													</button>
 												) : null}
 											</div>
@@ -1252,11 +1252,11 @@ export function ModulosPage() {
 															setCurrentLesson(i + 1);
 															resetLessonState();
 														} else {
-															navigate("/modulos");
+															navigate("/cursos");
 														}
 													}}
 												>
-													{i < lessons.length - 1 ? "Proxima Aula" : "Finalizar Modulo"}{" "}
+													{i < lessons.length - 1 ? "Proxima Aula" : "Finalizar Curso"}{" "}
 													<i className="icon-chevron-right icon-sm" />
 												</button>
 											</div>
@@ -1270,8 +1270,8 @@ export function ModulosPage() {
 					{allCompleted && (
 						<div className="completed-banner">
 							<i className="icon-check-circle icon-lg completed-banner-icon" />
-							<p className="completed-banner-text">Modulo Concluido!</p>
-							{modulo.autoCertificado && <p className="completed-auto-cert">Certificado gerado automaticamente.</p>}
+							<p className="completed-banner-text">Curso Concluido!</p>
+							{curso.autoCertificado && <p className="completed-auto-cert">Certificado gerado automaticamente.</p>}
 						</div>
 					)}
 
@@ -1343,10 +1343,9 @@ export function ModulosPage() {
 								className={`sidebar-extra-btn ${restartRequested ? "requested" : ""}`}
 								onClick={async () => {
 									if (restartRequested) return;
-									if (!window.confirm("Solicitar reinicio do progresso deste modulo? O gestor sera notificado."))
-										return;
+									if (!window.confirm("Solicitar reinicio do progresso deste curso? O gestor sera notificado.")) return;
 									try {
-										await api.requestRestart(modulo.id);
+										await api.requestRestart(curso.id);
 										setRestartRequested(true);
 										alert("Solicitação enviada ao gestor!");
 									} catch {
@@ -1557,9 +1556,9 @@ export function ModulosPage() {
 											{isLastLesson && allCompleted && (
 												<button
 													className="btn-primary lesson-action-btn lesson-action-btn-green"
-													onClick={() => navigate("/modulos")}
+													onClick={() => navigate("/cursos")}
 												>
-													<i className="icon-check-circle icon-sm" /> Finalizar Modulo
+													<i className="icon-check-circle icon-sm" /> Finalizar Curso
 												</button>
 											)}
 										</>
@@ -1636,7 +1635,7 @@ export function ModulosPage() {
 													setQuizSubmitted(false);
 													setQuizResult(null);
 													setDesktopQuizStep(0);
-													if (current?.quiz?.autoGerarCertificado || modulo?.autoCertificado) {
+													if (current?.quiz?.autoGerarCertificado || curso?.autoCertificado) {
 														loadCertificate();
 														setShowCertificate(true);
 													} else if (currentLesson < lessons.length - 1) {
@@ -1644,7 +1643,7 @@ export function ModulosPage() {
 													}
 												}}
 											>
-												{current?.quiz?.autoGerarCertificado || modulo?.autoCertificado
+												{current?.quiz?.autoGerarCertificado || curso?.autoCertificado
 													? "Ver Certificado"
 													: currentLesson < lessons.length - 1
 														? "Avancar para Proxima Aula"

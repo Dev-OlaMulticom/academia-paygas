@@ -42,7 +42,7 @@ router.get("/", authenticate, async (req: any, res) => {
 					user: {
 						select: { id: true, nome: true, email: true, role: true, gestorId: true },
 					},
-					modulo: {
+					curso: {
 						select: { id: true, titulo: true, icone: true, certificadoTemplate: true },
 					},
 				},
@@ -68,15 +68,15 @@ router.get("/", authenticate, async (req: any, res) => {
 // POST /api/certificates
 router.post("/", authenticate, async (req: any, res) => {
 	try {
-		const { moduloId } = req.body;
-		if (!moduloId) return res.status(400).json({ error: "moduloId é obrigatório" });
+		const { cursoId } = req.body;
+		if (!cursoId) return res.status(400).json({ error: "cursoId é obrigatório" });
 
-		const modulo = (await db.findUnique("modulo", { id: moduloId })) as any;
-		if (!modulo) return res.status(404).json({ error: "Módulo não encontrado" });
+		const curso = (await db.findUnique("curso", { id: cursoId })) as any;
+		if (!curso) return res.status(404).json({ error: "Módulo não encontrado" });
 
-		const aulas = (await db.findMany("aula", { where: { moduloId } })) as any[];
+		const aulas = (await db.findMany("aula", { where: { cursoId } })) as any[];
 		const completedCount = await db.count("progresso", {
-			moduloId,
+			cursoId,
 			userId: req.userId,
 			concluido: true,
 		});
@@ -85,15 +85,15 @@ router.post("/", authenticate, async (req: any, res) => {
 		}
 
 		// Atomic upsert to prevent race condition duplicates
-		const certStatus = modulo.autoCertificado ? "APPROVED" : "PENDING";
+		const certStatus = curso.autoCertificado ? "APPROVED" : "PENDING";
 		const cert = (await db.upsert(
 			"certificate",
-			{ userId_moduloId: { userId: req.userId, moduloId } },
-			{ userId: req.userId, moduloId, status: certStatus },
+			{ userId_cursoId: { userId: req.userId, cursoId } },
+			{ userId: req.userId, cursoId, status: certStatus },
 			{},
 		)) as any;
 
-		await logActivity(req.userId, "Certificado Solicitado", `Modulo: ${modulo.titulo}`);
+		await logActivity(req.userId, "Certificado Solicitado", `Curso: ${curso.titulo}`);
 		res.status(201).json(cert);
 	} catch (error) {
 		logger.error("[ROUTE ERROR]", error);

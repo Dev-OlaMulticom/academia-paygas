@@ -55,7 +55,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 
 	const handleAutoApprove = async (
 		userId: string,
-		tipo: "quiz" | "aula" | "modulo",
+		tipo: "quiz" | "aula" | "curso",
 		targetId: string,
 		label: string,
 	) => {
@@ -72,12 +72,12 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 		}
 	};
 
-	const handleFixCert = async (userId: string, moduloId: string, moduloTitulo: string) => {
-		const key = `fix-cert-${moduloId}`;
+	const handleFixCert = async (userId: string, cursoId: string, cursoTitulo: string) => {
+		const key = `fix-cert-${cursoId}`;
 		try {
 			setApproving(key);
-			await api.fixCert(userId, moduloId);
-			toast(`Certificado do modulo "${moduloTitulo}" corrigido!`, "success");
+			await api.fixCert(userId, cursoId);
+			toast(`Certificado do curso "${cursoTitulo}" corrigido!`, "success");
 			await loadDetail();
 		} catch (err: any) {
 			toast(err.message || "Erro ao corrigir certificado", "error");
@@ -86,14 +86,14 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 		}
 	};
 
-	const handleFixNotify = async (userId: string, nome: string, moduloTitulo: string) => {
-		const key = `fix-notify-${moduloTitulo}`;
+	const handleFixNotify = async (userId: string, nome: string, cursoTitulo: string) => {
+		const key = `fix-notify-${cursoTitulo}`;
 		try {
 			setApproving(key);
 			await api.fixNotify(
 				userId,
-				"Modulo Completo",
-				`${nome} completou o modulo "${moduloTitulo}" e recebeu o certificado.`,
+				"Curso Completo",
+				`${nome} completou o curso "${cursoTitulo}" e recebeu o certificado.`,
 			);
 			toast(`Notificacao enviada ao gestor sobre ${nome}!`, "success");
 			await loadDetail();
@@ -130,7 +130,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 
 		return (
 			<div className="eq-detail">
-				{detail.modulos?.map((mod: any) => {
+				{detail.cursos?.map((mod: any) => {
 					const pct = mod.totalAulas > 0 ? Math.round((mod.aulasConcluidas / mod.totalAulas) * 100) : 0;
 					const modKey = `${memberId}-${mod.id}`;
 					const isModExpanded = expandedModulo[modKey];
@@ -171,18 +171,18 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 									{(isAdmin || isGestor) && pct < 100 && (
 										<button
 											className="btn-secondary eq-auto-btn"
-											disabled={approving === `modulo-${mod.id}`}
+											disabled={approving === `curso-${mod.id}`}
 											onClick={(e) => {
 												e.stopPropagation();
-												handleAutoApprove(memberId, "modulo", mod.id, `Modulo "${mod.titulo}"`);
+												handleAutoApprove(memberId, "curso", mod.id, `Curso "${mod.titulo}"`);
 											}}
 										>
-											{approving === `modulo-${mod.id}` ? (
+											{approving === `curso-${mod.id}` ? (
 												<i className="icon-loader icon-xs" />
 											) : (
 												<i className="icon-check-circle icon-xs" />
 											)}
-											Aprovar Modulo
+											Aprovar Curso
 										</button>
 									)}
 									<i
@@ -404,11 +404,11 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 		const level = Math.floor(memberXp / XP_PER_LEVEL) + 1;
 		const isExpanded = expandedUser === member.id;
 		const detail = getDetailForUser(member.id);
-		const totalMods = detail?.modulos?.length || 0;
+		const totalMods = detail?.cursos?.length || 0;
 		const completedMods =
-			detail?.modulos?.filter((m: any) => m.aulasConcluidas === m.totalAulas && m.totalAulas > 0).length || 0;
-		const totalQuizzes = detail?.modulos?.reduce((sum: number, m: any) => sum + (m.quizzesTotal || 0), 0) || 0;
-		const passedQuizzes = detail?.modulos?.reduce((sum: number, m: any) => sum + (m.quizzesAprovados || 0), 0) || 0;
+			detail?.cursos?.filter((m: any) => m.aulasConcluidas === m.totalAulas && m.totalAulas > 0).length || 0;
+		const totalQuizzes = detail?.cursos?.reduce((sum: number, m: any) => sum + (m.quizzesTotal || 0), 0) || 0;
+		const passedQuizzes = detail?.cursos?.reduce((sum: number, m: any) => sum + (m.quizzesAprovados || 0), 0) || 0;
 
 		return (
 			<div key={member.id || i} className={`eq-user-card ${isExpanded ? "expanded" : ""}`}>
@@ -446,7 +446,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 							<>
 								<div className="eq-user-stat">
 									<span className={`eq-mod-badge ${completedMods === totalMods && totalMods > 0 ? "done" : ""}`}>
-										{completedMods}/{totalMods} {pluralize(totalMods, "modulo")}
+										{completedMods}/{totalMods} {pluralize(totalMods, "curso")}
 									</span>
 								</div>
 								{totalQuizzes > 0 && (

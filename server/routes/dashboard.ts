@@ -13,7 +13,7 @@ router.get("/", authenticate, async (req: any, res) => {
 
 		const [
 			totalModulos,
-			modulosComProgresso,
+			cursosComProgresso,
 			totalCertificados,
 			totalAulas,
 			aulasConcluidas,
@@ -21,9 +21,9 @@ router.get("/", authenticate, async (req: any, res) => {
 			recentActivity,
 			userPoints,
 		] = await Promise.all([
-			db.count("modulo"),
+			db.count("curso"),
 			db.groupBy("progresso", {
-				by: ["moduloId"],
+				by: ["cursoId"],
 				where: { userId, concluido: true },
 			}),
 			db.count("certificate", { userId, status: "ISSUED" }),
@@ -38,11 +38,11 @@ router.get("/", authenticate, async (req: any, res) => {
 			getUserPoints(userId),
 		]);
 
-		const modulosConcluidos = modulosComProgresso.length;
+		const cursosConcluidos = cursosComProgresso.length;
 
 		res.json({
 			totalModulos,
-			modulosConcluidos,
+			cursosConcluidos,
 			totalCertificados,
 			totalAulas,
 			aulasConcluidas,

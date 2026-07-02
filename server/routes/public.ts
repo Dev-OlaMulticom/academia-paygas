@@ -9,7 +9,7 @@ router.get("/stats", async (_req, res) => {
 	try {
 		const [totalUsers, totalModulos, totalAulas, totalCertificates] = await Promise.all([
 			db.count("user"),
-			db.count("modulo"),
+			db.count("curso"),
 			db.count("aula"),
 			db.count("certificate"),
 		]);

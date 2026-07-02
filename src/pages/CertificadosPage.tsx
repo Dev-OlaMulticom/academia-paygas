@@ -5,10 +5,10 @@ import { api } from "../lib/api";
 
 interface Certificate {
 	id: string;
-	moduloId: string;
-	moduloTitulo?: string;
-	moduloIcone?: string;
-	moduloCertTemplate?: string;
+	cursoId: string;
+	cursoTitulo?: string;
+	cursoIcone?: string;
+	cursoCertTemplate?: string;
 	status: string;
 	pdfUrl?: string;
 	createdAt?: string;
@@ -24,10 +24,10 @@ interface ModuloCert {
 
 const DEFAULT_CERT_TEMPLATE = `<div style="width:800px;padding:40px;background:#ffffff;color:#1a1a1a;border-radius:12px;text-align:center;font-family:Arial,sans-serif;border:2px solid #F47C20;">
   <div style="font-size:14px;letter-spacing:3px;margin-bottom:8px;color:#0A2E6E;">ACADEMIA PAYGAS</div>
-  <div style="font-size:28px;margin-bottom:20px;">{{MODULO_ICONE}} {{MODULO_TITULO}}</div>
+  <div style="font-size:28px;margin-bottom:20px;">{{CURSO_ICONE}} {{CURSO_TITULO}}</div>
   <div style="font-size:14px;color:#666;margin-bottom:10px;">Certificamos que</div>
   <div style="font-size:32px;font-weight:bold;margin:20px 0;border-bottom:2px solid #F47C20;padding-bottom:20px;color:#0A2E6E;">{{USUARIO_NOME}}</div>
-  <div style="font-size:16px;margin-bottom:40px;color:#444;">concluiu o modulo de <strong>{{MODULO_TITULO}}</strong> com sucesso.</div>
+  <div style="font-size:16px;margin-bottom:40px;color:#444;">concluiu o curso de <strong>{{CURSO_TITULO}}</strong> com sucesso.</div>
   <div style="display:flex;justify-content:space-between;align-items:flex-end;margin-top:40px;">
     <div style="text-align:left;">
       <div style="font-size:12px;color:#999;">{{DATA_HORA}}</div>
@@ -41,7 +41,7 @@ const DEFAULT_CERT_TEMPLATE = `<div style="width:800px;padding:40px;background:#
 export function CertificadosPage({ user }: { user?: any }) {
 	const { isAdmin, isGestor } = useAbility();
 	const [certificates, setCertificates] = useState<Certificate[]>([]);
-	const [modulos, setModulos] = useState<ModuloCert[]>([]);
+	const [cursos, setModulos] = useState<ModuloCert[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [tab, setTab] = useState<"meus" | "templates">("meus");
 	const [editingModulo, setEditingModulo] = useState<ModuloCert | null>(null);
@@ -55,9 +55,9 @@ export function CertificadosPage({ user }: { user?: any }) {
 			setCertificates(
 				data.map((c: any) => ({
 					...c,
-					moduloTitulo: c.modulo?.titulo,
-					moduloIcone: c.modulo?.icone,
-					moduloCertTemplate: c.modulo?.certificadoTemplate,
+					cursoTitulo: c.curso?.titulo,
+					cursoIcone: c.curso?.icone,
+					cursoCertTemplate: c.curso?.certificadoTemplate,
 				})),
 			);
 		} catch {
@@ -89,17 +89,17 @@ export function CertificadosPage({ user }: { user?: any }) {
 	}, [loadCertificates, loadModulos, isAdmin]);
 
 	const handleDownloadHTML = (cert: Certificate) => {
-		const template = cert.moduloCertTemplate || DEFAULT_CERT_TEMPLATE;
-		const titulo = cert.moduloTitulo || "Modulo";
-		const icone = cert.moduloIcone || "📚";
+		const template = cert.cursoCertTemplate || DEFAULT_CERT_TEMPLATE;
+		const titulo = cert.cursoTitulo || "Curso";
+		const icone = cert.cursoIcone || "📚";
 		const nome = cert.user?.nome || "Usuario";
 		const gestorNome = "";
 		const certDate = cert.createdAt ? new Date(cert.createdAt) : new Date();
 		const dateStr = certDate.toLocaleDateString("pt-BR");
 		const timeStr = certDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 		const html = `<!DOCTYPE html><html><head><title>Certificado - ${titulo}</title></head><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;background:#f5f5f5;">${template
-			.replace(/\{\{MODULO_ICONE\}\}/g, icone)
-			.replace(/\{\{MODULO_TITULO\}\}/g, titulo)
+			.replace(/\{\{CURSO_ICONE\}\}/g, icone)
+			.replace(/\{\{CURSO_TITULO\}\}/g, titulo)
 			.replace(/\{\{USUARIO_NOME\}\}/g, nome)
 			.replace(/\{\{DATA\}\}/g, dateStr)
 			.replace(/\{\{DATA_HORA\}\}/g, `${dateStr} ${timeStr}`)
@@ -114,9 +114,9 @@ export function CertificadosPage({ user }: { user?: any }) {
 	};
 
 	const handleDownloadPDF = async (cert: Certificate) => {
-		const template = cert.moduloCertTemplate || DEFAULT_CERT_TEMPLATE;
-		const titulo = cert.moduloTitulo || "Modulo";
-		const icone = cert.moduloIcone || "📚";
+		const template = cert.cursoCertTemplate || DEFAULT_CERT_TEMPLATE;
+		const titulo = cert.cursoTitulo || "Curso";
+		const icone = cert.cursoIcone || "📚";
 		const nome = cert.user?.nome || "Usuario";
 		const gestorNome = "";
 		const certDate = cert.createdAt ? new Date(cert.createdAt) : new Date();
@@ -124,8 +124,8 @@ export function CertificadosPage({ user }: { user?: any }) {
 		const timeStr = certDate.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 
 		const rendered = template
-			.replace(/\{\{MODULO_ICONE\}\}/g, icone)
-			.replace(/\{\{MODULO_TITULO\}\}/g, titulo)
+			.replace(/\{\{CURSO_ICONE\}\}/g, icone)
+			.replace(/\{\{CURSO_TITULO\}\}/g, titulo)
 			.replace(/\{\{USUARIO_NOME\}\}/g, nome)
 			.replace(/\{\{DATA\}\}/g, dateStr)
 			.replace(/\{\{DATA_HORA\}\}/g, `${dateStr} ${timeStr}`)
@@ -180,8 +180,8 @@ export function CertificadosPage({ user }: { user?: any }) {
 
 	const renderPreview = (template: string, mod?: ModuloCert) => {
 		return template
-			.replace(/\{\{MODULO_ICONE\}\}/g, mod?.icone || "📚")
-			.replace(/\{\{MODULO_TITULO\}\}/g, mod?.titulo || "Nome do Curso")
+			.replace(/\{\{CURSO_ICONE\}\}/g, mod?.icone || "📚")
+			.replace(/\{\{CURSO_TITULO\}\}/g, mod?.titulo || "Nome do Curso")
 			.replace(/\{\{USUARIO_NOME\}\}/g, "Joao da Silva")
 			.replace(/\{\{DATA\}\}/g, new Date().toLocaleDateString("pt-BR"))
 			.replace(/\{\{DATA_HORA\}\}/g, new Date().toLocaleString("pt-BR"))
@@ -253,10 +253,10 @@ export function CertificadosPage({ user }: { user?: any }) {
 							return (
 								<div key={cert.id} className="stat-card cert-card">
 									<div className="cert-card-header">
-										<div className="cert-card-icon">{cert.moduloIcone || "🏆"}</div>
+										<div className="cert-card-icon">{cert.cursoIcone || "🏆"}</div>
 										<span className={`cert-card-badge ${statusClass(cert.status)}`}>{statusLabel(cert.status)}</span>
 									</div>
-									<div className="cert-card-title">{cert.moduloTitulo || "Modulo"}</div>
+									<div className="cert-card-title">{cert.cursoTitulo || "Curso"}</div>
 									{cert.user && showUserInfo && isOtherUser && (
 										<div className="cert-card-user">
 											{cert.user.nome}
@@ -293,7 +293,7 @@ export function CertificadosPage({ user }: { user?: any }) {
 			) : (
 				<div>
 					<div className="cards-grid cert-grid-templates">
-						{modulos.map((mod) => (
+						{cursos.map((mod) => (
 							<div key={mod.id} className="stat-card cert-template-card">
 								<div className="cert-template-header">
 									<span className="cert-template-title">
@@ -325,7 +325,7 @@ export function CertificadosPage({ user }: { user?: any }) {
 									Template: {editingModulo.icone} {editingModulo.titulo}
 								</h3>
 								<p className="cert-modal-desc">
-									Variaveis: {"{{MODULO_ICONE}}"} {"{{MODULO_TITULO}}"} {"{{USUARIO_NOME}}"} {"{{DATA}}"}{" "}
+									Variaveis: {"{{CURSO_ICONE}}"} {"{{CURSO_TITULO}}"} {"{{USUARIO_NOME}}"} {"{{DATA}}"}{" "}
 									{"{{DATA_HORA}}"} {"{{GESTOR_NOME}}"}
 								</p>
 								<div className="form-field">

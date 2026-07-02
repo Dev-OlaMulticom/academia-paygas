@@ -37,7 +37,7 @@ const delegateCache = new Map<string, ModelDelegates>();
 
 function getRegistryClientModel(entry: DatabaseEntry, modelName: string): ModelDelegate | null {
 	if (!entry.client) return null;
-	// PrismaClient delegates are accessed as client.user, client.modulo, etc.
+	// PrismaClient delegates are accessed as client.user, client.curso, etc.
 	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	return (entry.client as any)[modelName] || null;
 }

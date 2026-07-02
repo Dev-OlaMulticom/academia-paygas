@@ -413,7 +413,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 									</div>
 									<div className="user-equipe-stat">
 										<div className="user-equipe-stat-val" style={{ color: "var(--pg-green)" }}>
-											{member.modulos?.filter((m: any) => m.aulasConcluidas === m.totalAulas && m.totalAulas > 0)
+											{member.cursos?.filter((m: any) => m.aulasConcluidas === m.totalAulas && m.totalAulas > 0)
 												.length || 0}
 										</div>
 										<div className="user-equipe-stat-label">Concluídos</div>
@@ -427,7 +427,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 
 							{expandedUser === member.id && (
 								<div className="user-equipe-body">
-									{member.modulos?.map((mod: any) => {
+									{member.cursos?.map((mod: any) => {
 										const percentual =
 											mod.totalAulas > 0 ? Math.round((mod.aulasConcluidas / mod.totalAulas) * 100) : 0;
 										return (

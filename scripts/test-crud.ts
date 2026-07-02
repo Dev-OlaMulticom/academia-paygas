@@ -72,42 +72,42 @@ async function testTrilhasFlow() {
 }
 
 async function testModulosFlow(_trilhaId: string | null) {
-	console.log("\n🔧 Testing MODULO CRUD...");
+	console.log("\n🔧 Testing CURSO CRUD...");
 
 	try {
 		// CREATE
-		const modulo = await prisma.modulo.create({
+		const curso = await prisma.curso.create({
 			data: {
-				titulo: `Test Modulo ${Date.now()}`,
+				titulo: `Test Curso ${Date.now()}`,
 				descricao: "Test Module Description",
 				ordem: 1,
 			},
 		});
-		logResult("CREATE Modulo", "PASS", `Modulo created: ${modulo.id}`);
+		logResult("CREATE Curso", "PASS", `Curso created: ${curso.id}`);
 
 		// READ
-		const found = await prisma.modulo.findUnique({
-			where: { id: modulo.id },
+		const found = await prisma.curso.findUnique({
+			where: { id: curso.id },
 		});
-		logResult("READ Modulo", found ? "PASS" : "FAIL", found ? `Modulo found` : "Not found");
+		logResult("READ Curso", found ? "PASS" : "FAIL", found ? `Curso found` : "Not found");
 
 		// UPDATE
-		const _updated = await prisma.modulo.update({
-			where: { id: modulo.id },
-			data: { titulo: "Updated Modulo Title" },
+		const _updated = await prisma.curso.update({
+			where: { id: curso.id },
+			data: { titulo: "Updated Curso Title" },
 		});
-		logResult("UPDATE Modulo", "PASS", `Modulo updated`);
+		logResult("UPDATE Curso", "PASS", `Curso updated`);
 
-		return modulo.id;
+		return curso.id;
 	} catch (error) {
-		logResult("MODULO CRUD", "FAIL", error instanceof Error ? error.message : "Unknown error");
+		logResult("CURSO CRUD", "FAIL", error instanceof Error ? error.message : "Unknown error");
 		return null;
 	}
 }
 
-async function testAulasFlow(moduloId: string | null) {
-	if (!moduloId) {
-		logResult("AULA CRUD", "FAIL", "No modulo ID available");
+async function testAulasFlow(cursoId: string | null) {
+	if (!cursoId) {
+		logResult("AULA CRUD", "FAIL", "No curso ID available");
 		return null;
 	}
 
@@ -117,7 +117,7 @@ async function testAulasFlow(moduloId: string | null) {
 		// CREATE
 		const aula = await prisma.aula.create({
 			data: {
-				moduloId,
+				cursoId,
 				titulo: `Test Aula ${Date.now()}`,
 				descricao: "Test Lesson Description",
 				ordem: 1,
@@ -217,9 +217,9 @@ async function testProgressFlow() {
 			},
 		});
 
-		const modulo = await prisma.modulo.create({
+		const curso = await prisma.curso.create({
 			data: {
-				titulo: "Test Modulo",
+				titulo: "Test Curso",
 				descricao: "Test",
 				ordem: 1,
 			},
@@ -227,7 +227,7 @@ async function testProgressFlow() {
 
 		const aula = await prisma.aula.create({
 			data: {
-				moduloId: modulo.id,
+				cursoId: curso.id,
 				titulo: "Test Aula",
 				descricao: "Test",
 				ordem: 1,
@@ -238,7 +238,7 @@ async function testProgressFlow() {
 		const progress = await prisma.progresso.create({
 			data: {
 				userId: user.id,
-				moduloId: modulo.id,
+				cursoId: curso.id,
 				aulaId: aula.id,
 				concluido: true,
 			},
@@ -254,7 +254,7 @@ async function testProgressFlow() {
 		// Cleanup
 		await prisma.progresso.delete({ where: { id: progress.id } });
 		await prisma.aula.delete({ where: { id: aula.id } });
-		await prisma.modulo.delete({ where: { id: modulo.id } });
+		await prisma.curso.delete({ where: { id: curso.id } });
 		await prisma.user.delete({ where: { id: user.id } });
 	} catch (error) {
 		logResult("PROGRESS Flow", "FAIL", error instanceof Error ? error.message : "Unknown error");
@@ -268,8 +268,8 @@ async function runAllTests() {
 
 	await testUsersFlow();
 	await testTrilhasFlow();
-	const moduloId = await testModulosFlow(null);
-	const aulaId = await testAulasFlow(moduloId);
+	const cursoId = await testModulosFlow(null);
+	const aulaId = await testAulasFlow(cursoId);
 	await testQuizFlow(aulaId);
 	await testProgressFlow();
 

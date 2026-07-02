@@ -338,7 +338,7 @@ export function AdminDashboardPage({ user: _user }: AdminDashboardPageProps) {
 					<div className="admin-section-pad">
 						<div className="section-title section-mb-lg">Modulos com Mais Atividade</div>
 						{cursosRecentes.length === 0 ? (
-							<div className="admin-empty">Nenhum modulo com atividade</div>
+							<div className="admin-empty">Nenhum curso com atividade</div>
 						) : (
 							<div className="admin-log-list" style={{ gap: "12px" }}>
 								{cursosRecentes.map((curso: any) => (

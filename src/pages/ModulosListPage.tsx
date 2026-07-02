@@ -14,8 +14,8 @@ function slugify(text: string): string {
 		.replace(/(^-|-$)+/g, "");
 }
 
-const MODULO_ICONS = ["📚", "💰", "📊", "📱", "🏪", "⛪", "💻", "📣", "🔒", "🚀", "💼", "⚡"];
-const MODULO_COLORS = [
+const CURSO_ICONS = ["📚", "💰", "📊", "📱", "🏪", "⛪", "💻", "📣", "🔒", "🚀", "💼", "⚡"];
+const CURSO_COLORS = [
 	"#FEF3C7",
 	"#DCFCE7",
 	"#E6EEF9",
@@ -34,7 +34,7 @@ export function ModulosListPage() {
 	const navigate = useNavigate();
 	const { user } = useAuth();
 	const { isAtendente } = useAbility();
-	const [modulos, setModulos] = useState<any[]>([]);
+	const [cursos, setModulos] = useState<any[]>([]);
 	const [loading, setLoading] = useState(true);
 	const [progressMap, setProgressMap] = useState<Record<string, number>>({});
 	const [certMap, setCertMap] = useState<Record<string, boolean>>({});
@@ -52,12 +52,12 @@ export function ModulosListPage() {
 			const pMap: Record<string, number> = {};
 			const cMap: Record<string, boolean> = {};
 			for (const p of progresso) {
-				const modId = p.moduloId;
+				const modId = p.cursoId;
 				if (!pMap[modId]) pMap[modId] = 0;
 				if (p.concluido) pMap[modId]++;
 			}
 			for (const c of certs) {
-				cMap[c.moduloId] = true;
+				cMap[c.cursoId] = true;
 			}
 			setProgressMap(pMap);
 			setCertMap(cMap);
@@ -107,20 +107,20 @@ export function ModulosListPage() {
 			<div className="page-header">
 				<div>
 					<div className="page-title">Trilhas de Aprendizado</div>
-					<div className="page-subtitle">{modulos.length} curso(s) disponível(is)</div>
+					<div className="page-subtitle">{cursos.length} curso(s) disponível(is)</div>
 				</div>
 			</div>
 
-			{modulos.length === 0 ? (
+			{cursos.length === 0 ? (
 				<div className="empty-state">
 					<div className="empty-icon">📚</div>
 					<p>Nenhum curso disponível no momento.</p>
 				</div>
 			) : (
 				<div className="track-grid">
-					{modulos.map((mod, i) => {
-						const icon = MODULO_ICONS[i % MODULO_ICONS.length];
-						const color = MODULO_COLORS[i % MODULO_COLORS.length];
+					{cursos.map((mod, i) => {
+						const icon = CURSO_ICONS[i % CURSO_ICONS.length];
+						const color = CURSO_COLORS[i % CURSO_COLORS.length];
 						const aulasCount = mod._count?.aulas || 0;
 						const slug = slugify(mod.titulo || mod.title || "");
 						const completedAulas = progressMap[mod.id] || 0;
@@ -128,7 +128,7 @@ export function ModulosListPage() {
 						const hasCert = !!certMap[mod.id];
 
 						return (
-							<div key={mod.id} className="track-card" onClick={() => navigate(`/modulo/${slug}`)}>
+							<div key={mod.id} className="track-card" onClick={() => navigate(`/curso/${slug}`)}>
 								<div className="track-card-top">
 									<div className="track-icon" style={{ background: color }}>
 										{icon}

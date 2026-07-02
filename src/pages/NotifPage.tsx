@@ -115,14 +115,14 @@ export function NotifPage({ user }: NotifPageProps) {
 
 	const handleApproveRestart = async (notif: any) => {
 		const data = typeof notif.data === "string" ? JSON.parse(notif.data) : notif.data;
-		if (!data?.moduloId || !data?.userId) {
+		if (!data?.cursoId || !data?.userId) {
 			toast("Dados incompletos na notificacao", "error");
 			return;
 		}
 		if (!window.confirm(`Aprovar reinicio de progresso de ${data.userName || "este usuario"}?`)) return;
 		setApprovingId(notif.id);
 		try {
-			await api.approveRestart(data.userId, data.moduloId);
+			await api.approveRestart(data.userId, data.cursoId);
 			toast("Reinicio aprovado! O usuario foi notificado.", "success");
 			setNotifs((prev) => prev.filter((n) => n.id !== notif.id));
 		} catch (err: any) {

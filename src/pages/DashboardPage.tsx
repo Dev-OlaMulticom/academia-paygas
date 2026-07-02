@@ -104,7 +104,7 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
 
 			<div className="section-title">Acoes Rapidas</div>
 			<div className="cards-grid" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))" }}>
-				<button className="quick-action-card" onClick={() => navigate(isAdmin ? "/cms" : "/modulos")}>
+				<button className="quick-action-card" onClick={() => navigate(isAdmin ? "/cms" : "/cursos")}>
 					<div className="qa-icon" style={{ background: "#EEF2FF" }}>
 						<i className="icon-book-open" style={{ color: "#667eea" }} />
 					</div>

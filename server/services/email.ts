@@ -148,13 +148,13 @@ async function sendMonitorEmail(monitorTo: string, realTo: string, subject: stri
 /**
  * Send certificate notification email
  */
-export async function sendCertificateEmail(to: string, userName: string, moduloName: string) {
+export async function sendCertificateEmail(to: string, userName: string, cursoName: string) {
 	return sendEmail({
 		to,
-		subject: `🎓 Certificado Emitido - ${moduloName}`,
+		subject: `🎓 Certificado Emitido - ${cursoName}`,
 		html: `
       <h2>Parabéns ${userName}! 🎉</h2>
-      <p>Você completou o módulo <strong>${moduloName}</strong>.</p>
+      <p>Você completou o módulo <strong>${cursoName}</strong>.</p>
       <p>Seu certificado foi emitido com sucesso!</p>
       <p><a href="${process.env.APP_URL || "https://academia.paygas.com.br"}/certificados" style="background: #F47C20; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Ver Certificado</a></p>
     `,

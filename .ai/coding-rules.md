@@ -32,7 +32,7 @@ npx prisma --version
 ### Conventions de nombres
 
 - **UI strings**: Portugués (pt-BR)
-- **Identificadores**: Portugués (`modulo`, `aula`, `licao`, `equipe`, `certificados`)
+- **Identificadores**: Portugués (`curso`, `aula`, `licao`, `equipe`, `certificados`)
 - **Funciones**: camelCase
 - **Componentes**: PascalCase
 - **Constantes**: UPPER_SNAKE_CASE

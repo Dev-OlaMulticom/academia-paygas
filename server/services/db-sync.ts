@@ -25,7 +25,7 @@ const SYNC_BATCH_SIZE = 50; // Rows per batch
 // All tables in dependency order (parents first)
 const TABLES_IN_ORDER = [
 	"User",
-	"Modulo",
+	"Curso",
 	"Aula",
 	"Licao",
 	"Quiz",

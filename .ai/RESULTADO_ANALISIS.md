@@ -57,7 +57,7 @@ Result: ✅ Migration 20260616111410_init_postgresql applied
 ```sql
 SELECT COUNT(*) as total_users FROM "User";
 SELECT COUNT(*) as total_trilhas FROM "Trilha";
-SELECT COUNT(*) as total_modulos FROM "Modulo";
+SELECT COUNT(*) as total_modulos FROM "Curso";
 ```
 **Resultado**: Base de datos está correctamente configurada y accesible
 
@@ -75,7 +75,7 @@ SELECT COUNT(*) as total_modulos FROM "Modulo";
 ### Tablas Creadas (15)
 1. User - Usuarios del sistema
 2. Trilha - Trilhas de aprendizaje
-3. Modulo - Módulos dentro de trilhas
+3. Curso - Módulos dentro de trilhas
 4. Aula - Aulas dentro de módulos
 5. Quiz - Quizzes asociados a aulas
 6. QuizPergunta - Preguntas del quiz

@@ -35,7 +35,7 @@ interface CriarModuloPageProps {
 export function CriarModuloPage(_props: CriarModuloPageProps) {
 	const navigate = useNavigate();
 	const { toast } = useToast();
-	const [modulo, setModulo] = useState({
+	const [curso, setModulo] = useState({
 		titulo: "",
 		descricao: "",
 		icone: "📚",
@@ -48,13 +48,13 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
 
 	const handleSubmit = async (e: React.FormEvent) => {
 		e.preventDefault();
-		if (!modulo.titulo) {
+		if (!curso.titulo) {
 			toast("Título é obrigatório!", "info");
 			return;
 		}
 		setLoading(true);
 		try {
-			await api.createModulo(modulo);
+			await api.createModulo(curso);
 			toast("Curso criado com sucesso!", "success");
 			navigate("/cms");
 		} catch (err: any) {
@@ -82,8 +82,8 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
 					<input
 						id="criar-titulo"
 						className="form-input"
-						value={modulo.titulo}
-						onChange={(e) => setModulo({ ...modulo, titulo: e.target.value })}
+						value={curso.titulo}
+						onChange={(e) => setModulo({ ...curso, titulo: e.target.value })}
 						placeholder="Nome do curso"
 						required
 					/>
@@ -98,7 +98,7 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
 							className="btn-secondary criar-emoji-btn"
 							onClick={() => setShowEmojiPicker(!showEmojiPicker)}
 						>
-							{modulo.icone}
+							{curso.icone}
 						</button>
 						{showEmojiPicker && (
 							<div className="criar-emoji-picker">
@@ -106,9 +106,9 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
 									<button
 										key={em}
 										type="button"
-										className={`criar-emoji-opt ${modulo.icone === em ? "selected" : "default"}`}
+										className={`criar-emoji-opt ${curso.icone === em ? "selected" : "default"}`}
 										onClick={() => {
-											setModulo({ ...modulo, icone: em });
+											setModulo({ ...curso, icone: em });
 											setShowEmojiPicker(false);
 										}}
 									>
@@ -125,8 +125,8 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
 					<textarea
 						id="criar-descricao"
 						className="form-input"
-						value={modulo.descricao}
-						onChange={(e) => setModulo({ ...modulo, descricao: e.target.value })}
+						value={curso.descricao}
+						onChange={(e) => setModulo({ ...curso, descricao: e.target.value })}
 						placeholder="Descrição do curso"
 						rows={4}
 					/>
@@ -137,8 +137,8 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
 					<select
 						id="criar-obrigatorio"
 						className="form-select"
-						value={modulo.obrigatorio ? "true" : "false"}
-						onChange={(e) => setModulo({ ...modulo, obrigatorio: e.target.value === "true" })}
+						value={curso.obrigatorio ? "true" : "false"}
+						onChange={(e) => setModulo({ ...curso, obrigatorio: e.target.value === "true" })}
 					>
 						<option value="false">Não</option>
 						<option value="true">Sim — Usuários devem concluir este módulo</option>
@@ -154,8 +154,8 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
 					<select
 						id="criar-auto-cert"
 						className="form-select"
-						value={modulo.autoCertificado ? "true" : "false"}
-						onChange={(e) => setModulo({ ...modulo, autoCertificado: e.target.value === "true" })}
+						value={curso.autoCertificado ? "true" : "false"}
+						onChange={(e) => setModulo({ ...curso, autoCertificado: e.target.value === "true" })}
 					>
 						<option value="false">Não (Requer aprovação)</option>
 						<option value="true">Sim (Automático ao concluir)</option>
@@ -169,7 +169,7 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
 					</div>
 					<div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
 						{["ADMIN", "GESTOR", "ATENDENTE", "PARCEIRO_ACREDITADO", "ERPS_REPRESENTANTE"].map((role) => {
-							const currentRoles: string[] = modulo.rolesPermitidos || [];
+							const currentRoles: string[] = curso.rolesPermitidos || [];
 							const checked = currentRoles.includes(role);
 							return (
 								<label
@@ -181,7 +181,7 @@ export function CriarModuloPage(_props: CriarModuloPageProps) {
 										checked={checked}
 										onChange={() => {
 											const newRoles = checked ? currentRoles.filter((r) => r !== role) : [...currentRoles, role];
-											setModulo({ ...modulo, rolesPermitidos: newRoles.length > 0 ? newRoles : null });
+											setModulo({ ...curso, rolesPermitidos: newRoles.length > 0 ? newRoles : null });
 										}}
 									/>
 									{ROLE_LABELS[role] || role}

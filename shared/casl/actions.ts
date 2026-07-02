@@ -46,7 +46,7 @@ export const SHARED_ACTION_OBJECT = {
 
 export const SHARED_SUBJECTS = [
 	"User",
-	"Modulo",
+	"Curso",
 	"Aula",
 	"Licao",
 	"Quiz",
@@ -72,7 +72,7 @@ export type SharedSubject = (typeof SHARED_SUBJECTS)[number];
 
 export const SHARED_SUBJECT_OBJECT = {
 	User: "User",
-	Modulo: "Modulo",
+	Curso: "Curso",
 	Aula: "Aula",
 	Licao: "Licao",
 	Quiz: "Quiz",
