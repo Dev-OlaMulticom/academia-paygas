@@ -860,12 +860,36 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 			return null;
 		}
 
-		// Resolve helper: get aulaId from row
-		function resolveAulaId(obj: Record<string, string>, cursoId: string): string | null {
+		// Resolve helper: get aulaId from row (optionally create if missing)
+		async function resolveAulaId(obj: Record<string, string>, cursoId: string, createIfMissing = false): Promise<string | null> {
 			const id = obj.aula_id?.trim();
 			if (id && aulaById.has(id)) return id;
 			const titulo = obj.aula_titulo?.trim();
-			if (titulo) return (aulaByKey.get(`${cursoId}:${titulo}`) as string) || null;
+			if (titulo) {
+				const existing = aulaByKey.get(`${cursoId}:${titulo}`) as string | undefined;
+				if (existing) return existing;
+			}
+			if (createIfMissing && titulo) {
+				const maxOrdem = (await db.aggregate("aula", { where: { cursoId }, _max: { ordem: true } }))._max.ordem || 0;
+				const created = await db.create("aula", {
+					cursoId,
+					titulo,
+					descricao: "",
+					ordem: maxOrdem + 1,
+					tipo: "VIDEO",
+					videoUrl: null,
+					pdfUrl: null,
+					obrigatorio: false,
+					duracaoMin: null,
+					videoInicio: null,
+					videoFim: null,
+				});
+				aulaByKey.set(`${cursoId}:${titulo}`, (created as any).id);
+				aulaById.set((created as any).id, { id: (created as any).id, titulo, cursoId });
+				result.createdItems.push({ type: "aula", id: (created as any).id, titulo, cursoId });
+				result.created++;
+				return (created as any).id;
+			}
 			return null;
 		}
 
@@ -1039,7 +1063,7 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				result.skipped++;
 				continue;
 			}
-			const aulaId = resolveAulaId(obj, cursoId);
+			const aulaId = await resolveAulaId(obj, cursoId);
 			if (!titulo || !aulaId) {
 				result.skipped++;
 				continue;
@@ -1098,11 +1122,13 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 		for (const obj of typeGroups.quiz_pergunta) {
 			const cursoId = resolveModuloId(obj);
 			if (!cursoId) {
+				errors.push({ row: 0, field: "curso_titulo", message: `Curso nao encontrado: "${obj.curso_titulo || obj.curso_id || ''}"` });
 				result.skipped++;
 				continue;
 			}
-			const aulaId = resolveAulaId(obj, cursoId);
+			const aulaId = await resolveAulaId(obj, cursoId, true);
 			if (!aulaId) {
+				errors.push({ row: 0, field: "aula_titulo", message: `Nao foi possivel resolver ou criar a aula` });
 				result.skipped++;
 				continue;
 			}
@@ -1425,16 +1451,31 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 				skipped++;
 				continue;
 			}
-			const cursoId = cursoMap.get(cursoTitulo) || (obj.curso_id?.trim() && cursoMap.get(obj.curso_id.trim()));
+			let cursoId = cursoMap.get(cursoTitulo) || (obj.curso_id?.trim() && cursoMap.get(obj.curso_id.trim()));
 			if (!cursoId) {
 				skipped++;
 				continue;
 			}
-			const aulaId =
+			let aulaId =
 				aulaMap.get(`${cursoId}:${aulaTitulo}`) || (obj.aula_id?.trim() ? aulaMap.get(obj.aula_id.trim()) : undefined);
 			if (!aulaId) {
-				skipped++;
-				continue;
+				// Auto-create aula if missing
+				const maxOrdemAula = (await db.aggregate("aula", { where: { cursoId }, _max: { ordem: true } }))._max.ordem || 0;
+				const createdAula = await db.create("aula", {
+					cursoId,
+					titulo: aulaTitulo,
+					descricao: "",
+					ordem: maxOrdemAula + 1,
+					tipo: "VIDEO",
+					videoUrl: null,
+					pdfUrl: null,
+					obrigatorio: false,
+					duracaoMin: null,
+					videoInicio: null,
+					videoFim: null,
+				});
+				aulaId = (createdAula as any).id;
+				aulaMap.set(`${cursoId}:${aulaTitulo}`, aulaId as string);
 			}
 			const key = aulaId as string;
 			if (!quizGroups.has(key)) quizGroups.set(key, []);
