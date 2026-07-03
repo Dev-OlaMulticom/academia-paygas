@@ -778,6 +778,7 @@ class ApiClient {
 	async importUnified(
 		csvText: string,
 		mode: "create" | "upsert" = "create",
+		targetQuizId?: string,
 	): Promise<{
 		created: number;
 		updated: number;
@@ -788,7 +789,7 @@ class ApiClient {
 	}> {
 		return this.request<any>("/import-export/import/unified", {
 			method: "POST",
-			body: JSON.stringify({ csv: csvText, mode }),
+			body: JSON.stringify({ csv: csvText, mode, targetQuizId: targetQuizId || undefined }),
 		});
 	}
 

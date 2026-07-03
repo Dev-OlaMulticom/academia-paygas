@@ -68,6 +68,9 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 	const [targetCursos, setTargetCursos] = useState<{ id: string; titulo: string }[]>([]);
 	const [targetAulas, setTargetAulas] = useState<{ id: string; titulo: string }[]>([]);
 
+	// Direct quiz target selection for quiz_pergunta imports
+	const [targetQuizId, setTargetQuizId] = useState("");
+
 	const loadList = useCallback(async () => {
 		setLoadingList(true);
 		try {
@@ -109,6 +112,7 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 		}
 	}, [importStep, detectResult]);
 
+
 	const resetImport = () => {
 		setImportStep("idle");
 		setCsvText("");
@@ -119,6 +123,7 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 		setTargetCursoId("");
 		setTargetAulaId("");
 		setTargetAulas([]);
+		setTargetQuizId("");
 	};
 
 	const needsParentColumns = (columns: string[]) => {
@@ -216,9 +221,25 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 
 	const handleImport = async () => {
 		if (!csvText) return;
-		let finalCsv = csvText;
 
-		// If parent columns are missing and user selected a target, inject them
+		// If a direct quiz target is selected, use targetQuizId (bypasses parent resolution)
+		if (detectResult?.type === "quiz_pergunta" && targetQuizId) {
+			setImportStep("importing");
+			try {
+				const result = await api.importUnified(csvText, importMode, targetQuizId);
+				setImportResult(result as ImportResult);
+				setImportStep("result");
+				toast(`Importacao: ${result.created} criados, ${result.updated} atualizados, ${result.skipped} ignorados`, "success");
+				loadList();
+			} catch (err: any) {
+				toast(err.message || "Erro ao importar", "error");
+				setImportStep("idle");
+			}
+			return;
+		}
+
+		// Otherwise, fallback to parent injection flow
+		let finalCsv = csvText;
 		if (detectResult && needsParentColumns(detectResult.columns) && targetCursoId && targetAulaId) {
 			const curso = targetCursos.find((c) => c.id === targetCursoId);
 			const aula = targetAulas.find((a) => a.id === targetAulaId);
@@ -480,7 +501,41 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 
 					{detectResult.valid && (
 						<div className="eximp-actions">
-							{needsParentColumns(detectResult.columns) && (
+							{/* Parent warnings for quiz_pergunta */}
+							{detectResult.type === "quiz_pergunta" && detectResult.parentWarnings?.length > 0 && (
+								<div className="eximp-alert warning" style={{ marginBottom: 8 }}>
+									{detectResult.parentWarnings.map((w: string, i: number) => (
+									<div key={i}><i className="icon-info icon-sm" /> {w}</div>
+								))}
+								</div>
+							)}
+
+							{/* Direct quiz target selector for quiz_pergunta */}
+							{detectResult.type === "quiz_pergunta" && detectResult.existingQuizzes && detectResult.existingQuizzes.length > 0 && (
+								<div className="eximp-target-select">
+									<div className="eximp-alert info">
+										<i className="icon-target icon-sm" /> Selecione o quiz destino para as perguntas:
+									</div>
+									<div className="eximp-target-fields">
+										<div className="form-field" style={{ minWidth: 300 }}>
+											<label className="form-label">Quiz Destino *</label>
+											<AppSelect
+												options={detectResult.existingQuizzes.map((q: any) => ({
+												value: q.id,
+												label: `${q.cursoTitulo} > ${q.aulaTitulo} > ${q.titulo} (${q.perguntaCount} perguntas)`,
+											}))}
+												value={targetQuizId || null}
+												onChange={(v: string | null) => setTargetQuizId(v || "")}
+												placeholder="Selecionar quiz existente..."
+												isSearchable
+											/>
+										</div>
+									</div>
+								</div>
+							)}
+
+							{/* Fallback: course/aula target when no quiz target selected and parents missing */}
+							{needsParentColumns(detectResult.columns) && !targetQuizId && (
 								<div className="eximp-target-select">
 									<div className="eximp-alert warning">
 										<i className="icon-info icon-sm" /> Este CSV nao inclui curso/aula. Selecione o destino:
@@ -513,9 +568,10 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 									</div>
 								</div>
 							)}
-								<div className="eximp-mode-selector">
-									<label className="eximp-radio">
-										<input type="radio" name="importMode" checked={importMode === "create"} onChange={() => setImportMode("create")} />
+
+							<div className="eximp-mode-selector">
+								<label className="eximp-radio">
+									<input type="radio" name="importMode" checked={importMode === "create"} onChange={() => setImportMode("create")} />
 										Apenas criar
 									</label>
 									<label className="eximp-radio">
@@ -523,15 +579,20 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 										Criar ou atualizar
 									</label>
 							</div>
+
 							<button
 								className="btn-primary"
 								onClick={handleImport}
-								disabled={needsParentColumns(detectResult.columns) && (!targetCursoId || !targetAulaId)}
+								disabled={
+									detectResult.type === "quiz_pergunta"
+										? !targetQuizId && (needsParentColumns(detectResult.columns) ? (!targetCursoId || !targetAulaId) : !detectResult.parentResolved)
+										: needsParentColumns(detectResult.columns) && (!targetCursoId || !targetAulaId)
+								}
 							>
 								<i className="icon-upload icon-xs" /> Importar
 							</button>
-							</div>
-						)}
+						</div>
+					)}
 					</div>
 				)}
 

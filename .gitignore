@@ -17,6 +17,7 @@ server/certs/
 .env.production
 .env.staging
 *.zip
+*.csv
 
 # Build output
 dist/

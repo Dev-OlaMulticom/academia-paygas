@@ -779,7 +779,7 @@ router.post("/detect", authenticate, authorize("ADMIN"), async (req: any, res) =
 		}
 		if (detectedType === "quiz_pergunta") {
 			if (!has("pergunta")) missingRequired.push("pergunta");
-			if (!has("aula_titulo") && !has("aula_id")) missingRequired.push("aula_titulo ou aula_id");
+			// aula columns are optional — user can pick a target quiz instead
 		}
 
 		if (detectedType === "misto" && !has("tipo")) {
@@ -808,6 +808,66 @@ router.post("/detect", authenticate, authorize("ADMIN"), async (req: any, res) =
 			return obj;
 		});
 
+		// For quiz_pergunta: check if referenced parents exist and list available quizzes
+		let parentResolved = true;
+		let parentWarnings: string[] = [];
+		let existingQuizzes: { id: string; titulo: string; aulaTitulo: string; cursoTitulo: string; perguntaCount: number }[] = [];
+
+		if (detectedType === "quiz_pergunta") {
+			const allCursos = await db.findMany("curso", { select: { id: true, titulo: true } });
+			const cursoMapDb = new Map(allCursos.map((m: any) => [m.titulo, m.id]));
+			const allAulasDb = await db.findMany("aula", { select: { id: true, titulo: true, cursoId: true } });
+			const aulaMapDb = new Map(allAulasDb.map((a: any) => [`${a.cursoId}:${a.titulo}`, a.id]));
+
+			const hasCurso = has("curso_titulo") || has("curso_id");
+			const hasAula = has("aula_titulo") || has("aula_id");
+
+			if (hasCurso || hasAula) {
+				// Check if referenced parents exist in DB
+				const cursoIdx = headers.findIndex((h) => h.toLowerCase().trim() === "curso_titulo");
+				const aulaIdx = headers.findIndex((h) => h.toLowerCase().trim() === "aula_titulo");
+				const uniqueCursos = new Set(rows.map((r) => (cursoIdx >= 0 ? r[cursoIdx] : "").trim()).filter(Boolean));
+				const missingCursos: string[] = [];
+				for (const ct of uniqueCursos) {
+					if (!cursoMapDb.has(ct)) missingCursos.push(ct);
+				}
+				if (missingCursos.length > 0) {
+					parentResolved = false;
+					parentWarnings.push(`Cursos nao encontrados no sistema: ${missingCursos.join(", ")}`);
+				}
+
+				const uniqueAulas = new Set(rows.map((r) => (aulaIdx >= 0 ? r[aulaIdx] : "").trim()).filter(Boolean));
+				const existingAulaTitles = new Set(allAulasDb.map((a: any) => a.titulo));
+				const missingAulas: string[] = [];
+				for (const at of uniqueAulas) {
+					if (!existingAulaTitles.has(at)) missingAulas.push(at);
+				}
+				if (missingAulas.length > 0) {
+					parentResolved = false;
+					parentWarnings.push(`Aulas nao encontradas no sistema: ${missingAulas.join(", ")}`);
+				}
+			} else {
+				parentResolved = false;
+				parentWarnings.push("CSV nao inclui colunas de curso/aula. Selecione um quiz destino.");
+			}
+
+			// Load existing quizzes for user to pick
+			const quizzesDb = await db.findMany("quiz", {
+				include: {
+					aula: { select: { titulo: true, curso: { select: { titulo: true } } } },
+					_count: { select: { perguntas: true } },
+				},
+				orderBy: [{ aula: { curso: { ordem: "asc" } } }, { aula: { ordem: "asc" } }],
+			});
+			existingQuizzes = quizzesDb.map((q: any) => ({
+				id: q.id,
+				titulo: q.titulo,
+				aulaTitulo: q.aula.titulo,
+				cursoTitulo: q.aula.curso.titulo,
+				perguntaCount: q._count.perguntas,
+			}));
+		}
+
 		res.json({
 			type: detectedType,
 			columns: headers,
@@ -816,6 +876,10 @@ router.post("/detect", authenticate, authorize("ADMIN"), async (req: any, res) =
 			warnings,
 			valid: missingRequired.length === 0,
 			preview,
+			// quiz_pergunta specific
+			parentResolved,
+			parentWarnings,
+			existingQuizzes,
 		});
 	} catch (error) {
 		logger.error("[DETECT ERROR]", error);
@@ -827,7 +891,7 @@ router.post("/detect", authenticate, authorize("ADMIN"), async (req: any, res) =
 
 router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
-		const { csv: csvText, mode = "create" } = req.body;
+		const { csv: csvText, mode = "create", targetQuizId } = req.body;
 		if (!csvText || typeof csvText !== "string") {
 			return res.status(400).json({ error: "Dados CSV invalidos" });
 		}
@@ -1118,55 +1182,21 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 		}
 
 		// QUIZ PERGUNTAS
-		const quizGroups = new Map<string, { aulaId: string; rows: Record<string, string>[] }>();
-		for (const obj of typeGroups.quiz_pergunta) {
-			const cursoId = resolveModuloId(obj);
-			if (!cursoId) {
-				errors.push({ row: 0, field: "curso_titulo", message: `Curso nao encontrado: "${obj.curso_titulo || obj.curso_id || ''}"` });
-				result.skipped++;
-				continue;
-			}
-			const aulaId = await resolveAulaId(obj, cursoId, true);
-			if (!aulaId) {
-				errors.push({ row: 0, field: "aula_titulo", message: `Nao foi possivel resolver ou criar a aula` });
-				result.skipped++;
-				continue;
+		// If targetQuizId is provided, bypass parent resolution and attach directly
+		if (targetQuizId && typeGroups.quiz_pergunta.length > 0) {
+			const targetQuiz = await db.findUnique("quiz", { id: targetQuizId });
+			if (!targetQuiz) {
+				return res.status(400).json({ error: "Quiz destino nao encontrado" });
 			}
 
-			if (!quizGroups.has(aulaId)) quizGroups.set(aulaId, { aulaId, rows: [] });
-			quizGroups.get(aulaId)!.rows.push(obj);
-		}
-
-		for (const [, group] of quizGroups) {
-			const { aulaId, rows: groupRows } = group;
-			const first = groupRows[0];
-			const quizTitulo = first.quiz_titulo?.trim() || "Quiz";
-			const notaMinima = parseIntSafe(first.notaMinima) ?? 7;
-			const autoGerar = parseBool(first.autoGerarCertificado) || parseBool(first.autoGerar);
-
-			let quiz = await db.findUnique("quiz", { aulaId });
-			if (!quiz) {
-				const newQuiz = await db.create("quiz", {
-					aulaId,
-					titulo: quizTitulo,
-					notaMinima,
-					autoGerarCertificado: autoGerar,
-				});
-				quiz = newQuiz as any;
-				const cursoIdForQuiz = resolveModuloId(first);
-				result.createdItems.push({ type: "quiz", id: (quiz as any).id, titulo: quizTitulo, aulaId, cursoId: cursoIdForQuiz || undefined });
-				result.created++;
-			}
-
-			const existingPerguntas = await db.findMany("quizPergunta", { where: { quizId: quiz!.id } });
+			const existingPerguntas = await db.findMany("quizPergunta", { where: { quizId: targetQuizId } });
 			const existingByPergunta = new Map(existingPerguntas.map((p: any) => [p.pergunta, p]));
 			const existingById = new Map(existingPerguntas.map((p: any) => [p.id, p]));
 
-			const maxOrdem =
-				(await db.aggregate("quizPergunta", { where: { quizId: quiz!.id }, _max: { ordem: true } }))._max.ordem || 0;
-
+			const maxOrdem = (await db.aggregate("quizPergunta", { where: { quizId: targetQuizId }, _max: { ordem: true } }))._max.ordem || 0;
 			let ordemCounter = maxOrdem;
-			for (const r of groupRows) {
+
+			for (const r of typeGroups.quiz_pergunta) {
 				const perguntaText = r.pergunta?.trim();
 				if (!perguntaText) {
 					result.skipped++;
@@ -1175,11 +1205,7 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 
 				const correta = (r.correta || "A").trim().toUpperCase();
 				if (!VALID_CORRETA.includes(correta)) {
-					errors.push({
-						row: 0,
-						field: "correta",
-						message: `Resposta correta invalida: "${correta}". Use: A, B, C ou D`,
-					});
+					errors.push({ row: 0, field: "correta", message: `Resposta correta invalida: "${correta}". Use: A, B, C ou D` });
 					result.skipped++;
 					continue;
 				}
@@ -1194,18 +1220,14 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				if (isUpsert && r.pergunta_id?.trim()) {
 					const existing = existingById.get(r.pergunta_id.trim());
 					if (existing) {
-						await db.update(
-							"quizPergunta",
-							{ id: r.pergunta_id.trim() },
-							{
-								pergunta: perguntaText,
-								opcaoA: r.opcaoA.trim(),
-								opcaoB: r.opcaoB.trim(),
-								opcaoC: r.opcaoC?.trim() || null,
-								opcaoD: r.opcaoD?.trim() || null,
-								correta,
-							},
-						);
+						await db.update("quizPergunta", { id: r.pergunta_id.trim() }, {
+							pergunta: perguntaText,
+							opcaoA: r.opcaoA.trim(),
+							opcaoB: r.opcaoB.trim(),
+							opcaoC: r.opcaoC?.trim() || null,
+							opcaoD: r.opcaoD?.trim() || null,
+							correta,
+						});
 						result.updated++;
 						continue;
 					}
@@ -1219,7 +1241,7 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 
 				ordemCounter++;
 				await db.create("quizPergunta", {
-					quizId: quiz!.id,
+					quizId: targetQuizId,
 					pergunta: perguntaText,
 					opcaoA: r.opcaoA.trim(),
 					opcaoB: r.opcaoB.trim(),
@@ -1231,7 +1253,126 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				existingByPergunta.set(perguntaText, {} as any);
 				result.created++;
 			}
-		}
+
+			const quizForItem = await db.findUnique("quiz", { id: targetQuizId }, { include: { aula: { select: { cursoId: true } } } });
+			result.createdItems.push({ type: "quiz", id: targetQuizId, titulo: (targetQuiz as any).titulo, aulaId: (targetQuiz as any).aulaId, cursoId: quizForItem?.aula?.cursoId });
+		} else {
+			// Original flow: resolve parents from CSV columns
+			const quizGroups = new Map<string, { aulaId: string; rows: Record<string, string>[] }>();
+			for (const obj of typeGroups.quiz_pergunta) {
+				const cursoId = resolveModuloId(obj);
+				if (!cursoId) {
+					errors.push({ row: 0, field: "curso_titulo", message: `Curso nao encontrado: "${obj.curso_titulo || obj.curso_id || ''}"` });
+					result.skipped++;
+					continue;
+				}
+				const aulaId = await resolveAulaId(obj, cursoId, true);
+				if (!aulaId) {
+					errors.push({ row: 0, field: "aula_titulo", message: `Nao foi possivel resolver ou criar a aula` });
+					result.skipped++;
+					continue;
+				}
+
+				if (!quizGroups.has(aulaId)) quizGroups.set(aulaId, { aulaId, rows: [] });
+				quizGroups.get(aulaId)!.rows.push(obj);
+			}
+
+			for (const [, group] of quizGroups) {
+				const { aulaId, rows: groupRows } = group;
+				const first = groupRows[0];
+				const quizTitulo = first.quiz_titulo?.trim() || "Quiz";
+				const notaMinima = parseIntSafe(first.notaMinima) ?? 7;
+				const autoGerar = parseBool(first.autoGerarCertificado) || parseBool(first.autoGerar);
+
+				let quiz = await db.findUnique("quiz", { aulaId });
+				if (!quiz) {
+					const newQuiz = await db.create("quiz", {
+						aulaId,
+						titulo: quizTitulo,
+						notaMinima,
+						autoGerarCertificado: autoGerar,
+					});
+					quiz = newQuiz as any;
+					const cursoIdForQuiz = resolveModuloId(first);
+					result.createdItems.push({ type: "quiz", id: (quiz as any).id, titulo: quizTitulo, aulaId, cursoId: cursoIdForQuiz || undefined });
+					result.created++;
+				}
+
+				const existingPerguntas = await db.findMany("quizPergunta", { where: { quizId: quiz!.id } });
+				const existingByPergunta = new Map(existingPerguntas.map((p: any) => [p.pergunta, p]));
+				const existingById = new Map(existingPerguntas.map((p: any) => [p.id, p]));
+
+				const maxOrdem =
+					(await db.aggregate("quizPergunta", { where: { quizId: quiz!.id }, _max: { ordem: true } }))._max.ordem || 0;
+
+				let ordemCounter = maxOrdem;
+				for (const r of groupRows) {
+					const perguntaText = r.pergunta?.trim();
+					if (!perguntaText) {
+						result.skipped++;
+						continue;
+					}
+
+					const correta = (r.correta || "A").trim().toUpperCase();
+					if (!VALID_CORRETA.includes(correta)) {
+						errors.push({
+							row: 0,
+							field: "correta",
+							message: `Resposta correta invalida: "${correta}". Use: A, B, C ou D`,
+						});
+						result.skipped++;
+						continue;
+					}
+
+					if (!r.opcaoA?.trim() || !r.opcaoB?.trim()) {
+						errors.push({ row: 0, field: "opcaoA/opcaoB", message: "opcaoA e opcaoB sao obrigatorias" });
+						result.skipped++;
+						continue;
+					}
+
+					// Upsert by pergunta_id
+					if (isUpsert && r.pergunta_id?.trim()) {
+						const existing = existingById.get(r.pergunta_id.trim());
+						if (existing) {
+							await db.update(
+								"quizPergunta",
+								{ id: r.pergunta_id.trim() },
+								{
+									pergunta: perguntaText,
+									opcaoA: r.opcaoA.trim(),
+									opcaoB: r.opcaoB.trim(),
+									opcaoC: r.opcaoC?.trim() || null,
+									opcaoD: r.opcaoD?.trim() || null,
+									correta,
+								},
+							);
+							result.updated++;
+							continue;
+						}
+					}
+
+					// Dedup by pergunta text
+					if (existingByPergunta.has(perguntaText)) {
+						result.skipped++;
+						continue;
+					}
+
+					ordemCounter++;
+					await db.create("quizPergunta", {
+						quizId: quiz!.id,
+						pergunta: perguntaText,
+						opcaoA: r.opcaoA.trim(),
+						opcaoB: r.opcaoB.trim(),
+						opcaoC: r.opcaoC?.trim() || null,
+						opcaoD: r.opcaoD?.trim() || null,
+						correta,
+						ordem: ordemCounter,
+					});
+					existingByPergunta.set(perguntaText, {} as any);
+					result.created++;
+				}
+			}
+		} // end else (original flow)
 
 		const typeLabel = hasTipoColumn
 			? "CSV unificado"
