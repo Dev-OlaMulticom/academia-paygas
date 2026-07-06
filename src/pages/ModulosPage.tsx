@@ -6,6 +6,7 @@ import { useAbility } from "../hooks/useAbility";
 import { useAuth } from "../hooks/useAuth";
 import { api } from "../lib/api";
 import { pluralize } from "../lib/utils";
+import { useToast } from "../components/Toast";
 
 function slugify(text: string): string {
 	return text
@@ -31,6 +32,7 @@ export function ModulosPage() {
 	const { cursoNombre } = useParams<{ cursoNombre: string }>();
 	const { user } = useAuth();
 	const { isAtendente } = useAbility();
+	const { toast } = useToast();
 	const [currentLesson, setCurrentLesson] = useState(0);
 	const [showQuiz, setShowQuiz] = useState(false);
 	const [showAllQuizzes, setShowAllQuizzes] = useState(false);
@@ -61,8 +63,10 @@ export function ModulosPage() {
 		type: "pdf" | "video";
 		title: string;
 		startTime?: number;
+		lessonIndex?: number;
 	} | null>(null);
 	const [restartRequested, setRestartRequested] = useState(false);
+	const [quizModalLessonIndex, setQuizModalLessonIndex] = useState<number | null>(null);
 	const isMobile = useIsMobile();
 
 	const loadModulo = useCallback(async () => {
@@ -872,21 +876,184 @@ export function ModulosPage() {
 		);
 	};
 
-	const openMediaModal = (url: string, type: "pdf" | "video", title: string, startTime?: number) => {
-		setMediaModal({ url, type, title, startTime });
+	const renderQuizModal = () => {
+		const modalLesson = lessons[quizModalLessonIndex!];
+		if (!modalLesson?.quiz) return null;
+		const quiz = modalLesson.quiz;
+		const isSubmitted = quizSubmittedMap[quiz.id];
+		const inlineResult = quizResultMap[quiz.id];
+		const answers = quizAnswers[quiz.id] || {};
+		const perguntas = quiz.perguntas || [];
+		const currentStep = quizStep[quiz.id] || 0;
+		const isLastStep = currentStep === perguntas.length - 1;
+		const pergunta = perguntas[currentStep];
+
+		return (
+			<div className="quiz-modal-overlay" onClick={() => setQuizModalLessonIndex(null)}>
+				<div className="quiz-modal-content" onClick={(e) => e.stopPropagation()}>
+					<div className="quiz-modal-header">
+						<h3>📝 {quiz.titulo}</h3>
+						<button className="quiz-modal-close" onClick={() => setQuizModalLessonIndex(null)}>
+							<i className="icon-x" />
+						</button>
+					</div>
+
+					<p className="quiz-modal-subtitle">
+						Aula: {modalLesson.titulo} · Nota minima: {quiz.notaMinima ?? 7}/10
+					</p>
+
+					{inlineResult && (
+						<div className={`quiz-result-banner ${inlineResult.passed ? "passed" : "failed"}`}>
+							<div className="quiz-result-header">
+								<span className="quiz-result-icon">{inlineResult.passed ? "🎉" : "❌"}</span>
+								<div>
+									<h3 className="quiz-result-h3">{inlineResult.passed ? "Aprovado!" : "Reprovado"}</h3>
+									<p className="quiz-result-sub">
+										Nota: {inlineResult.nota}/10 ({inlineResult.correct}/{inlineResult.total} corretas)
+									</p>
+								</div>
+							</div>
+							{!inlineResult.passed && (
+								<div style={{ marginTop: "8px" }}>
+									<button
+										className="btn-secondary"
+										onClick={() => {
+											setQuizSubmittedMap((prev) => ({ ...prev, [quiz.id]: false }));
+											setQuizResultMap((prev) => {
+												const n = { ...prev };
+												delete n[quiz.id];
+												return n;
+											});
+											setQuizAnswers((prev) => {
+												const n = { ...prev };
+												delete n[quiz.id];
+												return n;
+											});
+											setQuizStep((prev) => ({ ...prev, [quiz.id]: 0 }));
+										}}
+									>
+										Tentar Novamente
+									</button>
+								</div>
+							)}
+						</div>
+					)}
+
+					{!isSubmitted && (
+						<div className="quiz-step-indicator">
+							<span className="quiz-step-text">
+								{currentStep + 1} / {perguntas.length}
+							</span>
+							<div className="quiz-step-bar">
+								<div className="quiz-step-fill" style={{ width: `${((currentStep + 1) / perguntas.length) * 100}%` }} />
+							</div>
+						</div>
+					)}
+
+					{!isSubmitted && pergunta && (
+						<div style={{ marginBottom: "12px" }}>
+							<p style={{ fontWeight: "600", marginBottom: "8px", fontSize: "14px" }}>
+								{currentStep + 1}. {pergunta.pergunta}
+							</p>
+							<div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+								{[pergunta.opcaoA, pergunta.opcaoB, pergunta.opcaoC, pergunta.opcaoD]
+									.filter(Boolean)
+									.map((opt: string, oIndex: number) => {
+										const l = ["A", "B", "C", "D"][oIndex];
+										const isSelected = answers[pergunta.id] === l;
+										return (
+											<label key={oIndex} className={`quiz-opt ${isSelected ? "selected" : ""}`}>
+												<input
+													type="radio"
+													name={`modal-${quiz.id}-${pergunta.id}`}
+													checked={isSelected}
+													onChange={() => handleInlineAnswer(quiz.id, pergunta.id, l)}
+												/>
+												<span className="quiz-letter">{l}</span>
+												{opt}
+											</label>
+										);
+									})}
+							</div>
+						</div>
+					)}
+
+					{isSubmitted &&
+						perguntas.map((p: any, qIndex: number) => (
+							<div key={qIndex} style={{ marginBottom: "8px", fontSize: "13px" }}>
+								<span
+									style={{
+										color: answers[p.id] === p.correta ? "var(--pg-green)" : "var(--pg-red)",
+										fontWeight: "600",
+									}}
+								>
+									{answers[p.id] === p.correta ? "✓" : "✗"}
+								</span>{" "}
+								{qIndex + 1}. {p.pergunta.substring(0, 50)}
+								{p.pergunta.length > 50 ? "..." : ""}
+								{answers[p.id] !== p.correta && (
+									<span style={{ color: "var(--gray-400)", fontSize: "11px" }}>
+										{" "}→ {p.correta}
+									</span>
+								)}
+							</div>
+						))}
+
+					{!isSubmitted && (
+						<div className="quiz-step-nav" style={{ marginTop: "12px" }}>
+							{currentStep > 0 && (
+								<button className="btn-secondary" onClick={() => setQuizStep((prev) => ({ ...prev, [quiz.id]: currentStep - 1 }))}>
+									<i className="icon-arrow-left icon-sm" /> Anterior
+								</button>
+							)}
+							{isLastStep ? (
+								<button
+									className="btn-primary"
+									style={{ flex: 1 }}
+									onClick={async () => {
+										try {
+											const result = await api.submitQuiz(quiz.id, answers);
+											setQuizResultMap((prev) => ({ ...prev, [quiz.id]: result }));
+											setQuizSubmittedMap((prev) => ({ ...prev, [quiz.id]: true }));
+											setAllQuizResults((prev) => ({ ...prev, [quiz.id]: result }));
+										} catch {}
+									}}
+									disabled={Object.keys(answers).length < perguntas.length}
+								>
+									Enviar Respostas
+								</button>
+							) : (
+								<button
+									className="btn-primary"
+									style={{ flex: 1 }}
+									onClick={() => setQuizStep((prev) => ({ ...prev, [quiz.id]: currentStep + 1 }))}
+									disabled={!answers[perguntas[currentStep]?.id]}
+								>
+									Proxima <i className="icon-chevron-right icon-sm" />
+								</button>
+							)}
+						</div>
+					)}
+				</div>
+			</div>
+		);
 	};
 
-	const renderMediaButton = (lesson: any) => {
+	const openMediaModal = (url: string, type: "pdf" | "video", title: string, startTime?: number, lessonIndex?: number) => {
+		setMediaModal({ url, type, title, startTime, lessonIndex });
+	};
+
+	const renderMediaButton = (lesson: any, lessonIndex?: number) => {
 		if (lesson.tipo === "PDF" && lesson.pdfUrl) {
 			return (
-				<button className="media-open-btn" onClick={() => openMediaModal(lesson.pdfUrl, "pdf", lesson.titulo)}>
+				<button className="media-open-btn" onClick={() => openMediaModal(lesson.pdfUrl, "pdf", lesson.titulo, undefined, lessonIndex)}>
 					<i className="icon-file-text" /> Abrir PDF
 				</button>
 			);
 		}
 		if (lesson.videoUrl) {
 			return (
-				<button className="media-open-btn" onClick={() => openMediaModal(lesson.videoUrl, "video", lesson.titulo)}>
+				<button className="media-open-btn" onClick={() => openMediaModal(lesson.videoUrl, "video", lesson.titulo, undefined, lessonIndex)}>
 					<i className="icon-play" /> Assistir Video
 				</button>
 			);
@@ -895,6 +1062,7 @@ export function ModulosPage() {
 	};
 
 	return (
+		<>
 		<div className="page active">
 			{showConfetti && (
 				<div className="confetti-container">
@@ -948,6 +1116,52 @@ export function ModulosPage() {
 								})()
 							)}
 						</div>
+						{mediaModal.lessonIndex != null && (() => {
+							const modalLesson = lessons[mediaModal.lessonIndex];
+							const hasQuiz = !!modalLesson?.quiz;
+							const nextExists = mediaModal.lessonIndex < lessons.length - 1;
+							if (!hasQuiz && !nextExists) return null;
+							return (
+								<div className="media-modal-actions">
+									{hasQuiz && (
+										<button
+											className="btn-secondary"
+											onClick={() => {
+												setMediaModal(null);
+												if (isMobile) {
+													setQuizModalLessonIndex(mediaModal.lessonIndex!);
+												} else {
+													setCurrentLesson(mediaModal.lessonIndex!);
+													setShowQuiz(true);
+													setDesktopQuizStep(0);
+													setSelectedAnswers({});
+													setQuizSubmitted(false);
+													setQuizResult(null);
+												}
+											}}
+										>
+											📝 Quiz
+										</button>
+									)}
+									{nextExists && (
+										<button
+											className="btn-primary"
+											onClick={() => {
+												setMediaModal(null);
+												const nextIdx = mediaModal.lessonIndex! + 1;
+												if (isMobile) {
+													setExpandedMobileLesson(nextIdx);
+												}
+												setCurrentLesson(nextIdx);
+												resetLessonState();
+											}}
+										>
+											Proxima Aula <i className="icon-chevron-right icon-sm" />
+										</button>
+									)}
+								</div>
+							);
+						})()}
 					</div>
 				</div>
 			)}
@@ -1057,16 +1271,6 @@ export function ModulosPage() {
 												)}
 												{tipoLabel}
 											</span>
-											{completed && (
-												<span className="lesson-check">
-													<i className="icon-check icon-sm" />
-												</span>
-											)}
-											{locked && !completed && (
-												<span className="lesson-locked-icon">
-													<i className="icon-lock icon-sm" />
-												</span>
-											)}
 											<i
 												className={`icon-chevron-${isExpanded ? "up" : "down"} icon-sm lesson-item-chevron ${isExpanded ? "expanded" : ""}`}
 											/>
@@ -1115,7 +1319,7 @@ export function ModulosPage() {
 
 								{isMobile && isExpanded && (
 									<div className="lesson-item-accordion-body">
-										{renderMediaButton(lesson)}
+										{renderMediaButton(lesson, i)}
 
 										{lesson.tipo === "VIDEO" &&
 											lesson.ancoragemPoints &&
@@ -1143,7 +1347,7 @@ export function ModulosPage() {
 																onClick={(e) => {
 																	e.stopPropagation();
 																	if (isMobile && lesson.videoUrl) {
-																		openMediaModal(lesson.videoUrl, "video", lesson.titulo, totalSec);
+																		openMediaModal(lesson.videoUrl, "video", lesson.titulo, totalSec, i);
 																	} else {
 																		videoRef.current?.seekTo(totalSec);
 																	}
@@ -1205,7 +1409,10 @@ export function ModulosPage() {
 																Iniciar Quiz <i className="icon-chevron-right icon-sm" />
 															</button>
 														) : (
-															<button className="btn-primary" disabled style={{ opacity: 0.5, cursor: "not-allowed" }}>
+															<button
+																className="btn-primary locked-msg-btn"
+																onClick={() => toast("Nao e possivel avancar para a proxima aula sem antes resolver o quiz anterior.", "info")}
+															>
 																<i className="icon-lock icon-sm" /> Quiz bloqueado
 															</button>
 														)
@@ -1221,16 +1428,26 @@ export function ModulosPage() {
 														</button>
 													)
 												) : i < lessons.length - 1 ? (
-													<button
-														className="btn-primary"
-														onClick={() => {
-															setExpandedMobileLesson(i + 1);
-															setCurrentLesson(i + 1);
-															resetLessonState();
-														}}
-													>
-														Proxima Aula <i className="icon-chevron-right icon-sm" />
-													</button>
+													<>
+														{lesson.quiz && (
+															<button
+																className="btn-secondary"
+																onClick={() => setQuizModalLessonIndex(i)}
+															>
+																📝 Quiz <i className="icon-chevron-right icon-sm" />
+															</button>
+														)}
+														<button
+															className="btn-primary"
+															onClick={() => {
+																setExpandedMobileLesson(i + 1);
+																setCurrentLesson(i + 1);
+																resetLessonState();
+															}}
+														>
+															Proxima Aula <i className="icon-chevron-right icon-sm" />
+														</button>
+													</>
 												) : allCompleted ? (
 													<button className="btn-primary" onClick={() => navigate("/cursos")}>
 														<i className="icon-check-circle icon-sm" /> Finalizar Curso
@@ -1533,9 +1750,8 @@ export function ModulosPage() {
 												</>
 											) : (
 												<button
-													className="btn-primary lesson-action-btn"
-													disabled
-													style={{ opacity: 0.5, cursor: "not-allowed" }}
+													className="btn-primary lesson-action-btn locked-msg-btn"
+													onClick={() => toast("Nao e possivel avancar para a proxima aula sem antes resolver o quiz anterior.", "info")}
 												>
 													<i className="icon-lock icon-sm" /> Complete os quizzes anteriores primeiro
 												</button>
@@ -1545,15 +1761,29 @@ export function ModulosPage() {
 												Proximo <i className="icon-chevron-right icon-sm" />
 											</button>
 										)
-									) : (
-										<>
-											{currentLesson < lessons.length - 1 && (
-												<button className="btn-primary lesson-action-btn" onClick={handleAvanzar}>
-													<span>Proxima Aula</span>
-													<i className="icon-chevron-right icon-sm" />
-												</button>
-											)}
-											{isLastLesson && allCompleted && (
+								) : (
+									<>
+										{current?.quiz && (
+											<button
+												className="btn-secondary lesson-action-btn"
+												onClick={() => {
+													setShowQuiz(true);
+													setDesktopQuizStep(0);
+													setSelectedAnswers({});
+													setQuizSubmitted(false);
+													setQuizResult(null);
+												}}
+											>
+												📝 Quiz <i className="icon-chevron-right icon-sm" />
+											</button>
+										)}
+										{currentLesson < lessons.length - 1 && (
+											<button className="btn-primary lesson-action-btn" onClick={handleAvanzar}>
+												<span>Proxima Aula</span>
+												<i className="icon-chevron-right icon-sm" />
+											</button>
+										)}
+										{isLastLesson && allCompleted && (
 												<button
 													className="btn-primary lesson-action-btn lesson-action-btn-green"
 													onClick={() => navigate("/cursos")}
@@ -1762,5 +1992,8 @@ export function ModulosPage() {
 				</div>
 			</div>
 		</div>
+
+		{quizModalLessonIndex !== null && renderQuizModal()}
+		</>
 	);
 }

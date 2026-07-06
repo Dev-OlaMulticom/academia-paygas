@@ -25,6 +25,7 @@ import { TermosPage } from "./pages/TermosPage";
 import { UsuariosPage } from "./pages/UsuariosPage";
 import { VerificarEmailPage } from "./pages/VerificarEmailPage";
 import { XPConfigPage } from "./pages/XPConfigPage";
+import { AjudaPage } from "./pages/AjudaPage";
 import "./index.css";
 
 function RoleRoute({ user, allowedRoles, children }: { user: any; allowedRoles: string[]; children: React.ReactNode }) {
@@ -150,8 +151,9 @@ export default function App() {
 													</RoleRoute>
 												}
 											/>
-											<Route path="/perfil" element={<PerfilPage user={user!} xp={xp} />} />
-											<Route path="*" element={<Navigate to="/" replace />} />
+										<Route path="/perfil" element={<PerfilPage user={user!} xp={xp} />} />
+										<Route path="/ajuda" element={<AjudaPage />} />
+										<Route path="*" element={<Navigate to="/" replace />} />
 										</Routes>
 									</AppLayout>
 								</ProtectedRoute>

@@ -269,6 +269,16 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
 								<i className="icon-user nav-icon" /> Meu Perfil
 							</button>
 						)}
+						<button
+							id="nav-ajuda"
+							className={`nav-item ${currentPath === "/ajuda" ? "active" : ""}`}
+							onClick={() => {
+								setSidebarOpen(false);
+								navigate("/ajuda");
+							}}
+						>
+							<i className="icon-help-circle nav-icon" /> Ajuda
+						</button>
 					</div>
 					<div className="sidebar-footer">
 						<div className="sidebar-user">
