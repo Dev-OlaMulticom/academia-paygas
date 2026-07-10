@@ -93,7 +93,7 @@ export function NotifPage({ user }: NotifPageProps) {
 	const handleDeleteNotif = async (notif: any) => {
 		const ok = await confirm({
 			title: "Excluir notificacao",
-			message: "¿Realmente deseas borrar esta notificacao?\n\nEsta ação NÃO pode ser desfeita.",
+			message: "Realmente deseja excluir esta notificação?\n\nEsta ação NÃO pode ser desfeita.",
 			confirmLabel: "Sim, excluir",
 			cancelLabel: "Cancelar",
 			danger: true,

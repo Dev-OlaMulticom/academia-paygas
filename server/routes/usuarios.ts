@@ -3,6 +3,7 @@ import type { Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { Router } from "express";
 import { db } from "../lib/db";
+import { passedQuizResult } from "../lib/quiz";
 import logger from "../lib/logger";
 import { type AuthRequest, authenticate, authorize } from "../middleware/auth";
 import { sendVerificationEmail } from "../services/email";
@@ -571,8 +572,7 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 			)) as any;
 			if (!quiz) return res.status(404).json({ error: "Quiz nao encontrado" });
 
-			const total = quiz.perguntas.length;
-			const nota = quiz.notaMinima || 7;
+			const { nota, total } = passedQuizResult(quiz);
 
 			await db.upsert(
 				"quizResponse",
@@ -612,12 +612,12 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 					},
 				)) as any;
 				if (quiz) {
-					const total = quiz.perguntas.length;
+					const { nota, total } = passedQuizResult(quiz);
 					await db.upsert(
 						"quizResponse",
 						{ quizId_userId: { quizId: aula.quizId, userId } },
-						{ quizId: aula.quizId, userId, nota: quiz.notaMinima || 7, total, concluido: true, respostas: {} },
-						{ nota: quiz.notaMinima || 7, total, concluido: true, respostas: {} },
+						{ quizId: aula.quizId, userId, nota, total, concluido: true, respostas: {} },
+						{ nota, total, concluido: true, respostas: {} },
 					);
 				}
 			}
@@ -645,12 +645,12 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 				);
 
 				if (aula.quiz) {
-					const total = aula.quiz.perguntas.length;
+					const { nota, total } = passedQuizResult(aula.quiz);
 					await db.upsert(
 						"quizResponse",
 						{ quizId_userId: { quizId: aula.quiz.id, userId } },
-						{ quizId: aula.quiz.id, userId, nota: aula.quiz.notaMinima || 7, total, concluido: true, respostas: {} },
-						{ nota: aula.quiz.notaMinima || 7, total, concluido: true, respostas: {} },
+						{ quizId: aula.quiz.id, userId, nota, total, concluido: true, respostas: {} },
+						{ nota, total, concluido: true, respostas: {} },
 					);
 				}
 			}

@@ -4,9 +4,11 @@ import { PDFViewer } from "../components/PDFViewer";
 import { VideoPlayer } from "../components/VideoPlayer";
 import { useAbility } from "../hooks/useAbility";
 import { useAuth } from "../hooks/useAuth";
+import { useQuiz } from "../hooks/useQuiz";
 import { api } from "../lib/api";
 import { pluralize } from "../lib/utils";
 import { useToast } from "../components/Toast";
+import { quizPassText } from "@shared/quiz";
 
 function slugify(text: string): string {
 	return text
@@ -40,9 +42,6 @@ export function ModulosPage() {
 	const [lessons, setLessons] = useState<any[]>([]);
 	const [curso, setModulo] = useState<any>(null);
 	const [loading, setLoading] = useState(true);
-	const [selectedAnswers, setSelectedAnswers] = useState<Record<string, string>>({});
-	const [quizSubmitted, setQuizSubmitted] = useState(false);
-	const [quizResult, setQuizResult] = useState<any>(null);
 	const [_videoEnded, setVideoEnded] = useState(false);
 	const [expandedLicao, setExpandedLicao] = useState<string | null>(null);
 	const videoRef = useRef<{ seekTo: (s: number) => void }>(null);
@@ -51,11 +50,17 @@ export function ModulosPage() {
 	const [allQuizResults, setAllQuizResults] = useState<Record<string, any>>({});
 	const [showConfetti, setShowConfetti] = useState(false);
 	const [expandedQuizId, setExpandedQuizId] = useState<string | null>(null);
-	const [quizAnswers, setQuizAnswers] = useState<Record<string, Record<string, string>>>({});
-	const [quizSubmittedMap, setQuizSubmittedMap] = useState<Record<string, boolean>>({});
-	const [quizResultMap, setQuizResultMap] = useState<Record<string, any>>({});
-	const [quizStep, setQuizStep] = useState<Record<string, number>>({});
-	const [desktopQuizStep, setDesktopQuizStep] = useState(0);
+	const qz = useQuiz({
+		onPass: (quizId: string, passed: boolean) => {
+			setShowConfetti(true);
+			setTimeout(() => setShowConfetti(false), 4000);
+			if (!passed) return;
+			setLessons((prev) => prev.map((l: any) => (l.quiz?.id === quizId ? { ...l, concluido: true } : l)));
+			setAllQuizResults((prev) => ({ ...prev, [quizId]: { ...(prev[quizId] || {}), concluido: true } }));
+			loadQuizResults();
+			loadCertificate();
+		},
+	});
 	const [expandedMobileLesson, setExpandedMobileLesson] = useState<number | null>(0);
 	const [expandedMobileExtra, setExpandedMobileExtra] = useState<string | null>(null);
 	const [mediaModal, setMediaModal] = useState<{
@@ -177,11 +182,9 @@ export function ModulosPage() {
 
 	const resetLessonState = () => {
 		setShowQuiz(false);
-		setSelectedAnswers({});
-		setQuizSubmitted(false);
-		setQuizResult(null);
+		const id = lessons[currentLesson]?.quiz?.id;
+		if (id) qz.reset(id);
 		setVideoEnded(false);
-		setDesktopQuizStep(0);
 	};
 
 	const handleConcluir = async () => {
@@ -213,42 +216,6 @@ export function ModulosPage() {
 		}
 	};
 
-	const handleAnswerQuiz = (questionId: string, answer: string) => {
-		if (quizSubmitted) return;
-		setSelectedAnswers((prev) => ({ ...prev, [questionId]: answer }));
-	};
-
-	const handleSubmitQuiz = async () => {
-		const lesson = lessons[currentLesson];
-		if (!lesson?.quiz) return;
-
-		try {
-			const result: any = await api.submitQuiz(lesson.quiz.id, selectedAnswers);
-			const nota = result.nota || 0;
-			const total = result.total || lesson.quiz.perguntas.length;
-			const correct = result.correct || 0;
-			const passed = result.concluido || nota >= (lesson.quiz?.notaMinima ?? 7);
-
-			setQuizResult({ nota, total, correct, passed });
-			setQuizSubmitted(true);
-
-			if (passed) {
-				setShowConfetti(true);
-				setTimeout(() => setShowConfetti(false), 4000);
-
-				const updated = [...lessons];
-				updated[currentLesson] = { ...updated[currentLesson], concluido: true };
-				setLessons(updated);
-
-				loadQuizResults();
-				loadCertificate();
-			}
-		} catch {
-			setQuizResult({ nota: 0, total: lesson.quiz.perguntas.length, correct: 0, passed: false });
-			setQuizSubmitted(true);
-		}
-	};
-
 	const handleVideoEnd = () => {
 		setVideoEnded(true);
 	};
@@ -256,6 +223,7 @@ export function ModulosPage() {
 	const allCompleted = lessons.length > 0 && lessons.every((l: any) => isLessonCompleted(l));
 	const isLastLesson = currentLesson === lessons.length - 1;
 	const current = lessons[currentLesson];
+	const currentQuizId = current?.quiz?.id;
 	const semGestor = isAtendente && !user?.gestorId;
 	const quizzesWithLesson = lessons.filter((l) => l.quiz);
 	const hasCertificate = !!certificate;
@@ -459,68 +427,16 @@ export function ModulosPage() {
 		);
 	};
 
-	const handleInlineAnswer = (quizId: string, perguntaId: string, answer: string) => {
-		if (quizSubmittedMap[quizId]) return;
-		setQuizAnswers((prev) => ({ ...prev, [quizId]: { ...(prev[quizId] || {}), [perguntaId]: answer } }));
-	};
-
-	const handleInlineSubmit = async (quiz: any) => {
-		const answers = quizAnswers[quiz.id] || {};
-		try {
-			const result: any = await api.submitQuiz(quiz.id, answers);
-			const nota = result.nota || 0;
-			const total = result.total || quiz.perguntas.length;
-			const correct = result.correct || 0;
-			const passed = result.concluido || nota >= (quiz.notaMinima ?? 7);
-			setQuizResultMap((prev) => ({ ...prev, [quiz.id]: { nota, total, correct, passed } }));
-			setQuizSubmittedMap((prev) => ({ ...prev, [quiz.id]: true }));
-			if (passed) {
-				setShowConfetti(true);
-				setTimeout(() => setShowConfetti(false), 4000);
-				loadQuizResults();
-				// Auto-request certificate if all quizzes passed and all lessons completed
-				const allLessonsDone = lessons.every((l: any) => isLessonCompleted(l));
-				const updatedResults: Record<string, any> = { ...allQuizResults, [quiz.id]: { ...result, concluido: true } };
-				const allQuizzesDone = lessons
-					.filter((l: any) => l.quiz)
-					.every((l: any) => updatedResults[l.quiz.id]?.concluido);
-				if (allLessonsDone && allQuizzesDone && !certificate) {
-					try {
-						await api.createCertificate(curso.id);
-						loadCertificate();
-					} catch {
-						/* silent */
-					}
-				} else {
-					loadCertificate();
-				}
-			}
-		} catch {
-			setQuizResultMap((prev) => ({
-				...prev,
-				[quiz.id]: { nota: 0, total: quiz.perguntas.length, correct: 0, passed: false },
-			}));
-			setQuizSubmittedMap((prev) => ({ ...prev, [quiz.id]: true }));
-		}
-	};
-
-	const quizPassText = (quiz: any) => {
-		const notaMin = quiz?.notaMinima ?? 7;
-		const total = quiz?.perguntas?.length || 0;
-		const needed = total > 0 ? Math.ceil((notaMin / 10) * total) : 0;
-		return `Voce precisa de ${needed} de ${total} respostas corretas para aprovar (nota minima ${notaMin}/10)`;
-	};
-
 	const renderQuizInAccordion = (lessonIndex: number) => {
 		const lesson = lessons[lessonIndex];
 		if (!lesson?.quiz) return null;
 		const quiz = lesson.quiz;
-		const isSubmitted = quizSubmittedMap[quiz.id];
-		const inlineResult = quizResultMap[quiz.id];
-		const answers = quizAnswers[quiz.id] || {};
+		const isSubmitted = qz.submitted(quiz.id);
+		const inlineResult = qz.result(quiz.id);
+		const answers = qz.answers(quiz.id) || {};
 		const isCurrentQuiz = showQuiz && currentLesson === lessonIndex;
 		const perguntas = quiz.perguntas || [];
-		const currentStep = quizStep[quiz.id] || 0;
+		const currentStep = qz.step(quiz.id) || 0;
 		const isLastStep = currentStep === perguntas.length - 1;
 
 		if (!isCurrentQuiz && !isSubmitted) return null;
@@ -583,7 +499,7 @@ export function ModulosPage() {
 														type="radio"
 														name={`acc-${quiz.id}-${pergunta.id}`}
 														checked={isSelected}
-														onChange={() => handleInlineAnswer(quiz.id, pergunta.id, l)}
+														onChange={() => qz.setAnswer(quiz.id, pergunta.id, l)}
 													/>
 													<span className="quiz-letter">{l}</span>
 													{opt}
@@ -616,7 +532,7 @@ export function ModulosPage() {
 						{currentStep > 0 && (
 							<button
 								className="btn-secondary"
-								onClick={() => setQuizStep((prev) => ({ ...prev, [quiz.id]: currentStep - 1 }))}
+								onClick={() => qz.setStep(quiz.id, currentStep - 1)}
 							>
 								<i className="icon-arrow-left icon-sm" /> Anterior
 							</button>
@@ -625,7 +541,7 @@ export function ModulosPage() {
 							<button
 								className="btn-primary"
 								style={{ flex: 1 }}
-								onClick={() => handleInlineSubmit(quiz)}
+								onClick={() => qz.submit(quiz)}
 								disabled={Object.keys(answers).length < perguntas.length}
 							>
 								Enviar Respostas
@@ -634,7 +550,7 @@ export function ModulosPage() {
 							<button
 								className="btn-primary"
 								style={{ flex: 1 }}
-								onClick={() => setQuizStep((prev) => ({ ...prev, [quiz.id]: currentStep + 1 }))}
+								onClick={() => qz.setStep(quiz.id, currentStep + 1)}
 								disabled={!answers[perguntas[currentStep]?.id]}
 							>
 								Proxima <i className="icon-chevron-right icon-sm" />
@@ -648,18 +564,7 @@ export function ModulosPage() {
 						className="btn-secondary"
 						style={{ width: "100%" }}
 						onClick={() => {
-							setQuizSubmittedMap((prev) => ({ ...prev, [quiz.id]: false }));
-							setQuizResultMap((prev) => {
-								const n = { ...prev };
-								delete n[quiz.id];
-								return n;
-							});
-							setQuizAnswers((prev) => {
-								const n = { ...prev };
-								delete n[quiz.id];
-								return n;
-							});
-							setQuizStep((prev) => ({ ...prev, [quiz.id]: 0 }));
+						qz.reset(quiz.id);
 						}}
 					>
 						Tentar Novamente
@@ -684,9 +589,9 @@ export function ModulosPage() {
 							const result = allQuizResults[quiz.id];
 							const passed = result?.concluido;
 							const isExpanded = expandedQuizId === quiz.id;
-							const isSubmitted = quizSubmittedMap[quiz.id];
-							const inlineResult = quizResultMap[quiz.id];
-							const answers = quizAnswers[quiz.id] || {};
+							const isSubmitted = qz.submitted(quiz.id);
+							const inlineResult = qz.result(quiz.id);
+							const answers = qz.answers(quiz.id) || {};
 							const lessonIdx = lessons.indexOf(lesson);
 							const quizAccessible = canOpenQuiz(lessonIdx);
 							const cardClass = passed ? "passed" : isExpanded ? "expanded" : quizAccessible ? "default" : "default";
@@ -744,18 +649,7 @@ export function ModulosPage() {
 															<button
 																className="btn-secondary quiz-retry-btn"
 																onClick={() => {
-																	setQuizSubmittedMap((prev) => ({ ...prev, [quiz.id]: false }));
-																	setQuizResultMap((prev) => {
-																		const n = { ...prev };
-																		delete n[quiz.id];
-																		return n;
-																	});
-																	setQuizAnswers((prev) => {
-																		const n = { ...prev };
-																		delete n[quiz.id];
-																		return n;
-																	});
-																	setQuizStep((prev) => ({ ...prev, [quiz.id]: 0 }));
+									qz.reset(quiz.id);
 																}}
 															>
 																Tentar Novamente
@@ -767,7 +661,7 @@ export function ModulosPage() {
 											{!isSubmitted &&
 												(() => {
 													const perguntas = quiz.perguntas || [];
-													const step = quizStep[quiz.id] || 0;
+													const step = qz.step(quiz.id) || 0;
 													const isLast = step === perguntas.length - 1;
 													const pergunta = perguntas[step];
 													if (!pergunta) return null;
@@ -801,7 +695,7 @@ export function ModulosPage() {
 																							type="radio"
 																							name={`inline-${quiz.id}-${pergunta.id}`}
 																							checked={isSelected}
-																							onChange={() => handleInlineAnswer(quiz.id, pergunta.id, letter)}
+																							onChange={() => qz.setAnswer(quiz.id, pergunta.id, letter)}
 																						/>
 																						<span className="quiz-letter">{letter}</span>
 																						{opt}
@@ -815,7 +709,7 @@ export function ModulosPage() {
 																{step > 0 && (
 																	<button
 																		className="btn-secondary"
-																		onClick={() => setQuizStep((prev) => ({ ...prev, [quiz.id]: step - 1 }))}
+																		onClick={() => qz.setStep(quiz.id, step - 1)}
 																	>
 																		<i className="icon-arrow-left icon-sm" /> Anterior
 																	</button>
@@ -824,7 +718,7 @@ export function ModulosPage() {
 																	<button
 																		className="btn-primary quiz-submit-btn"
 																		style={{ flex: 1 }}
-																		onClick={() => handleInlineSubmit(quiz)}
+																		onClick={() => qz.submit(quiz)}
 																		disabled={Object.keys(answers).length < perguntas.length}
 																	>
 																		Enviar Respostas
@@ -833,7 +727,7 @@ export function ModulosPage() {
 																	<button
 																		className="btn-primary quiz-submit-btn"
 																		style={{ flex: 1 }}
-																		onClick={() => setQuizStep((prev) => ({ ...prev, [quiz.id]: step + 1 }))}
+																		onClick={() => qz.setStep(quiz.id, step + 1)}
 																		disabled={!answers[perguntas[step]?.id]}
 																	>
 																		Proxima <i className="icon-chevron-right icon-sm" />
@@ -880,11 +774,11 @@ export function ModulosPage() {
 		const modalLesson = lessons[quizModalLessonIndex!];
 		if (!modalLesson?.quiz) return null;
 		const quiz = modalLesson.quiz;
-		const isSubmitted = quizSubmittedMap[quiz.id];
-		const inlineResult = quizResultMap[quiz.id];
-		const answers = quizAnswers[quiz.id] || {};
+		const isSubmitted = qz.submitted(quiz.id);
+		const inlineResult = qz.result(quiz.id);
+		const answers = qz.answers(quiz.id) || {};
 		const perguntas = quiz.perguntas || [];
-		const currentStep = quizStep[quiz.id] || 0;
+		const currentStep = qz.step(quiz.id) || 0;
 		const isLastStep = currentStep === perguntas.length - 1;
 		const pergunta = perguntas[currentStep];
 
@@ -918,18 +812,7 @@ export function ModulosPage() {
 									<button
 										className="btn-secondary"
 										onClick={() => {
-											setQuizSubmittedMap((prev) => ({ ...prev, [quiz.id]: false }));
-											setQuizResultMap((prev) => {
-												const n = { ...prev };
-												delete n[quiz.id];
-												return n;
-											});
-											setQuizAnswers((prev) => {
-												const n = { ...prev };
-												delete n[quiz.id];
-												return n;
-											});
-											setQuizStep((prev) => ({ ...prev, [quiz.id]: 0 }));
+											qz.reset(quiz.id);
 										}}
 									>
 										Tentar Novamente
@@ -967,7 +850,7 @@ export function ModulosPage() {
 													type="radio"
 													name={`modal-${quiz.id}-${pergunta.id}`}
 													checked={isSelected}
-													onChange={() => handleInlineAnswer(quiz.id, pergunta.id, l)}
+													onChange={() => qz.setAnswer(quiz.id, pergunta.id, l)}
 												/>
 												<span className="quiz-letter">{l}</span>
 												{opt}
@@ -1002,7 +885,7 @@ export function ModulosPage() {
 					{!isSubmitted && (
 						<div className="quiz-step-nav" style={{ marginTop: "12px" }}>
 							{currentStep > 0 && (
-								<button className="btn-secondary" onClick={() => setQuizStep((prev) => ({ ...prev, [quiz.id]: currentStep - 1 }))}>
+								<button className="btn-secondary" onClick={() => qz.setStep(quiz.id, currentStep - 1)}>
 									<i className="icon-arrow-left icon-sm" /> Anterior
 								</button>
 							)}
@@ -1010,14 +893,9 @@ export function ModulosPage() {
 								<button
 									className="btn-primary"
 									style={{ flex: 1 }}
-									onClick={async () => {
-										try {
-											const result = await api.submitQuiz(quiz.id, answers);
-											setQuizResultMap((prev) => ({ ...prev, [quiz.id]: result }));
-											setQuizSubmittedMap((prev) => ({ ...prev, [quiz.id]: true }));
-											setAllQuizResults((prev) => ({ ...prev, [quiz.id]: result }));
-										} catch {}
-									}}
+									onClick={() => {
+											qz.submit(quiz);
+										}}
 									disabled={Object.keys(answers).length < perguntas.length}
 								>
 									Enviar Respostas
@@ -1026,7 +904,7 @@ export function ModulosPage() {
 								<button
 									className="btn-primary"
 									style={{ flex: 1 }}
-									onClick={() => setQuizStep((prev) => ({ ...prev, [quiz.id]: currentStep + 1 }))}
+									onClick={() => qz.setStep(quiz.id, currentStep + 1)}
 									disabled={!answers[perguntas[currentStep]?.id]}
 								>
 									Proxima <i className="icon-chevron-right icon-sm" />
@@ -1133,10 +1011,7 @@ export function ModulosPage() {
 												} else {
 													setCurrentLesson(mediaModal.lessonIndex!);
 													setShowQuiz(true);
-													setDesktopQuizStep(0);
-													setSelectedAnswers({});
-													setQuizSubmitted(false);
-													setQuizResult(null);
+													if (currentQuizId) qz.reset(currentQuizId);
 												}
 											}}
 										>
@@ -1456,14 +1331,13 @@ export function ModulosPage() {
 											</div>
 										)}
 
-										{showQuiz && currentLesson === i && quizResult?.passed && (
+										{showQuiz && currentLesson === i && qz.result(lessons[i]?.quiz?.id)?.passed && (
 											<div className="lesson-nav-btns">
 												<button
 													className="btn-primary"
 													onClick={() => {
 														setShowQuiz(false);
-														setQuizSubmitted(false);
-														setQuizResult(null);
+														if (currentQuizId) qz.reset(currentQuizId);
 														if (i < lessons.length - 1) {
 															setExpandedMobileLesson(i + 1);
 															setCurrentLesson(i + 1);
@@ -1767,10 +1641,7 @@ export function ModulosPage() {
 												className="btn-secondary lesson-action-btn"
 												onClick={() => {
 													setShowQuiz(true);
-													setDesktopQuizStep(0);
-													setSelectedAnswers({});
-													setQuizSubmitted(false);
-													setQuizResult(null);
+													if (currentQuizId) qz.reset(currentQuizId);
 												}}
 											>
 												📝 Quiz <i className="icon-chevron-right icon-sm" />
@@ -1813,20 +1684,20 @@ export function ModulosPage() {
 								Responda todas as perguntas para concluir esta aula. {quizPassText(current?.quiz)}
 							</div>
 
-							{quizResult && (
-								<div className={`quiz-result-banner ${quizResult.passed ? "passed" : "failed"}`}>
+							{qz.result(currentQuizId) && (
+								<div className={`quiz-result-banner ${qz.result(currentQuizId).passed ? "passed" : "failed"}`}>
 									<div className="quiz-result-header">
-										<span className="quiz-result-icon">{quizResult.passed ? "🎉" : "❌"}</span>
+										<span className="quiz-result-icon">{qz.result(currentQuizId).passed ? "🎉" : "❌"}</span>
 										<div>
-											<h3 className="quiz-result-h3">{quizResult.passed ? "Aprovado!" : "Reprovado"}</h3>
+											<h3 className="quiz-result-h3">{qz.result(currentQuizId).passed ? "Aprovado!" : "Reprovado"}</h3>
 											<p className="quiz-result-sub">
-												Nota: {quizResult.nota}/10 ({quizResult.correct}/{quizResult.total} corretas)
+												Nota: {qz.result(currentQuizId).nota}/10 ({qz.result(currentQuizId).correct}/{qz.result(currentQuizId).total} corretas)
 											</p>
 										</div>
 									</div>
 									<div className="quiz-result-breakdown">
 										{current?.quiz?.perguntas?.map((pergunta: any, qIndex: number) => {
-											const userAnswer = selectedAnswers[pergunta.id];
+											const userAnswer = qz.answers(currentQuizId)[pergunta.id];
 											const isCorrect = userAnswer === pergunta.correta;
 											return (
 												<div key={qIndex} className={`quiz-breakdown-item ${isCorrect ? "correct" : "wrong"}`}>
@@ -1843,27 +1714,22 @@ export function ModulosPage() {
 										})}
 									</div>
 									<div className="quiz-result-actions">
-										{!quizResult.passed && (
+										{!qz.result(currentQuizId).passed && (
 											<button
 												className="btn-secondary"
 												onClick={() => {
-													setQuizSubmitted(false);
-													setQuizResult(null);
-													setSelectedAnswers({});
-													setDesktopQuizStep(0);
+													if (currentQuizId) qz.reset(currentQuizId);
 												}}
 											>
 												Tentar Novamente
 											</button>
 										)}
-										{quizResult.passed && (
+										{qz.result(currentQuizId).passed && (
 											<button
 												className="btn-primary"
 												onClick={() => {
 													setShowQuiz(false);
-													setQuizSubmitted(false);
-													setQuizResult(null);
-													setDesktopQuizStep(0);
+													if (currentQuizId) qz.reset(currentQuizId);
 													if (current?.quiz?.autoGerarCertificado || curso?.autoCertificado) {
 														loadCertificate();
 														setShowCertificate(true);
@@ -1883,10 +1749,10 @@ export function ModulosPage() {
 								</div>
 							)}
 
-							{!quizSubmitted &&
+							{!qz.submitted(currentQuizId) &&
 								(() => {
 									const perguntas = current?.quiz?.perguntas || [];
-									const step = desktopQuizStep;
+									const step = qz.step(currentQuizId);
 									const isLast = step === perguntas.length - 1;
 									const pergunta = perguntas[step];
 									if (!pergunta) return null;
@@ -1913,14 +1779,14 @@ export function ModulosPage() {
 															.filter(Boolean)
 															.map((opt: string, oIndex: number) => {
 																const letter = ["A", "B", "C", "D"][oIndex];
-																const isSelected = selectedAnswers[pergunta.id] === letter;
+																const isSelected = qz.answers(currentQuizId)[pergunta.id] === letter;
 																return (
 																	<label key={oIndex} className={`quiz-opt ${isSelected ? "selected" : ""}`}>
 																		<input
 																			type="radio"
 																			name={`q${pergunta.id}`}
 																			checked={isSelected}
-																			onChange={() => handleAnswerQuiz(pergunta.id, letter)}
+																			onChange={() => qz.setAnswer(currentQuizId, pergunta.id, letter)}
 																		/>
 																		<span className="quiz-letter">{letter}</span>
 																		{opt}
@@ -1932,7 +1798,7 @@ export function ModulosPage() {
 											</div>
 											<div className="quiz-step-nav">
 												{step > 0 && (
-													<button className="btn-secondary" onClick={() => setDesktopQuizStep(step - 1)}>
+													<button className="btn-secondary" onClick={() => qz.setStep(currentQuizId, step - 1)}>
 														<i className="icon-arrow-left icon-sm" /> Anterior
 													</button>
 												)}
@@ -1940,8 +1806,8 @@ export function ModulosPage() {
 													<button
 														className="btn-primary"
 														style={{ flex: 1 }}
-														onClick={handleSubmitQuiz}
-														disabled={Object.keys(selectedAnswers).length < perguntas.length}
+														onClick={() => qz.submit(current.quiz)}
+														disabled={Object.keys(qz.answers(currentQuizId)).length < perguntas.length}
 													>
 														Enviar Respostas
 													</button>
@@ -1949,8 +1815,8 @@ export function ModulosPage() {
 													<button
 														className="btn-primary"
 														style={{ flex: 1 }}
-														onClick={() => setDesktopQuizStep(step + 1)}
-														disabled={!selectedAnswers[pergunta.id]}
+														onClick={() => qz.setStep(currentQuizId, step + 1)}
+														disabled={!qz.answers(currentQuizId)[pergunta.id]}
 													>
 														Proxima <i className="icon-chevron-right icon-sm" />
 													</button>
@@ -1961,13 +1827,12 @@ export function ModulosPage() {
 								})()}
 
 							<div className="lesson-actions" style={{ marginTop: "12px" }}>
-								{!quizSubmitted ? (
+								{!qz.submitted(currentQuizId) ? (
 									<button
 										className="btn-secondary"
 										onClick={() => {
 											setShowQuiz(false);
-											setSelectedAnswers({});
-											setDesktopQuizStep(0);
+											if (currentQuizId) qz.reset(currentQuizId);
 										}}
 									>
 										Cancelar
@@ -1977,9 +1842,7 @@ export function ModulosPage() {
 										className="btn-secondary"
 										onClick={() => {
 											setShowQuiz(false);
-											setQuizSubmitted(false);
-											setQuizResult(null);
-											setDesktopQuizStep(0);
+											if (currentQuizId) qz.reset(currentQuizId);
 										}}
 									>
 										Voltar a Aula

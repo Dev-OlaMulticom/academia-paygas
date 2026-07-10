@@ -1,35 +1,48 @@
 import nodemailer from "nodemailer";
 import logger from "../lib/logger";
 
-/**
- * SMTP Email Service
- * Configures email sending using environment variables
- */
+interface EmailAttachment {
+	filename?: string;
+	content?: unknown;
+	path?: string;
+	contentType?: string;
+	cid?: string;
+}
 
 interface EmailOptions {
 	to: string | string[];
 	subject: string;
 	html?: string;
 	text?: string;
+	attachments?: EmailAttachment[];
 }
 
 let transporter: nodemailer.Transporter | null = null;
 let backupTransporter: nodemailer.Transporter | null = null;
 
+const REQUIRED_ENV_VARS = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS"];
+const MAX_RETRIES = 2;
+const RETRY_DELAY_MS = 1000;
+
+function getPort(name: string, fallback: number): number {
+	return parseInt(process.env[name] || String(fallback), 10);
+}
+
+function missingEnvVars(): string[] {
+	return REQUIRED_ENV_VARS.filter((v) => !process.env[v]);
+}
+
 function initializeTransporter(): nodemailer.Transporter | null {
 	if (transporter) return transporter;
 
-	const requiredEnvVars = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS"];
-	const missing = requiredEnvVars.filter((v) => !process.env[v]);
-
-	if (missing.length > 0) {
-		logger.warn(`⚠️  SMTP configuration incomplete. Missing: ${missing.join(", ")}`);
+	if (missingEnvVars().length > 0) {
+		logger.warn(`⚠️  SMTP configuration incomplete. Missing: ${missingEnvVars().join(", ")}`);
 		return null;
 	}
 
 	transporter = nodemailer.createTransport({
 		host: process.env.SMTP_HOST,
-		port: parseInt(process.env.SMTP_PORT || "587", 10),
+		port: getPort("SMTP_PORT", 587),
 		secure: process.env.SMTP_SECURE === "true",
 		auth: {
 			user: process.env.SMTP_USER,
@@ -47,7 +60,7 @@ function initializeBackupTransporter(): nodemailer.Transporter | null {
 
 	backupTransporter = nodemailer.createTransport({
 		host: process.env.SMTP_BACKUP_HOST,
-		port: parseInt(process.env.SMTP_BACKUP_PORT || "465", 10),
+		port: getPort("SMTP_BACKUP_PORT", 465),
 		secure: process.env.SMTP_BACKUP_SECURE === "true",
 		auth: {
 			user: process.env.SMTP_BACKUP_USER,
@@ -65,12 +78,39 @@ export interface EmailResult {
 	error?: string;
 }
 
+function normalizeError(error: unknown): string {
+	return error instanceof Error ? error.message : String(error);
+}
+
+async function sendWithRetry(
+	getTransport: () => nodemailer.Transporter | null,
+	label: string,
+	mailOptions: Record<string, unknown>,
+	monitorEmail: string,
+): Promise<EmailResult | null> {
+	for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+		try {
+			const transport = getTransport();
+			if (!transport) return null;
+
+			const result = await transport.sendMail(mailOptions as nodemailer.SendMailOptions);
+			logger.info(`✅ Email sent [${label}] to=${mailOptions.to} id=${result.messageId}`);
+			sendMonitorEmail(monitorEmail, String(mailOptions.to), String(mailOptions.subject), result.messageId).catch(() => {});
+			return { success: true, messageId: result.messageId };
+		} catch (error) {
+			const msg = normalizeError(error);
+			logger.warn(`⚠️  Email ${label} attempt ${attempt}/${MAX_RETRIES} failed: ${msg}`);
+			if (attempt < MAX_RETRIES) await new Promise((r) => setTimeout(r, RETRY_DELAY_MS));
+		}
+	}
+	return null;
+}
+
 export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 	const from = process.env.SMTP_FROM || "Academia PayGas <dev.olamulticom@gmail.com>";
 	const replyTo = process.env.SMTP_REPLY_TO || "email@academia.paygas.com.br";
 	const bcc = process.env.SMTP_BCC || "email@academia.paygas.com.br";
 	const monitorEmail = process.env.SMTP_MONITOR_EMAIL || "onboarding@resend.dev";
-	const MAX_RETRIES = 2;
 
 	const mailOptions = {
 		from,
@@ -80,44 +120,14 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 		subject: options.subject,
 		html: options.html || "",
 		text: options.text || "",
+		attachments: options.attachments,
 	};
 
-	// Try primary SMTP
-	for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-		try {
-			const transport = initializeTransporter();
-			if (!transport) break;
+	const primary = await sendWithRetry(initializeTransporter, "PRIMARY", mailOptions, monitorEmail);
+	if (primary) return primary;
 
-			const result = await transport.sendMail(mailOptions);
-			logger.info(`✅ Email sent [PRIMARY] to=${options.to} id=${result.messageId}`);
-			sendMonitorEmail(monitorEmail, String(options.to), options.subject, result.messageId).catch(() => {});
-			return { success: true, messageId: result.messageId };
-		} catch (error) {
-			const msg = error instanceof Error ? error.message : String(error);
-			logger.warn(`⚠️  Email PRIMARY attempt ${attempt}/${MAX_RETRIES} failed: ${msg}`);
-			if (attempt < MAX_RETRIES) await new Promise((r) => setTimeout(r, 1000));
-		}
-	}
-
-	// Fallback to backup SMTP
-	for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
-		try {
-			const backup = initializeBackupTransporter();
-			if (!backup) {
-				logger.error(`❌ No SMTP transport available. Primary failed, backup not configured.`);
-				return { success: false, error: "No SMTP transport available" };
-			}
-
-			const result = await backup.sendMail(mailOptions);
-			logger.info(`✅ Email sent [BACKUP] to=${options.to} id=${result.messageId}`);
-			sendMonitorEmail(monitorEmail, String(options.to), options.subject, result.messageId).catch(() => {});
-			return { success: true, messageId: result.messageId };
-		} catch (error) {
-			const msg = error instanceof Error ? error.message : String(error);
-			logger.warn(`⚠️  Email BACKUP attempt ${attempt}/${MAX_RETRIES} failed: ${msg}`);
-			if (attempt < MAX_RETRIES) await new Promise((r) => setTimeout(r, 1000));
-		}
-	}
+	const backup = await sendWithRetry(initializeBackupTransporter, "BACKUP", mailOptions, monitorEmail);
+	if (backup) return backup;
 
 	logger.error(`❌ Email FAILED all attempts to=${options.to} subject="${options.subject}"`);
 	return { success: false, error: "All SMTP attempts failed" };
@@ -125,7 +135,10 @@ export async function sendEmail(options: EmailOptions): Promise<EmailResult> {
 
 async function sendMonitorEmail(monitorTo: string, realTo: string, subject: string, messageId?: string) {
 	const backup = initializeBackupTransporter();
-	if (!backup) return;
+	if (!backup) {
+		logger.warn(`⚠️  Monitor email skipped: backup SMTP not configured (to=${monitorTo})`);
+		return;
+	}
 
 	const timestamp = new Date().toISOString();
 	await backup.sendMail({
@@ -136,17 +149,41 @@ async function sendMonitorEmail(monitorTo: string, realTo: string, subject: stri
       <div style="font-family:monospace;font-size:13px;background:#1a1a2e;color:#0f0;padding:20px;border-radius:8px;">
         <h3 style="color:#00ff88;margin:0 0 12px;">EMAIL MONITOR</h3>
         <p><strong>Para:</strong> ${realTo}</p>
-        <p><strong>Asunto:</strong> ${subject}</p>
+        <p><strong>Assunto:</strong> ${subject}</p>
         <p><strong>ID:</strong> ${messageId || "N/A"}</p>
-        <p><strong>Fecha:</strong> ${timestamp}</p>
+        <p><strong>Data:</strong> ${timestamp}</p>
         <p><strong>Sistema:</strong> Academia PayGas</p>
       </div>
     `,
 	});
 }
 
+function emailShell(subtitle: string, body: string): string {
+	return `
+      <!DOCTYPE html>
+      <html>
+      <head><meta charset="UTF-8"></head>
+      <body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;margin:0;">
+        <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
+          <div style="background:linear-gradient(135deg,#F47C20 0%,#C45E0A 100%);color:white;padding:30px;text-align:center;">
+            <h1 style="margin:0;font-size:22px;">Academia PayGas</h1>
+            <p style="margin:5px 0 0;font-size:14px;">${subtitle}</p>
+          </div>
+          <div style="padding:30px;text-align:center;">
+            ${body}
+          </div>
+          <div style="background:#f8f9fa;padding:16px;text-align:center;color:#999;font-size:11px;">
+            <p style="margin:0;">Este é um email automático. Por favor, não responda.</p>
+            <p style="margin:4px 0 0;">© 2026 Academia PayGas</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+}
+
 /**
- * Send certificate notification email
+ * Envia email de notificacao de certificado emitido
  */
 export async function sendCertificateEmail(to: string, userName: string, cursoName: string) {
 	return sendEmail({
@@ -162,7 +199,7 @@ export async function sendCertificateEmail(to: string, userName: string, cursoNa
 }
 
 /**
- * Send user registration confirmation
+ * Envia confirmacao de cadastro de usuario
  */
 export async function sendWelcomeEmail(to: string, userName: string, loginUrl: string) {
 	return sendEmail({
@@ -178,7 +215,7 @@ export async function sendWelcomeEmail(to: string, userName: string, loginUrl: s
 }
 
 /**
- * Send notification alert email — simple alert with link to Academy
+ * Envia alerta de notificacao — alerta simples com link para a Academia
  */
 export async function sendNotificationAlertEmail(to: string, userName: string, titulo: string) {
 	const appUrl = process.env.APP_URL || "https://academia.paygas.com.br";
@@ -189,38 +226,23 @@ export async function sendNotificationAlertEmail(to: string, userName: string, t
 	return sendEmail({
 		to,
 		subject: `🔔 Nova notificação - Academia PayGas`,
-		html: `
-      <!DOCTYPE html>
-      <html>
-      <head><meta charset="UTF-8"></head>
-      <body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;margin:0;">
-        <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
-          <div style="background:linear-gradient(135deg,#F47C20 0%,#C45E0A 100%);color:white;padding:30px;text-align:center;">
-            <h1 style="margin:0;font-size:22px;">Academia PayGas</h1>
-            <p style="margin:5px 0 0;font-size:14px;">Nova Notificacao</p>
-          </div>
-          <div style="padding:30px;text-align:center;">
-            <h2 style="margin:0 0 8px;color:#333;">Olá, ${userName}!</h2>
-            <p style="color:#555;font-size:15px;margin:0 0 20px;">Você recebeu uma nova notificação na <strong>Academia PayGas</strong>.</p>
-            <div style="background:#f9f9f9;border-radius:8px;padding:16px;margin:0 0 24px;">
-              <p style="margin:0;color:#333;font-weight:bold;font-size:14px;">${titulo}</p>
-              <p style="margin:6px 0 0;color:#888;font-size:12px;">${dateStr} às ${timeStr}</p>
-            </div>
-            <a href="${appUrl}" style="background:#F47C20;color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">Ir para a Academia</a>
-          </div>
-          <div style="background:#f8f9fa;padding:16px;text-align:center;color:#999;font-size:11px;">
-            <p style="margin:0;">Este é um email automático. Por favor, não responda.</p>
-            <p style="margin:4px 0 0;">© 2026 Academia PayGas</p>
-          </div>
+		html: emailShell(
+			"Nova Notificacao",
+			`
+        <h2 style="margin:0 0 8px;color:#333;">Olá, ${userName}!</h2>
+        <p style="color:#555;font-size:15px;margin:0 0 20px;">Você recebeu uma nova notificação na <strong>Academia PayGas</strong>.</p>
+        <div style="background:#f9f9f9;border-radius:8px;padding:16px;margin:0 0 24px;">
+          <p style="margin:0;color:#333;font-weight:bold;font-size:14px;">${titulo}</p>
+          <p style="margin:6px 0 0;color:#888;font-size:12px;">${dateStr} às ${timeStr}</p>
         </div>
-      </body>
-      </html>
-    `,
+        <a href="${appUrl}" style="background:#F47C20;color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">Ir para a Academia</a>
+      `,
+		),
 	});
 }
 
 /**
- * Send notification email
+ * Envia email de notificacao generico
  */
 export async function sendNotificationEmail(to: string, titulo: string, mensagem: string) {
 	return sendEmail({
@@ -234,34 +256,32 @@ export async function sendNotificationEmail(to: string, titulo: string, mensagem
 }
 
 /**
- * Send custom email from admin
+ * Envia email customizado a partir do admin
  */
 export async function sendCustomEmail(to: string, subject: string, htmlBody: string) {
 	return sendEmail({
 		to,
 		subject,
-		html: htmlBody,
+		html: emailShell(subject, htmlBody),
 	});
 }
 
 /**
- * Check if SMTP is configured
+ * Verifica se o SMTP esta configurado
  */
 export function isEmailConfigured(): { configured: boolean; host?: string; port?: number } {
-	const requiredEnvVars = ["SMTP_HOST", "SMTP_PORT", "SMTP_USER", "SMTP_PASS"];
-	const missing = requiredEnvVars.filter((v) => !process.env[v]);
-	if (missing.length > 0) {
+	if (missingEnvVars().length > 0) {
 		return { configured: false };
 	}
 	return {
 		configured: true,
 		host: process.env.SMTP_HOST,
-		port: parseInt(process.env.SMTP_PORT || "587", 10),
+		port: getPort("SMTP_PORT", 587),
 	};
 }
 
 /**
- * Send password reset code email
+ * Envia email com codigo de redefinicao de senha
  */
 export async function sendPasswordResetEmail(to: string, userName: string, code: string) {
 	const appUrl = process.env.APP_URL || "https://academia.paygas.com.br";
@@ -269,39 +289,24 @@ export async function sendPasswordResetEmail(to: string, userName: string, code:
 	return sendEmail({
 		to,
 		subject: "🔑 Redefinir senha - Academia PayGas",
-		html: `
-      <!DOCTYPE html>
-      <html>
-      <head><meta charset="UTF-8"></head>
-      <body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;margin:0;">
-        <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
-          <div style="background:linear-gradient(135deg,#F47C20 0%,#C45E0A 100%);color:white;padding:30px;text-align:center;">
-            <h1 style="margin:0;font-size:22px;">Academia PayGas</h1>
-            <p style="margin:5px 0 0;font-size:14px;">Redefinicao de Senha</p>
-          </div>
-          <div style="padding:30px;text-align:center;">
-            <h2 style="margin:0 0 8px;color:#333;">Olá, ${userName}!</h2>
-            <p style="color:#555;font-size:15px;margin:0 0 20px;">Você solicitou a redefinição da sua senha. Use o código abaixo:</p>
-            <div style="background:#f9f9f9;border-radius:8px;padding:20px;margin:0 0 24px;">
-              <p style="margin:0;color:#333;font-size:32px;font-weight:bold;letter-spacing:8px;">${code}</p>
-              <p style="margin:8px 0 0;color:#888;font-size:12px;">Este código expira em 15 minutos</p>
-            </div>
-            <p style="color:#666;font-size:13px;margin:0 0 16px;">Se você não solicitou esta redefinição, ignore este email. Sua senha permanecerá inalterada.</p>
-            <a href="${appUrl}/login" style="background:#F47C20;color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">Ir para o Login</a>
-          </div>
-          <div style="background:#f8f9fa;padding:16px;text-align:center;color:#999;font-size:11px;">
-            <p style="margin:0;">Este é um email automático. Por favor, não responda.</p>
-            <p style="margin:4px 0 0;">© 2026 Academia PayGas</p>
-          </div>
+		html: emailShell(
+			"Redefinicao de Senha",
+			`
+        <h2 style="margin:0 0 8px;color:#333;">Olá, ${userName}!</h2>
+        <p style="color:#555;font-size:15px;margin:0 0 20px;">Você solicitou a redefinição da sua senha. Use o código abaixo:</p>
+        <div style="background:#f9f9f9;border-radius:8px;padding:20px;margin:0 0 24px;">
+          <p style="margin:0;color:#333;font-size:32px;font-weight:bold;letter-spacing:8px;">${code}</p>
+          <p style="margin:8px 0 0;color:#888;font-size:12px;">Este código expira em 15 minutos</p>
         </div>
-      </body>
-      </html>
-    `,
+        <p style="color:#666;font-size:13px;margin:0 0 16px;">Se você não solicitou esta redefinição, ignore este email. Sua senha permanecerá inalterada.</p>
+        <a href="${appUrl}/login" style="background:#F47C20;color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">Ir para o Login</a>
+      `,
+		),
 	});
 }
 
 /**
- * Send email verification link
+ * Envia email de verificacao de conta
  */
 export async function sendVerificationEmail(to: string, userName: string, token: string) {
 	const verifyUrl = `${process.env.APP_URL || "https://academia.paygas.com.br"}/verificar-email?token=${token}`;
@@ -309,41 +314,26 @@ export async function sendVerificationEmail(to: string, userName: string, token:
 	return sendEmail({
 		to,
 		subject: "Verifique seu email - Academia PayGas",
-		html: `
-      <!DOCTYPE html>
-      <html>
-      <head><meta charset="UTF-8"></head>
-      <body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;">
-        <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
-          <div style="background:linear-gradient(135deg,#F47C20 0%,#C45E0A 100%);color:white;padding:30px;text-align:center;">
-            <h1 style="margin:0;">Academia PayGas</h1>
-            <p style="margin:5px 0 0;">Verificacao de Email</p>
-          </div>
-          <div style="padding:30px;">
-            <h2>Ola, ${userName}!</h2>
-            <p>Voce foi cadastrado na <strong>Academia PayGas</strong>. Para ativar sua conta, clique no botao abaixo:</p>
-            <div style="text-align:center;margin:30px 0;">
-              <a href="${verifyUrl}" style="background:#F47C20;color:white;padding:14px 30px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;">Confirmar Meu Email</a>
-            </div>
-            <p style="color:#666;font-size:13px;">Se o botao nao funcionar, copie e cole o link abaixo no seu navegador:</p>
-            <p style="word-break:break-all;color:#F47C20;font-size:12px;">${verifyUrl}</p>
-            <p style="color:#666;font-size:13px;">Se voce nao solicitou este cadastro, ignore este email.</p>
-          </div>
-          <div style="background:#f8f9fa;padding:20px;text-align:center;color:#666;font-size:12px;">
-            <p>Este e um email automatico. Por favor, nao responda.</p>
-            <p>2026 Academia PayGas - Sistema de Ensino Online</p>
-          </div>
+		html: emailShell(
+			"Verificacao de Email",
+			`
+        <h2>Olá, ${userName}!</h2>
+        <p>Você foi cadastrado na <strong>Academia PayGas</strong>. Para ativar sua conta, clique no botão abaixo:</p>
+        <div style="text-align:center;margin:30px 0;">
+          <a href="${verifyUrl}" style="background:#F47C20;color:white;padding:14px 30px;text-decoration:none;border-radius:5px;font-weight:bold;display:inline-block;">Confirmar Meu Email</a>
         </div>
-      </body>
-      </html>
-    `,
+        <p style="color:#666;font-size:13px;">Se o botão não funcionar, copie e cole o link abaixo no seu navegador:</p>
+        <p style="word-break:break-all;color:#F47C20;font-size:12px;">${verifyUrl}</p>
+        <p style="color:#666;font-size:13px;">Se você não solicitou este cadastro, ignore este email.</p>
+      `,
+		),
 	});
 }
 
 /**
- * Send credentials email after a successful Acesso PayGas lookup that
- * auto-created a new ATENDENTE user. Includes a temporary password the
- * user must change on first login.
+ * Envia credenciais apos consulta bem-sucedida de Acesso PayGas que
+ * criou automaticamente um novo usuario ATENDENTE. Inclui senha
+ * temporaria que o usuario deve alterar no primeiro acesso.
  */
 export async function sendPayGasAccessEmail(to: string, userName: string, temporaryPassword: string) {
 	const appUrl = process.env.APP_URL || "https://academia.paygas.com.br";
@@ -351,33 +341,18 @@ export async function sendPayGasAccessEmail(to: string, userName: string, tempor
 	return sendEmail({
 		to,
 		subject: "🎉 Bem-vindo à Academia PayGas - Suas credenciais",
-		html: `
-      <!DOCTYPE html>
-      <html>
-      <head><meta charset="UTF-8"></head>
-      <body style="font-family:Arial,sans-serif;background:#f4f4f4;padding:20px;margin:0;">
-        <div style="max-width:600px;margin:0 auto;background:white;border-radius:10px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,0.1);">
-          <div style="background:linear-gradient(135deg,#F47C20 0%,#C45E0A 100%);color:white;padding:30px;text-align:center;">
-            <h1 style="margin:0;font-size:22px;">Academia PayGas</h1>
-            <p style="margin:5px 0 0;font-size:14px;">Acesso via PayGas</p>
-          </div>
-          <div style="padding:30px;text-align:center;">
-            <h2 style="margin:0 0 8px;color:#333;">Olá, ${userName}!</h2>
-            <p style="color:#555;font-size:15px;margin:0 0 20px;">Sua conta na <strong>Academia PayGas</strong> foi criada com sucesso. Use a senha temporária abaixo para entrar:</p>
-            <div style="background:#f9f9f9;border-radius:8px;padding:20px;margin:0 0 24px;">
-              <p style="margin:0;color:#333;font-size:24px;font-weight:bold;letter-spacing:4px;word-break:break-all;">${temporaryPassword}</p>
-              <p style="margin:8px 0 0;color:#888;font-size:12px;">Senha temporária — altere após o primeiro acesso</p>
-            </div>
-            <p style="color:#666;font-size:13px;margin:0 0 16px;">Recomendamos que você redefina sua senha assim que entrar na plataforma.</p>
-            <a href="${appUrl}/login" style="background:#F47C20;color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">Acessar Academia</a>
-          </div>
-          <div style="background:#f8f9fa;padding:16px;text-align:center;color:#999;font-size:11px;">
-            <p style="margin:0;">Este é um email automático. Por favor, não responda.</p>
-            <p style="margin:4px 0 0;">© 2026 Academia PayGas</p>
-          </div>
+		html: emailShell(
+			"Acesso via PayGas",
+			`
+        <h2 style="margin:0 0 8px;color:#333;">Olá, ${userName}!</h2>
+        <p style="color:#555;font-size:15px;margin:0 0 20px;">Sua conta na <strong>Academia PayGas</strong> foi criada com sucesso. Use a senha temporária abaixo para entrar:</p>
+        <div style="background:#f9f9f9;border-radius:8px;padding:20px;margin:0 0 24px;">
+          <p style="margin:0;color:#333;font-size:24px;font-weight:bold;letter-spacing:4px;word-break:break-all;">${temporaryPassword}</p>
+          <p style="margin:8px 0 0;color:#888;font-size:12px;">Senha temporária — altere após o primeiro acesso</p>
         </div>
-      </body>
-      </html>
-    `,
+        <p style="color:#666;font-size:13px;margin:0 0 16px;">Recomendamos que você redefina sua senha assim que entrar na plataforma.</p>
+        <a href="${appUrl}/login" style="background:#F47C20;color:white;padding:14px 36px;text-decoration:none;border-radius:6px;font-weight:bold;font-size:15px;display:inline-block;">Acessar Academia</a>
+      `,
+		),
 	});
 }

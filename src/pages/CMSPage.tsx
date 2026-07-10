@@ -150,7 +150,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 		const mod = cursos.find((m) => m.id === id);
 		const aulaCount = mod?._count?.aulas || 0;
 
-		let message = `¿Realmente deseas borrar el curso "${mod?.titulo}"?`;
+		let message = `Realmente deseja excluir o curso "${mod?.titulo}"?`;
 		if (aulaCount > 0) {
 			let totalLicoes = 0;
 			try {
@@ -161,9 +161,9 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 			} catch {
 				/* */
 			}
-			message += `\n\nEste curso contiene ${aulaCount} aula(s)`;
+			message += `\n\nEste curso contém ${aulaCount} aula(s)`;
 			if (totalLicoes > 0) {
-				message += ` y ${totalLicoes} ${pluralize(totalLicoes, "lição")} que também serão excluídas`;
+				message += ` e ${totalLicoes} ${pluralize(totalLicoes, "lição")} que também serão excluídas`;
 			}
 			message += ".";
 		}

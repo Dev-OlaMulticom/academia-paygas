@@ -122,7 +122,7 @@ export function LogsPage({ user: _user }: LogsPageProps) {
 	const handleDeleteLog = async (log: ActivityLog) => {
 		const ok = await confirm({
 			title: "Excluir registro",
-			message: "¿Realmente deseas borrar este registro de atividade?\n\nEsta ação NÃO pode ser desfeita.",
+			message: "Realmente deseja excluir este registro de atividade?\n\nEsta ação NÃO pode ser desfeita.",
 			confirmLabel: "Sim, excluir",
 			cancelLabel: "Cancelar",
 			danger: true,

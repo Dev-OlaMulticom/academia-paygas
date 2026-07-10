@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { db } from "../lib/db";
+import { gradeQuiz } from "../lib/quiz";
 import logger from "../lib/logger";
 import { authenticate, authorize } from "../middleware/auth";
 import { sendNotificationAlertEmail } from "../services/email";
@@ -628,14 +629,11 @@ router.post("/quiz/:quizId/responder", authenticate, async (req: any, res) => {
 			return res.status(404).json({ error: "Quiz não encontrado" });
 		}
 
-		let correct = 0;
-		quiz.perguntas.forEach((p: any) => {
-			if (respostas[p.id] === p.correta) correct++;
-		});
-
-		const total = quiz.perguntas.length;
-		const nota = total > 0 ? Math.round((correct / total) * 10) : 0;
-		const concluido = nota >= (quiz.notaMinima || 7);
+		const { correct, total, nota, concluido } = gradeQuiz(
+			quiz.perguntas,
+			respostas,
+			quiz.notaMinima || 7,
+		);
 
 		const response = await db.upsert(
 			"quizResponse",

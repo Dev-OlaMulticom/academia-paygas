@@ -80,7 +80,7 @@ export function XPConfigPage({ user: _user }: XPConfigPageProps) {
 	const handleDelete = async (config: XPConfigItem) => {
 		const ok = await confirm({
 			title: "Excluir acao de XP",
-			message: `¿Realmente deseas borrar la acción de XP "${config.label}" (${config.action})?\n\nEsta acción NÃO pode ser desfeita. Registros históricos de pontos já contabilizados NAO serao alterados.`,
+			message: `Realmente deseja excluir a ação de XP "${config.label}" (${config.action})?\n\nEsta ação NÃO pode ser desfeita. Registros históricos de pontos já contabilizados NÃO serão alterados.`,
 			confirmLabel: "Sim, excluir",
 			cancelLabel: "Cancelar",
 			danger: true,
