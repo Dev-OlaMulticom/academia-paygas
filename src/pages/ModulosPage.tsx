@@ -242,13 +242,6 @@ export function ModulosPage() {
 
 				loadQuizResults();
 				loadCertificate();
-
-				if (lesson.quiz.autoGerarCertificado || curso?.autoCertificado) {
-					setTimeout(() => {
-						setShowQuiz(false);
-						setShowCertificate(true);
-					}, 2500);
-				}
 			}
 		} catch {
 			setQuizResult({ nota: 0, total: lesson.quiz.perguntas.length, correct: 0, passed: false });
@@ -511,6 +504,13 @@ export function ModulosPage() {
 		}
 	};
 
+	const quizPassText = (quiz: any) => {
+		const notaMin = quiz?.notaMinima ?? 7;
+		const total = quiz?.perguntas?.length || 0;
+		const needed = total > 0 ? Math.ceil((notaMin / 10) * total) : 0;
+		return `Voce precisa de ${needed} de ${total} respostas corretas para aprovar (nota minima ${notaMin}/10)`;
+	};
+
 	const renderQuizInAccordion = (lessonIndex: number) => {
 		const lesson = lessons[lessonIndex];
 		if (!lesson?.quiz) return null;
@@ -530,7 +530,7 @@ export function ModulosPage() {
 			<div className="quiz-in-accordion">
 				<h4>📝 {quiz.titulo}</h4>
 				<p style={{ fontSize: "12px", color: "var(--gray-500)", marginBottom: "12px" }}>
-					Nota minima: {quiz.notaMinima ?? 7}/10
+					{quizPassText(quiz)}
 				</p>
 
 				{inlineResult && (
@@ -899,7 +899,7 @@ export function ModulosPage() {
 					</div>
 
 					<p className="quiz-modal-subtitle">
-						Aula: {modalLesson.titulo} · Nota minima: {quiz.notaMinima ?? 7}/10
+						Aula: {modalLesson.titulo} · {quizPassText(quiz)}
 					</p>
 
 					{inlineResult && (
@@ -1376,7 +1376,7 @@ export function ModulosPage() {
 										{lesson.quiz && !completed && !showQuiz && canOpenQuiz(i) && (
 											<div className="lesson-quiz-alert">
 												<b>📝 Esta aula contem um quiz</b>
-												<p className="lesson-quiz-alert-p">Nota minima: {lesson.quiz.notaMinima ?? 7}/10.</p>
+												<p className="lesson-quiz-alert-p">{quizPassText(lesson.quiz)}.</p>
 											</div>
 										)}
 
@@ -1729,8 +1729,7 @@ export function ModulosPage() {
 									<div className="lesson-quiz-warning">
 										<b>📝 Esta aula contem um quiz</b>
 										<p className="lesson-quiz-warning-p">
-											Ao concluir, voce sera direcionado para responder as perguntas. Nota minima:{" "}
-											{current.quiz.notaMinima ?? 7}/10.
+											Ao concluir, voce sera direcionado para responder as perguntas. {quizPassText(current.quiz)}.
 										</p>
 									</div>
 								)}
@@ -1811,7 +1810,7 @@ export function ModulosPage() {
 						<div className="lesson-body">
 							<h2>Quiz: {current?.titulo}</h2>
 							<div className="lesson-text">
-								Responda todas as perguntas para concluir esta aula. Nota minima: {current?.quiz?.notaMinima ?? 7}/10.
+								Responda todas as perguntas para concluir esta aula. {quizPassText(current?.quiz)}
 							</div>
 
 							{quizResult && (
