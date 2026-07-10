@@ -41,20 +41,45 @@ app.use(
 	}),
 );
 
-// CORS configuration — fail closed when ALLOWED_ORIGINS is not set
+// CORS configuration — auto-allow localhost in development, restrict to ALLOWED_ORIGINS in production
+const isDev = process.env.NODE_ENV !== "production";
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").filter(Boolean);
-if (allowedOrigins.length === 0 && process.env.NODE_ENV === "production") {
+
+if (allowedOrigins.length === 0 && !isDev) {
 	logger.warn("⚠️  ALLOWED_ORIGINS is not set. Cross-origin requests will be rejected.");
 	logger.warn('   Set ALLOWED_ORIGINS in .env (e.g. "https://academia.paygas.com.br")');
 }
+
+if (isDev) {
+	logger.info("🔓 Development mode: CORS allows all localhost origins (any port)");
+}
+
 const corsOptions: cors.CorsOptions = {
 	origin: (origin, callback) => {
-		// Allow same-origin requests (no Origin header) and explicitly listed origins
-		if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
-			callback(null, true);
-		} else {
-			callback(new Error("No permitido por CORS"));
+		// Allow same-origin requests (no Origin header — e.g. server-to-server)
+		if (!origin) {
+			return callback(null, true);
 		}
+
+		// In development: allow ALL localhost/127.0.0.1 origins (any port)
+		if (isDev) {
+			try {
+				const url = new URL(origin);
+				if (url.hostname === "localhost" || url.hostname === "127.0.0.1") {
+					return callback(null, true);
+				}
+			} catch {
+				/* not a valid URL, fall through */
+			}
+		}
+
+		// In all environments: allow explicitly listed origins
+		if (allowedOrigins.length > 0 && allowedOrigins.includes(origin)) {
+			return callback(null, true);
+		}
+
+		// Reject everything else
+		callback(new Error("No permitido por CORS"));
 	},
 	credentials: true,
 	methods: ["GET", "POST", "PUT", "DELETE", "PATCH"],
