@@ -281,7 +281,9 @@ export function XPConfigPage({ user: _user }: XPConfigPageProps) {
 									className="form-input"
 									placeholder="Ex: MY_CUSTOM_ACTION"
 									value={newConfig.action}
-									onChange={(e) => setNewConfig({ ...newConfig, action: e.target.value.toUpperCase().replace(/\s+/g, "_") })}
+									onChange={(e) =>
+										setNewConfig({ ...newConfig, action: e.target.value.toUpperCase().replace(/\s+/g, "_") })
+									}
 								/>
 								<div className="form-hint">Identificador unico (maiúsculas, sem espacos)</div>
 							</div>

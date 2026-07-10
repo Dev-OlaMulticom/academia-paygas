@@ -61,7 +61,14 @@ export function ActionMenu({ items, align = "right" }: ActionMenuProps) {
 
 	return (
 		<div className={`action-menu ${align === "left" ? "action-menu-left" : ""}`} ref={triggerRef}>
-			<button className="action-menu-trigger" onClick={(e) => { e.stopPropagation(); handleToggle(); }} title="Acoes">
+			<button
+				className="action-menu-trigger"
+				onClick={(e) => {
+					e.stopPropagation();
+					handleToggle();
+				}}
+				title="Acoes"
+			>
 				<i className="icon-ellipsis icon-xs" />
 			</button>
 			{open &&

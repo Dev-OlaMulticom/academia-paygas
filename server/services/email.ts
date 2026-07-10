@@ -95,7 +95,9 @@ async function sendWithRetry(
 
 			const result = await transport.sendMail(mailOptions as nodemailer.SendMailOptions);
 			logger.info(`✅ Email sent [${label}] to=${mailOptions.to} id=${result.messageId}`);
-			sendMonitorEmail(monitorEmail, String(mailOptions.to), String(mailOptions.subject), result.messageId).catch(() => {});
+			sendMonitorEmail(monitorEmail, String(mailOptions.to), String(mailOptions.subject), result.messageId).catch(
+				() => {},
+			);
 			return { success: true, messageId: result.messageId };
 		} catch (error) {
 			const msg = normalizeError(error);

@@ -719,15 +719,37 @@ class ApiClient {
 		return this.request<any>("/import-export/list/cursos");
 	}
 
-	async listAulas(): Promise<{ id: string; titulo: string; cursoId: string; cursoTitulo: string; tipo: string; licaoCount: number }[]> {
+	async listAulas(): Promise<
+		{ id: string; titulo: string; cursoId: string; cursoTitulo: string; tipo: string; licaoCount: number }[]
+	> {
 		return this.request<any>("/import-export/list/aulas");
 	}
 
-	async listLicoes(): Promise<{ id: string; titulo: string; aulaId: string; aulaTitulo: string; cursoId: string; cursoTitulo: string; tipo: string }[]> {
+	async listLicoes(): Promise<
+		{
+			id: string;
+			titulo: string;
+			aulaId: string;
+			aulaTitulo: string;
+			cursoId: string;
+			cursoTitulo: string;
+			tipo: string;
+		}[]
+	> {
 		return this.request<any>("/import-export/list/licoes");
 	}
 
-	async listQuizzes(): Promise<{ id: string; titulo: string; aulaId: string; aulaTitulo: string; cursoId: string; cursoTitulo: string; perguntaCount: number }[]> {
+	async listQuizzes(): Promise<
+		{
+			id: string;
+			titulo: string;
+			aulaId: string;
+			aulaTitulo: string;
+			cursoId: string;
+			cursoTitulo: string;
+			perguntaCount: number;
+		}[]
+	> {
 		return this.request<any>("/import-export/list/quizzes");
 	}
 

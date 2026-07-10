@@ -24,10 +24,13 @@ export function useQuiz(options: UseQuizOptions) {
 	const [results, setResults] = useState<Record<string, any>>({});
 	const [steps, setSteps] = useState<Record<string, number>>({});
 
-	const setAnswer = useCallback((quizId: string, perguntaId: string, letter: string) => {
-		if (submitted[quizId]) return;
-		setAnswers((prev) => ({ ...prev, [quizId]: { ...(prev[quizId] || {}), [perguntaId]: letter } }));
-	}, [submitted]);
+	const setAnswer = useCallback(
+		(quizId: string, perguntaId: string, letter: string) => {
+			if (submitted[quizId]) return;
+			setAnswers((prev) => ({ ...prev, [quizId]: { ...(prev[quizId] || {}), [perguntaId]: letter } }));
+		},
+		[submitted],
+	);
 
 	const setStep = useCallback((quizId: string, step: number) => {
 		setSteps((prev) => ({ ...prev, [quizId]: step }));
@@ -48,27 +51,30 @@ export function useQuiz(options: UseQuizOptions) {
 		setSteps((prev) => ({ ...prev, [quizId]: 0 }));
 	}, []);
 
-	const submit = useCallback(async (quiz: QuizLike) => {
-		const quizAnswers = answers[quiz.id] || {};
-		try {
-			const result: any = await api.submitQuiz(quiz.id, quizAnswers);
-			const nota = result.nota || 0;
-			const total = result.total || quiz.perguntas?.length || 0;
-			const correct = result.correct || 0;
-			const passed = result.concluido || nota >= (quiz.notaMinima ?? 7);
-			setResults((prev) => ({ ...prev, [quiz.id]: { nota, total, correct, passed } }));
-			setSubmitted((prev) => ({ ...prev, [quiz.id]: true }));
-			onPass(quiz.id, passed);
-			return { nota, total, correct, passed };
-		} catch {
-			setResults((prev) => ({
-				...prev,
-				[quiz.id]: { nota: 0, total: quiz.perguntas?.length || 0, correct: 0, passed: false },
-			}));
-			setSubmitted((prev) => ({ ...prev, [quiz.id]: true }));
-			return null;
-		}
-	}, [answers, onPass]);
+	const submit = useCallback(
+		async (quiz: QuizLike) => {
+			const quizAnswers = answers[quiz.id] || {};
+			try {
+				const result: any = await api.submitQuiz(quiz.id, quizAnswers);
+				const nota = result.nota || 0;
+				const total = result.total || quiz.perguntas?.length || 0;
+				const correct = result.correct || 0;
+				const passed = result.concluido || nota >= (quiz.notaMinima ?? 7);
+				setResults((prev) => ({ ...prev, [quiz.id]: { nota, total, correct, passed } }));
+				setSubmitted((prev) => ({ ...prev, [quiz.id]: true }));
+				onPass(quiz.id, passed);
+				return { nota, total, correct, passed };
+			} catch {
+				setResults((prev) => ({
+					...prev,
+					[quiz.id]: { nota: 0, total: quiz.perguntas?.length || 0, correct: 0, passed: false },
+				}));
+				setSubmitted((prev) => ({ ...prev, [quiz.id]: true }));
+				return null;
+			}
+		},
+		[answers, onPass],
+	);
 
 	return {
 		answers: (quizId: string) => answers[quizId] || {},

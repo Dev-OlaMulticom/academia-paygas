@@ -72,7 +72,9 @@ export function AjudaPage() {
 			<div className="page-header">
 				<div>
 					<div className="page-title">Ajuda</div>
-					<div className="page-subtitle">Guia completo da plataforma — entenda cada modulo e como resolve problemas comuns</div>
+					<div className="page-subtitle">
+						Guia completo da plataforma — entenda cada modulo e como resolve problemas comuns
+					</div>
 				</div>
 			</div>
 			<div className="ajuda-grid">

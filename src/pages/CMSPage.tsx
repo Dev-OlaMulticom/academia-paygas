@@ -316,7 +316,12 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 	return (
 		<div className="page active">
 			{view === "aulas" && (
-				<button id="btn-voltar-cursos" className="btn-secondary cms-back-btn" onClick={() => setView("cursos")} style={{ marginBottom: 16 }}>
+				<button
+					id="btn-voltar-cursos"
+					className="btn-secondary cms-back-btn"
+					onClick={() => setView("cursos")}
+					style={{ marginBottom: 16 }}
+				>
 					<i className="icon-arrow-left icon-sm" /> Voltar aos Cursos
 				</button>
 			)}

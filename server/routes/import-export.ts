@@ -569,7 +569,17 @@ router.get("/export/curso/:id", authenticate, authorize("ADMIN"), async (req: an
 	try {
 		const curso = await db.findUnique("curso", { id: req.params.id });
 		if (!curso) return res.status(404).json({ error: "Curso nao encontrado" });
-		const headers = ["id", "titulo", "descricao", "ordem", "obrigatorio", "autoCertificado", "videoUrl", "videoInicio", "videoFim"];
+		const headers = [
+			"id",
+			"titulo",
+			"descricao",
+			"ordem",
+			"obrigatorio",
+			"autoCertificado",
+			"videoUrl",
+			"videoInicio",
+			"videoFim",
+		];
 		const row = headers.map((h) => escapeCsvField((curso as any)[h]));
 		const csv = [headers.join(","), row.join(",")].join("\n");
 		const safeName = (curso as any).titulo.replace(/[^a-zA-Z0-9-_]/g, "_").substring(0, 40);
@@ -582,9 +592,26 @@ router.get("/export/curso/:id", authenticate, authorize("ADMIN"), async (req: an
 
 router.get("/export/aula/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
-		const aula = await db.findUnique("aula", { id: req.params.id }, { include: { curso: { select: { id: true, titulo: true } } } });
+		const aula = await db.findUnique(
+			"aula",
+			{ id: req.params.id },
+			{ include: { curso: { select: { id: true, titulo: true } } } },
+		);
 		if (!aula) return res.status(404).json({ error: "Aula nao encontrada" });
-		const headers = ["id", "curso_id", "curso_titulo", "titulo", "descricao", "tipo", "videoUrl", "pdfUrl", "obrigatorio", "duracaoMin", "videoInicio", "videoFim"];
+		const headers = [
+			"id",
+			"curso_id",
+			"curso_titulo",
+			"titulo",
+			"descricao",
+			"tipo",
+			"videoUrl",
+			"pdfUrl",
+			"obrigatorio",
+			"duracaoMin",
+			"videoInicio",
+			"videoFim",
+		];
 		const row = [
 			escapeCsvField(aula.id),
 			escapeCsvField((aula as any).curso.id),
@@ -610,13 +637,30 @@ router.get("/export/aula/:id", authenticate, authorize("ADMIN"), async (req: any
 
 router.get("/export/licao/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
-		const licao = await db.findUnique("licao", {
-			id: req.params.id,
-		}, {
-			include: { aula: { select: { id: true, titulo: true, curso: { select: { id: true, titulo: true } } } } },
-		});
+		const licao = await db.findUnique(
+			"licao",
+			{
+				id: req.params.id,
+			},
+			{
+				include: { aula: { select: { id: true, titulo: true, curso: { select: { id: true, titulo: true } } } } },
+			},
+		);
 		if (!licao) return res.status(404).json({ error: "Licao nao encontrada" });
-		const headers = ["id", "curso_id", "curso_titulo", "aula_id", "aula_titulo", "titulo", "tipo", "conteudo", "duracaoMin", "inicioSeg", "fimSeg", "ordem"];
+		const headers = [
+			"id",
+			"curso_id",
+			"curso_titulo",
+			"aula_id",
+			"aula_titulo",
+			"titulo",
+			"tipo",
+			"conteudo",
+			"duracaoMin",
+			"inicioSeg",
+			"fimSeg",
+			"ordem",
+		];
 		const row = [
 			escapeCsvField(licao.id),
 			escapeCsvField((licao as any).aula.curso.id),
@@ -642,16 +686,32 @@ router.get("/export/licao/:id", authenticate, authorize("ADMIN"), async (req: an
 
 router.get("/export/quiz/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
-		const quiz = await db.findUnique("quiz", {
-			id: req.params.id,
-		}, {
-			include: {
-				perguntas: { orderBy: { ordem: "asc" } },
-				aula: { select: { id: true, titulo: true, curso: { select: { id: true, titulo: true } } } },
+		const quiz = await db.findUnique(
+			"quiz",
+			{
+				id: req.params.id,
 			},
-		});
+			{
+				include: {
+					perguntas: { orderBy: { ordem: "asc" } },
+					aula: { select: { id: true, titulo: true, curso: { select: { id: true, titulo: true } } } },
+				},
+			},
+		);
 		if (!quiz) return res.status(404).json({ error: "Quiz nao encontrado" });
-		const headers = ["curso_titulo", "aula_titulo", "quiz_titulo", "notaMinima", "autoGerarCertificado", "pergunta", "opcaoA", "opcaoB", "opcaoC", "opcaoD", "correta"];
+		const headers = [
+			"curso_titulo",
+			"aula_titulo",
+			"quiz_titulo",
+			"notaMinima",
+			"autoGerarCertificado",
+			"pergunta",
+			"opcaoA",
+			"opcaoB",
+			"opcaoC",
+			"opcaoD",
+			"correta",
+		];
 		const rows = quiz.perguntas.map((p: any) => [
 			escapeCsvField((quiz as any).aula.curso.titulo),
 			escapeCsvField((quiz as any).aula.titulo),
@@ -695,7 +755,16 @@ router.get("/list/aulas", authenticate, authorize("ADMIN"), async (_req: any, re
 			include: { curso: { select: { id: true, titulo: true } }, _count: { select: { licoes: true } } },
 			orderBy: [{ curso: { ordem: "asc" } }, { ordem: "asc" }],
 		});
-		res.json(aulas.map((a: any) => ({ id: a.id, titulo: a.titulo, cursoId: a.curso.id, cursoTitulo: a.curso.titulo, tipo: a.tipo, licaoCount: a._count.licoes })));
+		res.json(
+			aulas.map((a: any) => ({
+				id: a.id,
+				titulo: a.titulo,
+				cursoId: a.curso.id,
+				cursoTitulo: a.curso.titulo,
+				tipo: a.tipo,
+				licaoCount: a._count.licoes,
+			})),
+		);
 	} catch (error) {
 		logger.error("[LIST AULAS ERROR]", error);
 		res.status(500).json({ error: "Erro ao listar aulas" });
@@ -708,7 +777,17 @@ router.get("/list/licoes", authenticate, authorize("ADMIN"), async (_req: any, r
 			include: { aula: { select: { id: true, titulo: true, curso: { select: { id: true, titulo: true } } } } },
 			orderBy: [{ aula: { curso: { ordem: "asc" } } }, { aula: { ordem: "asc" } }, { ordem: "asc" }],
 		});
-		res.json(licoes.map((l: any) => ({ id: l.id, titulo: l.titulo, aulaId: l.aula.id, aulaTitulo: l.aula.titulo, cursoId: l.aula.curso.id, cursoTitulo: l.aula.curso.titulo, tipo: l.tipo })));
+		res.json(
+			licoes.map((l: any) => ({
+				id: l.id,
+				titulo: l.titulo,
+				aulaId: l.aula.id,
+				aulaTitulo: l.aula.titulo,
+				cursoId: l.aula.curso.id,
+				cursoTitulo: l.aula.curso.titulo,
+				tipo: l.tipo,
+			})),
+		);
 	} catch (error) {
 		logger.error("[LIST LICOES ERROR]", error);
 		res.status(500).json({ error: "Erro ao listar licoes" });
@@ -724,7 +803,17 @@ router.get("/list/quizzes", authenticate, authorize("ADMIN"), async (_req: any, 
 			},
 			orderBy: [{ aula: { curso: { ordem: "asc" } } }, { aula: { ordem: "asc" } }],
 		});
-		res.json(quizzes.map((q: any) => ({ id: q.id, titulo: q.titulo, aulaId: q.aula.id, aulaTitulo: q.aula.titulo, cursoId: q.aula.curso.id, cursoTitulo: q.aula.curso.titulo, perguntaCount: q._count.perguntas })));
+		res.json(
+			quizzes.map((q: any) => ({
+				id: q.id,
+				titulo: q.titulo,
+				aulaId: q.aula.id,
+				aulaTitulo: q.aula.titulo,
+				cursoId: q.aula.curso.id,
+				cursoTitulo: q.aula.curso.titulo,
+				perguntaCount: q._count.perguntas,
+			})),
+		);
 	} catch (error) {
 		logger.error("[LIST QUIZZES ERROR]", error);
 		res.status(500).json({ error: "Erro ao listar quizzes" });
@@ -810,14 +899,19 @@ router.post("/detect", authenticate, authorize("ADMIN"), async (req: any, res) =
 
 		// For quiz_pergunta: check if referenced parents exist and list available quizzes
 		let parentResolved = true;
-		let parentWarnings: string[] = [];
-		let existingQuizzes: { id: string; titulo: string; aulaTitulo: string; cursoTitulo: string; perguntaCount: number }[] = [];
+		const parentWarnings: string[] = [];
+		let existingQuizzes: {
+			id: string;
+			titulo: string;
+			aulaTitulo: string;
+			cursoTitulo: string;
+			perguntaCount: number;
+		}[] = [];
 
 		if (detectedType === "quiz_pergunta") {
 			const allCursos = await db.findMany("curso", { select: { id: true, titulo: true } });
 			const cursoMapDb = new Map(allCursos.map((m: any) => [m.titulo, m.id]));
 			const allAulasDb = await db.findMany("aula", { select: { id: true, titulo: true, cursoId: true } });
-			const aulaMapDb = new Map(allAulasDb.map((a: any) => [`${a.cursoId}:${a.titulo}`, a.id]));
 
 			const hasCurso = has("curso_titulo") || has("curso_id");
 			const hasAula = has("aula_titulo") || has("aula_id");
@@ -925,7 +1019,11 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 		}
 
 		// Resolve helper: get aulaId from row (optionally create if missing)
-		async function resolveAulaId(obj: Record<string, string>, cursoId: string, createIfMissing = false): Promise<string | null> {
+		async function resolveAulaId(
+			obj: Record<string, string>,
+			cursoId: string,
+			createIfMissing = false,
+		): Promise<string | null> {
 			const id = obj.aula_id?.trim();
 			if (id && aulaById.has(id)) return id;
 			const titulo = obj.aula_titulo?.trim();
@@ -998,7 +1096,14 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 			typeGroups[detected] = objects;
 		}
 
-		const result = { created: 0, updated: 0, skipped: 0, total: objects.length, errors, createdItems: [] as { type: string; id: string; titulo: string; cursoId?: string; aulaId?: string }[] };
+		const result = {
+			created: 0,
+			updated: 0,
+			skipped: 0,
+			total: objects.length,
+			errors,
+			createdItems: [] as { type: string; id: string; titulo: string; cursoId?: string; aulaId?: string }[],
+		};
 
 		// Process in order: cursos → aulas → licoes → quiz
 		// CURSOS
@@ -1177,7 +1282,12 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				fimSeg: parseIntSafe(obj.fimSeg),
 				ordem: parseIntSafe(obj.ordem) ?? maxOrdem + 1,
 			});
-			result.createdItems.push({ type: "licao", id: (await db.findFirst("licao", { aulaId, titulo }))?.id || "", titulo, aulaId });
+			result.createdItems.push({
+				type: "licao",
+				id: (await db.findFirst("licao", { aulaId, titulo }))?.id || "",
+				titulo,
+				aulaId,
+			});
 			result.created++;
 		}
 
@@ -1193,7 +1303,9 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 			const existingByPergunta = new Map(existingPerguntas.map((p: any) => [p.pergunta, p]));
 			const existingById = new Map(existingPerguntas.map((p: any) => [p.id, p]));
 
-			const maxOrdem = (await db.aggregate("quizPergunta", { where: { quizId: targetQuizId }, _max: { ordem: true } }))._max.ordem || 0;
+			const maxOrdem =
+				(await db.aggregate("quizPergunta", { where: { quizId: targetQuizId }, _max: { ordem: true } }))._max.ordem ||
+				0;
 			let ordemCounter = maxOrdem;
 
 			for (const r of typeGroups.quiz_pergunta) {
@@ -1205,7 +1317,11 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 
 				const correta = (r.correta || "A").trim().toUpperCase();
 				if (!VALID_CORRETA.includes(correta)) {
-					errors.push({ row: 0, field: "correta", message: `Resposta correta invalida: "${correta}". Use: A, B, C ou D` });
+					errors.push({
+						row: 0,
+						field: "correta",
+						message: `Resposta correta invalida: "${correta}". Use: A, B, C ou D`,
+					});
 					result.skipped++;
 					continue;
 				}
@@ -1220,14 +1336,18 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				if (isUpsert && r.pergunta_id?.trim()) {
 					const existing = existingById.get(r.pergunta_id.trim());
 					if (existing) {
-						await db.update("quizPergunta", { id: r.pergunta_id.trim() }, {
-							pergunta: perguntaText,
-							opcaoA: r.opcaoA.trim(),
-							opcaoB: r.opcaoB.trim(),
-							opcaoC: r.opcaoC?.trim() || null,
-							opcaoD: r.opcaoD?.trim() || null,
-							correta,
-						});
+						await db.update(
+							"quizPergunta",
+							{ id: r.pergunta_id.trim() },
+							{
+								pergunta: perguntaText,
+								opcaoA: r.opcaoA.trim(),
+								opcaoB: r.opcaoB.trim(),
+								opcaoC: r.opcaoC?.trim() || null,
+								opcaoD: r.opcaoD?.trim() || null,
+								correta,
+							},
+						);
 						result.updated++;
 						continue;
 					}
@@ -1254,15 +1374,29 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				result.created++;
 			}
 
-			const quizForItem = await db.findUnique("quiz", { id: targetQuizId }, { include: { aula: { select: { cursoId: true } } } });
-			result.createdItems.push({ type: "quiz", id: targetQuizId, titulo: (targetQuiz as any).titulo, aulaId: (targetQuiz as any).aulaId, cursoId: quizForItem?.aula?.cursoId });
+			const quizForItem = await db.findUnique(
+				"quiz",
+				{ id: targetQuizId },
+				{ include: { aula: { select: { cursoId: true } } } },
+			);
+			result.createdItems.push({
+				type: "quiz",
+				id: targetQuizId,
+				titulo: (targetQuiz as any).titulo,
+				aulaId: (targetQuiz as any).aulaId,
+				cursoId: quizForItem?.aula?.cursoId,
+			});
 		} else {
 			// Original flow: resolve parents from CSV columns
 			const quizGroups = new Map<string, { aulaId: string; rows: Record<string, string>[] }>();
 			for (const obj of typeGroups.quiz_pergunta) {
 				const cursoId = resolveModuloId(obj);
 				if (!cursoId) {
-					errors.push({ row: 0, field: "curso_titulo", message: `Curso nao encontrado: "${obj.curso_titulo || obj.curso_id || ''}"` });
+					errors.push({
+						row: 0,
+						field: "curso_titulo",
+						message: `Curso nao encontrado: "${obj.curso_titulo || obj.curso_id || ""}"`,
+					});
 					result.skipped++;
 					continue;
 				}
@@ -1294,7 +1428,13 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 					});
 					quiz = newQuiz as any;
 					const cursoIdForQuiz = resolveModuloId(first);
-					result.createdItems.push({ type: "quiz", id: (quiz as any).id, titulo: quizTitulo, aulaId, cursoId: cursoIdForQuiz || undefined });
+					result.createdItems.push({
+						type: "quiz",
+						id: (quiz as any).id,
+						titulo: quizTitulo,
+						aulaId,
+						cursoId: cursoIdForQuiz || undefined,
+					});
 					result.created++;
 				}
 
@@ -1592,7 +1732,7 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 				skipped++;
 				continue;
 			}
-			let cursoId = cursoMap.get(cursoTitulo) || (obj.curso_id?.trim() && cursoMap.get(obj.curso_id.trim()));
+			const cursoId = cursoMap.get(cursoTitulo) || (obj.curso_id?.trim() && cursoMap.get(obj.curso_id.trim()));
 			if (!cursoId) {
 				skipped++;
 				continue;
@@ -1601,7 +1741,8 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 				aulaMap.get(`${cursoId}:${aulaTitulo}`) || (obj.aula_id?.trim() ? aulaMap.get(obj.aula_id.trim()) : undefined);
 			if (!aulaId) {
 				// Auto-create aula if missing
-				const maxOrdemAula = (await db.aggregate("aula", { where: { cursoId }, _max: { ordem: true } }))._max.ordem || 0;
+				const maxOrdemAula =
+					(await db.aggregate("aula", { where: { cursoId }, _max: { ordem: true } }))._max.ordem || 0;
 				const createdAula = await db.create("aula", {
 					cursoId,
 					titulo: aulaTitulo,

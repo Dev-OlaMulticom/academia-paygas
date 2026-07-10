@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "../lib/db";
-import { gradeQuiz } from "../lib/quiz";
 import logger from "../lib/logger";
+import { gradeQuiz } from "../lib/quiz";
 import { authenticate, authorize } from "../middleware/auth";
 import { sendNotificationAlertEmail } from "../services/email";
 import { awardPointsIfNotAwarded } from "../services/gamification";
@@ -629,11 +629,7 @@ router.post("/quiz/:quizId/responder", authenticate, async (req: any, res) => {
 			return res.status(404).json({ error: "Quiz não encontrado" });
 		}
 
-		const { correct, total, nota, concluido } = gradeQuiz(
-			quiz.perguntas,
-			respostas,
-			quiz.notaMinima || 7,
-		);
+		const { correct, total, nota, concluido } = gradeQuiz(quiz.perguntas, respostas, quiz.notaMinima || 7);
 
 		const response = await db.upsert(
 			"quizResponse",

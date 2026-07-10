@@ -12,10 +12,38 @@ interface ExImpPageProps {
 
 type TabType = "cursos" | "aulas" | "licoes" | "quiz";
 
-interface CursoItem { id: string; titulo: string; ordem: number; aulaCount: number }
-interface AulaItem { id: string; titulo: string; cursoId: string; cursoTitulo: string; tipo: string; licaoCount: number }
-interface LicaoItem { id: string; titulo: string; aulaId: string; aulaTitulo: string; cursoId: string; cursoTitulo: string; tipo: string }
-interface QuizItem { id: string; titulo: string; aulaId: string; aulaTitulo: string; cursoId: string; cursoTitulo: string; perguntaCount: number }
+interface CursoItem {
+	id: string;
+	titulo: string;
+	ordem: number;
+	aulaCount: number;
+}
+interface AulaItem {
+	id: string;
+	titulo: string;
+	cursoId: string;
+	cursoTitulo: string;
+	tipo: string;
+	licaoCount: number;
+}
+interface LicaoItem {
+	id: string;
+	titulo: string;
+	aulaId: string;
+	aulaTitulo: string;
+	cursoId: string;
+	cursoTitulo: string;
+	tipo: string;
+}
+interface QuizItem {
+	id: string;
+	titulo: string;
+	aulaId: string;
+	aulaTitulo: string;
+	cursoId: string;
+	cursoTitulo: string;
+	perguntaCount: number;
+}
 
 type ImportStep = "idle" | "detecting" | "detected" | "importing" | "result";
 
@@ -33,6 +61,11 @@ const TAB_LABELS: Record<TabType, { label: string; icon: string; desc: string }>
 	aulas: { label: "Aulas", icon: "icon-file-text", desc: "Video, PDF e conteudo das aulas" },
 	licoes: { label: "Licoes", icon: "icon-bookmark", desc: "Sub-conteudo e ancoragens" },
 	quiz: { label: "Quiz", icon: "icon-help-circle", desc: "Perguntas e respostas" },
+};
+
+const needsParentColumns = (columns: string[]) => {
+	const h = columns.map((c) => c.toLowerCase().trim());
+	return !h.includes("curso_titulo") && !h.includes("curso_id") && !h.includes("aula_titulo") && !h.includes("aula_id");
 };
 
 export function ExImpPage({ user: _user }: ExImpPageProps) {
@@ -107,11 +140,17 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 
 	// Load target cursos when quiz is detected without parent columns
 	useEffect(() => {
-		if (importStep === "detected" && detectResult?.type === "quiz_pergunta" && needsParentColumns(detectResult.columns)) {
-			api.listCursos().then(setTargetCursos).catch(() => setTargetCursos([]));
+		if (
+			importStep === "detected" &&
+			detectResult?.type === "quiz_pergunta" &&
+			needsParentColumns(detectResult.columns)
+		) {
+			api
+				.listCursos()
+				.then(setTargetCursos)
+				.catch(() => setTargetCursos([]));
 		}
 	}, [importStep, detectResult]);
-
 
 	const resetImport = () => {
 		setImportStep("idle");
@@ -124,16 +163,6 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 		setTargetAulaId("");
 		setTargetAulas([]);
 		setTargetQuizId("");
-	};
-
-	const needsParentColumns = (columns: string[]) => {
-		const h = columns.map((c) => c.toLowerCase().trim());
-		return (
-			!h.includes("curso_titulo") &&
-			!h.includes("curso_id") &&
-			!h.includes("aula_titulo") &&
-			!h.includes("aula_id")
-		);
 	};
 
 	const injectParentColumns = (csv: string, cursoTitulo: string, aulaTitulo: string): string => {
@@ -229,7 +258,10 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 				const result = await api.importUnified(csvText, importMode, targetQuizId);
 				setImportResult(result as ImportResult);
 				setImportStep("result");
-				toast(`Importacao: ${result.created} criados, ${result.updated} atualizados, ${result.skipped} ignorados`, "success");
+				toast(
+					`Importacao: ${result.created} criados, ${result.updated} atualizados, ${result.skipped} ignorados`,
+					"success",
+				);
 				loadList();
 			} catch (err: any) {
 				toast(err.message || "Erro ao importar", "error");
@@ -253,7 +285,10 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 			const result = await api.importUnified(finalCsv, importMode);
 			setImportResult(result as ImportResult);
 			setImportStep("result");
-			toast(`Importacao: ${result.created} criados, ${result.updated} atualizados, ${result.skipped} ignorados`, "success");
+			toast(
+				`Importacao: ${result.created} criados, ${result.updated} atualizados, ${result.skipped} ignorados`,
+				"success",
+			);
 			loadList();
 		} catch (err: any) {
 			toast(err.message || "Erro ao importar", "error");
@@ -322,7 +357,17 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 				{/* LIST + EXPORT */}
 				<div className="eximp-list-area">
 					<div className="eximp-list-header">
-						<b>Itens ({activeTab === "cursos" ? cursos.length : activeTab === "aulas" ? aulas.length : activeTab === "licoes" ? licoes.length : quizzes.length})</b>
+						<b>
+							Itens (
+							{activeTab === "cursos"
+								? cursos.length
+								: activeTab === "aulas"
+									? aulas.length
+									: activeTab === "licoes"
+										? licoes.length
+										: quizzes.length}
+							)
+						</b>
 					</div>
 
 					{loadingList ? (
@@ -333,72 +378,82 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 					) : (
 						<div className="eximp-list-scroll">
 							{/* CURSOS */}
-							{activeTab === "cursos" && cursos.map((item) => (
-								<div key={item.id} className="eximp-list-row">
-									<div className="eximp-list-info">
-										<span className="eximp-list-title">{item.titulo}</span>
-										<span className="eximp-list-meta">{item.aulaCount} aulas</span>
+							{activeTab === "cursos" &&
+								cursos.map((item) => (
+									<div key={item.id} className="eximp-list-row">
+										<div className="eximp-list-info">
+											<span className="eximp-list-title">{item.titulo}</span>
+											<span className="eximp-list-meta">{item.aulaCount} aulas</span>
+										</div>
+										<button
+											className="btn-secondary btn-sm"
+											onClick={() => handleExportItem("curso", item.id)}
+											disabled={exportingId === item.id}
+										>
+											<i className="icon-download icon-xs" /> {exportingId === item.id ? "..." : "CSV"}
+										</button>
 									</div>
-									<button
-										className="btn-secondary btn-sm"
-										onClick={() => handleExportItem("curso", item.id)}
-										disabled={exportingId === item.id}
-									>
-										<i className="icon-download icon-xs" /> {exportingId === item.id ? "..." : "CSV"}
-									</button>
-								</div>
-							))}
+								))}
 
 							{/* AULAS */}
-							{activeTab === "aulas" && aulas.map((item) => (
-								<div key={item.id} className="eximp-list-row">
-									<div className="eximp-list-info">
-										<span className="eximp-list-title">{item.titulo}</span>
-										<span className="eximp-list-meta">{item.cursoTitulo} &middot; {item.tipo} &middot; {item.licaoCount} licoes</span>
+							{activeTab === "aulas" &&
+								aulas.map((item) => (
+									<div key={item.id} className="eximp-list-row">
+										<div className="eximp-list-info">
+											<span className="eximp-list-title">{item.titulo}</span>
+											<span className="eximp-list-meta">
+												{item.cursoTitulo} &middot; {item.tipo} &middot; {item.licaoCount} licoes
+											</span>
+										</div>
+										<button
+											className="btn-secondary btn-sm"
+											onClick={() => handleExportItem("aula", item.id)}
+											disabled={exportingId === item.id}
+										>
+											<i className="icon-download icon-xs" /> {exportingId === item.id ? "..." : "CSV"}
+										</button>
 									</div>
-									<button
-										className="btn-secondary btn-sm"
-										onClick={() => handleExportItem("aula", item.id)}
-										disabled={exportingId === item.id}
-									>
-										<i className="icon-download icon-xs" /> {exportingId === item.id ? "..." : "CSV"}
-									</button>
-								</div>
-							))}
+								))}
 
 							{/* LICOES */}
-							{activeTab === "licoes" && licoes.map((item) => (
-								<div key={item.id} className="eximp-list-row">
-									<div className="eximp-list-info">
-										<span className="eximp-list-title">{item.titulo}</span>
-										<span className="eximp-list-meta">{item.cursoTitulo} &middot; {item.aulaTitulo} &middot; {item.tipo}</span>
+							{activeTab === "licoes" &&
+								licoes.map((item) => (
+									<div key={item.id} className="eximp-list-row">
+										<div className="eximp-list-info">
+											<span className="eximp-list-title">{item.titulo}</span>
+											<span className="eximp-list-meta">
+												{item.cursoTitulo} &middot; {item.aulaTitulo} &middot; {item.tipo}
+											</span>
+										</div>
+										<button
+											className="btn-secondary btn-sm"
+											onClick={() => handleExportItem("licao", item.id)}
+											disabled={exportingId === item.id}
+										>
+											<i className="icon-download icon-xs" /> {exportingId === item.id ? "..." : "CSV"}
+										</button>
 									</div>
-									<button
-										className="btn-secondary btn-sm"
-										onClick={() => handleExportItem("licao", item.id)}
-										disabled={exportingId === item.id}
-									>
-										<i className="icon-download icon-xs" /> {exportingId === item.id ? "..." : "CSV"}
-									</button>
-								</div>
-							))}
+								))}
 
 							{/* QUIZZES */}
-							{activeTab === "quiz" && quizzes.map((item) => (
-								<div key={item.id} className="eximp-list-row">
-									<div className="eximp-list-info">
-										<span className="eximp-list-title">{item.titulo}</span>
-										<span className="eximp-list-meta">{item.cursoTitulo} &middot; {item.aulaTitulo} &middot; {item.perguntaCount} perguntas</span>
+							{activeTab === "quiz" &&
+								quizzes.map((item) => (
+									<div key={item.id} className="eximp-list-row">
+										<div className="eximp-list-info">
+											<span className="eximp-list-title">{item.titulo}</span>
+											<span className="eximp-list-meta">
+												{item.cursoTitulo} &middot; {item.aulaTitulo} &middot; {item.perguntaCount} perguntas
+											</span>
+										</div>
+										<button
+											className="btn-secondary btn-sm"
+											onClick={() => handleExportItem("quiz", item.id)}
+											disabled={exportingId === item.id}
+										>
+											<i className="icon-download icon-xs" /> {exportingId === item.id ? "..." : "CSV"}
+										</button>
 									</div>
-									<button
-										className="btn-secondary btn-sm"
-										onClick={() => handleExportItem("quiz", item.id)}
-										disabled={exportingId === item.id}
-									>
-										<i className="icon-download icon-xs" /> {exportingId === item.id ? "..." : "CSV"}
-									</button>
-								</div>
-							))}
+								))}
 
 							{((activeTab === "cursos" && cursos.length === 0) ||
 								(activeTab === "aulas" && aulas.length === 0) ||
@@ -420,14 +475,26 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 					<div
 						className={`eximp-dropzone ${dragging ? "dragging" : ""}`}
 						onDrop={handleDrop}
-						onDragOver={(e) => { e.preventDefault(); setDragging(true); }}
-						onDragLeave={(e) => { e.preventDefault(); setDragging(false); }}
+						onDragOver={(e) => {
+							e.preventDefault();
+							setDragging(true);
+						}}
+						onDragLeave={(e) => {
+							e.preventDefault();
+							setDragging(false);
+						}}
 						onClick={() => fileInputRef.current?.click()}
 					>
 						<i className="icon-upload icon-xl" />
 						<div className="eximp-dropzone-text">Arraste o CSV de {tabMeta.label} aqui</div>
 						<div className="eximp-dropzone-subtext">ou clique para selecionar</div>
-						<input ref={fileInputRef} type="file" accept=".csv" onChange={handleFileSelect} style={{ display: "none" }} />
+						<input
+							ref={fileInputRef}
+							type="file"
+							accept=".csv"
+							onChange={handleFileSelect}
+							style={{ display: "none" }}
+						/>
 					</div>
 				)}
 
@@ -499,100 +566,117 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 							</details>
 						)}
 
-					{detectResult.valid && (
-						<div className="eximp-actions">
-							{/* Parent warnings for quiz_pergunta */}
-							{detectResult.type === "quiz_pergunta" && detectResult.parentWarnings?.length > 0 && (
-								<div className="eximp-alert warning" style={{ marginBottom: 8 }}>
-									{detectResult.parentWarnings.map((w: string, i: number) => (
-									<div key={i}><i className="icon-info icon-sm" /> {w}</div>
-								))}
-								</div>
-							)}
-
-							{/* Direct quiz target selector for quiz_pergunta */}
-							{detectResult.type === "quiz_pergunta" && detectResult.existingQuizzes && detectResult.existingQuizzes.length > 0 && (
-								<div className="eximp-target-select">
-									<div className="eximp-alert info">
-										<i className="icon-target icon-sm" /> Selecione o quiz destino para as perguntas:
+						{detectResult.valid && (
+							<div className="eximp-actions">
+								{/* Parent warnings for quiz_pergunta */}
+								{detectResult.type === "quiz_pergunta" && detectResult.parentWarnings?.length > 0 && (
+									<div className="eximp-alert warning" style={{ marginBottom: 8 }}>
+										{detectResult.parentWarnings.map((w: string, i: number) => (
+											<div key={i}>
+												<i className="icon-info icon-sm" /> {w}
+											</div>
+										))}
 									</div>
-									<div className="eximp-target-fields">
-										<div className="form-field" style={{ minWidth: 300 }}>
-											<label className="form-label">Quiz Destino *</label>
-											<AppSelect
-												options={detectResult.existingQuizzes.map((q: any) => ({
-												value: q.id,
-												label: `${q.cursoTitulo} > ${q.aulaTitulo} > ${q.titulo} (${q.perguntaCount} perguntas)`,
-											}))}
-												value={targetQuizId || null}
-												onChange={(v: string | null) => setTargetQuizId(v || "")}
-												placeholder="Selecionar quiz existente..."
-												isSearchable
-											/>
+								)}
+
+								{/* Direct quiz target selector for quiz_pergunta */}
+								{detectResult.type === "quiz_pergunta" &&
+									detectResult.existingQuizzes &&
+									detectResult.existingQuizzes.length > 0 && (
+										<div className="eximp-target-select">
+											<div className="eximp-alert info">
+												<i className="icon-target icon-sm" /> Selecione o quiz destino para as perguntas:
+											</div>
+											<div className="eximp-target-fields">
+												<div className="form-field" style={{ minWidth: 300 }}>
+													<label className="form-label">Quiz Destino *</label>
+													<AppSelect
+														options={detectResult.existingQuizzes.map((q: any) => ({
+															value: q.id,
+															label: `${q.cursoTitulo} > ${q.aulaTitulo} > ${q.titulo} (${q.perguntaCount} perguntas)`,
+														}))}
+														value={targetQuizId || null}
+														onChange={(v: string | null) => setTargetQuizId(v || "")}
+														placeholder="Selecionar quiz existente..."
+														isSearchable
+													/>
+												</div>
+											</div>
+										</div>
+									)}
+
+								{/* Fallback: course/aula target when no quiz target selected and parents missing */}
+								{needsParentColumns(detectResult.columns) && !targetQuizId && (
+									<div className="eximp-target-select">
+										<div className="eximp-alert warning">
+											<i className="icon-info icon-sm" /> Este CSV nao inclui curso/aula. Selecione o destino:
+										</div>
+										<div className="eximp-target-fields">
+											<div className="form-field" style={{ minWidth: 200 }}>
+												<label className="form-label">Curso *</label>
+												<AppSelect
+													options={targetCursos.map((c) => ({ value: c.id, label: c.titulo }))}
+													value={targetCursoId || null}
+													onChange={(v: string | null) => {
+														setTargetCursoId(v || "");
+														setTargetAulaId("");
+													}}
+													placeholder="Selecionar curso..."
+													isSearchable
+												/>
+											</div>
+											<div className="form-field" style={{ minWidth: 200 }}>
+												<label className="form-label">Aula *</label>
+												<AppSelect
+													options={targetAulas.map((a) => ({ value: a.id, label: a.titulo }))}
+													value={targetAulaId || null}
+													onChange={(v: string | null) => setTargetAulaId(v || "")}
+													placeholder={targetCursoId ? "Selecionar aula..." : "Primeiro selecione o curso"}
+													isSearchable
+													isDisabled={!targetCursoId}
+												/>
+											</div>
 										</div>
 									</div>
-								</div>
-							)}
+								)}
 
-							{/* Fallback: course/aula target when no quiz target selected and parents missing */}
-							{needsParentColumns(detectResult.columns) && !targetQuizId && (
-								<div className="eximp-target-select">
-									<div className="eximp-alert warning">
-										<i className="icon-info icon-sm" /> Este CSV nao inclui curso/aula. Selecione o destino:
-									</div>
-									<div className="eximp-target-fields">
-										<div className="form-field" style={{ minWidth: 200 }}>
-											<label className="form-label">Curso *</label>
-											<AppSelect
-												options={targetCursos.map((c) => ({ value: c.id, label: c.titulo }))}
-												value={targetCursoId || null}
-												onChange={(v: string | null) => {
-													setTargetCursoId(v || "");
-													setTargetAulaId("");
-												}}
-												placeholder="Selecionar curso..."
-												isSearchable
-											/>
-										</div>
-										<div className="form-field" style={{ minWidth: 200 }}>
-											<label className="form-label">Aula *</label>
-											<AppSelect
-												options={targetAulas.map((a) => ({ value: a.id, label: a.titulo }))}
-												value={targetAulaId || null}
-												onChange={(v: string | null) => setTargetAulaId(v || "")}
-												placeholder={targetCursoId ? "Selecionar aula..." : "Primeiro selecione o curso"}
-												isSearchable
-												isDisabled={!targetCursoId}
-											/>
-										</div>
-									</div>
-								</div>
-							)}
-
-							<div className="eximp-mode-selector">
-								<label className="eximp-radio">
-									<input type="radio" name="importMode" checked={importMode === "create"} onChange={() => setImportMode("create")} />
+								<div className="eximp-mode-selector">
+									<label className="eximp-radio">
+										<input
+											type="radio"
+											name="importMode"
+											checked={importMode === "create"}
+											onChange={() => setImportMode("create")}
+										/>
 										Apenas criar
 									</label>
 									<label className="eximp-radio">
-										<input type="radio" name="importMode" checked={importMode === "upsert"} onChange={() => setImportMode("upsert")} />
+										<input
+											type="radio"
+											name="importMode"
+											checked={importMode === "upsert"}
+											onChange={() => setImportMode("upsert")}
+										/>
 										Criar ou atualizar
 									</label>
-							</div>
+								</div>
 
-							<button
-								className="btn-primary"
-								onClick={handleImport}
-								disabled={
-									detectResult.type === "quiz_pergunta"
-										? !targetQuizId && (needsParentColumns(detectResult.columns) ? (!targetCursoId || !targetAulaId) : !detectResult.parentResolved)
-										: needsParentColumns(detectResult.columns) && (!targetCursoId || !targetAulaId)
-								}
-							>
-								<i className="icon-upload icon-xs" /> Importar
-							</button>
-						</div>
-					)}
+								<button
+									className="btn-primary"
+									onClick={handleImport}
+									disabled={
+										detectResult.type === "quiz_pergunta"
+											? !targetQuizId &&
+												(needsParentColumns(detectResult.columns)
+													? !targetCursoId || !targetAulaId
+													: !detectResult.parentResolved)
+											: needsParentColumns(detectResult.columns) && (!targetCursoId || !targetAulaId)
+									}
+								>
+									<i className="icon-upload icon-xs" /> Importar
+								</button>
+							</div>
+						)}
 					</div>
 				)}
 
@@ -636,7 +720,9 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 								<b>Erros ({importResult.errors.length}):</b>
 								<ul style={{ margin: "4px 0 0 16px", padding: 0 }}>
 									{importResult.errors.slice(0, 10).map((err, i) => (
-										<li key={i}>Linha {err.row}: {err.field} — {err.message}</li>
+										<li key={i}>
+											Linha {err.row}: {err.field} — {err.message}
+										</li>
 									))}
 									{importResult.errors.length > 10 && <li>...e mais {importResult.errors.length - 10} erros</li>}
 								</ul>
@@ -652,7 +738,10 @@ export function ExImpPage({ user: _user }: ExImpPageProps) {
 											key={i}
 											className="eximp-link-card"
 											href={getLink(item)}
-											onClick={(e) => { e.preventDefault(); navigate(getLink(item)); }}
+											onClick={(e) => {
+												e.preventDefault();
+												navigate(getLink(item));
+											}}
 										>
 											<span className="eximp-link-type">{item.type}</span>
 											<span className="eximp-link-title">{item.titulo}</span>

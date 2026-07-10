@@ -1,14 +1,14 @@
+import { quizPassText } from "@shared/quiz";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { PDFViewer } from "../components/PDFViewer";
+import { useToast } from "../components/Toast";
 import { VideoPlayer } from "../components/VideoPlayer";
 import { useAbility } from "../hooks/useAbility";
 import { useAuth } from "../hooks/useAuth";
 import { useQuiz } from "../hooks/useQuiz";
 import { api } from "../lib/api";
 import { pluralize } from "../lib/utils";
-import { useToast } from "../components/Toast";
-import { quizPassText } from "@shared/quiz";
 
 function slugify(text: string): string {
 	return text
@@ -445,9 +445,7 @@ export function ModulosPage() {
 		return (
 			<div className="quiz-in-accordion">
 				<h4>📝 {quiz.titulo}</h4>
-				<p style={{ fontSize: "12px", color: "var(--gray-500)", marginBottom: "12px" }}>
-					{quizPassText(quiz)}
-				</p>
+				<p style={{ fontSize: "12px", color: "var(--gray-500)", marginBottom: "12px" }}>{quizPassText(quiz)}</p>
 
 				{inlineResult && (
 					<div
@@ -530,10 +528,7 @@ export function ModulosPage() {
 				{!isSubmitted && (
 					<div className="quiz-step-nav">
 						{currentStep > 0 && (
-							<button
-								className="btn-secondary"
-								onClick={() => qz.setStep(quiz.id, currentStep - 1)}
-							>
+							<button className="btn-secondary" onClick={() => qz.setStep(quiz.id, currentStep - 1)}>
 								<i className="icon-arrow-left icon-sm" /> Anterior
 							</button>
 						)}
@@ -564,7 +559,7 @@ export function ModulosPage() {
 						className="btn-secondary"
 						style={{ width: "100%" }}
 						onClick={() => {
-						qz.reset(quiz.id);
+							qz.reset(quiz.id);
 						}}
 					>
 						Tentar Novamente
@@ -649,7 +644,7 @@ export function ModulosPage() {
 															<button
 																className="btn-secondary quiz-retry-btn"
 																onClick={() => {
-									qz.reset(quiz.id);
+																	qz.reset(quiz.id);
 																}}
 															>
 																Tentar Novamente
@@ -707,10 +702,7 @@ export function ModulosPage() {
 															</div>
 															<div className="quiz-step-nav">
 																{step > 0 && (
-																	<button
-																		className="btn-secondary"
-																		onClick={() => qz.setStep(quiz.id, step - 1)}
-																	>
+																	<button className="btn-secondary" onClick={() => qz.setStep(quiz.id, step - 1)}>
 																		<i className="icon-arrow-left icon-sm" /> Anterior
 																	</button>
 																)}
@@ -875,9 +867,7 @@ export function ModulosPage() {
 								{qIndex + 1}. {p.pergunta.substring(0, 50)}
 								{p.pergunta.length > 50 ? "..." : ""}
 								{answers[p.id] !== p.correta && (
-									<span style={{ color: "var(--gray-400)", fontSize: "11px" }}>
-										{" "}→ {p.correta}
-									</span>
+									<span style={{ color: "var(--gray-400)", fontSize: "11px" }}> → {p.correta}</span>
 								)}
 							</div>
 						))}
@@ -894,8 +884,8 @@ export function ModulosPage() {
 									className="btn-primary"
 									style={{ flex: 1 }}
 									onClick={() => {
-											qz.submit(quiz);
-										}}
+										qz.submit(quiz);
+									}}
 									disabled={Object.keys(answers).length < perguntas.length}
 								>
 									Enviar Respostas
@@ -917,21 +907,33 @@ export function ModulosPage() {
 		);
 	};
 
-	const openMediaModal = (url: string, type: "pdf" | "video", title: string, startTime?: number, lessonIndex?: number) => {
+	const openMediaModal = (
+		url: string,
+		type: "pdf" | "video",
+		title: string,
+		startTime?: number,
+		lessonIndex?: number,
+	) => {
 		setMediaModal({ url, type, title, startTime, lessonIndex });
 	};
 
 	const renderMediaButton = (lesson: any, lessonIndex?: number) => {
 		if (lesson.tipo === "PDF" && lesson.pdfUrl) {
 			return (
-				<button className="media-open-btn" onClick={() => openMediaModal(lesson.pdfUrl, "pdf", lesson.titulo, undefined, lessonIndex)}>
+				<button
+					className="media-open-btn"
+					onClick={() => openMediaModal(lesson.pdfUrl, "pdf", lesson.titulo, undefined, lessonIndex)}
+				>
 					<i className="icon-file-text" /> Abrir PDF
 				</button>
 			);
 		}
 		if (lesson.videoUrl) {
 			return (
-				<button className="media-open-btn" onClick={() => openMediaModal(lesson.videoUrl, "video", lesson.titulo, undefined, lessonIndex)}>
+				<button
+					className="media-open-btn"
+					onClick={() => openMediaModal(lesson.videoUrl, "video", lesson.titulo, undefined, lessonIndex)}
+				>
 					<i className="icon-play" /> Assistir Video
 				</button>
 			);
@@ -941,921 +943,941 @@ export function ModulosPage() {
 
 	return (
 		<>
-		<div className="page active">
-			{showConfetti && (
-				<div className="confetti-container">
-					{Array.from({ length: 50 }).map((_, i) => (
-						<div
-							key={i}
-							className="confetti-piece"
-							style={{
-								left: `${Math.random() * 100}%`,
-								animationDelay: `${Math.random() * 2}s`,
-								animationDuration: `${2 + Math.random() * 2}s`,
-								background: ["#F47C20", "#4CAF50", "#2196F3", "#FF9800", "#E91E63", "#FFD700"][i % 6],
-							}}
-						/>
-					))}
-					<div className="confetti-message">
-						<div className="confetti-emoji">🎉</div>
-						<div className="confetti-text">Parabens!</div>
-					</div>
-				</div>
-			)}
-
-			{mediaModal && (
-				<div className="media-modal-overlay" onClick={() => setMediaModal(null)}>
-					<div className="media-modal" onClick={(e) => e.stopPropagation()}>
-						<div className="media-modal-header">
-							<span className="media-modal-title">{mediaModal.title}</span>
-							<button className="media-modal-close" onClick={() => setMediaModal(null)}>
-								<i className="icon-x" />
-							</button>
+			<div className="page active">
+				{showConfetti && (
+					<div className="confetti-container">
+						{Array.from({ length: 50 }).map((_, i) => (
+							<div
+								key={i}
+								className="confetti-piece"
+								style={{
+									left: `${Math.random() * 100}%`,
+									animationDelay: `${Math.random() * 2}s`,
+									animationDuration: `${2 + Math.random() * 2}s`,
+									background: ["#F47C20", "#4CAF50", "#2196F3", "#FF9800", "#E91E63", "#FFD700"][i % 6],
+								}}
+							/>
+						))}
+						<div className="confetti-message">
+							<div className="confetti-emoji">🎉</div>
+							<div className="confetti-text">Parabens!</div>
 						</div>
-						<div className="media-modal-body">
-							{mediaModal.type === "pdf" ? (
-								<PDFViewer url={mediaModal.url} />
-							) : (
+					</div>
+				)}
+
+				{mediaModal && (
+					<div className="media-modal-overlay" onClick={() => setMediaModal(null)}>
+						<div className="media-modal" onClick={(e) => e.stopPropagation()}>
+							<div className="media-modal-header">
+								<span className="media-modal-title">{mediaModal.title}</span>
+								<button className="media-modal-close" onClick={() => setMediaModal(null)}>
+									<i className="icon-x" />
+								</button>
+							</div>
+							<div className="media-modal-body">
+								{mediaModal.type === "pdf" ? (
+									<PDFViewer url={mediaModal.url} />
+								) : (
+									(() => {
+										let embedUrl = mediaModal.url
+											.replace("watch?v=", "embed/")
+											.replace("youtu.be/", "youtube.com/embed/");
+										if (mediaModal.startTime && mediaModal.startTime > 0) {
+											embedUrl += `${embedUrl.includes("?") ? "&" : "?"}start=${mediaModal.startTime}`;
+										}
+										return (
+											<iframe
+												src={embedUrl}
+												title={mediaModal.title}
+												allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+												allowFullScreen
+											/>
+										);
+									})()
+								)}
+							</div>
+							{mediaModal.lessonIndex != null &&
 								(() => {
-									let embedUrl = mediaModal.url
-										.replace("watch?v=", "embed/")
-										.replace("youtu.be/", "youtube.com/embed/");
-									if (mediaModal.startTime && mediaModal.startTime > 0) {
-										embedUrl += `${embedUrl.includes("?") ? "&" : "?"}start=${mediaModal.startTime}`;
-									}
+									const modalLesson = lessons[mediaModal.lessonIndex];
+									const hasQuiz = !!modalLesson?.quiz;
+									const nextExists = mediaModal.lessonIndex < lessons.length - 1;
+									if (!hasQuiz && !nextExists) return null;
 									return (
-										<iframe
-											src={embedUrl}
-											title={mediaModal.title}
-											allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-											allowFullScreen
-										/>
+										<div className="media-modal-actions">
+											{hasQuiz && (
+												<button
+													className="btn-secondary"
+													onClick={() => {
+														setMediaModal(null);
+														if (isMobile) {
+															setQuizModalLessonIndex(mediaModal.lessonIndex!);
+														} else {
+															setCurrentLesson(mediaModal.lessonIndex!);
+															setShowQuiz(true);
+															if (currentQuizId) qz.reset(currentQuizId);
+														}
+													}}
+												>
+													📝 Quiz
+												</button>
+											)}
+											{nextExists && (
+												<button
+													className="btn-primary"
+													onClick={() => {
+														setMediaModal(null);
+														const nextIdx = mediaModal.lessonIndex! + 1;
+														if (isMobile) {
+															setExpandedMobileLesson(nextIdx);
+														}
+														setCurrentLesson(nextIdx);
+														resetLessonState();
+													}}
+												>
+													Proxima Aula <i className="icon-chevron-right icon-sm" />
+												</button>
+											)}
+										</div>
 									);
-								})()
-							)}
+								})()}
 						</div>
-						{mediaModal.lessonIndex != null && (() => {
-							const modalLesson = lessons[mediaModal.lessonIndex];
-							const hasQuiz = !!modalLesson?.quiz;
-							const nextExists = mediaModal.lessonIndex < lessons.length - 1;
-							if (!hasQuiz && !nextExists) return null;
-							return (
-								<div className="media-modal-actions">
-									{hasQuiz && (
-										<button
-											className="btn-secondary"
-											onClick={() => {
-												setMediaModal(null);
-												if (isMobile) {
-													setQuizModalLessonIndex(mediaModal.lessonIndex!);
-												} else {
-													setCurrentLesson(mediaModal.lessonIndex!);
-													setShowQuiz(true);
-													if (currentQuizId) qz.reset(currentQuizId);
-												}
-											}}
-										>
-											📝 Quiz
-										</button>
-									)}
-									{nextExists && (
-										<button
-											className="btn-primary"
-											onClick={() => {
-												setMediaModal(null);
-												const nextIdx = mediaModal.lessonIndex! + 1;
-												if (isMobile) {
-													setExpandedMobileLesson(nextIdx);
-												}
-												setCurrentLesson(nextIdx);
-												resetLessonState();
-											}}
-										>
-											Proxima Aula <i className="icon-chevron-right icon-sm" />
-										</button>
-									)}
-								</div>
-							);
-						})()}
+					</div>
+				)}
+
+				<div className="page-header">
+					<div>
+						<button className="btn-secondary back-btn" onClick={() => navigate(-1)}>
+							<i className="icon-arrow-left icon-sm" /> Voltar
+						</button>
+						<div className="page-title">{curso.titulo}</div>
+						<div className="page-subtitle">
+							{lessons.length} {pluralize(lessons.length, "aula")}
+							{curso.autoCertificado ? " · Certificado automatico" : ""}
+						</div>
 					</div>
 				</div>
-			)}
 
-			<div className="page-header">
-				<div>
-					<button className="btn-secondary back-btn" onClick={() => navigate(-1)}>
-						<i className="icon-arrow-left icon-sm" /> Voltar
-					</button>
-					<div className="page-title">{curso.titulo}</div>
-					<div className="page-subtitle">
-						{lessons.length} {pluralize(lessons.length, "aula")}
-						{curso.autoCertificado ? " · Certificado automatico" : ""}
-					</div>
-				</div>
-			</div>
+				<div className="lesson-layout">
+					<div className="lesson-sidebar">
+						<div className="lesson-sidebar-header">
+							<h3>{curso.titulo}</h3>
+							<p>
+								{lessons.filter((l) => isLessonCompleted(l)).length}/{lessons.length} concluidas
+							</p>
+						</div>
 
-			<div className="lesson-layout">
-				<div className="lesson-sidebar">
-					<div className="lesson-sidebar-header">
-						<h3>{curso.titulo}</h3>
-						<p>
-							{lessons.filter((l) => isLessonCompleted(l)).length}/{lessons.length} concluidas
-						</p>
-					</div>
+						{lessons.map((lesson, i) => {
+							const completed = isLessonCompleted(lesson);
+							const locked = lesson.obrigatorio && !completed && !canAdvanceToLesson(i);
+							const canClick = !locked || completed;
+							const isActive = i === currentLesson && !showAllQuizzes && !showCertificate;
+							const isExpanded = isMobile && expandedMobileLesson === i;
+							const tipoLabel =
+								lesson.tipo === "PDF"
+									? "PDF"
+									: lesson.tipo === "TEXTO"
+										? "Texto"
+										: lesson.videoUrl
+											? "Video"
+											: "Conteudo";
+							const tipoBadgeClass =
+								lesson.tipo === "PDF"
+									? "pdf"
+									: lesson.tipo === "TEXTO"
+										? "texto"
+										: lesson.videoUrl
+											? "video"
+											: "default";
 
-					{lessons.map((lesson, i) => {
-						const completed = isLessonCompleted(lesson);
-						const locked = lesson.obrigatorio && !completed && !canAdvanceToLesson(i);
-						const canClick = !locked || completed;
-						const isActive = i === currentLesson && !showAllQuizzes && !showCertificate;
-						const isExpanded = isMobile && expandedMobileLesson === i;
-						const tipoLabel =
-							lesson.tipo === "PDF"
-								? "PDF"
-								: lesson.tipo === "TEXTO"
-									? "Texto"
-									: lesson.videoUrl
-										? "Video"
-										: "Conteudo";
-						const tipoBadgeClass =
-							lesson.tipo === "PDF" ? "pdf" : lesson.tipo === "TEXTO" ? "texto" : lesson.videoUrl ? "video" : "default";
-
-						const handleLessonClick = () => {
-							if (!canClick) return;
-							if (isMobile) {
-								setExpandedMobileLesson(isExpanded ? null : i);
-								setExpandedMobileExtra(null);
-								if (!isExpanded) {
+							const handleLessonClick = () => {
+								if (!canClick) return;
+								if (isMobile) {
+									setExpandedMobileLesson(isExpanded ? null : i);
+									setExpandedMobileExtra(null);
+									if (!isExpanded) {
+										setShowAllQuizzes(false);
+										setShowCertificate(false);
+										setCurrentLesson(i);
+										resetLessonState();
+									}
+								} else {
 									setShowAllQuizzes(false);
 									setShowCertificate(false);
 									setCurrentLesson(i);
 									resetLessonState();
 								}
-							} else {
-								setShowAllQuizzes(false);
-								setShowCertificate(false);
-								setCurrentLesson(i);
-								resetLessonState();
-							}
-						};
+							};
 
-						return (
-							<div
-								key={lesson.id || i}
-								className={`lesson-item ${isActive ? "active" : ""} ${completed ? "done" : ""} ${locked && !completed ? "locked" : ""}`}
-								style={!canClick ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
-							>
-								<div className="lesson-item-header" onClick={handleLessonClick}>
-									<div className="lesson-num">
-										{completed ? (
-											<i className="icon-check icon-sm" />
-										) : locked ? (
-											<i className="icon-lock icon-sm" />
-										) : (
-											i + 1
+							return (
+								<div
+									key={lesson.id || i}
+									className={`lesson-item ${isActive ? "active" : ""} ${completed ? "done" : ""} ${locked && !completed ? "locked" : ""}`}
+									style={!canClick ? { opacity: 0.5, cursor: "not-allowed" } : undefined}
+								>
+									<div className="lesson-item-header" onClick={handleLessonClick}>
+										<div className="lesson-num">
+											{completed ? (
+												<i className="icon-check icon-sm" />
+											) : locked ? (
+												<i className="icon-lock icon-sm" />
+											) : (
+												i + 1
+											)}
+										</div>
+										<div className="lesson-item-info">
+											<b>{lesson.titulo}</b>
+											<span>
+												{tipoLabel}
+												{lesson.licoes && lesson.licoes.length > 0
+													? ` · ${lesson.licoes.length} ${pluralize(lesson.licoes.length, "licao")}`
+													: ""}
+											</span>
+										</div>
+										{completed && !isMobile && (
+											<span className="lesson-check">
+												<i className="icon-check icon-sm" />
+											</span>
+										)}
+										{locked && !completed && !isMobile && (
+											<span className="lesson-locked-icon">
+												<i className="icon-lock icon-sm" />
+											</span>
+										)}
+										{isMobile && (
+											<>
+												<span className={`lesson-item-type-badge ${tipoBadgeClass}`}>
+													{lesson.tipo === "PDF" ? (
+														<i className="icon-file-text lesson-type-icon" />
+													) : lesson.videoUrl ? (
+														<i className="icon-play lesson-type-icon" />
+													) : (
+														<i className="icon-file lesson-type-icon" />
+													)}
+													{tipoLabel}
+												</span>
+												<i
+													className={`icon-chevron-${isExpanded ? "up" : "down"} icon-sm lesson-item-chevron ${isExpanded ? "expanded" : ""}`}
+												/>
+											</>
 										)}
 									</div>
-									<div className="lesson-item-info">
-										<b>{lesson.titulo}</b>
-										<span>
-											{tipoLabel}
-											{lesson.licoes && lesson.licoes.length > 0
-												? ` · ${lesson.licoes.length} ${pluralize(lesson.licoes.length, "licao")}`
-												: ""}
-										</span>
-									</div>
-									{completed && !isMobile && (
-										<span className="lesson-check">
-											<i className="icon-check icon-sm" />
-										</span>
-									)}
-									{locked && !completed && !isMobile && (
-										<span className="lesson-locked-icon">
-											<i className="icon-lock icon-sm" />
-										</span>
-									)}
-									{isMobile && (
-										<>
-											<span className={`lesson-item-type-badge ${tipoBadgeClass}`}>
-												{lesson.tipo === "PDF" ? (
-													<i className="icon-file-text lesson-type-icon" />
-												) : lesson.videoUrl ? (
-													<i className="icon-play lesson-type-icon" />
-												) : (
-													<i className="icon-file lesson-type-icon" />
-												)}
-												{tipoLabel}
-											</span>
-											<i
-												className={`icon-chevron-${isExpanded ? "up" : "down"} icon-sm lesson-item-chevron ${isExpanded ? "expanded" : ""}`}
-											/>
-										</>
-									)}
-								</div>
 
-								{isActive &&
-									!isMobile &&
-									lesson.tipo === "VIDEO" &&
-									lesson.ancoragemPoints &&
-									(lesson.ancoragemPoints as any[]).length > 0 && (
-										<div className="lesson-sidebar-chapters">
-											{(lesson.ancoragemPoints as any[]).map((pt: any, ci: number) => {
-												const totalSec = (pt.hours || 0) * 3600 + (pt.minutes || 0) * 60 + (pt.seconds || 0);
-												const nextPt = (lesson.ancoragemPoints as any[])[ci + 1];
-												const nextSec = nextPt
-													? (nextPt.hours || 0) * 3600 + (nextPt.minutes || 0) * 60 + (nextPt.seconds || 0)
-													: Infinity;
-												const isActiveChapter = videoCurrentTime >= totalSec && videoCurrentTime < nextSec;
-												const isPast = videoCurrentTime >= nextSec;
-												const h = Math.floor(totalSec / 3600);
-												const m = Math.floor((totalSec % 3600) / 60);
-												const s = Math.floor(totalSec % 60);
-												const timeLabel =
-													h > 0
-														? `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
-														: `${m}:${s.toString().padStart(2, "0")}`;
-												return (
-													<button
-														key={ci}
-														className={`sidebar-chapter-btn ${isActiveChapter ? "active" : ""} ${isPast ? "past" : ""}`}
-														onClick={(e) => {
-															e.stopPropagation();
-															videoRef.current?.seekTo(totalSec);
-														}}
-													>
-														<span className="sidebar-chapter-dot" />
-														<span className="sidebar-chapter-time">{timeLabel}</span>
-														<span className="sidebar-chapter-label">{pt.titulo || `Ponto ${ci + 1}`}</span>
-													</button>
-												);
-											})}
-										</div>
-									)}
-
-								{isMobile && isExpanded && (
-									<div className="lesson-item-accordion-body">
-										{renderMediaButton(lesson, i)}
-
-										{lesson.tipo === "VIDEO" &&
-											lesson.ancoragemPoints &&
-											(lesson.ancoragemPoints as any[]).length > 0 && (
-												<div className="lesson-mobile-chapters">
-													{(lesson.ancoragemPoints as any[]).map((pt: any, ci: number) => {
-														const totalSec = (pt.hours || 0) * 3600 + (pt.minutes || 0) * 60 + (pt.seconds || 0);
-														const nextPt = (lesson.ancoragemPoints as any[])[ci + 1];
-														const nextSec = nextPt
-															? (nextPt.hours || 0) * 3600 + (nextPt.minutes || 0) * 60 + (nextPt.seconds || 0)
-															: Infinity;
-														const isActivePill = videoCurrentTime >= totalSec && videoCurrentTime < nextSec;
-														const isPastPill = videoCurrentTime >= nextSec;
-														const h = Math.floor(totalSec / 3600);
-														const m = Math.floor((totalSec % 3600) / 60);
-														const s = Math.floor(totalSec % 60);
-														const timeLabel =
-															h > 0
-																? `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
-																: `${m}:${s.toString().padStart(2, "0")}`;
-														return (
-															<button
-																key={ci}
-																className={`mobile-chapter-pill ${isActivePill ? "active" : ""} ${isPastPill ? "past" : ""}`}
-																onClick={(e) => {
-																	e.stopPropagation();
-																	if (isMobile && lesson.videoUrl) {
-																		openMediaModal(lesson.videoUrl, "video", lesson.titulo, totalSec, i);
-																	} else {
-																		videoRef.current?.seekTo(totalSec);
-																	}
-																}}
-															>
-																{timeLabel} — {pt.titulo || `Ponto ${ci + 1}`}
-															</button>
-														);
-													})}
-												</div>
-											)}
-
-										<div className="lesson-desc">{lesson.descricao || "Conteudo da aula."}</div>
-
-										<div className="lesson-meta-tags">
-											<span className="lesson-meta-tag">{tipoLabel}</span>
-											{lesson.licoes && lesson.licoes.length > 0 && (
-												<span className="lesson-meta-tag">
-													{lesson.licoes.length} {pluralize(lesson.licoes.length, "licao")}
-												</span>
-											)}
-											{completed && <span className="lesson-meta-tag completed">✓ Concluido</span>}
-											{lesson.obrigatorio && <span className="lesson-meta-tag required">Obrigatorio</span>}
-										</div>
-
-										{lesson.quiz && !completed && !showQuiz && canOpenQuiz(i) && (
-											<div className="lesson-quiz-alert">
-												<b>📝 Esta aula contem um quiz</b>
-												<p className="lesson-quiz-alert-p">{quizPassText(lesson.quiz)}.</p>
+									{isActive &&
+										!isMobile &&
+										lesson.tipo === "VIDEO" &&
+										lesson.ancoragemPoints &&
+										(lesson.ancoragemPoints as any[]).length > 0 && (
+											<div className="lesson-sidebar-chapters">
+												{(lesson.ancoragemPoints as any[]).map((pt: any, ci: number) => {
+													const totalSec = (pt.hours || 0) * 3600 + (pt.minutes || 0) * 60 + (pt.seconds || 0);
+													const nextPt = (lesson.ancoragemPoints as any[])[ci + 1];
+													const nextSec = nextPt
+														? (nextPt.hours || 0) * 3600 + (nextPt.minutes || 0) * 60 + (nextPt.seconds || 0)
+														: Infinity;
+													const isActiveChapter = videoCurrentTime >= totalSec && videoCurrentTime < nextSec;
+													const isPast = videoCurrentTime >= nextSec;
+													const h = Math.floor(totalSec / 3600);
+													const m = Math.floor((totalSec % 3600) / 60);
+													const s = Math.floor(totalSec % 60);
+													const timeLabel =
+														h > 0
+															? `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+															: `${m}:${s.toString().padStart(2, "0")}`;
+													return (
+														<button
+															key={ci}
+															className={`sidebar-chapter-btn ${isActiveChapter ? "active" : ""} ${isPast ? "past" : ""}`}
+															onClick={(e) => {
+																e.stopPropagation();
+																videoRef.current?.seekTo(totalSec);
+															}}
+														>
+															<span className="sidebar-chapter-dot" />
+															<span className="sidebar-chapter-time">{timeLabel}</span>
+															<span className="sidebar-chapter-label">{pt.titulo || `Ponto ${ci + 1}`}</span>
+														</button>
+													);
+												})}
 											</div>
 										)}
 
-										{showQuiz && currentLesson === i && renderQuizInAccordion(i)}
+									{isMobile && isExpanded && (
+										<div className="lesson-item-accordion-body">
+											{renderMediaButton(lesson, i)}
 
-										{!showQuiz && (
-											<div className="lesson-nav-btns">
-												{i > 0 && canAdvanceToLesson(i - 1) && (
-													<button
-														className="btn-secondary"
-														onClick={() => {
-															setExpandedMobileLesson(i - 1);
-															setCurrentLesson(i - 1);
-															resetLessonState();
-														}}
-													>
-														<i className="icon-arrow-left icon-sm" /> Anterior
-													</button>
+											{lesson.tipo === "VIDEO" &&
+												lesson.ancoragemPoints &&
+												(lesson.ancoragemPoints as any[]).length > 0 && (
+													<div className="lesson-mobile-chapters">
+														{(lesson.ancoragemPoints as any[]).map((pt: any, ci: number) => {
+															const totalSec = (pt.hours || 0) * 3600 + (pt.minutes || 0) * 60 + (pt.seconds || 0);
+															const nextPt = (lesson.ancoragemPoints as any[])[ci + 1];
+															const nextSec = nextPt
+																? (nextPt.hours || 0) * 3600 + (nextPt.minutes || 0) * 60 + (nextPt.seconds || 0)
+																: Infinity;
+															const isActivePill = videoCurrentTime >= totalSec && videoCurrentTime < nextSec;
+															const isPastPill = videoCurrentTime >= nextSec;
+															const h = Math.floor(totalSec / 3600);
+															const m = Math.floor((totalSec % 3600) / 60);
+															const s = Math.floor(totalSec % 60);
+															const timeLabel =
+																h > 0
+																	? `${h}:${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
+																	: `${m}:${s.toString().padStart(2, "0")}`;
+															return (
+																<button
+																	key={ci}
+																	className={`mobile-chapter-pill ${isActivePill ? "active" : ""} ${isPastPill ? "past" : ""}`}
+																	onClick={(e) => {
+																		e.stopPropagation();
+																		if (isMobile && lesson.videoUrl) {
+																			openMediaModal(lesson.videoUrl, "video", lesson.titulo, totalSec, i);
+																		} else {
+																			videoRef.current?.seekTo(totalSec);
+																		}
+																	}}
+																>
+																	{timeLabel} — {pt.titulo || `Ponto ${ci + 1}`}
+																</button>
+															);
+														})}
+													</div>
 												)}
-												{!completed ? (
-													lesson.quiz ? (
-														canOpenQuiz(i) ? (
+
+											<div className="lesson-desc">{lesson.descricao || "Conteudo da aula."}</div>
+
+											<div className="lesson-meta-tags">
+												<span className="lesson-meta-tag">{tipoLabel}</span>
+												{lesson.licoes && lesson.licoes.length > 0 && (
+													<span className="lesson-meta-tag">
+														{lesson.licoes.length} {pluralize(lesson.licoes.length, "licao")}
+													</span>
+												)}
+												{completed && <span className="lesson-meta-tag completed">✓ Concluido</span>}
+												{lesson.obrigatorio && <span className="lesson-meta-tag required">Obrigatorio</span>}
+											</div>
+
+											{lesson.quiz && !completed && !showQuiz && canOpenQuiz(i) && (
+												<div className="lesson-quiz-alert">
+													<b>📝 Esta aula contem um quiz</b>
+													<p className="lesson-quiz-alert-p">{quizPassText(lesson.quiz)}.</p>
+												</div>
+											)}
+
+											{showQuiz && currentLesson === i && renderQuizInAccordion(i)}
+
+											{!showQuiz && (
+												<div className="lesson-nav-btns">
+													{i > 0 && canAdvanceToLesson(i - 1) && (
+														<button
+															className="btn-secondary"
+															onClick={() => {
+																setExpandedMobileLesson(i - 1);
+																setCurrentLesson(i - 1);
+																resetLessonState();
+															}}
+														>
+															<i className="icon-arrow-left icon-sm" /> Anterior
+														</button>
+													)}
+													{!completed ? (
+														lesson.quiz ? (
+															canOpenQuiz(i) ? (
+																<button
+																	className="btn-primary"
+																	onClick={() => {
+																		setCurrentLesson(i);
+																		setShowQuiz(true);
+																	}}
+																>
+																	Iniciar Quiz <i className="icon-chevron-right icon-sm" />
+																</button>
+															) : (
+																<button
+																	className="btn-primary locked-msg-btn"
+																	onClick={() =>
+																		toast(
+																			"Nao e possivel avancar para a proxima aula sem antes resolver o quiz anterior.",
+																			"info",
+																		)
+																	}
+																>
+																	<i className="icon-lock icon-sm" /> Quiz bloqueado
+																</button>
+															)
+														) : (
 															<button
 																className="btn-primary"
 																onClick={() => {
 																	setCurrentLesson(i);
-																	setShowQuiz(true);
+																	handleConcluir();
 																}}
 															>
-																Iniciar Quiz <i className="icon-chevron-right icon-sm" />
-															</button>
-														) : (
-															<button
-																className="btn-primary locked-msg-btn"
-																onClick={() => toast("Nao e possivel avancar para a proxima aula sem antes resolver o quiz anterior.", "info")}
-															>
-																<i className="icon-lock icon-sm" /> Quiz bloqueado
+																Proximo <i className="icon-chevron-right icon-sm" />
 															</button>
 														)
-													) : (
-														<button
-															className="btn-primary"
-															onClick={() => {
-																setCurrentLesson(i);
-																handleConcluir();
-															}}
-														>
-															Proximo <i className="icon-chevron-right icon-sm" />
-														</button>
-													)
-												) : i < lessons.length - 1 ? (
-													<>
-														{lesson.quiz && (
+													) : i < lessons.length - 1 ? (
+														<>
+															{lesson.quiz && (
+																<button className="btn-secondary" onClick={() => setQuizModalLessonIndex(i)}>
+																	📝 Quiz <i className="icon-chevron-right icon-sm" />
+																</button>
+															)}
 															<button
-																className="btn-secondary"
-																onClick={() => setQuizModalLessonIndex(i)}
+																className="btn-primary"
+																onClick={() => {
+																	setExpandedMobileLesson(i + 1);
+																	setCurrentLesson(i + 1);
+																	resetLessonState();
+																}}
 															>
-																📝 Quiz <i className="icon-chevron-right icon-sm" />
+																Proxima Aula <i className="icon-chevron-right icon-sm" />
 															</button>
-														)}
-														<button
-															className="btn-primary"
-															onClick={() => {
+														</>
+													) : allCompleted ? (
+														<button className="btn-primary" onClick={() => navigate("/cursos")}>
+															<i className="icon-check-circle icon-sm" /> Finalizar Curso
+														</button>
+													) : null}
+												</div>
+											)}
+
+											{showQuiz && currentLesson === i && qz.result(lessons[i]?.quiz?.id)?.passed && (
+												<div className="lesson-nav-btns">
+													<button
+														className="btn-primary"
+														onClick={() => {
+															setShowQuiz(false);
+															if (currentQuizId) qz.reset(currentQuizId);
+															if (i < lessons.length - 1) {
 																setExpandedMobileLesson(i + 1);
 																setCurrentLesson(i + 1);
 																resetLessonState();
-															}}
-														>
-															Proxima Aula <i className="icon-chevron-right icon-sm" />
-														</button>
-													</>
-												) : allCompleted ? (
-													<button className="btn-primary" onClick={() => navigate("/cursos")}>
-														<i className="icon-check-circle icon-sm" /> Finalizar Curso
+															} else {
+																navigate("/cursos");
+															}
+														}}
+													>
+														{i < lessons.length - 1 ? "Proxima Aula" : "Finalizar Curso"}{" "}
+														<i className="icon-chevron-right icon-sm" />
 													</button>
-												) : null}
+												</div>
+											)}
+										</div>
+									)}
+								</div>
+							);
+						})}
+
+						{allCompleted && (
+							<div className="completed-banner">
+								<i className="icon-check-circle icon-lg completed-banner-icon" />
+								<p className="completed-banner-text">Curso Concluido!</p>
+								{curso.autoCertificado && <p className="completed-auto-cert">Certificado gerado automaticamente.</p>}
+							</div>
+						)}
+
+						<div className="lesson-sidebar-extras">
+							<div
+								className={`sidebar-extra-item ${showAllQuizzes ? "active" : ""}`}
+								onClick={() => {
+									if (isMobile) {
+										setExpandedMobileExtra(expandedMobileExtra === "quizzes" ? null : "quizzes");
+										setExpandedMobileLesson(null);
+										setShowAllQuizzes(true);
+										setShowCertificate(false);
+										resetLessonState();
+									} else {
+										setShowAllQuizzes(!showAllQuizzes);
+										setShowCertificate(false);
+										resetLessonState();
+									}
+								}}
+							>
+								<i className="icon-file-text icon-sm" />
+								<span>Todos os Quizzes</span>
+								<span className="sidebar-extra-badge">{quizzesWithLesson.length}</span>
+								{isMobile && (
+									<i
+										className={`icon-chevron-${expandedMobileExtra === "quizzes" ? "up" : "down"} icon-sm extra-chevron ${expandedMobileExtra === "quizzes" ? "expanded" : ""}`}
+									/>
+								)}
+							</div>
+							{isMobile && expandedMobileExtra === "quizzes" && (
+								<div className="sidebar-extra-accordion-body">{renderAllQuizzes()}</div>
+							)}
+							<div
+								className={`sidebar-extra-item ${showCertificate ? "active" : ""}`}
+								onClick={() => {
+									if (isMobile) {
+										setExpandedMobileExtra(expandedMobileExtra === "certificate" ? null : "certificate");
+										setExpandedMobileLesson(null);
+										setShowCertificate(true);
+										setShowAllQuizzes(false);
+										resetLessonState();
+										loadCertificate();
+									} else {
+										setShowCertificate(!showCertificate);
+										setShowAllQuizzes(false);
+										resetLessonState();
+										loadCertificate();
+									}
+								}}
+							>
+								<i className="icon-award icon-sm" />
+								<span>Meu Certificado</span>
+								{hasCertificate && areAllQuizzesPassed() && <span className="sidebar-extra-check">✓</span>}
+								{isMobile && (
+									<i
+										className={`icon-chevron-${expandedMobileExtra === "certificate" ? "up" : "down"} icon-sm extra-chevron ${expandedMobileExtra === "certificate" ? "expanded" : ""}`}
+									/>
+								)}
+							</div>
+							{isMobile && expandedMobileExtra === "certificate" && (
+								<div className="sidebar-extra-accordion-body">{renderCertificateTab()}</div>
+							)}
+						</div>
+
+						{/* Restart Request Button */}
+						{isAtendente && (
+							<div className="sidebar-extra-item">
+								<div
+									className={`sidebar-extra-btn ${restartRequested ? "requested" : ""}`}
+									onClick={async () => {
+										if (restartRequested) return;
+										if (!window.confirm("Solicitar reinicio do progresso deste curso? O gestor sera notificado."))
+											return;
+										try {
+											await api.requestRestart(curso.id);
+											setRestartRequested(true);
+											alert("Solicitação enviada ao gestor!");
+										} catch {
+											alert("Erro ao enviar solicitação");
+										}
+									}}
+								>
+									<i className="icon-refresh icon-sm" />
+									<span>{restartRequested ? "Solicitação Enviada" : "Solicitar Reiniciar"}</span>
+									{restartRequested && <span className="sidebar-extra-check">⏳</span>}
+								</div>
+							</div>
+						)}
+					</div>
+
+					<div className="lesson-content">
+						{showAllQuizzes ? (
+							renderAllQuizzes()
+						) : showCertificate ? (
+							renderCertificateTab()
+						) : !showQuiz ? (
+							<>
+								{current?.tipo === "PDF" && current?.pdfUrl ? (
+									<div className="lesson-video">
+										<PDFViewer url={current.pdfUrl} />
+									</div>
+								) : current?.videoUrl ? (
+									<div className="lesson-video">
+										{!isMobile ? (
+											<VideoPlayer
+												ref={videoRef}
+												key={`${current.id}-${current.videoInicio}`}
+												url={current.videoUrl}
+												startAt={current.videoInicio || 0}
+												endAt={current.videoFim || undefined}
+												licoesAncoragem={current.ancoragemPoints || undefined}
+												onTimeUpdate={(time) => {
+													if (current.videoFim && time >= current.videoFim) handleVideoEnd();
+												}}
+												onCurrentTimeChange={setVideoCurrentTime}
+											/>
+										) : (
+											<div className="lesson-video-placeholder">
+												<div className="play-btn">
+													<i className="icon-play icon-xl" />
+												</div>
+												<p>Video</p>
+												<small className="lesson-text-placeholder">{current?.titulo}</small>
 											</div>
 										)}
+									</div>
+								) : current?.tipo === "TEXTO" ? (
+									<div className="lesson-video">
+										<div className="lesson-video-placeholder">
+											<div className="play-btn">
+												<i className="icon-file-text icon-xl" />
+											</div>
+											<p>Conteudo de Texto</p>
+											<small className="lesson-text-placeholder">{current?.titulo}</small>
+										</div>
+									</div>
+								) : (
+									<div className="lesson-video">
+										<div className="lesson-video-placeholder">
+											<div className="play-btn">
+												<i className="icon-file-text icon-xl" />
+											</div>
+											<p>Conteudo da Aula</p>
+											<small className="lesson-text-placeholder">{current?.titulo || "Material de leitura"}</small>
+										</div>
+									</div>
+								)}
+								<div className="lesson-body">
+									<h2>{current?.titulo}</h2>
+									<div className="lesson-tags">
+										<span className="lesson-tag">
+											{current?.tipo === "PDF" ? "PDF" : current?.videoUrl ? "Video" : "Conteudo"}
+										</span>
+										{current?.tipo === "VIDEO" &&
+											current?.ancoragemPoints &&
+											(current.ancoragemPoints as any[]).length > 0 && (
+												<span className="lesson-tag">
+													{(current.ancoragemPoints as any[]).length}{" "}
+													{(current.ancoragemPoints as any[]).length === 1
+														? "ponto de ancoragem"
+														: "pontos de ancoragem"}
+												</span>
+											)}
+										{current?.tipo !== "VIDEO" && current?.licoes && current.licoes.length > 0 && (
+											<span className="lesson-tag">
+												{current.licoes.length} {pluralize(current.licoes.length, "licao")}
+											</span>
+										)}
+										{current?.videoInicio || current?.videoFim ? (
+											<span className="lesson-tag">
+												⏱ {current.videoInicio || 0}s – {current.videoFim || "fim"}s
+											</span>
+										) : null}
+										{current?.concluido && <span className="lesson-tag lesson-tags-concluido">✓ Concluido</span>}
+										{current?.obrigatorio && <span className="lesson-tag lesson-tags-obrigatorio">Obrigatorio</span>}
+									</div>
+									<div className="lesson-text">{current?.descricao || "Conteudo da aula."}</div>
+									{current?.licoes && current.licoes.length > 0 && current?.tipo !== "VIDEO" && (
+										<div className="lesson-cons-section">
+											<h3 className="lesson-cons-title">Licoes ({current.licoes.length})</h3>
+											<div className="lesson-cons-list">
+												{[...current.licoes]
+													.sort((a: any, b: any) => a.ordem - b.ordem)
+													.map((licao: any) => {
+														const isLicaoExpanded = expandedLicao === licao.id;
+														const tipoIcon =
+															licao.tipo === "VIDEO"
+																? "icon-play"
+																: licao.tipo === "PDF"
+																	? "icon-file-text"
+																	: "icon-file";
+														const licaoTipoLabel =
+															licao.tipo === "VIDEO" ? "Video" : licao.tipo === "PDF" ? "PDF" : "Texto";
+														return (
+															<div key={licao.id} className="lesson-cons-item">
+																<div
+																	onClick={() => setExpandedLicao(isLicaoExpanded ? null : licao.id)}
+																	className={`lesson-cons-header ${isLicaoExpanded ? "expanded" : "default"}`}
+																>
+																	<i className={`${tipoIcon} icon-sm lesson-cons-icon`} />
+																	<div className="lesson-cons-info">
+																		<div className="lesson-cons-name">{licao.titulo}</div>
+																		<div className="lesson-cons-meta">
+																			{licaoTipoLabel}
+																			{licao.duracaoMin ? ` · ${licao.duracaoMin} min` : ""}
+																		</div>
+																	</div>
+																	<i
+																		className={`icon-chevron-${isLicaoExpanded ? "up" : "down"} icon-sm lesson-cons-chevron`}
+																	/>
+																</div>
+																{isLicaoExpanded && (
+																	<div className="lesson-cons-body">
+																		{licao.tipo === "VIDEO" && licao.conteudo ? (
+																			<div className="lesson-cons-video">
+																				<VideoPlayer
+																					key={licao.id}
+																					url={licao.conteudo}
+																					startAt={licao.inicioSeg || 0}
+																					endAt={licao.fimSeg || undefined}
+																				/>
+																			</div>
+																		) : licao.tipo === "PDF" && licao.conteudo ? (
+																			<div className="lesson-cons-video">
+																				<PDFViewer url={licao.conteudo} />
+																			</div>
+																		) : licao.tipo === "TEXTO" && licao.conteudo ? (
+																			<div className="lesson-cons-text">{licao.conteudo}</div>
+																		) : (
+																			<div className="lesson-cons-empty">Sem conteudo disponivel</div>
+																		)}
+																	</div>
+																)}
+															</div>
+														);
+													})}
+											</div>
+										</div>
+									)}
+									{current?.quiz && canOpenQuiz(currentLesson) && (
+										<div className="lesson-quiz-warning">
+											<b>📝 Esta aula contem um quiz</b>
+											<p className="lesson-quiz-warning-p">
+												Ao concluir, voce sera direcionado para responder as perguntas. {quizPassText(current.quiz)}.
+											</p>
+										</div>
+									)}
+									<div className="lesson-actions">
+										{!current?.concluido ? (
+											current?.quiz ? (
+												canOpenQuiz(currentLesson) ? (
+													<>
+														<button className="btn-primary lesson-action-btn" onClick={handleConcluir}>
+															Iniciar Quiz <i className="icon-chevron-right icon-sm" />
+														</button>
+														{!current?.obrigatorio && currentLesson < lessons.length - 1 && (
+															<button className="btn-secondary lesson-action-btn" onClick={handleAvanzar}>
+																Pular <i className="icon-chevron-right icon-sm" />
+															</button>
+														)}
+													</>
+												) : (
+													<button
+														className="btn-primary lesson-action-btn locked-msg-btn"
+														onClick={() =>
+															toast(
+																"Nao e possivel avancar para a proxima aula sem antes resolver o quiz anterior.",
+																"info",
+															)
+														}
+													>
+														<i className="icon-lock icon-sm" /> Complete os quizzes anteriores primeiro
+													</button>
+												)
+											) : (
+												<button className="btn-primary lesson-action-btn" onClick={handleConcluir}>
+													Proximo <i className="icon-chevron-right icon-sm" />
+												</button>
+											)
+										) : (
+											<>
+												{current?.quiz && (
+													<button
+														className="btn-secondary lesson-action-btn"
+														onClick={() => {
+															setShowQuiz(true);
+															if (currentQuizId) qz.reset(currentQuizId);
+														}}
+													>
+														📝 Quiz <i className="icon-chevron-right icon-sm" />
+													</button>
+												)}
+												{currentLesson < lessons.length - 1 && (
+													<button className="btn-primary lesson-action-btn" onClick={handleAvanzar}>
+														<span>Proxima Aula</span>
+														<i className="icon-chevron-right icon-sm" />
+													</button>
+												)}
+												{isLastLesson && allCompleted && (
+													<button
+														className="btn-primary lesson-action-btn lesson-action-btn-green"
+														onClick={() => navigate("/cursos")}
+													>
+														<i className="icon-check-circle icon-sm" /> Finalizar Curso
+													</button>
+												)}
+											</>
+										)}
+										{currentLesson > 0 && (
+											<button
+												className="btn-secondary lesson-anterior-btn"
+												onClick={() => {
+													setCurrentLesson(currentLesson - 1);
+													resetLessonState();
+												}}
+											>
+												<i className="icon-arrow-left icon-sm" /> Anterior
+											</button>
+										)}
+									</div>
+								</div>
+							</>
+						) : (
+							<div className="lesson-body">
+								<h2>Quiz: {current?.titulo}</h2>
+								<div className="lesson-text">
+									Responda todas as perguntas para concluir esta aula. {quizPassText(current?.quiz)}
+								</div>
 
-										{showQuiz && currentLesson === i && qz.result(lessons[i]?.quiz?.id)?.passed && (
-											<div className="lesson-nav-btns">
+								{qz.result(currentQuizId) && (
+									<div className={`quiz-result-banner ${qz.result(currentQuizId).passed ? "passed" : "failed"}`}>
+										<div className="quiz-result-header">
+											<span className="quiz-result-icon">{qz.result(currentQuizId).passed ? "🎉" : "❌"}</span>
+											<div>
+												<h3 className="quiz-result-h3">
+													{qz.result(currentQuizId).passed ? "Aprovado!" : "Reprovado"}
+												</h3>
+												<p className="quiz-result-sub">
+													Nota: {qz.result(currentQuizId).nota}/10 ({qz.result(currentQuizId).correct}/
+													{qz.result(currentQuizId).total} corretas)
+												</p>
+											</div>
+										</div>
+										<div className="quiz-result-breakdown">
+											{current?.quiz?.perguntas?.map((pergunta: any, qIndex: number) => {
+												const userAnswer = qz.answers(currentQuizId)[pergunta.id];
+												const isCorrect = userAnswer === pergunta.correta;
+												return (
+													<div key={qIndex} className={`quiz-breakdown-item ${isCorrect ? "correct" : "wrong"}`}>
+														<span className="quiz-breakdown-icon">{isCorrect ? "✓" : "✗"}</span>
+														<span className="quiz-breakdown-text">
+															{qIndex + 1}. {pergunta.pergunta.substring(0, 60)}
+															{pergunta.pergunta.length > 60 ? "..." : ""}
+														</span>
+														<span className="quiz-breakdown-answer">
+															{isCorrect ? pergunta.correta : `${userAnswer || "-"} → ${pergunta.correta}`}
+														</span>
+													</div>
+												);
+											})}
+										</div>
+										<div className="quiz-result-actions">
+											{!qz.result(currentQuizId).passed && (
+												<button
+													className="btn-secondary"
+													onClick={() => {
+														if (currentQuizId) qz.reset(currentQuizId);
+													}}
+												>
+													Tentar Novamente
+												</button>
+											)}
+											{qz.result(currentQuizId).passed && (
 												<button
 													className="btn-primary"
 													onClick={() => {
 														setShowQuiz(false);
 														if (currentQuizId) qz.reset(currentQuizId);
-														if (i < lessons.length - 1) {
-															setExpandedMobileLesson(i + 1);
-															setCurrentLesson(i + 1);
-															resetLessonState();
-														} else {
-															navigate("/cursos");
+														if (current?.quiz?.autoGerarCertificado || curso?.autoCertificado) {
+															loadCertificate();
+															setShowCertificate(true);
+														} else if (currentLesson < lessons.length - 1) {
+															setCurrentLesson(currentLesson + 1);
 														}
 													}}
 												>
-													{i < lessons.length - 1 ? "Proxima Aula" : "Finalizar Curso"}{" "}
-													<i className="icon-chevron-right icon-sm" />
-												</button>
-											</div>
-										)}
-									</div>
-								)}
-							</div>
-						);
-					})}
-
-					{allCompleted && (
-						<div className="completed-banner">
-							<i className="icon-check-circle icon-lg completed-banner-icon" />
-							<p className="completed-banner-text">Curso Concluido!</p>
-							{curso.autoCertificado && <p className="completed-auto-cert">Certificado gerado automaticamente.</p>}
-						</div>
-					)}
-
-					<div className="lesson-sidebar-extras">
-						<div
-							className={`sidebar-extra-item ${showAllQuizzes ? "active" : ""}`}
-							onClick={() => {
-								if (isMobile) {
-									setExpandedMobileExtra(expandedMobileExtra === "quizzes" ? null : "quizzes");
-									setExpandedMobileLesson(null);
-									setShowAllQuizzes(true);
-									setShowCertificate(false);
-									resetLessonState();
-								} else {
-									setShowAllQuizzes(!showAllQuizzes);
-									setShowCertificate(false);
-									resetLessonState();
-								}
-							}}
-						>
-							<i className="icon-file-text icon-sm" />
-							<span>Todos os Quizzes</span>
-							<span className="sidebar-extra-badge">{quizzesWithLesson.length}</span>
-							{isMobile && (
-								<i
-									className={`icon-chevron-${expandedMobileExtra === "quizzes" ? "up" : "down"} icon-sm extra-chevron ${expandedMobileExtra === "quizzes" ? "expanded" : ""}`}
-								/>
-							)}
-						</div>
-						{isMobile && expandedMobileExtra === "quizzes" && (
-							<div className="sidebar-extra-accordion-body">{renderAllQuizzes()}</div>
-						)}
-						<div
-							className={`sidebar-extra-item ${showCertificate ? "active" : ""}`}
-							onClick={() => {
-								if (isMobile) {
-									setExpandedMobileExtra(expandedMobileExtra === "certificate" ? null : "certificate");
-									setExpandedMobileLesson(null);
-									setShowCertificate(true);
-									setShowAllQuizzes(false);
-									resetLessonState();
-									loadCertificate();
-								} else {
-									setShowCertificate(!showCertificate);
-									setShowAllQuizzes(false);
-									resetLessonState();
-									loadCertificate();
-								}
-							}}
-						>
-							<i className="icon-award icon-sm" />
-							<span>Meu Certificado</span>
-							{hasCertificate && areAllQuizzesPassed() && <span className="sidebar-extra-check">✓</span>}
-							{isMobile && (
-								<i
-									className={`icon-chevron-${expandedMobileExtra === "certificate" ? "up" : "down"} icon-sm extra-chevron ${expandedMobileExtra === "certificate" ? "expanded" : ""}`}
-								/>
-							)}
-						</div>
-						{isMobile && expandedMobileExtra === "certificate" && (
-							<div className="sidebar-extra-accordion-body">{renderCertificateTab()}</div>
-						)}
-					</div>
-
-					{/* Restart Request Button */}
-					{isAtendente && (
-						<div className="sidebar-extra-item">
-							<div
-								className={`sidebar-extra-btn ${restartRequested ? "requested" : ""}`}
-								onClick={async () => {
-									if (restartRequested) return;
-									if (!window.confirm("Solicitar reinicio do progresso deste curso? O gestor sera notificado.")) return;
-									try {
-										await api.requestRestart(curso.id);
-										setRestartRequested(true);
-										alert("Solicitação enviada ao gestor!");
-									} catch {
-										alert("Erro ao enviar solicitação");
-									}
-								}}
-							>
-								<i className="icon-refresh icon-sm" />
-								<span>{restartRequested ? "Solicitação Enviada" : "Solicitar Reiniciar"}</span>
-								{restartRequested && <span className="sidebar-extra-check">⏳</span>}
-							</div>
-						</div>
-					)}
-				</div>
-
-				<div className="lesson-content">
-					{showAllQuizzes ? (
-						renderAllQuizzes()
-					) : showCertificate ? (
-						renderCertificateTab()
-					) : !showQuiz ? (
-						<>
-							{current?.tipo === "PDF" && current?.pdfUrl ? (
-								<div className="lesson-video">
-									<PDFViewer url={current.pdfUrl} />
-								</div>
-							) : current?.videoUrl ? (
-								<div className="lesson-video">
-									{!isMobile ? (
-										<VideoPlayer
-											ref={videoRef}
-											key={`${current.id}-${current.videoInicio}`}
-											url={current.videoUrl}
-											startAt={current.videoInicio || 0}
-											endAt={current.videoFim || undefined}
-											licoesAncoragem={current.ancoragemPoints || undefined}
-											onTimeUpdate={(time) => {
-												if (current.videoFim && time >= current.videoFim) handleVideoEnd();
-											}}
-											onCurrentTimeChange={setVideoCurrentTime}
-										/>
-									) : (
-										<div className="lesson-video-placeholder">
-											<div className="play-btn">
-												<i className="icon-play icon-xl" />
-											</div>
-											<p>Video</p>
-											<small className="lesson-text-placeholder">{current?.titulo}</small>
-										</div>
-									)}
-								</div>
-							) : current?.tipo === "TEXTO" ? (
-								<div className="lesson-video">
-									<div className="lesson-video-placeholder">
-										<div className="play-btn">
-											<i className="icon-file-text icon-xl" />
-										</div>
-										<p>Conteudo de Texto</p>
-										<small className="lesson-text-placeholder">{current?.titulo}</small>
-									</div>
-								</div>
-							) : (
-								<div className="lesson-video">
-									<div className="lesson-video-placeholder">
-										<div className="play-btn">
-											<i className="icon-file-text icon-xl" />
-										</div>
-										<p>Conteudo da Aula</p>
-										<small className="lesson-text-placeholder">{current?.titulo || "Material de leitura"}</small>
-									</div>
-								</div>
-							)}
-							<div className="lesson-body">
-								<h2>{current?.titulo}</h2>
-								<div className="lesson-tags">
-									<span className="lesson-tag">
-										{current?.tipo === "PDF" ? "PDF" : current?.videoUrl ? "Video" : "Conteudo"}
-									</span>
-									{current?.tipo === "VIDEO" &&
-										current?.ancoragemPoints &&
-										(current.ancoragemPoints as any[]).length > 0 && (
-											<span className="lesson-tag">
-												{(current.ancoragemPoints as any[]).length}{" "}
-												{(current.ancoragemPoints as any[]).length === 1 ? "ponto de ancoragem" : "pontos de ancoragem"}
-											</span>
-										)}
-									{current?.tipo !== "VIDEO" && current?.licoes && current.licoes.length > 0 && (
-										<span className="lesson-tag">
-											{current.licoes.length} {pluralize(current.licoes.length, "licao")}
-										</span>
-									)}
-									{current?.videoInicio || current?.videoFim ? (
-										<span className="lesson-tag">
-											⏱ {current.videoInicio || 0}s – {current.videoFim || "fim"}s
-										</span>
-									) : null}
-									{current?.concluido && <span className="lesson-tag lesson-tags-concluido">✓ Concluido</span>}
-									{current?.obrigatorio && <span className="lesson-tag lesson-tags-obrigatorio">Obrigatorio</span>}
-								</div>
-								<div className="lesson-text">{current?.descricao || "Conteudo da aula."}</div>
-								{current?.licoes && current.licoes.length > 0 && current?.tipo !== "VIDEO" && (
-									<div className="lesson-cons-section">
-										<h3 className="lesson-cons-title">Licoes ({current.licoes.length})</h3>
-										<div className="lesson-cons-list">
-											{[...current.licoes]
-												.sort((a: any, b: any) => a.ordem - b.ordem)
-												.map((licao: any) => {
-													const isLicaoExpanded = expandedLicao === licao.id;
-													const tipoIcon =
-														licao.tipo === "VIDEO"
-															? "icon-play"
-															: licao.tipo === "PDF"
-																? "icon-file-text"
-																: "icon-file";
-													const licaoTipoLabel =
-														licao.tipo === "VIDEO" ? "Video" : licao.tipo === "PDF" ? "PDF" : "Texto";
-													return (
-														<div key={licao.id} className="lesson-cons-item">
-															<div
-																onClick={() => setExpandedLicao(isLicaoExpanded ? null : licao.id)}
-																className={`lesson-cons-header ${isLicaoExpanded ? "expanded" : "default"}`}
-															>
-																<i className={`${tipoIcon} icon-sm lesson-cons-icon`} />
-																<div className="lesson-cons-info">
-																	<div className="lesson-cons-name">{licao.titulo}</div>
-																	<div className="lesson-cons-meta">
-																		{licaoTipoLabel}
-																		{licao.duracaoMin ? ` · ${licao.duracaoMin} min` : ""}
-																	</div>
-																</div>
-																<i
-																	className={`icon-chevron-${isLicaoExpanded ? "up" : "down"} icon-sm lesson-cons-chevron`}
-																/>
-															</div>
-															{isLicaoExpanded && (
-																<div className="lesson-cons-body">
-																	{licao.tipo === "VIDEO" && licao.conteudo ? (
-																		<div className="lesson-cons-video">
-																			<VideoPlayer
-																				key={licao.id}
-																				url={licao.conteudo}
-																				startAt={licao.inicioSeg || 0}
-																				endAt={licao.fimSeg || undefined}
-																			/>
-																		</div>
-																	) : licao.tipo === "PDF" && licao.conteudo ? (
-																		<div className="lesson-cons-video">
-																			<PDFViewer url={licao.conteudo} />
-																		</div>
-																	) : licao.tipo === "TEXTO" && licao.conteudo ? (
-																		<div className="lesson-cons-text">{licao.conteudo}</div>
-																	) : (
-																		<div className="lesson-cons-empty">Sem conteudo disponivel</div>
-																	)}
-																</div>
-															)}
-														</div>
-													);
-												})}
-										</div>
-									</div>
-								)}
-								{current?.quiz && canOpenQuiz(currentLesson) && (
-									<div className="lesson-quiz-warning">
-										<b>📝 Esta aula contem um quiz</b>
-										<p className="lesson-quiz-warning-p">
-											Ao concluir, voce sera direcionado para responder as perguntas. {quizPassText(current.quiz)}.
-										</p>
-									</div>
-								)}
-								<div className="lesson-actions">
-									{!current?.concluido ? (
-										current?.quiz ? (
-											canOpenQuiz(currentLesson) ? (
-												<>
-													<button className="btn-primary lesson-action-btn" onClick={handleConcluir}>
-														Iniciar Quiz <i className="icon-chevron-right icon-sm" />
-													</button>
-													{!current?.obrigatorio && currentLesson < lessons.length - 1 && (
-														<button className="btn-secondary lesson-action-btn" onClick={handleAvanzar}>
-															Pular <i className="icon-chevron-right icon-sm" />
-														</button>
-													)}
-												</>
-											) : (
-												<button
-													className="btn-primary lesson-action-btn locked-msg-btn"
-													onClick={() => toast("Nao e possivel avancar para a proxima aula sem antes resolver o quiz anterior.", "info")}
-												>
-													<i className="icon-lock icon-sm" /> Complete os quizzes anteriores primeiro
-												</button>
-											)
-										) : (
-											<button className="btn-primary lesson-action-btn" onClick={handleConcluir}>
-												Proximo <i className="icon-chevron-right icon-sm" />
-											</button>
-										)
-								) : (
-									<>
-										{current?.quiz && (
-											<button
-												className="btn-secondary lesson-action-btn"
-												onClick={() => {
-													setShowQuiz(true);
-													if (currentQuizId) qz.reset(currentQuizId);
-												}}
-											>
-												📝 Quiz <i className="icon-chevron-right icon-sm" />
-											</button>
-										)}
-										{currentLesson < lessons.length - 1 && (
-											<button className="btn-primary lesson-action-btn" onClick={handleAvanzar}>
-												<span>Proxima Aula</span>
-												<i className="icon-chevron-right icon-sm" />
-											</button>
-										)}
-										{isLastLesson && allCompleted && (
-												<button
-													className="btn-primary lesson-action-btn lesson-action-btn-green"
-													onClick={() => navigate("/cursos")}
-												>
-													<i className="icon-check-circle icon-sm" /> Finalizar Curso
+													{current?.quiz?.autoGerarCertificado || curso?.autoCertificado
+														? "Ver Certificado"
+														: currentLesson < lessons.length - 1
+															? "Avancar para Proxima Aula"
+															: "Finalizar"}
 												</button>
 											)}
-										</>
-									)}
-									{currentLesson > 0 && (
+										</div>
+									</div>
+								)}
+
+								{!qz.submitted(currentQuizId) &&
+									(() => {
+										const perguntas = current?.quiz?.perguntas || [];
+										const step = qz.step(currentQuizId);
+										const isLast = step === perguntas.length - 1;
+										const pergunta = perguntas[step];
+										if (!pergunta) return null;
+										return (
+											<>
+												<div className="quiz-step-indicator">
+													<span className="quiz-step-text">
+														{step + 1} / {perguntas.length}
+													</span>
+													<div className="quiz-step-bar">
+														<div
+															className="quiz-step-fill"
+															style={{ width: `${((step + 1) / perguntas.length) * 100}%` }}
+														/>
+													</div>
+												</div>
+												<div className="quiz-questions-mt" style={{ marginTop: "16px" }}>
+													<div style={{ padding: "16px", background: "#f9f9f9", borderRadius: "8px" }}>
+														<p style={{ fontWeight: "600", marginBottom: "12px" }}>
+															{step + 1}. {pergunta.pergunta}
+														</p>
+														<div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+															{[pergunta.opcaoA, pergunta.opcaoB, pergunta.opcaoC, pergunta.opcaoD]
+																.filter(Boolean)
+																.map((opt: string, oIndex: number) => {
+																	const letter = ["A", "B", "C", "D"][oIndex];
+																	const isSelected = qz.answers(currentQuizId)[pergunta.id] === letter;
+																	return (
+																		<label key={oIndex} className={`quiz-opt ${isSelected ? "selected" : ""}`}>
+																			<input
+																				type="radio"
+																				name={`q${pergunta.id}`}
+																				checked={isSelected}
+																				onChange={() => qz.setAnswer(currentQuizId, pergunta.id, letter)}
+																			/>
+																			<span className="quiz-letter">{letter}</span>
+																			{opt}
+																		</label>
+																	);
+																})}
+														</div>
+													</div>
+												</div>
+												<div className="quiz-step-nav">
+													{step > 0 && (
+														<button className="btn-secondary" onClick={() => qz.setStep(currentQuizId, step - 1)}>
+															<i className="icon-arrow-left icon-sm" /> Anterior
+														</button>
+													)}
+													{isLast ? (
+														<button
+															className="btn-primary"
+															style={{ flex: 1 }}
+															onClick={() => qz.submit(current.quiz)}
+															disabled={Object.keys(qz.answers(currentQuizId)).length < perguntas.length}
+														>
+															Enviar Respostas
+														</button>
+													) : (
+														<button
+															className="btn-primary"
+															style={{ flex: 1 }}
+															onClick={() => qz.setStep(currentQuizId, step + 1)}
+															disabled={!qz.answers(currentQuizId)[pergunta.id]}
+														>
+															Proxima <i className="icon-chevron-right icon-sm" />
+														</button>
+													)}
+												</div>
+											</>
+										);
+									})()}
+
+								<div className="lesson-actions" style={{ marginTop: "12px" }}>
+									{!qz.submitted(currentQuizId) ? (
 										<button
-											className="btn-secondary lesson-anterior-btn"
+											className="btn-secondary"
 											onClick={() => {
-												setCurrentLesson(currentLesson - 1);
-												resetLessonState();
+												setShowQuiz(false);
+												if (currentQuizId) qz.reset(currentQuizId);
 											}}
 										>
-											<i className="icon-arrow-left icon-sm" /> Anterior
+											Cancelar
+										</button>
+									) : (
+										<button
+											className="btn-secondary"
+											onClick={() => {
+												setShowQuiz(false);
+												if (currentQuizId) qz.reset(currentQuizId);
+											}}
+										>
+											Voltar a Aula
 										</button>
 									)}
 								</div>
 							</div>
-						</>
-					) : (
-						<div className="lesson-body">
-							<h2>Quiz: {current?.titulo}</h2>
-							<div className="lesson-text">
-								Responda todas as perguntas para concluir esta aula. {quizPassText(current?.quiz)}
-							</div>
-
-							{qz.result(currentQuizId) && (
-								<div className={`quiz-result-banner ${qz.result(currentQuizId).passed ? "passed" : "failed"}`}>
-									<div className="quiz-result-header">
-										<span className="quiz-result-icon">{qz.result(currentQuizId).passed ? "🎉" : "❌"}</span>
-										<div>
-											<h3 className="quiz-result-h3">{qz.result(currentQuizId).passed ? "Aprovado!" : "Reprovado"}</h3>
-											<p className="quiz-result-sub">
-												Nota: {qz.result(currentQuizId).nota}/10 ({qz.result(currentQuizId).correct}/{qz.result(currentQuizId).total} corretas)
-											</p>
-										</div>
-									</div>
-									<div className="quiz-result-breakdown">
-										{current?.quiz?.perguntas?.map((pergunta: any, qIndex: number) => {
-											const userAnswer = qz.answers(currentQuizId)[pergunta.id];
-											const isCorrect = userAnswer === pergunta.correta;
-											return (
-												<div key={qIndex} className={`quiz-breakdown-item ${isCorrect ? "correct" : "wrong"}`}>
-													<span className="quiz-breakdown-icon">{isCorrect ? "✓" : "✗"}</span>
-													<span className="quiz-breakdown-text">
-														{qIndex + 1}. {pergunta.pergunta.substring(0, 60)}
-														{pergunta.pergunta.length > 60 ? "..." : ""}
-													</span>
-													<span className="quiz-breakdown-answer">
-														{isCorrect ? pergunta.correta : `${userAnswer || "-"} → ${pergunta.correta}`}
-													</span>
-												</div>
-											);
-										})}
-									</div>
-									<div className="quiz-result-actions">
-										{!qz.result(currentQuizId).passed && (
-											<button
-												className="btn-secondary"
-												onClick={() => {
-													if (currentQuizId) qz.reset(currentQuizId);
-												}}
-											>
-												Tentar Novamente
-											</button>
-										)}
-										{qz.result(currentQuizId).passed && (
-											<button
-												className="btn-primary"
-												onClick={() => {
-													setShowQuiz(false);
-													if (currentQuizId) qz.reset(currentQuizId);
-													if (current?.quiz?.autoGerarCertificado || curso?.autoCertificado) {
-														loadCertificate();
-														setShowCertificate(true);
-													} else if (currentLesson < lessons.length - 1) {
-														setCurrentLesson(currentLesson + 1);
-													}
-												}}
-											>
-												{current?.quiz?.autoGerarCertificado || curso?.autoCertificado
-													? "Ver Certificado"
-													: currentLesson < lessons.length - 1
-														? "Avancar para Proxima Aula"
-														: "Finalizar"}
-											</button>
-										)}
-									</div>
-								</div>
-							)}
-
-							{!qz.submitted(currentQuizId) &&
-								(() => {
-									const perguntas = current?.quiz?.perguntas || [];
-									const step = qz.step(currentQuizId);
-									const isLast = step === perguntas.length - 1;
-									const pergunta = perguntas[step];
-									if (!pergunta) return null;
-									return (
-										<>
-											<div className="quiz-step-indicator">
-												<span className="quiz-step-text">
-													{step + 1} / {perguntas.length}
-												</span>
-												<div className="quiz-step-bar">
-													<div
-														className="quiz-step-fill"
-														style={{ width: `${((step + 1) / perguntas.length) * 100}%` }}
-													/>
-												</div>
-											</div>
-											<div className="quiz-questions-mt" style={{ marginTop: "16px" }}>
-												<div style={{ padding: "16px", background: "#f9f9f9", borderRadius: "8px" }}>
-													<p style={{ fontWeight: "600", marginBottom: "12px" }}>
-														{step + 1}. {pergunta.pergunta}
-													</p>
-													<div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-														{[pergunta.opcaoA, pergunta.opcaoB, pergunta.opcaoC, pergunta.opcaoD]
-															.filter(Boolean)
-															.map((opt: string, oIndex: number) => {
-																const letter = ["A", "B", "C", "D"][oIndex];
-																const isSelected = qz.answers(currentQuizId)[pergunta.id] === letter;
-																return (
-																	<label key={oIndex} className={`quiz-opt ${isSelected ? "selected" : ""}`}>
-																		<input
-																			type="radio"
-																			name={`q${pergunta.id}`}
-																			checked={isSelected}
-																			onChange={() => qz.setAnswer(currentQuizId, pergunta.id, letter)}
-																		/>
-																		<span className="quiz-letter">{letter}</span>
-																		{opt}
-																	</label>
-																);
-															})}
-													</div>
-												</div>
-											</div>
-											<div className="quiz-step-nav">
-												{step > 0 && (
-													<button className="btn-secondary" onClick={() => qz.setStep(currentQuizId, step - 1)}>
-														<i className="icon-arrow-left icon-sm" /> Anterior
-													</button>
-												)}
-												{isLast ? (
-													<button
-														className="btn-primary"
-														style={{ flex: 1 }}
-														onClick={() => qz.submit(current.quiz)}
-														disabled={Object.keys(qz.answers(currentQuizId)).length < perguntas.length}
-													>
-														Enviar Respostas
-													</button>
-												) : (
-													<button
-														className="btn-primary"
-														style={{ flex: 1 }}
-														onClick={() => qz.setStep(currentQuizId, step + 1)}
-														disabled={!qz.answers(currentQuizId)[pergunta.id]}
-													>
-														Proxima <i className="icon-chevron-right icon-sm" />
-													</button>
-												)}
-											</div>
-										</>
-									);
-								})()}
-
-							<div className="lesson-actions" style={{ marginTop: "12px" }}>
-								{!qz.submitted(currentQuizId) ? (
-									<button
-										className="btn-secondary"
-										onClick={() => {
-											setShowQuiz(false);
-											if (currentQuizId) qz.reset(currentQuizId);
-										}}
-									>
-										Cancelar
-									</button>
-								) : (
-									<button
-										className="btn-secondary"
-										onClick={() => {
-											setShowQuiz(false);
-											if (currentQuizId) qz.reset(currentQuizId);
-										}}
-									>
-										Voltar a Aula
-									</button>
-								)}
-							</div>
-						</div>
-					)}
+						)}
+					</div>
 				</div>
 			</div>
-		</div>
 
-		{quizModalLessonIndex !== null && renderQuizModal()}
+			{quizModalLessonIndex !== null && renderQuizModal()}
 		</>
 	);
 }
