@@ -1150,6 +1150,13 @@ a {
 	white-space: nowrap;
 }
 
+@media (max-width: 800px) {
+	.page-subtitle {
+		white-space: normal;
+		word-break: break-word;
+	}
+}
+
 /* CARDS GRID */
 .cards-grid {
 	display: grid;
