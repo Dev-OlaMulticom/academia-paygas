@@ -979,11 +979,14 @@ export function ModulosPage() {
 									<PDFViewer url={mediaModal.url} />
 								) : (
 									(() => {
-										let embedUrl = mediaModal.url
-											.replace("watch?v=", "embed/")
-											.replace("youtu.be/", "youtube.com/embed/");
-										// Strip any existing query string from embed URL
-										const embedBase = embedUrl.split("?")[0];
+										// Extract video ID from any YouTube URL format
+										const ytMatch = mediaModal.url.match(
+											/(?:youtube\.com\/(?:watch\?.*?v=|embed\/)|youtu\.be\/)([a-zA-Z0-9_-]{11})/,
+										);
+										const videoId = ytMatch?.[1];
+										if (!videoId) {
+											return <div style={{ color: "#fff", padding: 24 }}>URL de video invalida</div>;
+										}
 										const params = new URLSearchParams();
 										if (mediaModal.startTime && mediaModal.startTime > 0) {
 											params.set("start", String(mediaModal.startTime));
@@ -993,7 +996,7 @@ export function ModulosPage() {
 										params.set("modestbranding", "1");
 										params.set("iv_load_policy", "3");
 										const qs = params.toString();
-										const finalUrl = qs ? `${embedBase}?${qs}` : embedBase;
+										const finalUrl = `https://www.youtube.com/embed/${videoId}?${qs}`;
 										return (
 											<iframe
 												src={finalUrl}
