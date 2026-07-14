@@ -5161,6 +5161,13 @@ a {
 	white-space: nowrap;
 }
 
+@media (max-width: 800px) {
+	.lesson-item-info b {
+		white-space: normal;
+		word-break: break-word;
+	}
+}
+
 .lesson-item-info span {
 	font-size: 11px;
 	color: var(--gray-400);
@@ -6932,6 +6939,15 @@ tr:hover td {
 		border-bottom: 1px solid var(--gray-200);
 	}
 
+	.lesson-sidebar-header h3 {
+		font-size: 14px;
+		overflow: hidden;
+		text-overflow: ellipsis;
+		display: -webkit-box;
+		-webkit-line-clamp: 2;
+		-webkit-box-orient: vertical;
+	}
+
 	.lesson-item-header {
 		padding: 14px 16px;
 	}
@@ -7251,12 +7267,12 @@ tr:hover td {
 
 @media (max-width: 768px) {
 	.media-modal-overlay {
-		padding: 0;
-		align-items: flex-end;
+		padding: 12px;
+		align-items: center;
 	}
 	.media-modal {
-		border-radius: 12px 12px 0 0;
-		max-height: 92vh;
+		border-radius: 12px;
+		max-height: 85vh;
 	}
 	.media-modal-body {
 		min-height: 56vw;

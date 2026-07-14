@@ -982,18 +982,21 @@ export function ModulosPage() {
 										let embedUrl = mediaModal.url
 											.replace("watch?v=", "embed/")
 											.replace("youtu.be/", "youtube.com/embed/");
+										// Strip any existing query string from embed URL
+										const embedBase = embedUrl.split("?")[0];
 										const params = new URLSearchParams();
 										if (mediaModal.startTime && mediaModal.startTime > 0) {
 											params.set("start", String(mediaModal.startTime));
 										}
 										params.set("playsinline", "1");
+										params.set("rel", "0");
+										params.set("modestbranding", "1");
+										params.set("iv_load_policy", "3");
 										const qs = params.toString();
-										if (qs) {
-											embedUrl += `${embedUrl.includes("?") ? "&" : "?"}${qs}`;
-										}
+										const finalUrl = qs ? `${embedBase}?${qs}` : embedBase;
 										return (
 											<iframe
-												src={embedUrl}
+												src={finalUrl}
 												title={mediaModal.title}
 												allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
 												allowFullScreen
