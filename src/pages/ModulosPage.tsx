@@ -1483,28 +1483,18 @@ export function ModulosPage() {
 									</div>
 								) : current?.videoUrl ? (
 									<div className="lesson-video">
-										{!isMobile ? (
-											<VideoPlayer
-												ref={videoRef}
-												key={`${current.id}-${current.videoInicio}`}
-												url={current.videoUrl}
-												startAt={current.videoInicio || 0}
-												endAt={current.videoFim || undefined}
-												licoesAncoragem={current.ancoragemPoints || undefined}
-												onTimeUpdate={(time) => {
-													if (current.videoFim && time >= current.videoFim) handleVideoEnd();
-												}}
-												onCurrentTimeChange={setVideoCurrentTime}
-											/>
-										) : (
-											<div className="lesson-video-placeholder">
-												<div className="play-btn">
-													<i className="icon-play icon-xl" />
-												</div>
-												<p>Video</p>
-												<small className="lesson-text-placeholder">{current?.titulo}</small>
-											</div>
-										)}
+										<VideoPlayer
+											ref={videoRef}
+											key={`${current.id}-${current.videoInicio}`}
+											url={current.videoUrl}
+											startAt={current.videoInicio || 0}
+											endAt={current.videoFim || undefined}
+											licoesAncoragem={current.ancoragemPoints || undefined}
+											onTimeUpdate={(time) => {
+												if (current.videoFim && time >= current.videoFim) handleVideoEnd();
+											}}
+											onCurrentTimeChange={setVideoCurrentTime}
+										/>
 									</div>
 								) : current?.tipo === "TEXTO" ? (
 									<div className="lesson-video">

@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import YouTube, { type YouTubeEvent, type YouTubePlayer } from "react-youtube";
 
 interface VideoPlayerProps {
@@ -42,7 +42,24 @@ export const VideoPlayer = forwardRef<{ seekTo: (s: number) => void }, VideoPlay
 	const [currentTime, setCurrentTime] = useState(0);
 	const [duration, setDuration] = useState(0);
 	const [hoveredMarker, setHoveredMarker] = useState<number | null>(null);
+	const [tappedMarker, setTappedMarker] = useState<number | null>(null);
 	const progressBarRef = useRef<HTMLDivElement>(null);
+	const [playerReady, setPlayerReady] = useState(false);
+	const [playerPlaying, setPlayerPlaying] = useState(false);
+
+	const isTouchDevice = typeof window !== "undefined" && ("ontouchstart" in window || navigator.maxTouchPoints > 0);
+
+	useEffect(() => {
+		if (!isTouchDevice || tappedMarker === null) return;
+		const handleTouchOutside = (e: TouchEvent) => {
+			const target = e.target as HTMLElement;
+			if (!target.closest(".vp-marker")) {
+				setTappedMarker(null);
+			}
+		};
+		document.addEventListener("touchstart", handleTouchOutside);
+		return () => document.removeEventListener("touchstart", handleTouchOutside);
+	}, [isTouchDevice, tappedMarker]);
 
 	useImperativeHandle(ref, () => ({
 		seekTo(seconds: number) {
@@ -58,13 +75,16 @@ export const VideoPlayer = forwardRef<{ seekTo: (s: number) => void }, VideoPlay
 			playerRef.current = event.target;
 			const dur = event.target.getDuration();
 			setDuration(dur);
+			setPlayerReady(true);
 			if (startAt > 0) {
 				event.target.seekTo(startAt, true);
-				event.target.playVideo();
+				if (!isTouchDevice) {
+					event.target.playVideo();
+				}
 			}
 			onReady?.();
 		},
-		[startAt, onReady],
+		[startAt, onReady, isTouchDevice],
 	);
 
 	const handleStateChange = useCallback(
@@ -72,7 +92,10 @@ export const VideoPlayer = forwardRef<{ seekTo: (s: number) => void }, VideoPlay
 			const YT = (window as any).YT;
 			if (!YT) return;
 
-			if (event.data === YT.PlayerState.PLAYING) {
+			const state = event.data;
+			setPlayerPlaying(state === YT.PlayerState.PLAYING);
+
+			if (state === YT.PlayerState.PLAYING) {
 				const player = event.target;
 				const pollInterval = setInterval(() => {
 					try {
@@ -113,9 +136,26 @@ export const VideoPlayer = forwardRef<{ seekTo: (s: number) => void }, VideoPlay
 		[duration, handleSeek],
 	);
 
+	const handleBarTouch = useCallback(
+		(e: React.TouchEvent<HTMLDivElement>) => {
+			if (!progressBarRef.current || !playerRef.current || duration <= 0) return;
+			const rect = progressBarRef.current.getBoundingClientRect();
+			const touch = e.touches[0];
+			const ratio = Math.max(0, Math.min(1, (touch.clientX - rect.left) / rect.width));
+			handleSeek(ratio * duration);
+		},
+		[duration, handleSeek],
+	);
+
+	const handlePlayOverlay = useCallback(() => {
+		const player = playerRef.current;
+		if (!player) return;
+		player.playVideo();
+	}, []);
+
 	const opts = {
 		playerVars: {
-			autoplay: 1,
+			autoplay: isTouchDevice ? 0 : 1,
 			start: startAt || 0,
 			end: endAt && endAt > 0 ? endAt : undefined,
 			iv_load_policy: 3,
@@ -151,17 +191,32 @@ export const VideoPlayer = forwardRef<{ seekTo: (s: number) => void }, VideoPlay
 					style={{ width: "100%", height: "100%" }}
 					iframeClassName="vp-yt-iframe"
 				/>
+				{isTouchDevice && playerReady && !playerPlaying && (
+					<div className="vp-play-overlay" onClick={handlePlayOverlay}>
+						<div className="vp-play-overlay-btn">
+							<svg viewBox="0 0 24 24" fill="currentColor" width="48" height="48">
+								<path d="M8 5v14l11-7z" />
+							</svg>
+						</div>
+					</div>
+				)}
 			</div>
 
 			{duration > 0 && (
 				<div className="vp-controls">
-					<div ref={progressBarRef} className="vp-track" onClick={handleBarClick}>
+					<div
+						ref={progressBarRef}
+						className="vp-track"
+						onClick={handleBarClick}
+						onTouchEnd={handleBarTouch}
+					>
 						<div className="vp-played" style={{ width: `${progress}%` }} />
 						<div className="vp-head" style={{ left: `${progress}%` }} />
 						{hasMarkers &&
 							licoesAncoragem!.map((ml, i) => {
 								const totalSeconds = ml.hours * 3600 + ml.minutes * 60 + ml.seconds;
 								const pct = Math.min(100, Math.max(0, (totalSeconds / duration) * 100));
+								const showTooltip = isTouchDevice ? tappedMarker === i : hoveredMarker === i;
 								return (
 									<div
 										key={i}
@@ -169,13 +224,22 @@ export const VideoPlayer = forwardRef<{ seekTo: (s: number) => void }, VideoPlay
 										style={{ left: `${pct}%` }}
 										onClick={(e) => {
 											e.stopPropagation();
-											handleSeek(totalSeconds);
+											if (isTouchDevice) {
+												if (tappedMarker === i) {
+													setTappedMarker(null);
+													handleSeek(totalSeconds);
+												} else {
+													setTappedMarker(i);
+												}
+											} else {
+												handleSeek(totalSeconds);
+											}
 										}}
-										onMouseEnter={() => setHoveredMarker(i)}
-										onMouseLeave={() => setHoveredMarker(null)}
+										onMouseEnter={() => !isTouchDevice && setHoveredMarker(i)}
+										onMouseLeave={() => !isTouchDevice && setHoveredMarker(null)}
 									>
 										<div className="vp-marker-dot" />
-										{hoveredMarker === i && (
+										{showTooltip && (
 											<div className="vp-tooltip">
 												<span className="vp-tooltip-time">{fmt(totalSeconds)}</span>
 												<span className="vp-tooltip-title">{ml.titulo}</span>

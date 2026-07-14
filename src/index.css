@@ -5339,6 +5339,83 @@ a {
 	font-variant-numeric: tabular-nums;
 }
 
+/* Play overlay — touch devices */
+.vp-play-overlay {
+	position: absolute;
+	inset: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	background: rgba(0, 0, 0, 0.4);
+	cursor: pointer;
+	z-index: 10;
+	transition: opacity 0.2s;
+}
+.vp-play-overlay-btn {
+	width: 72px;
+	height: 72px;
+	background: var(--pg-orange);
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	color: #fff;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+	transition: transform 0.15s;
+}
+.vp-play-overlay:active .vp-play-overlay-btn {
+	transform: scale(0.92);
+}
+
+/* VideoPlayer responsive — mobile */
+@media (max-width: 768px) {
+	.vp-controls {
+		padding: 8px 6px;
+	}
+	.vp-track {
+		height: 6px;
+	}
+	.vp-track:hover {
+		height: 8px;
+	}
+	.vp-head {
+		width: 18px;
+		height: 18px;
+		opacity: 1;
+	}
+	.vp-marker-dot {
+		width: 10px;
+		height: 10px;
+	}
+	.vp-tooltip {
+		font-size: 12px;
+		padding: 8px 12px;
+	}
+	.vp-tooltip-time {
+		font-size: 13px;
+	}
+	.vp-time {
+		font-size: 12px;
+	}
+}
+
+@media (max-width: 480px) {
+	.vp-controls {
+		padding: 6px 4px;
+	}
+	.vp-track {
+		height: 8px;
+	}
+	.vp-head {
+		width: 22px;
+		height: 22px;
+	}
+	.vp-marker-dot {
+		width: 12px;
+		height: 12px;
+	}
+}
+
 .lesson-video-placeholder {
 	text-align: center;
 	color: rgba(255, 255, 255, 0.5);
@@ -7182,11 +7259,20 @@ tr:hover td {
 		max-height: 92vh;
 	}
 	.media-modal-body {
-		min-height: 220px;
+		min-height: 56vw;
 	}
 	.media-modal-body iframe,
 	.media-modal-body video {
-		min-height: 220px;
+		min-height: 56vw;
+	}
+}
+@media (max-width: 480px) {
+	.media-modal-body {
+		min-height: 50vw;
+	}
+	.media-modal-body iframe,
+	.media-modal-body video {
+		min-height: 50vw;
 	}
 }
 .media-modal-actions {
