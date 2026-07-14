@@ -982,14 +982,20 @@ export function ModulosPage() {
 										let embedUrl = mediaModal.url
 											.replace("watch?v=", "embed/")
 											.replace("youtu.be/", "youtube.com/embed/");
+										const params = new URLSearchParams();
 										if (mediaModal.startTime && mediaModal.startTime > 0) {
-											embedUrl += `${embedUrl.includes("?") ? "&" : "?"}start=${mediaModal.startTime}`;
+											params.set("start", String(mediaModal.startTime));
+										}
+										params.set("playsinline", "1");
+										const qs = params.toString();
+										if (qs) {
+											embedUrl += `${embedUrl.includes("?") ? "&" : "?"}${qs}`;
 										}
 										return (
 											<iframe
 												src={embedUrl}
 												title={mediaModal.title}
-												allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+												allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
 												allowFullScreen
 											/>
 										);

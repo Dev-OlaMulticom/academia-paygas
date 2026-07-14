@@ -6503,6 +6503,7 @@ tr:hover td {
 		grid-template-columns: 1fr;
 		height: auto;
 		min-height: auto;
+		overflow: visible;
 	}
 	.lesson-sidebar {
 		border-right: none;
@@ -6533,6 +6534,36 @@ tr:hover td {
 	}
 	.ai-panel {
 		display: none;
+	}
+	.lesson-body {
+		padding: 16px;
+	}
+	.lesson-body h2 {
+		font-size: 16px;
+	}
+	.lesson-actions {
+		flex-direction: column;
+		gap: 8px;
+	}
+	.lesson-actions .btn-primary,
+	.lesson-actions .btn-secondary {
+		width: 100%;
+	}
+	.quiz-step-nav {
+		flex-direction: column;
+	}
+	.quiz-step-nav .btn-primary,
+	.quiz-step-nav .btn-secondary {
+		width: 100%;
+	}
+	.quiz-opt {
+		padding: 10px 12px;
+		font-size: 13px;
+	}
+	.page-header {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
 	}
 }
 
@@ -7139,6 +7170,24 @@ tr:hover td {
 	height: 100%;
 	min-height: 400px;
 	border: none;
+}
+
+@media (max-width: 768px) {
+	.media-modal-overlay {
+		padding: 0;
+		align-items: flex-end;
+	}
+	.media-modal {
+		border-radius: 12px 12px 0 0;
+		max-height: 92vh;
+	}
+	.media-modal-body {
+		min-height: 220px;
+	}
+	.media-modal-body iframe,
+	.media-modal-body video {
+		min-height: 220px;
+	}
 }
 .media-modal-actions {
 	display: flex;
