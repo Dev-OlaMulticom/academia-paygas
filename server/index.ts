@@ -157,25 +157,24 @@ app.use("/api/role-permissions", rolePermissionsRoutes);
 
 app.get("/api/health", async (_req, res) => {
 	const { dbRegistry } = await import("./config/databases");
+	const { getLatencyStats } = await import("./services/db-health");
+	const { getSyncStats } = await import("./services/db-sync");
 
 	const primary = dbRegistry.getPrimary();
 	const healthyCount = dbRegistry.getHealthy().length;
 	const totalCount = dbRegistry.getAll().length;
 	const registryHealth = dbRegistry.getHealthSummary();
-
-	// Use cached health status from registry (non-blocking)
-	// Don't run live queries here — the background health checker handles that
-	const supabaseStatus = registryHealth.PG_1?.status || registryHealth.supabase?.status || "unknown";
-	const nhostStatus = registryHealth.PG_2?.status || registryHealth.nhost?.status || "not_configured";
+	const latencyStats = getLatencyStats();
+	const syncStats = getSyncStats();
 
 	res.json({
 		status: healthyCount > 0 ? "ok" : "degraded",
 		primary: primary?.name || "unknown",
 		databases: {
-			supabase: supabaseStatus,
-			nhost: nhostStatus,
 			registry: registryHealth,
+			latency: latencyStats,
 		},
+		sync: syncStats,
 		summary: {
 			total: totalCount,
 			healthy: healthyCount,
@@ -281,32 +280,25 @@ if (require.main === module) {
 	logger.info(`[${new Date().toISOString()}] Server initialization complete, PID: ${process.pid}`);
 
 	// ─── Start Database Infrastructure Services ──────────────
-	// Health checks, keepalive, and background sync run by default in
-	// production. In development they are OFF by default (avoids noise during
-	// local iteration) but can be enabled with DB_INFRA_DEV=1 or DB_INFRA_DEV=true.
-	const wantsInfraInDev = process.env.DB_INFRA_DEV === "1" || process.env.DB_INFRA_DEV === "true";
-	const runInfra = process.env.NODE_ENV === "production" || wantsInfraInDev;
-
-	if (runInfra) {
-		// Keep-alive: prevents free-tier databases from pausing
+	// Keep-alive, health checks (with latency metrics) e sync por hash rodam
+	// SEMPRE — em dev e em prod. Nao ha mais guarda por NODE_ENV; os free-tiers
+	// Supabase/Nhost pausam apos 7 dias de inatividade, e sincronizacao em
+	// background garante consistencia entre replicas depois de falhas.
+	// Set DB_INFRA_OFF=1 para desativar tudo (ex: testes que usam DB mock).
+	const disableInfra = process.env.DB_INFRA_OFF === "1" || process.env.DB_INFRA_OFF === "true";
+	if (disableInfra) {
+		logger.info("[DB-INFRA] Desativado via DB_INFRA_OFF=1");
+	} else {
+		// Keep-alive: evita pausa das free-tiers (Supabase/Nhost)
 		startKeepAlive();
 
-		// Health checks: monitors all databases, detects failures/recoveries
+		// Health checks: monitora latencia, detecta offline/online, dispara sync na recuperacao
 		startHealthChecks();
 
-		// Background sync: reconciles data when databases recover
+		// Background sync: reconcilia divergencias de dados entre replicas
 		startSyncWorker();
 
-		if (process.env.NODE_ENV !== "production") {
-			logger.info(
-				"[DB-INFRA] Running in DEVELOPMENT with health-checks enabled (DB_INFRA_DEV=1). " + "Press Ctrl+C to stop.",
-			);
-		}
-	} else {
-		logger.info(
-			"[DB-INFRA] Disabled in development. Set DB_INFRA_DEV=1 to enable keep-alive, " +
-				"health checks, and background sync locally.",
-		);
+		logger.info("[DB-INFRA] keep-alive + health + sync iniciados");
 	}
 }
 

@@ -1,119 +1,187 @@
 /**
  * Database Health Tracker
  *
- * Periodically checks all registered PostgreSQL databases.
- * Tracks health status, detects recoveries, triggers background sync.
+ * Monitora continuamente todas as bases PostgreSQL registradas:
+ *   - Mede latencia em cada check (ms para `SELECT 1`)
+ *   - Mantém janela deslizante de amostras para avg/min/max/uptime
+ *   - Detecta transições offline → online (RECOVERED) e dispara sync imediato
+ *   - Invalida cache de delegates quando a primaria muda
  *
- * Health check interval: configurable via DB_HEALTH_INTERVAL_MS (default 60s)
- * Exponential backoff: 30s → 60s → 120s → max 5min for disconnected databases
+ * Métricas disponíveis via `getLatencyStats()` (consumido em /api/health).
+ * Intervalo para DBs conectadas: 60s (DEFAULT_INTERVAL). DBs offline usam
+ * backoff exponencial (30s → 60s → 120s → max 5min) para não saturar logs.
  *
  * Usage:
- *   import { startHealthChecks } from '../services/db-health'
- *   startHealthChecks() // Call once at server startup
+ *   import { startHealthChecks } from "../services/db-health"
+ *   startHealthChecks()
+ *
+ *   import { getLatencyStats } from "../services/db-health"
+ *   getLatencyStats()
  */
 import { dbRegistry } from "../config/databases";
 import { invalidateDelegateCache } from "../lib/db-models";
 import logger from "../lib/logger";
 
-const DEFAULT_INTERVAL = 60 * 1000; // 60 seconds
-const MAX_BACKOFF = 5 * 60 * 1000; // 5 minutes
-const BASE_BACKOFF = 30 * 1000; // 30 seconds
+const DEFAULT_INTERVAL = 60 * 1000;
+const MAX_BACKOFF = 5 * 60 * 1000;
+const BASE_BACKOFF = 30 * 1000;
+const LATENCY_WINDOW = 20;
+const MAX_LATENCY_OK = 3000;
 
-let healthInterval: ReturnType<typeof setInterval> | null = null;
-let healthTimeout: ReturnType<typeof setTimeout> | null = null;
+interface LatencySample {
+	ts: number;
+	ms: number;
+	online: boolean;
+}
+
+const latencyMap = new Map<string, LatencySample[]>();
 
 /**
- * Check health of a single database.
- * Returns 'connected', 'degraded', or 'disconnected'.
+ * Registra uma amostra de latência na janela deslizante de cada base.
  */
-async function checkDatabase(name: string): Promise<"connected" | "degraded" | "disconnected"> {
-	const client = dbRegistry.getClient(name);
-	if (!client) return "disconnected";
+function pushSample(name: string, ms: number, online: boolean): void {
+	let arr = latencyMap.get(name);
+	if (!arr) {
+		arr = [];
+		latencyMap.set(name, arr);
+	}
+	arr.push({ ts: Date.now(), ms, online });
+	if (arr.length > LATENCY_WINDOW) arr.shift();
+}
 
+export interface LatencyStat {
+	online: boolean;
+	avgMs: number;
+	minMs: number;
+	maxMs: number;
+	lastCheck: string | null;
+	uptimePct: number;
+	samples: number;
+	status: string;
+}
+
+/**
+ * Retorna estatísticas de latência por base (média/min/max das amostras
+ * online, uptime %, número de amostras, status atual). Para o /api/health.
+ */
+export function getLatencyStats(): Record<string, LatencyStat> {
+	const result: Record<string, LatencyStat> = {};
+	for (const entry of dbRegistry.getAll()) {
+		const arr = latencyMap.get(entry.name) || [];
+		const onlineSamples = arr.filter((s) => s.online);
+		const avg =
+			onlineSamples.length > 0 ? Math.round(onlineSamples.reduce((a, s) => a + s.ms, 0) / onlineSamples.length) : 0;
+		const min = onlineSamples.length > 0 ? Math.min(...onlineSamples.map((s) => s.ms)) : 0;
+		const max = onlineSamples.length > 0 ? Math.max(...onlineSamples.map((s) => s.ms)) : 0;
+		const online = entry.status === "connected" || entry.status === "degraded";
+		const onlineCount = arr.filter((s) => s.online).length;
+		result[entry.name] = {
+			online,
+			avgMs: avg,
+			minMs: min,
+			maxMs: max,
+			lastCheck: entry.lastCheck?.toISOString() || null,
+			uptimePct: arr.length > 0 ? Math.round((onlineCount / arr.length) * 100) : online ? 100 : 0,
+			samples: arr.length,
+			status: entry.status,
+		};
+	}
+	return result;
+}
+
+/**
+ * Mede latencia de uma base. Retorna status + latencia em ms (ou null se offline).
+ */
+async function checkDatabase(
+	name: string,
+): Promise<{ status: "connected" | "degraded" | "disconnected"; ms: number | null }> {
+	const client = dbRegistry.getClient(name);
+	if (!client) return { status: "disconnected", ms: null };
 	try {
 		const start = Date.now();
 		await client.$queryRaw`SELECT 1`;
-		const latency = Date.now() - start;
-
-		if (latency > 3000) {
-			return "degraded"; // Responded but slow
-		}
-		return "connected";
+		const ms = Date.now() - start;
+		if (ms > MAX_LATENCY_OK) return { status: "degraded", ms };
+		return { status: "connected", ms };
 	} catch {
-		return "disconnected";
+		return { status: "disconnected", ms: null };
 	}
 }
 
 /**
- * Run health checks on all databases.
- * Logs status changes and triggers sync on recovery.
+ * Executa uma rodada de checks em todas as bases. Loga transições de status,
+ * invalida cache de delegates quando a primaria muda, e dispara sync imediato
+ * para qualquer base que se recuperou.
  */
-async function runHealthChecks() {
+async function runHealthChecks(): Promise<void> {
 	const entries = dbRegistry.getAll();
-
 	let primaryChanged = false;
+	const recoveredNames: string[] = [];
 
 	for (const entry of entries) {
 		const prevStatus = entry.status;
-		const newStatus = await checkDatabase(entry.name);
+		const { status: newStatus, ms } = await checkDatabase(entry.name);
 
 		dbRegistry.setStatus(entry.name, newStatus);
+		pushSample(entry.name, ms ?? 0, newStatus === "connected" || newStatus === "degraded");
 
-		// Log status changes
 		if (prevStatus !== "unknown" && prevStatus !== newStatus) {
 			if (newStatus === "connected") {
-				logger.info(`[DB-HEALTH] ${entry.name}: RECOVERED (${prevStatus} → connected)`);
+				logger.info(`[DB-HEALTH] ${entry.name}: RECUPEROU (${prevStatus} → connected) latencia=${ms}ms`);
 				entry.consecutiveFailures = 0;
+				recoveredNames.push(entry.name);
 			} else if (newStatus === "disconnected") {
-				logger.warn(`[DB-HEALTH] ${entry.name}: DOWN (${prevStatus} → disconnected)`);
+				logger.warn(`[DB-HEALTH] ${entry.name}: OFFLINE (${prevStatus} → disconnected)`);
 			} else {
-				logger.info(`[DB-HEALTH] ${entry.name}: DEGRADED (latency high)`);
+				logger.info(`[DB-HEALTH] ${entry.name}: DEGRADADO (latencia ${ms}ms)`);
 			}
-
-			// Whenever ANY database changes state, the resolved primary may have
-			// changed. Invalidate the delegate cache so reads re-route.
 			primaryChanged = true;
 		} else if (prevStatus === "unknown") {
-			logger.info(`[DB-HEALTH] ${entry.name}: ${newStatus}`);
+			logger.info(`[DB-HEALTH] ${entry.name}: ${newStatus}${ms !== null ? ` (${ms}ms)` : ""}`);
 		}
 	}
 
 	if (primaryChanged) {
 		invalidateDelegateCache();
 		const primary = dbRegistry.getPrimary();
-		if (primary) {
-			logger.info(`[DB-HEALTH] Primary is now: ${primary.name}`);
+		if (primary) logger.info(`[DB-HEALTH] Primaria agora: ${primary.name}`);
+	}
+
+	// Dispara sync imediato (em background) para cada base que se recuperou.
+	// Import dinamico para evitar dependencia circular com db-sync.
+	if (recoveredNames.length > 0) {
+		try {
+			const { triggerSync } = await import("./db-sync");
+			for (const name of recoveredNames) {
+				triggerSync(name).catch((err: any) =>
+					logger.warn(`[DB-HEALTH] sync trigger fail (${name}):`, err?.message || err),
+				);
+			}
+		} catch (err: any) {
+			logger.warn(`[DB-HEALTH] Nao foi possivel importar db-sync:`, err?.message || err);
 		}
 	}
 
-	// Log summary
-	const healthy = entries.filter((e) => e.status === "connected").length;
-	const degraded = entries.filter((e) => e.status === "degraded").length;
-	const down = entries.filter((e) => e.status === "disconnected").length;
-	const total = entries.length;
-	logger.info(`[DB-HEALTH] Status: ${healthy} connected, ${degraded} degraded, ${down} down (of ${total})`);
+	const summary = entries.map((e) => `${e.name}=${e.status}`).join(", ");
+	logger.info(`[DB-HEALTH] ${summary}`);
 }
 
 /**
- * Get the check interval for a database based on its health.
- * Disconnected databases get exponential backoff.
+ * Intervalo de check por base: conectadas usam 60s, offline usam backoff.
  */
 function getCheckInterval(entry: { status: string; consecutiveFailures: number }): number {
 	if (entry.status === "connected" || entry.status === "unknown") {
 		return DEFAULT_INTERVAL;
 	}
-
-	// Exponential backoff for disconnected databases
-	const backoff = Math.min(BASE_BACKOFF * 2 ** entry.consecutiveFailures, MAX_BACKOFF);
-	return backoff;
+	return Math.min(BASE_BACKOFF * 2 ** entry.consecutiveFailures, MAX_BACKOFF);
 }
 
 /**
- * Smart scheduler: runs checks at different intervals per database.
- * Connected databases: every 60s. Disconnected: exponential backoff.
+ * Scheduler adaptativo: proximo check no menor intervalo entre todas as bases.
  */
-function scheduleNext() {
+function scheduleNext(): void {
 	const entries = dbRegistry.getAll();
+	if (entries.length === 0) return;
 	const minInterval = Math.min(...entries.map((e) => getCheckInterval(e)));
 
 	healthTimeout = setTimeout(async () => {
@@ -122,18 +190,17 @@ function scheduleNext() {
 	}, minInterval);
 }
 
+let healthTimeout: ReturnType<typeof setTimeout> | null = null;
+
 /**
- * Start periodic health checks.
+ * Inicia o monitor de saude. Primeiro check apos 5s, depois schedule adaptativo.
  */
-export function startHealthChecks() {
-	if (healthInterval || healthTimeout) {
-		logger.info("[DB-HEALTH] Already running");
+export function startHealthChecks(): void {
+	if (healthTimeout) {
+		logger.info("[DB-HEALTH] Ja rodando");
 		return;
 	}
-
-	logger.info("[DB-HEALTH] Starting health tracker");
-
-	// Initial check after 5 seconds
+	logger.info("[DB-HEALTH] Iniciando monitor de bases");
 	healthTimeout = setTimeout(async () => {
 		await runHealthChecks();
 		scheduleNext();
@@ -141,22 +208,18 @@ export function startHealthChecks() {
 }
 
 /**
- * Stop health checks.
+ * Para o monitor. Salva no shutdown do servidor.
  */
-export function stopHealthChecks() {
+export function stopHealthChecks(): void {
 	if (healthTimeout) {
 		clearTimeout(healthTimeout);
 		healthTimeout = null;
 	}
-	if (healthInterval) {
-		clearInterval(healthInterval);
-		healthInterval = null;
-	}
-	logger.info("[DB-HEALTH] Stopped");
+	logger.info("[DB-HEALTH] Parado");
 }
 
 /**
- * Force an immediate health check (e.g., after manual recovery).
+ * Forca um check imediato (manual).
  */
 export async function forceHealthCheck(): Promise<void> {
 	await runHealthChecks();
