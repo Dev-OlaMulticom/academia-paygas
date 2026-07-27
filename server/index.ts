@@ -159,6 +159,7 @@ app.get("/api/health", async (_req, res) => {
 	const { dbRegistry } = await import("./config/databases");
 	const { getLatencyStats } = await import("./services/db-health");
 	const { getSyncStats } = await import("./services/db-sync");
+	const { getMigrationStats } = await import("./services/db-migrations");
 
 	const primary = dbRegistry.getPrimary();
 	const healthyCount = dbRegistry.getHealthy().length;
@@ -166,6 +167,7 @@ app.get("/api/health", async (_req, res) => {
 	const registryHealth = dbRegistry.getHealthSummary();
 	const latencyStats = getLatencyStats();
 	const syncStats = getSyncStats();
+	const migrationStats = getMigrationStats();
 
 	res.json({
 		status: healthyCount > 0 ? "ok" : "degraded",
@@ -175,6 +177,7 @@ app.get("/api/health", async (_req, res) => {
 			latency: latencyStats,
 		},
 		sync: syncStats,
+		migrations: migrationStats,
 		summary: {
 			total: totalCount,
 			healthy: healthyCount,
@@ -298,7 +301,23 @@ if (require.main === module) {
 		// Background sync: reconcilia divergencias de dados entre replicas
 		startSyncWorker();
 
-		logger.info("[DB-INFRA] keep-alive + health + sync iniciados");
+		// Sync de migrations em background — aplica schemas pendentes nos
+		// backups (CREATE TABLE/ADD COLUMN/RENAME sao sempre aplicados; DROP
+		///TRUNCATE sao pulados para preservar dados). Import dinamico para nao
+		// acoplar startup ao modulo. Roda apos startSyncWorker sync inicial.
+		void (async () => {
+			try {
+				// Aguarda health-check inicial classificar quem esta online
+				await new Promise((r) => setTimeout(r, 8000));
+				const { triggerMigrationSync } = await import("./services/db-migrations");
+				await triggerMigrationSync();
+				logger.info("[DB-INFRA] sync de migrations concluido");
+			} catch (err: any) {
+				logger.warn(`[DB-INFRA] sync de migrations falhou no startup: ${err?.message || err}`);
+			}
+		})();
+
+		logger.info("[DB-INFRA] keep-alive + health + sync + migrations iniciados");
 	}
 }
 

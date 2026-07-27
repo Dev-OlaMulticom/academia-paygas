@@ -148,17 +148,26 @@ async function runHealthChecks(): Promise<void> {
 	}
 
 	// Dispara sync imediato (em background) para cada base que se recuperou.
-	// Import dinamico para evitar dependencia circular com db-sync.
+	// 1) Sync de migrations (alinha schema — adiciona tabelas/cols, jamais apaga dados)
+	// 2) Sync de dados (copia rows divergentes da primaria para o backup)
+	// Imports dinamicos para evitar dependencia circular.
 	if (recoveredNames.length > 0) {
 		try {
+			const { triggerMigrationSync } = await import("./db-migrations");
 			const { triggerSync } = await import("./db-sync");
 			for (const name of recoveredNames) {
-				triggerSync(name).catch((err: any) =>
-					logger.warn(`[DB-HEALTH] sync trigger fail (${name}):`, err?.message || err),
-				);
+				// migrations primeiro (schema), depois dados — sequencial por DB
+				(async () => {
+					try {
+						await triggerMigrationSync(name);
+						await triggerSync(name);
+					} catch (err: any) {
+						logger.warn(`[DB-HEALTH] recovery sync fail (${name}):`, err?.message || err);
+					}
+				})();
 			}
 		} catch (err: any) {
-			logger.warn(`[DB-HEALTH] Nao foi possivel importar db-sync:`, err?.message || err);
+			logger.warn(`[DB-HEALTH] Nao foi possivel importar services de sync:`, err?.message || err);
 		}
 	}
 
