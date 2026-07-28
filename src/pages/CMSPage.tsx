@@ -77,6 +77,8 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 	const [_gestores, setGestores] = useState<any[]>([]);
 	const [expandedModRow, setExpandedModRow] = useState<string | null>(null);
 	const [expandedAulaRow, setExpandedAulaRow] = useState<string | null>(null);
+	const [draggingId, setDraggingId] = useState<string | null>(null);
+	const [dragOverId, setDragOverId] = useState<string | null>(null);
 	const {
 		page: modPage,
 		setPage: setModPage,
@@ -146,6 +148,71 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 		} catch (err: any) {
 			toast(err.message || "Erro ao atualizar", "error");
 		}
+	};
+
+	const reorderList = async (
+		tipo: "curso" | "aula" | "quizPergunta",
+		list: any[],
+		setter: (l: any[]) => void,
+		sourceId: string,
+		targetId: string,
+	) => {
+		if (sourceId === targetId) return;
+		const fromIdx = list.findIndex((x) => x.id === sourceId);
+		const toIdx = list.findIndex((x) => x.id === targetId);
+		if (fromIdx === -1 || toIdx === -1) return;
+
+		const next = [...list];
+		const [moved] = next.splice(fromIdx, 1);
+		next.splice(toIdx, 0, moved);
+		const orderedIds = next.map((x) => x.id);
+		setter(next);
+
+		try {
+			await api.reorder(tipo, orderedIds);
+			toast("Ordem atualizada!", "success");
+		} catch (err: any) {
+			toast(err.message || "Erro ao reordenar", "error");
+		}
+	};
+
+	const handleDragStart = (id: string) => (e: React.DragEvent) => {
+		setDraggingId(id);
+		e.dataTransfer.effectAllowed = "move";
+		e.dataTransfer.setData("text/plain", id);
+	};
+
+	const handleDragOver = (id: string) => (e: React.DragEvent) => {
+		e.preventDefault();
+		e.dataTransfer.dropEffect = "move";
+		if (dragOverId !== id) setDragOverId(id);
+	};
+
+	const handleDragLeave = () => {
+		setDragOverId(null);
+	};
+
+	const handleDragEnd = () => {
+		setDraggingId(null);
+		setDragOverId(null);
+	};
+
+	const handleDropCurso = (targetId: string) => async (e: React.DragEvent) => {
+		e.preventDefault();
+		const sourceId = e.dataTransfer.getData("text/plain") || draggingId;
+		setDraggingId(null);
+		setDragOverId(null);
+		if (!sourceId) return;
+		await reorderList("curso", cursos, setModulos, sourceId, targetId);
+	};
+
+	const handleDropAula = (targetId: string) => async (e: React.DragEvent) => {
+		e.preventDefault();
+		const sourceId = e.dataTransfer.getData("text/plain") || draggingId;
+		setDraggingId(null);
+		setDragOverId(null);
+		if (!sourceId) return;
+		await reorderList("aula", aulas, setAulas, sourceId, targetId);
 	};
 
 	const handleDeleteModulo = async (id: string) => {
@@ -384,8 +451,15 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 									return (
 										<Fragment key={mod.id}>
 											<tr
-												className={`row-clickable ${expandedModRow === mod.id ? "row-expanded" : ""}`}
+												className={`row-clickable ${expandedModRow === mod.id ? "row-expanded" : ""} ${draggingId === mod.id ? "row-dragging" : ""} ${dragOverId === mod.id && draggingId && draggingId !== mod.id ? "row-drop-target" : ""}`}
+												draggable={isAdmin}
 												onClick={() => setExpandedModRow(expandedModRow === mod.id ? null : mod.id)}
+												onDragStart={handleDragStart(mod.id)}
+												onDragOver={handleDragOver(mod.id)}
+												onDragLeave={handleDragLeave}
+												onDragEnd={handleDragEnd}
+												onDrop={handleDropCurso(mod.id)}
+												title={isAdmin ? "Arraste para reordenar (ou clique para expandir)" : undefined}
 											>
 												<td>
 													<span className={`row-expand-icon ${expandedModRow === mod.id ? "open" : ""}`}>
@@ -541,8 +615,15 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 									return (
 										<Fragment key={aula.id}>
 											<tr
-												className={`row-clickable ${expandedAulaRow === aula.id ? "row-expanded" : ""}`}
+												className={`row-clickable ${expandedAulaRow === aula.id ? "row-expanded" : ""} ${draggingId === aula.id ? "row-dragging" : ""} ${dragOverId === aula.id && draggingId && draggingId !== aula.id ? "row-drop-target" : ""}`}
+												draggable={isAdmin}
 												onClick={() => setExpandedAulaRow(expandedAulaRow === aula.id ? null : aula.id)}
+												onDragStart={handleDragStart(aula.id)}
+												onDragOver={handleDragOver(aula.id)}
+												onDragLeave={handleDragLeave}
+												onDragEnd={handleDragEnd}
+												onDrop={handleDropAula(aula.id)}
+												title={isAdmin ? "Arraste para reordenar (ou clique para expandir)" : undefined}
 											>
 												<td>
 													<span className={`row-expand-icon ${expandedAulaRow === aula.id ? "open" : ""}`}>

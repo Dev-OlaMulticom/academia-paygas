@@ -29,6 +29,8 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 	const [editingSettings, setEditingSettings] = useState(false);
 
 	const [activeQuestion, setActiveQuestion] = useState<string | null>(null);
+	const [draggingQuestionId, setDraggingQuestionId] = useState<string | null>(null);
+	const [dragOverQuestionId, setDragOverQuestionId] = useState<string | null>(null);
 	const [formData, setFormData] = useState({
 		pergunta: "",
 		opcaoA: "",
@@ -201,6 +203,56 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 		}
 	};
 
+	const reorderQuestions = async (sourceId: string, targetId: string) => {
+		if (!quiz?.perguntas || sourceId === targetId) return;
+		const fromIdx = quiz.perguntas.findIndex((x: any) => x.id === sourceId);
+		const toIdx = quiz.perguntas.findIndex((x: any) => x.id === targetId);
+		if (fromIdx === -1 || toIdx === -1) return;
+
+		const next = [...quiz.perguntas];
+		const [moved] = next.splice(fromIdx, 1);
+		next.splice(toIdx, 0, moved);
+		setQuiz({ ...quiz, perguntas: next });
+
+		try {
+			await api.reorder(
+				"quizPergunta",
+				next.map((x: any) => x.id),
+			);
+			toast("Ordem atualizada!", "success");
+		} catch (err: any) {
+			toast(err.message || "Erro ao reordenar", "error");
+		}
+	};
+
+	const handleQDragStart = (id: string) => (e: React.DragEvent) => {
+		setDraggingQuestionId(id);
+		e.dataTransfer.effectAllowed = "move";
+		e.dataTransfer.setData("text/plain", id);
+	};
+
+	const handleQDragOver = (id: string) => (e: React.DragEvent) => {
+		e.preventDefault();
+		e.dataTransfer.dropEffect = "move";
+		if (dragOverQuestionId !== id) setDragOverQuestionId(id);
+	};
+
+	const handleQDragLeave = () => setDragOverQuestionId(null);
+
+	const handleQDragEnd = () => {
+		setDraggingQuestionId(null);
+		setDragOverQuestionId(null);
+	};
+
+	const handleQDrop = (targetId: string) => async (e: React.DragEvent) => {
+		e.preventDefault();
+		const sourceId = e.dataTransfer.getData("text/plain") || draggingQuestionId;
+		setDraggingQuestionId(null);
+		setDragOverQuestionId(null);
+		if (!sourceId) return;
+		await reorderQuestions(sourceId, targetId);
+	};
+
 	if (loading) {
 		return <div className="quiz-editor-loading">Carregando quiz...</div>;
 	}
@@ -339,7 +391,14 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 									<div
 										key={p.id}
 										onClick={() => isAdmin && handleSelectQuestion(p)}
-										className={`quiz-q-item ${activeQuestion === p.id ? "active" : "default"}`}
+										className={`quiz-q-item ${activeQuestion === p.id ? "active" : "default"} ${draggingQuestionId === p.id ? "q-dragging" : ""} ${dragOverQuestionId === p.id && draggingQuestionId && draggingQuestionId !== p.id ? "q-drop-target" : ""}`}
+										draggable={isAdmin}
+										onDragStart={isAdmin ? handleQDragStart(p.id) : undefined}
+										onDragOver={isAdmin ? handleQDragOver(p.id) : undefined}
+										onDragLeave={isAdmin ? handleQDragLeave : undefined}
+										onDragEnd={isAdmin ? handleQDragEnd : undefined}
+										onDrop={isAdmin ? handleQDrop(p.id) : undefined}
+										title={isAdmin ? "Arraste para reordenar (ou clique para editar)" : undefined}
 										onMouseEnter={(e) => {
 											if (activeQuestion !== p.id) e.currentTarget.style.background = "#f9fafb";
 										}}

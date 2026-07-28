@@ -7820,6 +7820,23 @@ tr:hover td {
 	background: var(--pg-blue-lt);
 }
 
+.table-wrap table tbody tr.row-dragging {
+	opacity: 0.5;
+}
+
+.table-wrap table tbody tr.row-drop-target {
+	border-top: 3px solid var(--pg-orange, #f47c20);
+	box-shadow: inset 0 2px 0 var(--pg-orange, #f47c20);
+}
+
+.quiz-q-item.q-dragging {
+	opacity: 0.5;
+}
+
+.quiz-q-item.q-drop-target {
+	border-top: 3px solid var(--pg-orange, #f47c20);
+}
+
 .row-expand-icon {
 	display: inline-flex;
 	align-items: center;

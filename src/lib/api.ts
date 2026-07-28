@@ -254,6 +254,13 @@ class ApiClient {
 		return this.request<any>(`/cms/${id}`, { method: "PUT", body: JSON.stringify(data) });
 	}
 
+	async reorder(tipo: "curso" | "aula" | "quizPergunta", ids: string[]) {
+		return this.request<{ success: boolean; affected: number }>(`/cms/reorder`, {
+			method: "POST",
+			body: JSON.stringify({ tipo, ids }),
+		});
+	}
+
 	async deleteModulo(id: string) {
 		await this.request(`/cms/${id}`, { method: "DELETE" });
 	}

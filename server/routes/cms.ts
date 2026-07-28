@@ -10,6 +10,52 @@ import { getStringParam } from "../utils/queryParams";
 
 const router = Router();
 
+// POST /api/cms/reorder - Reordenar itens atribuindo ordens sequenciais (0,1,2,...)
+// Usado pelo drag-and-drop nas tabelas de cursos/aulas/perguntas.
+router.post("/reorder", authenticate, authorize("ADMIN"), async (req: any, res) => {
+	try {
+		const { tipo, ids } = req.body as {
+			tipo: "curso" | "aula" | "quizPergunta";
+			ids: string[];
+		};
+
+		if (!tipo || !Array.isArray(ids)) {
+			return res.status(400).json({ error: "tipo e ids[] são obrigatórios" });
+		}
+
+		const modelName =
+			tipo === "curso" ? "curso" : tipo === "aula" ? "aula" : tipo === "quizPergunta" ? "quizPergunta" : null;
+		if (!modelName) {
+			return res.status(400).json({ error: "tipo inválido" });
+		}
+
+		let affected = 0;
+		try {
+			await db.transaction(async (tx: any) => {
+				for (let i = 0; i < ids.length; i++) {
+					await tx.update({
+						where: { id: ids[i] },
+						data: { ordem: i },
+					});
+					affected++;
+				}
+			});
+		} catch (txErr: any) {
+			logger.warn(`[REORDER] transacao falhou, fazendo sequencial: ${txErr?.message}`);
+			for (let i = 0; i < ids.length; i++) {
+				await db.update(modelName, { id: ids[i] }, { ordem: i });
+				affected++;
+			}
+		}
+
+		await logActivity(req.userId!, "Reordenar", `${tipo}: ${ids.length} itens`);
+		res.json({ success: true, affected });
+	} catch (error: any) {
+		logger.error("[REORDER ERROR]", error);
+		res.status(500).json({ error: error?.message || "Erro ao reordenar" });
+	}
+});
+
 // GET /api/cms/cursos - accessible to all authenticated users, filtered by role
 router.get("/", authenticate, async (req: any, res) => {
 	try {
