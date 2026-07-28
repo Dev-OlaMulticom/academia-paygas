@@ -72,7 +72,7 @@ router.get("/", authenticate, async (req: any, res) => {
 					aulas: { select: { id: true } },
 					_count: { select: { aulas: true, progressos: true } },
 				},
-				orderBy: { createdAt: "desc" },
+				orderBy: { ordem: "asc" },
 			}),
 			db.count("curso"),
 		]);

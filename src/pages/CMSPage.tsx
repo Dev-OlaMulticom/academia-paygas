@@ -166,10 +166,10 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 		const [moved] = next.splice(fromIdx, 1);
 		next.splice(toIdx, 0, moved);
 		const orderedIds = next.map((x) => x.id);
-		setter(next);
 
 		try {
 			await api.reorder(tipo, orderedIds);
+			setter(next);
 			toast("Ordem atualizada!", "success");
 		} catch (err: any) {
 			toast(err.message || "Erro ao reordenar", "error");

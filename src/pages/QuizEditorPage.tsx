@@ -212,13 +212,13 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 		const next = [...quiz.perguntas];
 		const [moved] = next.splice(fromIdx, 1);
 		next.splice(toIdx, 0, moved);
-		setQuiz({ ...quiz, perguntas: next });
 
 		try {
 			await api.reorder(
 				"quizPergunta",
 				next.map((x: any) => x.id),
 			);
+			setQuiz({ ...quiz, perguntas: next });
 			toast("Ordem atualizada!", "success");
 		} catch (err: any) {
 			toast(err.message || "Erro ao reordenar", "error");
