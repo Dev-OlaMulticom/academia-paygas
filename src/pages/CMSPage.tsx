@@ -68,6 +68,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 		videoUrl: "",
 		pdfUrl: "",
 		obrigatorio: false,
+		ordem: 0,
 		licoesAncoragem: [] as LicaoAncoragem[],
 		duration: { hours: 0, minutes: 0, seconds: 0 } as VideoDuration,
 	});
@@ -137,6 +138,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 				icone: editingMod.icone,
 				certificadoTemplate: editingMod.certificadoTemplate,
 				rolesPermitidos: editingMod.rolesPermitidos,
+				ordem: typeof editingMod.ordem === "number" ? editingMod.ordem : 0,
 			});
 			toast("Curso atualizado!", "success");
 			setEditingMod(null);
@@ -207,6 +209,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 				obrigatorio: newAula.obrigatorio,
 				videoInicio: 0,
 				videoFim: 0,
+				ordem: newAula.ordem,
 			};
 			if (newAula.tipo === "VIDEO") {
 				payload.videoUrl = newAula.videoUrl;
@@ -230,6 +233,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 				videoUrl: "",
 				pdfUrl: "",
 				obrigatorio: false,
+				ordem: 0,
 				licoesAncoragem: [],
 				duration: { hours: 0, minutes: 0, seconds: 0 },
 			});
@@ -444,6 +448,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 																					...mod,
 																					obrigatorio: mod.obrigatorio || false,
 																					autoCertificado: mod.autoCertificado || false,
+																					ordem: typeof mod.ordem === "number" ? mod.ordem : 0,
 																				}),
 																		},
 																		{
@@ -612,6 +617,7 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 																				const ancPoints = (aula.ancoragemPoints || []) as any[];
 																				setEditingAula({
 																					...aula,
+																					ordem: typeof aula.ordem === "number" ? aula.ordem : 0,
 																					licoesAncoragem: ancPoints.map((p: any) => ({
 																						hours: p.hours || 0,
 																						minutes: p.minutes || 0,
@@ -706,6 +712,20 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 								value={editingMod.titulo}
 								onChange={(e) => setEditingMod({ ...editingMod, titulo: e.target.value })}
 							/>
+						</div>
+						<div className="form-field">
+							<label className="form-label">Ordem</label>
+							<input
+								id="mod-edit-ordem"
+								className="form-input"
+								type="number"
+								min="0"
+								value={editingMod.ordem ?? 0}
+								onChange={(e) => setEditingMod({ ...editingMod, ordem: parseInt(e.target.value, 10) || 0 })}
+							/>
+							<div style={{ fontSize: "12px", color: "var(--gray-500)", marginTop: "4px" }}>
+								Menor número aparece primeiro (0 = primeiro).
+							</div>
 						</div>
 						<div className="form-field">
 							<label className="form-label">Ícone / Emoji</label>
@@ -813,6 +833,19 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 										value={newAula.titulo}
 										onChange={(e) => setNewAula({ ...newAula, titulo: e.target.value })}
 									/>
+								</div>
+								<div className="form-field">
+									<label className="form-label">Ordem</label>
+									<input
+										className="form-input"
+										type="number"
+										min="0"
+										value={newAula.ordem}
+										onChange={(e) => setNewAula({ ...newAula, ordem: parseInt(e.target.value, 10) || 0 })}
+									/>
+									<div style={{ fontSize: "12px", color: "var(--gray-500)", marginTop: "4px" }}>
+										Menor número aparece primeiro (0 = primeiro). Em branco usa próximo disponível.
+									</div>
 								</div>
 								<div className="form-field">
 									<label className="form-label">Tipo</label>
@@ -981,6 +1014,19 @@ export function CMSPage({ user: _user }: CMSPageProps) {
 										value={editingAula.titulo}
 										onChange={(e) => setEditingAula({ ...editingAula, titulo: e.target.value })}
 									/>
+								</div>
+								<div className="form-field">
+									<label className="form-label">Ordem</label>
+									<input
+										className="form-input"
+										type="number"
+										min="0"
+										value={editingAula.ordem ?? 0}
+										onChange={(e) => setEditingAula({ ...editingAula, ordem: parseInt(e.target.value, 10) || 0 })}
+									/>
+									<div style={{ fontSize: "12px", color: "var(--gray-500)", marginTop: "4px" }}>
+										Menor número aparece primeiro (0 = primeiro).
+									</div>
 								</div>
 								<div className="form-field">
 									<label className="form-label">Tipo</label>

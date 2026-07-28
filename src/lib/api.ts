@@ -326,7 +326,15 @@ class ApiClient {
 
 	async addPergunta(
 		quizId: string,
-		data: { pergunta: string; opcaoA: string; opcaoB: string; opcaoC?: string; opcaoD?: string; correta: string },
+		data: {
+			pergunta: string;
+			opcaoA: string;
+			opcaoB: string;
+			opcaoC?: string;
+			opcaoD?: string;
+			correta: string;
+			ordem?: number;
+		},
 	) {
 		return this.request<any>(`/cms/quiz/${quizId}/perguntas`, { method: "POST", body: JSON.stringify(data) });
 	}

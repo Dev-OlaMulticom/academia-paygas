@@ -36,6 +36,7 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 		opcaoC: "",
 		opcaoD: "",
 		correta: "A",
+		ordem: 0,
 	});
 	const [_isEditing, setIsEditing] = useState(false);
 
@@ -131,7 +132,7 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 		try {
 			setSaving(true);
 			await api.addPergunta(quiz.id, formData);
-			setFormData({ pergunta: "", opcaoA: "", opcaoB: "", opcaoC: "", opcaoD: "", correta: "A" });
+			setFormData({ pergunta: "", opcaoA: "", opcaoB: "", opcaoC: "", opcaoD: "", correta: "A", ordem: 0 });
 			const updated = await api.getQuiz(cursoId!, aulaId!);
 			setQuiz(updated);
 			toast("Pergunta adicionada", "success");
@@ -152,13 +153,14 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 			opcaoC: p.opcaoC || "",
 			opcaoD: p.opcaoD || "",
 			correta: p.correta,
+			ordem: typeof p.ordem === "number" ? p.ordem : 0,
 		});
 	};
 
 	const handleNewQuestion = () => {
 		setActiveQuestion(null);
 		setIsEditing(false);
-		setFormData({ pergunta: "", opcaoA: "", opcaoB: "", opcaoC: "", opcaoD: "", correta: "A" });
+		setFormData({ pergunta: "", opcaoA: "", opcaoB: "", opcaoC: "", opcaoD: "", correta: "A", ordem: 0 });
 	};
 
 	const handleSaveQuestion = async () => {
@@ -442,6 +444,20 @@ export function QuizEditorPage({ user: _user }: QuizEditorPageProps) {
 											onChange={(e) => setFormData({ ...formData, opcaoD: e.target.value })}
 											placeholder="Opcional"
 										/>
+									</div>
+								</div>
+
+								<div className="form-field quiz-correct-picker">
+									<label className="form-label">Ordem</label>
+									<input
+										className="form-input"
+										type="number"
+										min="0"
+										value={formData.ordem}
+										onChange={(e) => setFormData({ ...formData, ordem: parseInt(e.target.value, 10) || 0 })}
+									/>
+									<div style={{ fontSize: "12px", color: "var(--gray-500)", marginTop: "4px" }}>
+										Menor número aparece primeiro (0 = primeiro).
 									</div>
 								</div>
 

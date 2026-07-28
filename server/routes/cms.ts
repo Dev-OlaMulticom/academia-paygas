@@ -267,6 +267,7 @@ router.post("/:id/aulas", authenticate, authorize("ADMIN"), async (req: any, res
 			obrigatorio,
 			ancoragemPoints,
 			rolesPermitidos,
+			ordem,
 		} = req.body;
 		const cursoId = getStringParam(req.params.id);
 		if (!cursoId) return res.status(400).json({ error: "ID inválido" });
@@ -280,7 +281,7 @@ router.post("/:id/aulas", authenticate, authorize("ADMIN"), async (req: any, res
 			cursoId,
 			titulo,
 			descricao: descricao || "",
-			ordem: (maxOrdem._max.ordem ?? 0) + 1,
+			ordem: typeof ordem === "number" ? ordem : (maxOrdem._max.ordem ?? 0) + 1,
 			tipo: tipo || "VIDEO",
 			videoUrl: videoUrl || null,
 			pdfUrl: pdfUrl || null,
@@ -546,7 +547,7 @@ router.delete("/quiz/:quizId", authenticate, authorize("ADMIN"), async (req: any
 // POST /api/cursos/quiz/:quizId/perguntas - Add question to quiz
 router.post("/quiz/:quizId/perguntas", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
-		const { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta } = req.body;
+		const { pergunta, opcaoA, opcaoB, opcaoC, opcaoD, correta, ordem } = req.body;
 		const quizId = getStringParam(req.params.quizId);
 		if (!quizId) return res.status(400).json({ error: "ID inválido" });
 		if (!pergunta || !opcaoA || !opcaoB || !correta) {
@@ -566,7 +567,7 @@ router.post("/quiz/:quizId/perguntas", authenticate, authorize("ADMIN"), async (
 			opcaoC: opcaoC || null,
 			opcaoD: opcaoD || null,
 			correta,
-			ordem: (maxOrdem._max.ordem ?? 0) + 1,
+			ordem: typeof ordem === "number" ? ordem : (maxOrdem._max.ordem ?? 0) + 1,
 		});
 		res.status(201).json(newPergunta);
 	} catch (error) {

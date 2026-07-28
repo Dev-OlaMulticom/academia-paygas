@@ -204,12 +204,7 @@ export const VideoPlayer = forwardRef<{ seekTo: (s: number) => void }, VideoPlay
 
 			{duration > 0 && (
 				<div className="vp-controls">
-					<div
-						ref={progressBarRef}
-						className="vp-track"
-						onClick={handleBarClick}
-						onTouchEnd={handleBarTouch}
-					>
+					<div ref={progressBarRef} className="vp-track" onClick={handleBarClick} onTouchEnd={handleBarTouch}>
 						<div className="vp-played" style={{ width: `${progress}%` }} />
 						<div className="vp-head" style={{ left: `${progress}%` }} />
 						{hasMarkers &&
