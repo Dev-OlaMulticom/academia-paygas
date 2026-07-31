@@ -24,6 +24,7 @@ import { QuizEditorPage } from "./pages/QuizEditorPage";
 import { RelatoriosPage } from "./pages/RelatoriosPage";
 import { TermosPage } from "./pages/TermosPage";
 import { UsuariosPage } from "./pages/UsuariosPage";
+import { SsoCallbackPage } from "./pages/SsoCallbackPage";
 import { VerificarEmailPage } from "./pages/VerificarEmailPage";
 import { XPConfigPage } from "./pages/XPConfigPage";
 import "./index.css";
@@ -64,6 +65,7 @@ export default function App() {
 							element={isAuthenticated ? <Navigate to="/" replace /> : <LoginPage onLogin={handleLogin} />}
 						/>
 						<Route path="/verificar-email" element={<VerificarEmailPage />} />
+						<Route path="/sso/callback" element={<SsoCallbackPage onLogin={handleLogin} />} />
 						<Route path="/termos" element={<TermosPage />} />
 						<Route path="/privacidade" element={<PrivacidadePage />} />
 						<Route

@@ -25,6 +25,7 @@ import notificationsRoutes from "./routes/notifications";
 import progressoRoutes from "./routes/progresso";
 import publicRoutes from "./routes/public";
 import rolePermissionsRoutes from "./routes/role-permissions";
+import ssoRoutes from "./routes/sso";
 import usuariosRoutes from "./routes/usuarios";
 import xpconfigRoutes from "./routes/xpconfig";
 import { startHealthChecks } from "./services/db-health";
@@ -136,6 +137,7 @@ app.use((req, res, next) => {
 });
 
 app.use("/api/auth", authRoutes);
+app.use("/api", ssoRoutes);
 app.use("/api/usuarios", usuariosRoutes);
 app.use("/api/cms", cmsRoutes);
 app.use("/api/certificates", certificatesRoutes);

@@ -51,6 +51,12 @@ model User {
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   lastLogin        DateTime?
+  paygasSub        String?   @unique
+  telefone         String?
+  cpf              String?
+  perfil           String?
+  marketplaceId    String?
+  estabelecimentoId String?
 
   progressos        Progresso[]
   quizResponses     QuizResponse[]
