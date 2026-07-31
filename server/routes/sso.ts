@@ -5,6 +5,7 @@ import logger from "../lib/logger";
 import { PayGasSSOError, type PayGasSSOResponse, validateSSOTicket } from "../lib/paygas-sso-client";
 import { JWT_SECRET } from "../middleware/auth";
 import { awardLoginPointsDaily } from "../services/gamification";
+import { ensureGestorAssigned } from "../services/gestor-assignment";
 import { logActivity } from "../services/log";
 import { findOrCreateSSOUser } from "../services/sso-user-sync";
 
@@ -105,6 +106,14 @@ router.get("/sso", async (req, res) => {
 		return res
 			.status(500)
 			.send(renderSSOError("Erro interno", "Ocorreu um erro ao processar seu acesso. Tente novamente."));
+	}
+
+	// Assign a gestor automatically when missing — the frontend blocks access to
+	// the courses for ATENDENTE users without a gestor.
+	try {
+		user = await ensureGestorAssigned(user);
+	} catch (err) {
+		logger.warn("[SSO] Erro ao atribuir gestor automaticamente:", err);
 	}
 
 	// Auth ceremony (same pattern as paygas-access.ts)
