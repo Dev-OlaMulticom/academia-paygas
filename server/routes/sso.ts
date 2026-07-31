@@ -2,7 +2,7 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { PayGasSSOError, validateSSOTicket } from "../lib/paygas-sso-client";
+import { PayGasSSOError, type PayGasSSOResponse, validateSSOTicket } from "../lib/paygas-sso-client";
 import { JWT_SECRET } from "../middleware/auth";
 import { awardLoginPointsDaily } from "../services/gamification";
 import { logActivity } from "../services/log";
@@ -51,7 +51,7 @@ router.get("/sso", async (req, res) => {
 	}
 
 	// Validate ticket against PayGas API (never log the ticket)
-	let ssoData;
+	let ssoData: PayGasSSOResponse;
 	try {
 		ssoData = await validateSSOTicket(ticket);
 	} catch (err: unknown) {
@@ -59,31 +59,37 @@ router.get("/sso", async (req, res) => {
 			logger.warn(`[SSO] Validação falhou: HTTP ${err.status}`);
 
 			if (err.status === 401) {
-				return res.status(401).send(renderSSOError("Credenciais inválidas", "Erro de autenticação com o servidor SSO."));
+				return res
+					.status(401)
+					.send(renderSSOError("Credenciais inválidas", "Erro de autenticação com o servidor SSO."));
 			}
 			if (err.status === 403) {
-				return res.status(403).send(renderSSOError("Acesso negado", "Você não tem permissão para acessar este recurso."));
+				return res
+					.status(403)
+					.send(renderSSOError("Acesso negado", "Você não tem permissão para acessar este recurso."));
 			}
 			if (err.status === 422) {
-				return res.status(422).send(
-					renderSSOError(
-						"Link expirado",
-						"Seu link de acesso expirou ou já foi utilizado. Volte ao PayGas para gerar um novo.",
-						{ label: "Voltar ao PayGas", url: "https://paygas.com.br" },
-					),
-				);
+				return res
+					.status(422)
+					.send(
+						renderSSOError(
+							"Link expirado",
+							"Seu link de acesso expirou ou já foi utilizado. Volte ao PayGas para gerar um novo.",
+							{ label: "Voltar ao PayGas", url: "https://paygas.com.br" },
+						),
+					);
 			}
 			if (err.status === 429) {
 				const retryAfter = err.retryAfter || 60;
 				res.set("Retry-After", String(retryAfter));
-				return res.status(429).send(
-					renderSSOError("Muitas tentativas", `Tente novamente em ${retryAfter} segundos.`),
-				);
+				return res.status(429).send(renderSSOError("Muitas tentativas", `Tente novamente em ${retryAfter} segundos.`));
 			}
 			// 502/503/504
-			return res.status(err.status).send(
-				renderSSOError("Erro de comunicação", "Não foi possível conectar ao servidor. Tente novamente mais tarde."),
-			);
+			return res
+				.status(err.status)
+				.send(
+					renderSSOError("Erro de comunicação", "Não foi possível conectar ao servidor. Tente novamente mais tarde."),
+				);
 		}
 		// Unexpected error
 		logger.error("[SSO] Erro inesperado na validação:", err);
@@ -91,12 +97,14 @@ router.get("/sso", async (req, res) => {
 	}
 
 	// Find or create user by sub
-	let user;
+	let user: Awaited<ReturnType<typeof findOrCreateSSOUser>>;
 	try {
 		user = await findOrCreateSSOUser(ssoData);
 	} catch (err) {
 		logger.error("[SSO] Erro ao criar/sincronizar usuário:", err);
-		return res.status(500).send(renderSSOError("Erro interno", "Ocorreu um erro ao processar seu acesso. Tente novamente."));
+		return res
+			.status(500)
+			.send(renderSSOError("Erro interno", "Ocorreu um erro ao processar seu acesso. Tente novamente."));
 	}
 
 	// Auth ceremony (same pattern as paygas-access.ts)
@@ -110,11 +118,9 @@ router.get("/sso", async (req, res) => {
 	}
 
 	// Sign JWT (24h)
-	const token = jwt.sign(
-		{ userId: user.id, role: user.role, gestorId: user.gestorId || null },
-		JWT_SECRET,
-		{ expiresIn: "24h" },
-	);
+	const token = jwt.sign({ userId: user.id, role: user.role, gestorId: user.gestorId || null }, JWT_SECRET, {
+		expiresIn: "24h",
+	});
 
 	// Redirect to frontend callback
 	const appUrl = (process.env.APP_URL || "").replace(/\/+$/, "") || "";

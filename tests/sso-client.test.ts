@@ -73,16 +73,22 @@ describe("validateSSOTicket", () => {
 		process.env.PAYGAS_API_SECRET = "secret456";
 		clearModuleCache();
 
+		// Real PayGas contract: { success, data: { sub, ..., estabelecimento, marketplace } }
 		const mockData = {
 			success: true,
-			sub: "user-sub-123",
-			nome: "João Silva",
-			email: "joao@test.com",
-			telefone: "11999999999",
-			cpf: "12345678901",
-			perfil: "atendente",
-			marketplace_id: "mkt-1",
-			estabelecimento_id: "est-1",
+			data: {
+				sub: "user-sub-123",
+				nome: "João Silva",
+				email: "joao@test.com",
+				telefone: "11999999999",
+				cpf: "12345678901",
+				perfil: "administrador",
+				perfil_rotulo: "Administrador do estabelecimento",
+				setor: "administrador",
+				estabelecimento: { id: 2, nome: "Posto Carvoeiro 1", cnpj: "54319411000173" },
+				marketplace: { id: 8, nome: "Posto Carvoeiro" },
+				retorno_url: "https://app.paygas.com.br/",
+			},
 		};
 		mockFetch(200, mockData);
 
@@ -95,6 +101,12 @@ describe("validateSSOTicket", () => {
 		assert.equal(result.email, "joao@test.com");
 		assert.equal(result.telefone, "11999999999");
 		assert.equal(result.cpf, "12345678901");
+		assert.equal(result.perfil, "administrador");
+		assert.equal(result.perfilRotulo, "Administrador do estabelecimento");
+		assert.equal(result.setor, "administrador");
+		assert.equal(result.estabelecimentoId, "2");
+		assert.equal(result.marketplaceId, "8");
+		assert.equal(result.retornoUrl, "https://app.paygas.com.br/");
 	});
 
 	it("throws 401 on authentication failure", async () => {
@@ -270,13 +282,35 @@ describe("validateSSOTicket", () => {
 		process.env.PAYGAS_API_SECRET = "secret";
 		clearModuleCache();
 
-		mockFetch(200, { success: true, nome: "Test" });
+		mockFetch(200, { success: true, data: { nome: "Test" } });
 
 		const { validateSSOTicket, PayGasSSOError } = require("../server/lib/paygas-sso-client");
 		await assert.rejects(
 			() => validateSSOTicket("ticket"),
 			(err: PayGasSSOError) => {
 				assert.equal(err.status, 422);
+				return true;
+			},
+		);
+	});
+
+	it("throws 422 with the API error message for expired/used tickets", async () => {
+		process.env.PAYGAS_API_URL = "https://api.test.com/v1";
+		process.env.PAYGAS_API_CHAVE = "chave";
+		process.env.PAYGAS_API_SECRET = "secret";
+		clearModuleCache();
+
+		mockFetch(422, {
+			success: false,
+			error: { code: "unprocessable", message: "Este ticket já foi utilizado. Cada acesso gera um ticket novo." },
+		});
+
+		const { validateSSOTicket, PayGasSSOError } = require("../server/lib/paygas-sso-client");
+		await assert.rejects(
+			() => validateSSOTicket("used-ticket"),
+			(err: PayGasSSOError) => {
+				assert.equal(err.status, 422);
+				assert.match(err.message, /já foi utilizado/);
 				return true;
 			},
 		);

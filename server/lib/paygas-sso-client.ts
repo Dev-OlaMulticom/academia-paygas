@@ -8,8 +8,11 @@ export interface PayGasSSOResponse {
 	telefone?: string;
 	cpf?: string;
 	perfil?: string;
-	marketplace_id?: string;
-	estabelecimento_id?: string;
+	perfilRotulo?: string;
+	setor?: string;
+	estabelecimentoId?: string;
+	marketplaceId?: string;
+	retornoUrl?: string;
 }
 
 export class PayGasSSOError extends Error {
@@ -70,7 +73,15 @@ export async function validateSSOTicket(ticket: string): Promise<PayGasSSORespon
 		throw new PayGasSSOError(403, "Acesso negado pelo servidor SSO.");
 	}
 	if (res.status === 422) {
-		throw new PayGasSSOError(422, "Link expirado ou já utilizado. Gere um novo no PayGas.");
+		let apiMessage = "";
+		try {
+			// eslint-disable-next-line @typescript-eslint/no-explicit-any
+			const body: any = await res.json();
+			apiMessage = body?.error?.message || "";
+		} catch {
+			/* keep default message */
+		}
+		throw new PayGasSSOError(422, apiMessage || "Link expirado ou já utilizado. Gere um novo no PayGas.");
 	}
 	if (res.status === 429) {
 		const retryAfterHeader = res.headers.get("Retry-After");
@@ -89,19 +100,30 @@ export async function validateSSOTicket(ticket: string): Promise<PayGasSSORespon
 		throw new PayGasSSOError(502, "Servidor SSO retornou resposta inválida.");
 	}
 
-	if (!data?.success || !data?.sub) {
+	if (!data?.success) {
+		throw new PayGasSSOError(422, "Link expirado ou já utilizado. Gere um novo no PayGas.");
+	}
+
+	// The API wraps the user payload under `data`. Fall back to the top level
+	// for safety so both shapes are accepted.
+	const payload = data?.data && typeof data?.data === "object" ? data.data : data;
+
+	if (!payload?.sub) {
 		throw new PayGasSSOError(422, "Link expirado ou já utilizado. Gere um novo no PayGas.");
 	}
 
 	return {
 		success: true,
-		sub: data.sub,
-		nome: data.nome || "",
-		email: data.email || "",
-		telefone: data.telefone,
-		cpf: data.cpf,
-		perfil: data.perfil,
-		marketplace_id: data.marketplace_id,
-		estabelecimento_id: data.estabelecimento_id,
+		sub: payload.sub,
+		nome: payload.nome || "",
+		email: payload.email || "",
+		telefone: payload.telefone,
+		cpf: payload.cpf,
+		perfil: payload.perfil,
+		perfilRotulo: payload.perfil_rotulo,
+		setor: payload.setor,
+		estabelecimentoId: payload.estabelecimento?.id !== undefined ? String(payload.estabelecimento.id) : undefined,
+		marketplaceId: payload.marketplace?.id !== undefined ? String(payload.marketplace.id) : undefined,
+		retornoUrl: payload.retorno_url,
 	};
 }
