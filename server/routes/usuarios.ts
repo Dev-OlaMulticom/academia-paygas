@@ -34,6 +34,7 @@ router.get("/", authenticate, authorize("ADMIN", "GESTOR"), async (req: AuthRequ
 				orderBy: { nome: "asc" },
 				skip,
 				take: limit,
+				include: { estabelecimento: true },
 			}),
 			db.count("user", where),
 		]);
@@ -52,6 +53,14 @@ router.get("/", authenticate, authorize("ADMIN", "GESTOR"), async (req: AuthRequ
 			level: u.level,
 			progressCount: u._count?.progressos || 0,
 			certCount: u._count?.certificates || 0,
+			estabelecimento: u.estabelecimento
+				? {
+						id: u.estabelecimento.id,
+						nome: u.estabelecimento.nome,
+						cidade: u.estabelecimento.cidade,
+						uf: u.estabelecimento.uf,
+					}
+				: null,
 		}));
 
 		res.json({
@@ -238,6 +247,7 @@ router.get("/equipe", authenticate, authorize("ADMIN", "GESTOR"), async (req: Au
 		if (req.userRole === "GESTOR") {
 			const members = (await db.findMany("user", {
 				where: { gestorId: req.userId },
+				include: { estabelecimento: true },
 			})) as any[];
 
 			const result = members.map((m: any) => ({
@@ -249,6 +259,14 @@ router.get("/equipe", authenticate, authorize("ADMIN", "GESTOR"), async (req: Au
 				level: m.level,
 				certCount: m._count?.certificates || 0,
 				progressCount: m._count?.progressos || 0,
+				estabelecimento: m.estabelecimento
+					? {
+							id: m.estabelecimento.id,
+							nome: m.estabelecimento.nome,
+							cidade: m.estabelecimento.cidade,
+							uf: m.estabelecimento.uf,
+						}
+					: null,
 			}));
 
 			return res.json(result);
@@ -264,6 +282,7 @@ router.get("/equipe", authenticate, authorize("ADMIN", "GESTOR"), async (req: Au
 			gestores.map(async (g: any) => {
 				const atendentes = (await db.findMany("user", {
 					where: { gestorId: g.id },
+					include: { estabelecimento: true },
 				})) as any[];
 
 				return {
@@ -281,6 +300,14 @@ router.get("/equipe", authenticate, authorize("ADMIN", "GESTOR"), async (req: Au
 						level: a.level,
 						certCount: a._count?.certificates || 0,
 						progressCount: a._count?.progressos || 0,
+						estabelecimento: a.estabelecimento
+							? {
+									id: a.estabelecimento.id,
+									nome: a.estabelecimento.nome,
+									cidade: a.estabelecimento.cidade,
+									uf: a.estabelecimento.uf,
+								}
+							: null,
 					})),
 					totalMembros: atendentes.length,
 				};
@@ -300,8 +327,14 @@ router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async 
 	try {
 		const allUsersQuery =
 			req.userRole === "GESTOR"
-				? (db.findMany("user", { where: { gestorId: req.userId } }) as Promise<any[]>)
-				: (db.findMany("user", { where: { role: "ATENDENTE" } }) as Promise<any[]>);
+				? (db.findMany("user", {
+						where: { gestorId: req.userId },
+						include: { estabelecimento: true },
+					}) as Promise<any[]>)
+				: (db.findMany("user", {
+						where: { role: "ATENDENTE" },
+						include: { estabelecimento: true },
+					}) as Promise<any[]>);
 
 		// Fetch all required data in parallel
 		const [allUsers, cursos, progressosAll, quizResponsesAll, certificatesAll, notificationsAll, aulasAll] =
@@ -445,6 +478,14 @@ router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async 
 				xp: m.xp,
 				lastLogin: m.lastLogin,
 				gestorId: m.gestorId,
+				estabelecimento: m.estabelecimento
+					? {
+							id: m.estabelecimento.id,
+							nome: m.estabelecimento.nome,
+							cidade: m.estabelecimento.cidade,
+							uf: m.estabelecimento.uf,
+						}
+					: null,
 				cursos: cursosProcessed,
 			};
 		});

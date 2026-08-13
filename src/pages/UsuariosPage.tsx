@@ -224,6 +224,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 							<th>E-mail</th>
 							<th>Perfil</th>
 							<th>Gestor</th>
+							<th>Estabelecimento</th>
 							<th>Status</th>
 							<th>XP</th>
 							<th>Ultimo Acesso</th>
@@ -271,6 +272,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 										<td className="user-td-gestor">
 											{u.role === "ATENDENTE" ? u.gestorNome || getGestorName(u.gestorId) : "—"}
 										</td>
+										<td>{u.estabelecimento?.nome || "—"}</td>
 										<td>
 											{u.emailVerificado ? (
 												<span className="user-status-ok">
@@ -329,7 +331,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 									</tr>
 									{expandedRow === u.id && (
 										<tr key={`${u.id}-detail`} className="row-detail">
-											<td colSpan={9}>
+											<td colSpan={10}>
 												<div className="row-detail-body">
 													<div className="row-detail-grid">
 														<div className="row-detail-item">
@@ -350,6 +352,14 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 															<span className="row-detail-label">Gestor</span>
 															<span className="row-detail-value">
 																{u.role === "ATENDENTE" ? u.gestorNome || getGestorName(u.gestorId) : "—"}
+															</span>
+														</div>
+														<div className="row-detail-item">
+															<span className="row-detail-label">Estabelecimento</span>
+															<span className="row-detail-value">
+																{u.estabelecimento?.nome ||
+																	[u.estabelecimento?.cidade, u.estabelecimento?.uf].filter(Boolean).join(" - ") ||
+																	"—"}
 															</span>
 														</div>
 														<div className="row-detail-item">
@@ -386,7 +396,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 							))
 						) : (
 							<tr>
-								<td colSpan={9} className="cms-table-empty">
+								<td colSpan={10} className="cms-table-empty">
 									{loading ? "Carregando..." : "Dados nao carregados"}
 								</td>
 							</tr>

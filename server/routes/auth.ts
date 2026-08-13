@@ -54,6 +54,15 @@ router.post("/login", async (req, res) => {
 				role: user.role,
 				xp: user.xp,
 				gestorId: user.gestorId,
+				perfil: user.perfil,
+				estabelecimento: user.estabelecimento
+					? {
+							id: user.estabelecimento.id,
+							nome: user.estabelecimento.nome,
+							cidade: user.estabelecimento.cidade,
+							uf: user.estabelecimento.uf,
+						}
+					: null,
 			},
 		});
 	} catch (error) {
@@ -65,7 +74,7 @@ router.post("/login", async (req, res) => {
 // GET /api/auth/me
 router.get("/me", authenticate, async (req: AuthRequest, res) => {
 	try {
-		const user = (await db.findUnique("user", { id: req.userId! })) as any;
+		const user = (await db.findUnique("user", { id: req.userId! }, { include: { estabelecimento: true } })) as any;
 		if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
 		res.json({
 			id: user.id,
@@ -74,6 +83,15 @@ router.get("/me", authenticate, async (req: AuthRequest, res) => {
 			role: user.role,
 			xp: user.xp,
 			gestorId: user.gestorId,
+			perfil: user.perfil,
+			estabelecimento: user.estabelecimento
+				? {
+						id: user.estabelecimento.id,
+						nome: user.estabelecimento.nome,
+						cidade: user.estabelecimento.cidade,
+						uf: user.estabelecimento.uf,
+					}
+				: null,
 			createdAt: user.createdAt,
 			lastLogin: user.lastLogin,
 		});

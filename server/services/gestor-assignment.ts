@@ -26,8 +26,8 @@ export function pickBestGestor(candidates: GestorCandidate[], loadMap: Map<strin
 
 /**
  * Selects the gestor to assign to a user. Selection order:
- *   1. GESTOR sharing the user's marketplaceId
- *   2. GESTOR sharing the user's estabelecimentoId
+ *   1. GESTOR sharing the user's estabelecimentoId
+ *   2. GESTOR sharing the user's marketplaceId
  *   3. The least-loaded GESTOR overall
  * Returns null when there is no GESTOR at all.
  */
@@ -36,15 +36,15 @@ export function selectGestorForUser(
 	gestores: GestorCandidate[],
 	loadMap: Map<string, number>,
 ): GestorCandidate | null {
-	let gestor = user.marketplaceId
+	let gestor = user.estabelecimentoId
 		? pickBestGestor(
-				gestores.filter((g) => g.marketplaceId === user.marketplaceId),
+				gestores.filter((g) => g.estabelecimentoId === user.estabelecimentoId),
 				loadMap,
 			)
 		: null;
-	if (!gestor && user.estabelecimentoId) {
+	if (!gestor && user.marketplaceId) {
 		gestor = pickBestGestor(
-			gestores.filter((g) => g.estabelecimentoId === user.estabelecimentoId),
+			gestores.filter((g) => g.marketplaceId === user.marketplaceId),
 			loadMap,
 		);
 	}

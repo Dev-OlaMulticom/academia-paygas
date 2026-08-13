@@ -106,6 +106,12 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
 							<label className="form-label">E-mail</label>
 							<input className="form-input" type="email" value={user?.email || ""} readOnly />
 						</div>
+						{user?.estabelecimento?.nome && (
+							<div className="form-field">
+								<label className="form-label">Estabelecimento</label>
+								<input className="form-input" value={user.estabelecimento.nome} readOnly />
+							</div>
+						)}
 						<div className="perfil-xp-row">
 							<div className="perfil-xp-box">
 								<div className="perfil-xp-val orange">{xp || 0}</div>

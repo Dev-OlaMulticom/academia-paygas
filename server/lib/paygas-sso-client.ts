@@ -11,6 +11,12 @@ export interface PayGasSSOResponse {
 	perfilRotulo?: string;
 	setor?: string;
 	estabelecimentoId?: string;
+	estabelecimentoNome?: string;
+	estabelecimentoCnpj?: string;
+	estabelecimentoTipo?: string;
+	estabelecimentoCidade?: string;
+	estabelecimentoUf?: string;
+	estabelecimentoAtivo?: boolean;
 	marketplaceId?: string;
 	retornoUrl?: string;
 }
@@ -138,6 +144,12 @@ async function validateSSOTicketInternal(ticket: string): Promise<PayGasSSOResul
 			perfilRotulo: payload.perfil_rotulo,
 			setor: payload.setor,
 			estabelecimentoId: payload.estabelecimento?.id !== undefined ? String(payload.estabelecimento.id) : undefined,
+			estabelecimentoNome: payload.estabelecimento?.nome,
+			estabelecimentoCnpj: payload.estabelecimento?.cnpj,
+			estabelecimentoTipo: payload.estabelecimento?.tipo,
+			estabelecimentoCidade: payload.estabelecimento?.cidade,
+			estabelecimentoUf: payload.estabelecimento?.uf,
+			estabelecimentoAtivo: payload.estabelecimento?.ativo,
 			marketplaceId: payload.marketplace?.id !== undefined ? String(payload.marketplace.id) : undefined,
 			retornoUrl: payload.retorno_url,
 		},

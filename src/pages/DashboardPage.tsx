@@ -59,7 +59,11 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
 					<div className="page-title">
 						Ola! <i className="icon-hand icon-md" />
 					</div>
-					<div className="page-subtitle">Bem-vindo a Academia PayGas</div>
+					<div className="page-subtitle">
+						{user?.estabelecimento?.nome
+							? `Bem-vindo a Academia PayGas — ${user.estabelecimento.nome}`
+							: "Bem-vindo a Academia PayGas"}
+					</div>
 				</div>
 			</div>
 

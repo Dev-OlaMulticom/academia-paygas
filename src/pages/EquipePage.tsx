@@ -424,6 +424,11 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 						<div>
 							<b className="eq-name">{member.nome}</b>
 							<div className="eq-email">{member.email}</div>
+							{member.estabelecimento?.nome && (
+								<div className="eq-email eq-estabelecimento">
+									<i className="icon-building icon-xs" /> {member.estabelecimento.nome}
+								</div>
+							)}
 						</div>
 					</div>
 					<div className="eq-user-stats">

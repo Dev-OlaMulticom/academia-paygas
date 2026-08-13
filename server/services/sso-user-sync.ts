@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import { db } from "../lib/db";
 import logger from "../lib/logger";
+import { upsertEstabelecimento } from "./estabelecimento-sync";
 
 export interface SSOUserData {
 	sub: string;
@@ -13,8 +14,35 @@ export interface SSOUserData {
 	perfilRotulo?: string;
 	setor?: string;
 	estabelecimentoId?: string;
+	estabelecimentoNome?: string;
+	estabelecimentoCnpj?: string;
+	estabelecimentoTipo?: string;
+	estabelecimentoCidade?: string;
+	estabelecimentoUf?: string;
+	estabelecimentoAtivo?: boolean;
 	marketplaceId?: string;
 	retornoUrl?: string;
+}
+
+// Roles managed by SSO: perfil decides between them. Privileged roles
+// (ADMIN, PARCEIRO_ACREDITADO, ERPS_REPRESENTANTE) are never touched.
+const SSO_MANAGED_ROLES = new Set(["GESTOR", "ATENDENTE"]);
+
+function roleFromPerfil(perfil?: string): "GESTOR" | "ATENDENTE" {
+	return perfil === "administrador" ? "GESTOR" : "ATENDENTE";
+}
+
+/**
+ * Computes the role/gestor sync for an existing user based on `perfil`.
+ * Returns {} when the current role is not SSO-managed or no perfil is given.
+ * When promoting to GESTOR, drops any gestor link.
+ */
+function roleSyncData(currentRole: string, perfil?: string): Record<string, unknown> {
+	if (!perfil || !SSO_MANAGED_ROLES.has(currentRole)) return {};
+	const targetRole = roleFromPerfil(perfil);
+	const data: Record<string, unknown> = { role: targetRole };
+	if (targetRole === "GESTOR") data.gestorId = null;
+	return data;
 }
 
 // PostgreSQL emails are case-sensitive by default. PayGas sends lowercase, but
@@ -27,6 +55,19 @@ function findUserByEmail(email: string) {
 }
 
 export async function findOrCreateSSOUser(data: SSOUserData) {
+	// Sync the Estabelecimento row first so the FK holds on create/update below.
+	if (data.estabelecimentoId) {
+		await upsertEstabelecimento({
+			id: data.estabelecimentoId,
+			nome: data.estabelecimentoNome,
+			cnpj: data.estabelecimentoCnpj,
+			tipo: data.estabelecimentoTipo,
+			cidade: data.estabelecimentoCidade,
+			uf: data.estabelecimentoUf,
+			ativo: data.estabelecimentoAtivo,
+		});
+	}
+
 	// 1. Lookup by paygasSub (primary identifier)
 	let user = await db.findUnique("user", { paygasSub: data.sub });
 
@@ -44,6 +85,8 @@ export async function findOrCreateSSOUser(data: SSOUserData) {
 		if (data.estabelecimentoId !== undefined && data.estabelecimentoId !== user.estabelecimentoId)
 			syncData.estabelecimentoId = data.estabelecimentoId || null;
 
+		Object.assign(syncData, roleSyncData(user.role, data.perfil));
+
 		if (Object.keys(syncData).length > 0) {
 			user = await db.update("user", { id: user.id }, syncData);
 			logger.info(`[SSO] Usuário ${user.id} sincronizado`);
@@ -56,18 +99,17 @@ export async function findOrCreateSSOUser(data: SSOUserData) {
 		const existingByEmail = await findUserByEmail(data.email);
 		if (existingByEmail) {
 			// Link legacy user to SSO. Preserve the Academy nome and email.
-			user = await db.update(
-				"user",
-				{ id: existingByEmail.id },
-				{
-					paygasSub: data.sub,
-					telefone: data.telefone || null,
-					cpf: data.cpf || null,
-					perfil: data.perfil || null,
-					marketplaceId: data.marketplaceId || null,
-					estabelecimentoId: data.estabelecimentoId || null,
-				},
-			);
+			const linkData: Record<string, unknown> = {
+				paygasSub: data.sub,
+				telefone: data.telefone || null,
+				cpf: data.cpf || null,
+				perfil: data.perfil || null,
+				marketplaceId: data.marketplaceId || null,
+				estabelecimentoId: data.estabelecimentoId || null,
+			};
+			Object.assign(linkData, roleSyncData(existingByEmail.role, data.perfil));
+
+			user = await db.update("user", { id: existingByEmail.id }, linkData);
 			logger.info(`[SSO] Usuário existente ${existingByEmail.id} vinculado ao paygasSub`);
 			return user;
 		}
@@ -82,7 +124,7 @@ export async function findOrCreateSSOUser(data: SSOUserData) {
 			email: data.email,
 			nome: data.nome,
 			senha: hashedPassword,
-			role: "ATENDENTE",
+			role: roleFromPerfil(data.perfil),
 			emailVerificado: true,
 			paygasSub: data.sub,
 			telefone: data.telefone || null,
@@ -99,18 +141,17 @@ export async function findOrCreateSSOUser(data: SSOUserData) {
 			user = await findUserByEmail(data.email);
 			if (user) {
 				// Link to SSO
-				user = await db.update(
-					"user",
-					{ id: user.id },
-					{
-						paygasSub: data.sub,
-						telefone: data.telefone || null,
-						cpf: data.cpf || null,
-						perfil: data.perfil || null,
-						marketplaceId: data.marketplaceId || null,
-						estabelecimentoId: data.estabelecimentoId || null,
-					},
-				);
+				const linkData: Record<string, unknown> = {
+					paygasSub: data.sub,
+					telefone: data.telefone || null,
+					cpf: data.cpf || null,
+					perfil: data.perfil || null,
+					marketplaceId: data.marketplaceId || null,
+					estabelecimentoId: data.estabelecimentoId || null,
+				};
+				Object.assign(linkData, roleSyncData(user.role, data.perfil));
+
+				user = await db.update("user", { id: user.id }, linkData);
 				return user;
 			}
 		}

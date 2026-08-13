@@ -85,7 +85,15 @@ describe("validateSSOTicket", () => {
 				perfil: "administrador",
 				perfil_rotulo: "Administrador do estabelecimento",
 				setor: "administrador",
-				estabelecimento: { id: 2, nome: "Posto Carvoeiro 1", cnpj: "54319411000173" },
+				estabelecimento: {
+					id: 2,
+					nome: "Posto Carvoeiro 1",
+					cnpj: "54319411000173",
+					tipo: "posto",
+					cidade: "Sao Paulo",
+					uf: "SP",
+					ativo: true,
+				},
 				marketplace: { id: 8, nome: "Posto Carvoeiro" },
 				retorno_url: "https://app.paygas.com.br/",
 			},
@@ -105,6 +113,12 @@ describe("validateSSOTicket", () => {
 		assert.equal(result.perfilRotulo, "Administrador do estabelecimento");
 		assert.equal(result.setor, "administrador");
 		assert.equal(result.estabelecimentoId, "2");
+		assert.equal(result.estabelecimentoNome, "Posto Carvoeiro 1");
+		assert.equal(result.estabelecimentoCnpj, "54319411000173");
+		assert.equal(result.estabelecimentoTipo, "posto");
+		assert.equal(result.estabelecimentoCidade, "Sao Paulo");
+		assert.equal(result.estabelecimentoUf, "SP");
+		assert.equal(result.estabelecimentoAtivo, true);
 		assert.equal(result.marketplaceId, "8");
 		assert.equal(result.retornoUrl, "https://app.paygas.com.br/");
 	});

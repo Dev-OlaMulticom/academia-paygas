@@ -48,6 +48,7 @@ model User {
   gestorId         String?
   gestor           User?     @relation("GestorAtendentes", fields: [gestorId], references: [id])
   atendentes       User[]    @relation("GestorAtendentes")
+  estabelecimento  Estabelecimento? @relation(fields: [estabelecimentoId], references: [id])
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
   lastLogin        DateTime?
@@ -69,6 +70,20 @@ model User {
   conquistas        UserConquista[]
 
   @@index([gestorId])
+  @@index([estabelecimentoId])
+}
+
+model Estabelecimento {
+  id        String   @id
+  nome      String
+  cnpj      String?
+  tipo      String?
+  cidade    String?
+  uf        String?
+  ativo     Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  users     User[]
 }
 
 model Modulo {

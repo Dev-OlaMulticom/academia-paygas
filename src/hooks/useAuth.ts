@@ -11,6 +11,8 @@ export interface User {
 	nome?: string;
 	xp?: number;
 	gestorId?: string | null;
+	perfil?: string;
+	estabelecimento?: { id: string; nome: string; cidade?: string | null; uf?: string | null } | null;
 }
 
 function getStoredUser(): User | null {

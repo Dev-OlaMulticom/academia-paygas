@@ -42,6 +42,7 @@ const SYNC_START_DELAY = 30 * 1000;
 
 // Tabelas em ordem de dependencias (pais antes dos filhos) para nao violar FKs.
 const TABLES_IN_ORDER = [
+	"Estabelecimento",
 	"User",
 	"Curso",
 	"Aula",
