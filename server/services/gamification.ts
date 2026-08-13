@@ -42,6 +42,14 @@ async function getPointsForAction(action: string): Promise<number> {
 	return config[action] ?? DEFAULT_POINTS[action] ?? 0;
 }
 
+// Round up (ceil) to at most 2 decimal places so XP never accumulates
+// float noise like 4.99999999999999. Snap to a 4-decimal grid first to kill
+// float error (0.07 * 100 === 7.000000000000001) before taking the ceil.
+export function roundXpUp(value: number): number {
+	const scaled = Math.round(value * 10000);
+	return Math.ceil(scaled / 100) / 100;
+}
+
 export async function awardPoints(userId: string, action: PointsAction, details?: string): Promise<number> {
 	const points = await getPointsForAction(action);
 
@@ -61,11 +69,14 @@ export async function awardPoints(userId: string, action: PointsAction, details?
 	// db.create handles MySQL dual-write, but we also need the user XP update there
 	await db.update("user", { id: userId }, { xp: { increment: points } } as any);
 
-	// Recalculate and persist level
+	// Normalize XP to at most 2 decimals (round up) and persist level.
+	// `db.update` writes the absolute value to primary, backups and MySQL,
+	// so every tier ends up with the same clean value.
 	const updated = (await db.findUnique("user", { id: userId })) as { xp: number } | null;
 	if (updated) {
-		const newLevel = Math.floor(updated.xp / 2000) + 1;
-		await db.update("user", { id: userId }, { level: newLevel });
+		const roundedXp = roundXpUp(updated.xp || 0);
+		const newLevel = Math.floor(roundedXp / 2000) + 1;
+		await db.update("user", { id: userId }, { xp: roundedXp, level: newLevel });
 	}
 
 	return points;
