@@ -2,7 +2,7 @@ import { Router } from "express";
 import jwt from "jsonwebtoken";
 import { db } from "../lib/db";
 import logger from "../lib/logger";
-import { PayGasSSOError, type PayGasSSOResponse, validateSSOTicket } from "../lib/paygas-sso-client";
+import { PayGasSSOError, type PayGasSSOResponse, validateSSOTicketWithRaw } from "../lib/paygas-sso-client";
 import { JWT_SECRET } from "../middleware/auth";
 import { awardLoginPointsDaily } from "../services/gamification";
 import { ensureGestorAssigned } from "../services/gestor-assignment";
@@ -38,26 +38,47 @@ function renderSSOError(title: string, message: string, action?: { label: string
 </html>`;
 }
 
-// GET /api/sso?ticket=xxx
+// GET /api/sso?ticket=xxx[&debug=1]
 router.get("/sso", async (req, res) => {
 	const ticketRaw = req.query.ticket;
+	const debug = req.query.debug === "1";
 
 	if (!ticketRaw || typeof ticketRaw !== "string") {
+		if (debug) {
+			return res.status(400).json({ error: { status: 400, message: "Ticket SSO não fornecido." } });
+		}
 		return res.status(400).send(renderSSOError("Link inválido", "Ticket SSO não fornecido."));
 	}
 
 	const ticket = decodeURIComponent(ticketRaw).trim();
 	if (!ticket) {
+		if (debug) {
+			return res.status(400).json({ error: { status: 400, message: "Ticket SSO não fornecido." } });
+		}
 		return res.status(400).send(renderSSOError("Link inválido", "Ticket SSO não fornecido."));
 	}
 
 	// Validate ticket against PayGas API (never log the ticket)
 	let ssoData: PayGasSSOResponse;
+	let ssoRaw: unknown;
 	try {
-		ssoData = await validateSSOTicket(ticket);
+		const result = await validateSSOTicketWithRaw(ticket);
+		ssoData = result.data;
+		ssoRaw = result.raw;
 	} catch (err: unknown) {
 		if (err instanceof PayGasSSOError) {
 			logger.warn(`[SSO] Validação falhou: HTTP ${err.status}`);
+
+			if (debug) {
+				return res.status(err.status).json({
+					error: {
+						status: err.status,
+						message: err.message,
+						retryAfter: err.retryAfter,
+						raw: err.raw ?? null,
+					},
+				});
+			}
 
 			if (err.status === 401) {
 				return res
@@ -94,7 +115,15 @@ router.get("/sso", async (req, res) => {
 		}
 		// Unexpected error
 		logger.error("[SSO] Erro inesperado na validação:", err);
+		if (debug) {
+			return res.status(500).json({ error: { status: 500, message: "Erro interno inesperado." } });
+		}
 		return res.status(500).send(renderSSOError("Erro interno", "Ocorreu um erro inesperado. Tente novamente."));
+	}
+
+	// Debug mode: return the raw PayGas response as JSON and stop (no login).
+	if (debug) {
+		return res.status(200).json(ssoRaw);
 	}
 
 	// Find or create user by sub

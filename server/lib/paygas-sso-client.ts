@@ -15,14 +15,21 @@ export interface PayGasSSOResponse {
 	retornoUrl?: string;
 }
 
+export interface PayGasSSOResult {
+	data: PayGasSSOResponse;
+	raw: unknown;
+}
+
 export class PayGasSSOError extends Error {
 	status: 401 | 403 | 422 | 429 | 502 | 503 | 504;
 	retryAfter?: number;
+	raw?: unknown;
 
-	constructor(status: PayGasSSOError["status"], message: string, retryAfter?: number) {
+	constructor(status: PayGasSSOError["status"], message: string, retryAfter?: number, raw?: unknown) {
 		super(message);
 		this.status = status;
 		this.retryAfter = retryAfter;
+		this.raw = raw;
 	}
 }
 
@@ -34,7 +41,7 @@ function getSSOConfig() {
 	return { baseUrl, chave, secret, timeoutMs };
 }
 
-export async function validateSSOTicket(ticket: string): Promise<PayGasSSOResponse> {
+async function validateSSOTicketInternal(ticket: string): Promise<PayGasSSOResult> {
 	const { baseUrl, chave, secret, timeoutMs } = getSSOConfig();
 
 	if (!baseUrl || !chave || !secret) {
@@ -74,14 +81,21 @@ export async function validateSSOTicket(ticket: string): Promise<PayGasSSORespon
 	}
 	if (res.status === 422) {
 		let apiMessage = "";
+		let raw: unknown;
 		try {
 			// eslint-disable-next-line @typescript-eslint/no-explicit-any
 			const body: any = await res.json();
+			raw = body;
 			apiMessage = body?.error?.message || "";
 		} catch {
 			/* keep default message */
 		}
-		throw new PayGasSSOError(422, apiMessage || "Link expirado ou já utilizado. Gere um novo no PayGas.");
+		throw new PayGasSSOError(
+			422,
+			apiMessage || "Link expirado ou já utilizado. Gere um novo no PayGas.",
+			undefined,
+			raw,
+		);
 	}
 	if (res.status === 429) {
 		const retryAfterHeader = res.headers.get("Retry-After");
@@ -101,7 +115,7 @@ export async function validateSSOTicket(ticket: string): Promise<PayGasSSORespon
 	}
 
 	if (!data?.success) {
-		throw new PayGasSSOError(422, "Link expirado ou já utilizado. Gere um novo no PayGas.");
+		throw new PayGasSSOError(422, "Link expirado ou já utilizado. Gere um novo no PayGas.", undefined, data);
 	}
 
 	// The API wraps the user payload under `data`. Fall back to the top level
@@ -109,21 +123,32 @@ export async function validateSSOTicket(ticket: string): Promise<PayGasSSORespon
 	const payload = data?.data && typeof data?.data === "object" ? data.data : data;
 
 	if (!payload?.sub) {
-		throw new PayGasSSOError(422, "Link expirado ou já utilizado. Gere um novo no PayGas.");
+		throw new PayGasSSOError(422, "Link expirado ou já utilizado. Gere um novo no PayGas.", undefined, data);
 	}
 
 	return {
-		success: true,
-		sub: payload.sub,
-		nome: payload.nome || "",
-		email: payload.email || "",
-		telefone: payload.telefone,
-		cpf: payload.cpf,
-		perfil: payload.perfil,
-		perfilRotulo: payload.perfil_rotulo,
-		setor: payload.setor,
-		estabelecimentoId: payload.estabelecimento?.id !== undefined ? String(payload.estabelecimento.id) : undefined,
-		marketplaceId: payload.marketplace?.id !== undefined ? String(payload.marketplace.id) : undefined,
-		retornoUrl: payload.retorno_url,
+		data: {
+			success: true,
+			sub: payload.sub,
+			nome: payload.nome || "",
+			email: payload.email || "",
+			telefone: payload.telefone,
+			cpf: payload.cpf,
+			perfil: payload.perfil,
+			perfilRotulo: payload.perfil_rotulo,
+			setor: payload.setor,
+			estabelecimentoId: payload.estabelecimento?.id !== undefined ? String(payload.estabelecimento.id) : undefined,
+			marketplaceId: payload.marketplace?.id !== undefined ? String(payload.marketplace.id) : undefined,
+			retornoUrl: payload.retorno_url,
+		},
+		raw: data,
 	};
+}
+
+export async function validateSSOTicket(ticket: string): Promise<PayGasSSOResponse> {
+	return (await validateSSOTicketInternal(ticket)).data;
+}
+
+export async function validateSSOTicketWithRaw(ticket: string): Promise<PayGasSSOResult> {
+	return validateSSOTicketInternal(ticket);
 }
