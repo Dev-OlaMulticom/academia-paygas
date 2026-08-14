@@ -201,44 +201,47 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 		[sortBy],
 	);
 
+	const buildExportRows = useCallback(
+		(members: any[], gestor: string): ExportRow[] => {
+			const rows: ExportRow[] = members.map((m: any) => {
+				const detail = detailData.find((d: any) => d.id === m.id);
+				const st = computeStat(detail);
+				const memberXp = m.xp || 0;
+				const level = Math.floor(memberXp / XP_PER_LEVEL) + 1;
+				return {
+					nome: m.nome || "",
+					email: m.email || "",
+					gestor,
+					estabelecimento: m.estabelecimento?.nome || "-",
+					local: [m.estabelecimento?.cidade, m.estabelecimento?.uf].filter(Boolean).join("/") || "-",
+					xp: memberXp,
+					nivel: level,
+					certificados: m.certCount || 0,
+					cursosConcl: st.cursosConcl,
+					aulasConcl: st.aulasConcl,
+					aulasTotal: st.aulasTotal,
+					pctAulas: `${st.pctAulas}%`,
+					quizzesAprov: st.quizzesAprov,
+					quizzesTotal: st.quizzesTotal,
+					notaMedia: st.notaMedia,
+					status: m.ativo !== false ? "Ativo" : "Inativo",
+				};
+			});
+			return sortMembers(rows);
+		},
+		[detailData, computeStat, sortMembers],
+	);
+
 	const allExportRows = useMemo<ExportRow[]>(() => {
-		const rows: ExportRow[] = [];
-		const pushMember = (m: any, gestor: string) => {
-			const detail = detailData.find((d: any) => d.id === m.id);
-			const st = computeStat(detail);
-			const memberXp = m.xp || 0;
-			const level = Math.floor(memberXp / XP_PER_LEVEL) + 1;
-			rows.push({
-				nome: m.nome || "",
-				email: m.email || "",
-				gestor,
-				estabelecimento: m.estabelecimento?.nome || "-",
-				local: [m.estabelecimento?.cidade, m.estabelecimento?.uf].filter(Boolean).join("/") || "-",
-				xp: memberXp,
-				nivel: level,
-				certificados: m.certCount || 0,
-				cursosConcl: st.cursosConcl,
-				aulasConcl: st.aulasConcl,
-				aulasTotal: st.aulasTotal,
-				pctAulas: `${st.pctAulas}%`,
-				quizzesAprov: st.quizzesAprov,
-				quizzesTotal: st.quizzesTotal,
-				notaMedia: st.notaMedia,
-				status: m.ativo !== false ? "Ativo" : "Inativo",
-			});
-		};
 		if (isGestor) {
-			const members = Array.isArray(teamData) ? teamData : [];
-			members.forEach((m: any) => pushMember(m, "-"));
-		} else {
-			const teams = Array.isArray(teamData) ? teamData : [];
-			teams.forEach((t: any) => {
-				const gestor = t.gestor?.nome || "Sem gestor";
-				(t.membros || []).forEach((m: any) => pushMember(m, gestor));
-			});
+			return buildExportRows(Array.isArray(teamData) ? teamData : [], "-");
 		}
-		return sortMembers(rows);
-	}, [teamData, detailData, computeStat, isGestor, sortMembers]);
+		const teams = Array.isArray(teamData) ? teamData : [];
+		return teams.reduce((acc: ExportRow[], t: any) => {
+			const gestor = t.gestor?.nome || "Sem gestor";
+			return acc.concat(buildExportRows(t.membros || [], gestor));
+		}, []);
+	}, [teamData, isGestor, buildExportRows]);
 
 	const summary = useMemo(() => {
 		const total = allExportRows.length;
@@ -249,7 +252,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 		return { total, concluidos, certificados, avgProgress };
 	}, [allExportRows]);
 
-	const exportCsv = useCallback(() => {
+	const exportCsv = useCallback((rows: ExportRow[], fileNameSuffix = "") => {
 		try {
 			setExporting("csv");
 			const cols = EXPORT_COLUMNS.filter((c) => !c.adminOnly || isAdmin);
@@ -260,14 +263,14 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 			};
 			const lines = [
 				headers.join(";"),
-				...allExportRows.map((r) => cols.map((c) => escape(r[c.key])).join(";")),
+				...rows.map((r) => cols.map((c) => escape(r[c.key])).join(";")),
 			];
 			const csv = "﻿" + lines.join("\n");
 			const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
 			const url = URL.createObjectURL(blob);
 			const a = document.createElement("a");
 			a.href = url;
-			a.download = `equipe-${new Date().toISOString().slice(0, 10)}.csv`;
+			a.download = `equipe${fileNameSuffix}-${new Date().toISOString().slice(0, 10)}.csv`;
 			a.click();
 			URL.revokeObjectURL(url);
 			toast("CSV exportado com sucesso!", "success");
@@ -278,7 +281,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 		}
 	}, [allExportRows, isAdmin, toast]);
 
-	const exportPdf = useCallback(async () => {
+	const exportPdf = useCallback(async (rows: ExportRow[], fileNameSuffix = "") => {
 		try {
 			setExporting("pdf");
 			const jsPDF = (await import("jspdf")).default;
@@ -303,7 +306,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 			doc.setFont("helvetica", "normal");
 			doc.setTextColor(90, 90, 90);
 			doc.text(
-				`Gerado em ${new Date().toLocaleString("pt-BR")} • ${allExportRows.length} atendente(s)`,
+				`Gerado em ${new Date().toLocaleString("pt-BR")} • ${rows.length} atendente(s)`,
 				margin,
 				margin + 5,
 			);
@@ -329,7 +332,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 
 			drawHeader();
 
-			allExportRows.forEach((row, ri) => {
+			rows.forEach((row, ri) => {
 				const cellLines = headers.map((_h, i) =>
 					doc.splitTextToSize(String(row[cols[i].key] ?? ""), colW[i] - pad * 2),
 				);
@@ -768,16 +771,18 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 					<i className="icon-building icon-xs" /> Estabelecimento
 				</button>
 			</div>
-			<div className="eq-toolbar-group">
-				<button className="eq-export-btn" disabled={exporting !== null} onClick={exportCsv}>
-					{exporting === "csv" ? <i className="icon-loader icon-xs" /> : <i className="icon-download icon-xs" />}
-					CSV
-				</button>
-				<button className="eq-export-btn" disabled={exporting !== null} onClick={exportPdf}>
-					{exporting === "pdf" ? <i className="icon-loader icon-xs" /> : <i className="icon-file-text icon-xs" />}
-					PDF
-				</button>
-			</div>
+			{isGestor && (
+				<div className="eq-toolbar-group">
+					<button className="eq-export-btn" disabled={exporting !== null} onClick={() => exportCsv(allExportRows)}>
+						{exporting === "csv" ? <i className="icon-loader icon-xs" /> : <i className="icon-download icon-xs" />}
+						CSV
+					</button>
+					<button className="eq-export-btn" disabled={exporting !== null} onClick={() => exportPdf(allExportRows)}>
+						{exporting === "pdf" ? <i className="icon-loader icon-xs" /> : <i className="icon-file-text icon-xs" />}
+						PDF
+					</button>
+				</div>
+			)}
 		</div>
 	);
 
@@ -853,6 +858,13 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 			) : (
 				sortedTeams.map((team: any, idx: number) => {
 					const membros = sortMembers(team.membros || []);
+					const gestorNome = team.gestor?.nome || "sem-gestor";
+					const fileSuffix = `-${gestorNome
+						.normalize("NFD")
+						.replace(/[̀-ͯ]/g, "")
+						.toLowerCase()
+						.replace(/[^a-z0-9]+/g, "-")
+						.replace(/(^-|-$)/g, "")}`;
 					return (
 						<div key={team.gestor?.id || idx} className="eq-team-section">
 							{team.gestor && (
@@ -872,6 +884,24 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 										<div className="eq-team-email">{team.gestor.email}</div>
 									</div>
 									<span className="eq-team-count">{membros.length} atendente(s)</span>
+									<div className="eq-team-export">
+										<button
+											className="eq-export-btn eq-export-btn-sm"
+											disabled={exporting !== null}
+											onClick={() => exportCsv(buildExportRows(team.membros || [], gestorNome), fileSuffix)}
+										>
+											{exporting === "csv" ? <i className="icon-loader icon-xs" /> : <i className="icon-download icon-xs" />}
+											CSV
+										</button>
+										<button
+											className="eq-export-btn eq-export-btn-sm"
+											disabled={exporting !== null}
+											onClick={() => exportPdf(buildExportRows(team.membros || [], gestorNome), fileSuffix)}
+										>
+											{exporting === "pdf" ? <i className="icon-loader icon-xs" /> : <i className="icon-file-text icon-xs" />}
+											PDF
+										</button>
+									</div>
 								</div>
 							)}
 							{membros.length > 0 ? (

@@ -4145,6 +4145,15 @@ a {
 	opacity: 0.6;
 	cursor: default;
 }
+.eq-export-btn-sm {
+	padding: 5px 9px;
+	font-size: 12px;
+}
+.eq-team-export {
+	display: flex;
+	gap: 6px;
+	margin-left: auto;
+}
 
 /* EQUIPE - SUMMARY */
 .eq-summary {
