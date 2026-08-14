@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useToast } from "../components/Toast";
 import { PERSONAS } from "../data/constants";
 import { useAbility } from "../hooks/useAbility";
@@ -11,6 +11,58 @@ interface EquipePageProps {
 	user: User;
 }
 
+type SortKey = "nome" | "estabelecimento";
+
+interface MemberStat {
+	cursosConcl: number;
+	aulasConcl: number;
+	aulasTotal: number;
+	pctAulas: number;
+	quizzesAprov: number;
+	quizzesTotal: number;
+	notaMedia: string;
+}
+
+interface ExportRow {
+	nome: string;
+	email: string;
+	gestor: string;
+	estabelecimento: string;
+	local: string;
+	xp: number | string;
+	nivel: number | string;
+	certificados: number | string;
+	cursosConcl: number | string;
+	aulasConcl: number | string;
+	aulasTotal: number | string;
+	pctAulas: string;
+	quizzesAprov: number | string;
+	quizzesTotal: number | string;
+	notaMedia: string;
+	status: string;
+}
+
+const EXPORT_COLUMNS: { key: keyof ExportRow; header: string; w: number; adminOnly?: boolean }[] = [
+	{ key: "nome", header: "Nome", w: 3 },
+	{ key: "email", header: "Email", w: 3 },
+	{ key: "gestor", header: "Gestor / Equipe", w: 2, adminOnly: true },
+	{ key: "estabelecimento", header: "Estabelecimento", w: 2 },
+	{ key: "local", header: "Cidade/UF", w: 1.5 },
+	{ key: "xp", header: "XP", w: 1 },
+	{ key: "nivel", header: "Nivel", w: 1 },
+	{ key: "certificados", header: "Certificados", w: 1.2 },
+	{ key: "cursosConcl", header: "Cursos Concl.", w: 1.3 },
+	{ key: "aulasConcl", header: "Aulas Concl.", w: 1.3 },
+	{ key: "aulasTotal", header: "Aulas Total", w: 1.3 },
+	{ key: "pctAulas", header: "% Aulas", w: 1.2 },
+	{ key: "quizzesAprov", header: "Quizzes Aprov.", w: 1.4 },
+	{ key: "quizzesTotal", header: "Quizzes Total", w: 1.4 },
+	{ key: "notaMedia", header: "Nota Media", w: 1.3 },
+	{ key: "status", header: "Status", w: 1.3 },
+];
+
+const localeCompare = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
+
 export function EquipePage({ user: _user }: EquipePageProps) {
 	const { isAdmin, isGestor } = useAbility();
 	const { toast } = useToast();
@@ -22,6 +74,8 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 	const [approving, setApproving] = useState<string | null>(null);
 	const [expandedModulo, setExpandedModulo] = useState<Record<string, boolean>>({});
 	const [expandedAula, setExpandedAula] = useState<Record<string, boolean>>({});
+	const [sortBy, setSortBy] = useState<SortKey>("nome");
+	const [exporting, setExporting] = useState<null | "csv" | "pdf">(null);
 
 	const loadEquipe = useCallback(async () => {
 		try {
@@ -103,6 +157,211 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 			setApproving(null);
 		}
 	};
+
+	const computeStat = useCallback((detail: any): MemberStat => {
+		const cursos = detail?.cursos || [];
+		const aulasTotal = cursos.reduce((s: number, c: any) => s + (c.totalAulas || 0), 0);
+		const aulasConcl = cursos.reduce((s: number, c: any) => s + (c.aulasConcluidas || 0), 0);
+		const cursosConcl = cursos.filter((c: any) => c.totalAulas > 0 && c.aulasConcluidas === c.totalAulas).length;
+		const quizzesTotal = cursos.reduce((s: number, c: any) => s + (c.quizzesTotal || 0), 0);
+		const quizzesAprov = cursos.reduce((s: number, c: any) => s + (c.quizzesAprovados || 0), 0);
+		let soma = 0;
+		let count = 0;
+		cursos.forEach((c: any) =>
+			(c.aulas || []).forEach((a: any) => {
+				if (a.quizResultado && typeof a.quizResultado.nota === "number") {
+					soma += a.quizResultado.nota;
+					count += 1;
+				}
+			}),
+		);
+		const pctAulas = aulasTotal > 0 ? Math.round((aulasConcl / aulasTotal) * 100) : 0;
+		return {
+			cursosConcl,
+			aulasConcl,
+			aulasTotal,
+			pctAulas,
+			quizzesAprov,
+			quizzesTotal,
+			notaMedia: count > 0 ? (soma / count).toFixed(1) : "-",
+		};
+	}, []);
+
+	const sortMembers = useCallback(
+		(arr: any[]) =>
+			[...arr].sort((a: any, b: any) => {
+				if (sortBy === "estabelecimento") {
+					const ea = a.estabelecimento?.nome || "";
+					const eb = b.estabelecimento?.nome || "";
+					if (ea !== eb) return localeCompare(ea, eb);
+					return localeCompare(a.nome || "", b.nome || "");
+				}
+				return localeCompare(a.nome || "", b.nome || "");
+			}),
+		[sortBy],
+	);
+
+	const allExportRows = useMemo<ExportRow[]>(() => {
+		const rows: ExportRow[] = [];
+		const pushMember = (m: any, gestor: string) => {
+			const detail = detailData.find((d: any) => d.id === m.id);
+			const st = computeStat(detail);
+			const memberXp = m.xp || 0;
+			const level = Math.floor(memberXp / XP_PER_LEVEL) + 1;
+			rows.push({
+				nome: m.nome || "",
+				email: m.email || "",
+				gestor,
+				estabelecimento: m.estabelecimento?.nome || "-",
+				local: [m.estabelecimento?.cidade, m.estabelecimento?.uf].filter(Boolean).join("/") || "-",
+				xp: memberXp,
+				nivel: level,
+				certificados: m.certCount || 0,
+				cursosConcl: st.cursosConcl,
+				aulasConcl: st.aulasConcl,
+				aulasTotal: st.aulasTotal,
+				pctAulas: `${st.pctAulas}%`,
+				quizzesAprov: st.quizzesAprov,
+				quizzesTotal: st.quizzesTotal,
+				notaMedia: st.notaMedia,
+				status: m.ativo !== false ? "Ativo" : "Inativo",
+			});
+		};
+		if (isGestor) {
+			const members = Array.isArray(teamData) ? teamData : [];
+			members.forEach((m: any) => pushMember(m, "-"));
+		} else {
+			const teams = Array.isArray(teamData) ? teamData : [];
+			teams.forEach((t: any) => {
+				const gestor = t.gestor?.nome || "Sem gestor";
+				(t.membros || []).forEach((m: any) => pushMember(m, gestor));
+			});
+		}
+		return sortMembers(rows);
+	}, [teamData, detailData, computeStat, isGestor, sortMembers]);
+
+	const summary = useMemo(() => {
+		const total = allExportRows.length;
+		const concluidos = allExportRows.filter((r) => r.status === "Ativo" && Number(r.pctAulas.replace("%", "")) === 100).length;
+		const certificados = allExportRows.reduce((s, r) => s + Number(r.certificados || 0), 0);
+		const pctSoma = allExportRows.reduce((s, r) => s + Number(r.pctAulas.replace("%", "")), 0);
+		const avgProgress = total > 0 ? Math.round(pctSoma / total) : 0;
+		return { total, concluidos, certificados, avgProgress };
+	}, [allExportRows]);
+
+	const exportCsv = useCallback(() => {
+		try {
+			setExporting("csv");
+			const cols = EXPORT_COLUMNS.filter((c) => !c.adminOnly || isAdmin);
+			const headers = cols.map((c) => c.header);
+			const escape = (v: any) => {
+				const s = String(v ?? "");
+				return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+			};
+			const lines = [
+				headers.join(";"),
+				...allExportRows.map((r) => cols.map((c) => escape(r[c.key])).join(";")),
+			];
+			const csv = "﻿" + lines.join("\n");
+			const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+			const url = URL.createObjectURL(blob);
+			const a = document.createElement("a");
+			a.href = url;
+			a.download = `equipe-${new Date().toISOString().slice(0, 10)}.csv`;
+			a.click();
+			URL.revokeObjectURL(url);
+			toast("CSV exportado com sucesso!", "success");
+		} catch (err) {
+			toast("Erro ao exportar CSV", "error");
+		} finally {
+			setExporting(null);
+		}
+	}, [allExportRows, isAdmin, toast]);
+
+	const exportPdf = useCallback(async () => {
+		try {
+			setExporting("pdf");
+			const jsPDF = (await import("jspdf")).default;
+			const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+			const pageW = doc.internal.pageSize.getWidth();
+			const pageH = doc.internal.pageSize.getHeight();
+			const margin = 8;
+			const pad = 1.5;
+			const lineH = 4;
+
+			const cols = EXPORT_COLUMNS.filter((c) => !c.adminOnly || isAdmin);
+			const headers = cols.map((c) => c.header);
+			const weights = cols.map((c) => c.w);
+			const totalWeight = weights.reduce((a, b) => a + b, 0);
+			const avail = pageW - margin * 2;
+			const colW = weights.map((w) => Math.max(12, (w / totalWeight) * avail));
+
+			doc.setFontSize(11);
+			doc.setFont("helvetica", "bold");
+			doc.text(isGestor ? "Relatorio da Equipe" : "Relatorio de Equipes", margin, margin);
+			doc.setFontSize(8);
+			doc.setFont("helvetica", "normal");
+			doc.setTextColor(90, 90, 90);
+			doc.text(
+				`Gerado em ${new Date().toLocaleString("pt-BR")} • ${allExportRows.length} atendente(s)`,
+				margin,
+				margin + 5,
+			);
+			doc.setTextColor(30, 30, 30);
+
+			let y = margin + 12;
+
+			const drawHeader = () => {
+				doc.setFont("helvetica", "bold");
+				doc.setFontSize(7);
+				doc.setFillColor(20, 30, 50);
+				doc.setTextColor(255, 255, 255);
+				const headerLines = headers.map((h, i) => doc.splitTextToSize(h, colW[i] - pad * 2));
+				const hH = Math.max(...headerLines.map((t) => t.length)) * lineH + pad * 2;
+				doc.rect(margin, y, colW.reduce((a, b) => a + b, 0), hH, "F");
+				let x = margin;
+				headerLines.forEach((lines, i) => {
+					lines.forEach((ln: string, li: number) => doc.text(ln, x + pad, y + pad + li * lineH + 3));
+					x += colW[i];
+				});
+				y += hH;
+			};
+
+			drawHeader();
+
+			allExportRows.forEach((row, ri) => {
+				const cellLines = headers.map((_h, i) =>
+					doc.splitTextToSize(String(row[cols[i].key] ?? ""), colW[i] - pad * 2),
+				);
+				const rowH = Math.max(...cellLines.map((t) => t.length)) * lineH + pad * 2;
+				if (y + rowH > pageH - margin) {
+					doc.addPage();
+					y = margin;
+					drawHeader();
+				}
+				if (ri % 2 === 1) {
+					doc.setFillColor(245, 245, 245);
+					doc.rect(margin, y, colW.reduce((a, b) => a + b, 0), rowH, "F");
+				}
+				doc.setFont("helvetica", "normal");
+				doc.setFontSize(7);
+				doc.setTextColor(30, 30, 30);
+				let x = margin;
+				cellLines.forEach((lines, i) => {
+					lines.forEach((ln: string, li: number) => doc.text(ln, x + pad, y + pad + li * lineH + 3));
+					x += colW[i];
+				});
+				y += rowH;
+			});
+
+			doc.save(`equipe-${new Date().toISOString().slice(0, 10)}.pdf`);
+			toast("PDF exportado com sucesso!", "success");
+		} catch (err) {
+			toast("Erro ao exportar PDF", "error");
+		} finally {
+			setExporting(null);
+		}
+	}, [allExportRows, isAdmin, isGestor, toast]);
 
 	if (loading) {
 		return (
@@ -212,7 +471,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 											<div className="eq-audit-actions">
 												{mod.autoProcessStatus.certExpected && !mod.autoProcessStatus.certGenerated && (
 													<button
-														className="btn-secondary eq-audit-fix-btn"
+									className="btn-secondary eq-audit-fix-btn"
 														disabled={approving === `fix-cert-${mod.id}`}
 														onClick={() => handleFixCert(memberId, mod.id, mod.titulo)}
 													>
@@ -409,6 +668,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 			detail?.cursos?.filter((m: any) => m.aulasConcluidas === m.totalAulas && m.totalAulas > 0).length || 0;
 		const totalQuizzes = detail?.cursos?.reduce((sum: number, m: any) => sum + (m.quizzesTotal || 0), 0) || 0;
 		const passedQuizzes = detail?.cursos?.reduce((sum: number, m: any) => sum + (m.quizzesAprovados || 0), 0) || 0;
+		const stat = computeStat(detail);
 
 		return (
 			<div key={member.id || i} className={`eq-user-card ${isExpanded ? "expanded" : ""}`}>
@@ -463,6 +723,11 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 										</span>
 									</div>
 								)}
+								<div className="eq-user-stat">
+									<span className="eq-note-badge" title="Nota media dos quizzes">
+										⌀ {stat.notaMedia}
+									</span>
+								</div>
 							</>
 						)}
 						<span className={`status-pill ${(member.certCount || 0) > 0 ? "pill-green" : "pill-gray"}`}>
@@ -486,8 +751,59 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 		);
 	};
 
+	const renderToolbar = () => (
+		<div className="eq-toolbar">
+			<div className="eq-toolbar-group">
+				<span className="eq-toolbar-label">Ordenar por:</span>
+				<button
+					className={`eq-sort-btn ${sortBy === "nome" ? "active" : ""}`}
+					onClick={() => setSortBy("nome")}
+				>
+					<i className="icon-sort-alpha icon-xs" /> Nome
+				</button>
+				<button
+					className={`eq-sort-btn ${sortBy === "estabelecimento" ? "active" : ""}`}
+					onClick={() => setSortBy("estabelecimento")}
+				>
+					<i className="icon-building icon-xs" /> Estabelecimento
+				</button>
+			</div>
+			<div className="eq-toolbar-group">
+				<button className="eq-export-btn" disabled={exporting !== null} onClick={exportCsv}>
+					{exporting === "csv" ? <i className="icon-loader icon-xs" /> : <i className="icon-download icon-xs" />}
+					CSV
+				</button>
+				<button className="eq-export-btn" disabled={exporting !== null} onClick={exportPdf}>
+					{exporting === "pdf" ? <i className="icon-loader icon-xs" /> : <i className="icon-file-text icon-xs" />}
+					PDF
+				</button>
+			</div>
+		</div>
+	);
+
+	const renderSummary = () => (
+		<div className="eq-summary">
+			<div className="eq-summary-card">
+				<span className="eq-summary-value">{summary.total}</span>
+				<span className="eq-summary-label">Atendentes</span>
+			</div>
+			<div className="eq-summary-card">
+				<span className="eq-summary-value">{summary.avgProgress}%</span>
+				<span className="eq-summary-label">Progresso medio</span>
+			</div>
+			<div className="eq-summary-card">
+				<span className="eq-summary-value">{summary.concluidos}</span>
+				<span className="eq-summary-label">100% concluido</span>
+			</div>
+			<div className="eq-summary-card">
+				<span className="eq-summary-value">{summary.certificados}</span>
+				<span className="eq-summary-label">Certificados</span>
+			</div>
+		</div>
+	);
+
 	if (isGestor) {
-		const members = Array.isArray(teamData) ? teamData : [];
+		const members = sortMembers(Array.isArray(teamData) ? teamData : []);
 		return (
 			<div className="page active">
 				<div className="page-header">
@@ -496,6 +812,8 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 						<div className="page-subtitle">{members.length} atendente(s) atribuido(s)</div>
 					</div>
 				</div>
+				{renderSummary()}
+				{renderToolbar()}
 				{members.length > 0 ? (
 					<div className="eq-users-list">{members.map(renderAtendenteRow)}</div>
 				) : (
@@ -509,6 +827,9 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 	}
 
 	const teams = Array.isArray(teamData) ? teamData : [];
+	const sortedTeams = [...teams].sort((a: any, b: any) =>
+		localeCompare(a.gestor?.nome || "", b.gestor?.nome || ""),
+	);
 	const totalMembros = teams.reduce((sum: number, t: any) => sum + (t.totalMembros || 0), 0);
 
 	return (
@@ -521,6 +842,8 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 					</div>
 				</div>
 			</div>
+			{renderSummary()}
+			{renderToolbar()}
 
 			{teams.length === 0 ? (
 				<div className="empty-state">
@@ -528,34 +851,37 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 					<p>Nenhuma equipe criada ainda.</p>
 				</div>
 			) : (
-				teams.map((team: any, idx: number) => (
-					<div key={team.gestor?.id || idx} className="eq-team-section">
-						{team.gestor && (
-							<div className="eq-team-header">
-								<div
-									className="user-avatar eq-team-avatar"
-									style={{ background: PERSONAS.GESTOR?.color || "var(--pg-gold)" }}
-								>
-									{team.gestor.nome
-										?.split(" ")
-										.map((n: string) => n[0])
-										.slice(0, 2)
-										.join("") || "?"}
+				sortedTeams.map((team: any, idx: number) => {
+					const membros = sortMembers(team.membros || []);
+					return (
+						<div key={team.gestor?.id || idx} className="eq-team-section">
+							{team.gestor && (
+								<div className="eq-team-header">
+									<div
+										className="user-avatar eq-team-avatar"
+										style={{ background: PERSONAS.GESTOR?.color || "var(--pg-gold)" }}
+									>
+										{team.gestor.nome
+											?.split(" ")
+											.map((n: string) => n[0])
+											.slice(0, 2)
+											.join("") || "?"}
+									</div>
+									<div className="eq-team-info">
+										<div className="eq-team-name">{team.gestor.nome}</div>
+										<div className="eq-team-email">{team.gestor.email}</div>
+									</div>
+									<span className="eq-team-count">{membros.length} atendente(s)</span>
 								</div>
-								<div className="eq-team-info">
-									<div className="eq-team-name">{team.gestor.nome}</div>
-									<div className="eq-team-email">{team.gestor.email}</div>
-								</div>
-								<span className="eq-team-count">{team.totalMembros} atendente(s)</span>
-							</div>
-						)}
-						{team.membros?.length > 0 ? (
-							<div className="eq-users-list">{team.membros.map(renderAtendenteRow)}</div>
-						) : (
-							<div className="eq-team-empty">Nenhum atendente nesta equipe</div>
-						)}
-					</div>
-				))
+							)}
+							{membros.length > 0 ? (
+								<div className="eq-users-list">{membros.map(renderAtendenteRow)}</div>
+							) : (
+								<div className="eq-team-empty">Nenhum atendente nesta equipe</div>
+							)}
+						</div>
+					);
+				})
 			)}
 		</div>
 	);

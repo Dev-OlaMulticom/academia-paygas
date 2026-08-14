@@ -4083,6 +4083,122 @@ a {
 	text-align: center;
 }
 
+/* EQUIPE - TOOLBAR */
+.eq-toolbar {
+	display: flex;
+	flex-wrap: wrap;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+	margin: 16px 0 12px;
+	padding: 10px 12px;
+	border-radius: var(--radius);
+	background: var(--gray-50);
+	border: 1px solid var(--gray-200);
+}
+.eq-toolbar-group {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	flex-wrap: wrap;
+}
+.eq-toolbar-label {
+	font-size: 12px;
+	font-weight: 600;
+	color: var(--gray-600);
+}
+.eq-sort-btn,
+.eq-export-btn {
+	display: inline-flex;
+	align-items: center;
+	gap: 6px;
+	padding: 7px 12px;
+	border-radius: var(--radius-sm);
+	border: 1px solid var(--gray-300);
+	background: #fff;
+	color: var(--gray-700);
+	font-size: 13px;
+	font-weight: 600;
+	cursor: pointer;
+	transition: all 0.15s;
+}
+.eq-sort-btn:hover,
+.eq-export-btn:hover {
+	border-color: var(--pg-blue);
+	color: var(--pg-blue);
+}
+.eq-sort-btn.active {
+	background: var(--pg-blue);
+	border-color: var(--pg-blue);
+	color: #fff;
+}
+.eq-export-btn {
+	background: var(--pg-green);
+	border-color: var(--pg-green);
+	color: #fff;
+}
+.eq-export-btn:hover {
+	filter: brightness(1.05);
+	color: #fff;
+}
+.eq-export-btn:disabled {
+	opacity: 0.6;
+	cursor: default;
+}
+
+/* EQUIPE - SUMMARY */
+.eq-summary {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 12px;
+	margin: 16px 0 4px;
+}
+.eq-summary-card {
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 12px 16px;
+	border-radius: var(--radius);
+	background: #fff;
+	border: 1px solid var(--gray-200);
+}
+.eq-summary-value {
+	font-size: 22px;
+	font-weight: 800;
+	color: var(--pg-blue);
+	line-height: 1.1;
+}
+.eq-summary-label {
+	font-size: 12px;
+	color: var(--gray-600);
+	font-weight: 600;
+}
+
+.eq-note-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 2px;
+	padding: 2px 8px;
+	border-radius: 12px;
+	font-size: 11px;
+	font-weight: 600;
+	background: #ede7f6;
+	color: #5e35b1;
+}
+
+@media (max-width: 800px) {
+	.eq-summary {
+		grid-template-columns: repeat(2, 1fr);
+	}
+	.eq-toolbar {
+		flex-direction: column;
+		align-items: stretch;
+	}
+	.eq-toolbar-group {
+		justify-content: space-between;
+	}
+}
+
 /* EQUIPE - USERS LIST */
 .eq-users-list {
 	display: flex;
