@@ -76,6 +76,29 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 	const [expandedAula, setExpandedAula] = useState<Record<string, boolean>>({});
 	const [sortBy, setSortBy] = useState<SortKey>("nome");
 	const [exporting, setExporting] = useState<null | "csv" | "pdf">(null);
+	const [search, setSearch] = useState("");
+
+	const matchSearch = useCallback((m: any, q: string) => {
+		if (!q) return true;
+		const term = q.toLowerCase();
+		return (
+			(m.nome || "").toLowerCase().includes(term) ||
+			(m.email || "").toLowerCase().includes(term) ||
+			(m.estabelecimento?.nome || "").toLowerCase().includes(term) ||
+			`${m.estabelecimento?.cidade || ""} ${m.estabelecimento?.uf || ""}`.toLowerCase().includes(term)
+		);
+	}, []);
+
+	const teamMatchesSearch = useCallback(
+		(team: any, q: string) => {
+			if (!q) return true;
+			const term = q.toLowerCase();
+			if ((team.gestor?.nome || "").toLowerCase().includes(term)) return true;
+			if ((team.gestor?.email || "").toLowerCase().includes(term)) return true;
+			return (team.membros || []).some((m: any) => matchSearch(m, q));
+		},
+		[matchSearch],
+	);
 
 	const loadEquipe = useCallback(async () => {
 		try {
@@ -756,6 +779,21 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 
 	const renderToolbar = () => (
 		<div className="eq-toolbar">
+			<div className="eq-toolbar-group eq-toolbar-search">
+				<i className="icon-search icon-sm" />
+				<input
+					className="eq-search-input"
+					type="text"
+					placeholder="Buscar por nome, e-mail ou estabelecimento..."
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+				/>
+				{search && (
+					<button className="eq-search-clear" onClick={() => setSearch("")} title="Limpar">
+						<i className="icon-x icon-xs" />
+					</button>
+				)}
+			</div>
 			<div className="eq-toolbar-group">
 				<span className="eq-toolbar-label">Ordenar por:</span>
 				<button
@@ -808,7 +846,9 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 	);
 
 	if (isGestor) {
-		const members = sortMembers(Array.isArray(teamData) ? teamData : []);
+		const members = sortMembers(
+			(Array.isArray(teamData) ? teamData : []).filter((m: any) => matchSearch(m, search)),
+		);
 		return (
 			<div className="page active">
 				<div className="page-header">
@@ -856,8 +896,10 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 					<p>Nenhuma equipe criada ainda.</p>
 				</div>
 			) : (
-				sortedTeams.map((team: any, idx: number) => {
-					const membros = sortMembers(team.membros || []);
+				sortedTeams
+					.filter((team: any) => teamMatchesSearch(team, search))
+					.map((team: any, idx: number) => {
+					const membros = sortMembers((team.membros || []).filter((m: any) => matchSearch(m, search)));
 					const gestorNome = team.gestor?.nome || "sem-gestor";
 					const fileSuffix = `-${gestorNome
 						.normalize("NFD")

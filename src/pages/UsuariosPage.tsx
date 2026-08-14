@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ActionMenu } from "../components/ActionMenu";
 import { AppSelect } from "../components/AppSelect";
 import { PasswordInput } from "../components/PasswordInput";
@@ -26,7 +26,25 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 	const [equipeDetalhe, setEquipeDetalhe] = useState<any[]>([]);
 	const [expandedUser, setExpandedUser] = useState<string | null>(null);
 	const [expandedRow, setExpandedRow] = useState<string | null>(null);
-	const { page, setPage, paginatedItems: paginatedUsuarios, totalItems } = useClientPagination(usuarios, 10);
+	const [search, setSearch] = useState("");
+	const filteredUsuarios = useMemo(() => {
+		const q = search.trim().toLowerCase();
+		if (!q) return usuarios;
+		return usuarios.filter((u: any) => {
+			const gestor =
+				u.role === "ATENDENTE"
+					? u.gestorNome || gestores.find((g: any) => g.id === u.gestorId)?.nome || ""
+					: "";
+			return (
+				(u.nome || "").toLowerCase().includes(q) ||
+				(u.email || "").toLowerCase().includes(q) ||
+				(u.estabelecimento?.nome || "").toLowerCase().includes(q) ||
+				gestor.toLowerCase().includes(q) ||
+				(PERSONAS[u.role as keyof typeof PERSONAS]?.label || "").toLowerCase().includes(q)
+			);
+		});
+	}, [usuarios, search, gestores]);
+	const { page, setPage, paginatedItems: paginatedUsuarios, totalItems } = useClientPagination(filteredUsuarios, 10);
 
 	const canValidate = isAdmin || isGestor;
 
@@ -214,6 +232,21 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 					<div className="stat-card-val">{usuarios.filter((u) => !u.emailVerificado).length}</div>
 					<div className="stat-card-label">Pendente Verificacao</div>
 				</div>
+			</div>
+			<div className="user-search-bar">
+				<i className="icon-search icon-sm" />
+				<input
+					className="user-search-input"
+					type="text"
+					placeholder="Buscar usuario por nome, e-mail, estabelecimento ou perfil..."
+					value={search}
+					onChange={(e) => setSearch(e.target.value)}
+				/>
+				{search && (
+					<button className="user-search-clear" onClick={() => setSearch("")} title="Limpar">
+						<i className="icon-x icon-xs" />
+					</button>
+				)}
 			</div>
 			<div className="table-wrap">
 				<table>
@@ -406,10 +439,21 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 				<TablePagination page={page} totalItems={totalItems} itemsPerPage={10} onPageChange={setPage} />
 			</div>
 
-			{isGestor && equipeDetalhe.length > 0 && (
+			{isGestor && equipeDetalhe.length > 0 && (() => {
+				const q = search.trim().toLowerCase();
+				const membrosFiltrados = q
+					? equipeDetalhe.filter(
+							(m: any) =>
+								(m.nome || "").toLowerCase().includes(q) ||
+								(m.email || "").toLowerCase().includes(q) ||
+								(m.estabelecimento?.nome || "").toLowerCase().includes(q),
+						)
+					: equipeDetalhe;
+				if (membrosFiltrados.length === 0) return null;
+				return (
 				<div className="user-equipe-section">
 					<div className="section-title user-equipe-title">Progresso Detalhado da Equipe</div>
-					{equipeDetalhe.map((member) => (
+					{membrosFiltrados.map((member) => (
 						<div key={member.id} className="user-equipe-card">
 							<div
 								className="user-equipe-header"
@@ -496,7 +540,8 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 						</div>
 					))}
 				</div>
-			)}
+				);
+			})()}
 
 			{showCreateModal && (
 				<div className="modal-overlay">
