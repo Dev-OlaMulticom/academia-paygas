@@ -91,7 +91,10 @@ export function getLatencyStats(): Record<string, LatencyStat> {
 
 /**
  * Mede latencia de uma base. Retorna status + latencia em ms (ou null se offline).
+ * Timeout de 5s evita que um host IPv6 inalcançável bloqueie o startup.
  */
+const HEALTH_CHECK_TIMEOUT = 5000;
+
 async function checkDatabase(
 	name: string,
 ): Promise<{ status: "connected" | "degraded" | "disconnected"; ms: number | null }> {
@@ -99,7 +102,14 @@ async function checkDatabase(
 	if (!client) return { status: "disconnected", ms: null };
 	try {
 		const start = Date.now();
-		await client.$queryRaw`SELECT 1`;
+		// Race the query against a timeout — ENETUNREACH can take 30s+ on
+		// some systems before the OS gives up, which blocks server startup.
+		await Promise.race([
+			client.$queryRaw`SELECT 1`,
+			new Promise((_, reject) =>
+				setTimeout(() => reject(new Error("health check timeout")), HEALTH_CHECK_TIMEOUT),
+			),
+		]);
 		const ms = Date.now() - start;
 		if (ms > MAX_LATENCY_OK) return { status: "degraded", ms };
 		return { status: "connected", ms };
@@ -138,6 +148,12 @@ async function runHealthChecks(): Promise<void> {
 			primaryChanged = true;
 		} else if (prevStatus === "unknown") {
 			logger.info(`[DB-HEALTH] ${entry.name}: ${newStatus}${ms !== null ? ` (${ms}ms)` : ""}`);
+			// First check: invalidate cache if the initial primary candidate is
+			// confirmed down so writes/read-primary route to a healthy backup
+			// instead of a dead connection from cold-start.
+			if (newStatus === "disconnected") {
+				primaryChanged = true;
+			}
 		}
 	}
 
@@ -202,18 +218,23 @@ function scheduleNext(): void {
 let healthTimeout: ReturnType<typeof setTimeout> | null = null;
 
 /**
- * Inicia o monitor de saude. Primeiro check apos 5s, depois schedule adaptativo.
+ * Inicia o monitor de saude. Primeiro check imediato (sincrono, antes de
+ * aceitar tráfego) para classificar as bases desde o cold-start, depois
+ * schedule adaptativo.
  */
 export function startHealthChecks(): void {
 	if (healthTimeout) {
 		logger.info("[DB-HEALTH] Ja rodando");
 		return;
 	}
-	logger.info("[DB-HEALTH] Iniciando monitor de bases");
+	logger.info("[DB-HEALTH] Iniciando monitor de bases (check inicial imediato)");
+	// Run first check immediately so the delegate cache is populated with
+	// real health status before any request arrives. This prevents cold-start
+	// requests from hitting a dead primary that is still "unknown".
 	healthTimeout = setTimeout(async () => {
 		await runHealthChecks();
 		scheduleNext();
-	}, 5000);
+	}, 0);
 }
 
 /**
