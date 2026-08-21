@@ -9,12 +9,52 @@ require("dotenv/config");
 const client_1 = require("@prisma/client");
 const adapter_pg_1 = require("@prisma/adapter-pg");
 const bcryptjs_1 = __importDefault(require("bcryptjs"));
-const adapter = new adapter_pg_1.PrismaPg({
-  connectionString: process.env.PG_URL_1 || process.env.DATABASE_URL,
-});
-const prisma = new client_1.PrismaClient({ adapter });
+
+// Collect candidate URLs in priority order (PG_URL_1..9, then DATABASE_URL)
+function getCandidateUrls() {
+  const urls = [];
+  for (let i = 1; i <= 9; i++) {
+    const u = process.env["PG_URL_" + i];
+    if (u) urls.push(u);
+  }
+  if (process.env.DATABASE_URL && !urls.includes(process.env.DATABASE_URL)) {
+    urls.push(process.env.DATABASE_URL);
+  }
+  return urls;
+}
+
+async function createConnectedPrisma() {
+  const urls = getCandidateUrls();
+  if (urls.length === 0) throw new Error("No database URLs configured");
+  let lastError;
+  for (const url of urls) {
+    const masked = url.replace(/:[^:@]+@/, ":***@");
+    const adapter = new adapter_pg_1.PrismaPg({
+      connectionString: url,
+      ssl: { rejectUnauthorized: false },
+    });
+    const client = new client_1.PrismaClient({ adapter });
+    try {
+      await Promise.race([
+        client.$queryRaw`SELECT 1`,
+        new Promise((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000)),
+      ]);
+      console.log("   ✅ Conectado a:", masked);
+      return client;
+    } catch (e) {
+      console.log("   ⚠️  No reachable:", masked);
+      await client.$disconnect().catch(() => {});
+      lastError = e;
+    }
+  }
+  throw lastError || new Error("All database URLs failed");
+}
+
+let prisma;
 async function main() {
   console.log("🌱 Seeding database...");
+  console.log("   Probando conexiones a bases de datos...");
+  prisma = await createConnectedPrisma();
   const defaultPassword = await bcryptjs_1.default.hash("123456", 10);
   // ============ USERS ============
   const admin = await prisma.user.upsert({
@@ -730,5 +770,5 @@ main()
     console.error(e);
     process.exit(1);
   })
-  .finally(() => prisma.$disconnect());
+  .finally(() => prisma && prisma.$disconnect());
 //# sourceMappingURL=seed.js.map

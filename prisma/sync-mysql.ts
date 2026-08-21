@@ -3,12 +3,10 @@
  * Run with: tsx prisma/sync-mysql.ts
  */
 import "dotenv/config";
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "../prisma/generated/mysql";
+import { PrismaClient } from "@prisma/client";
+import { createConnectedPrismaClient } from "./db-connect";
 
-const pgClient = new PrismaClient({
-	adapter: new PrismaPg({ connectionString: process.env.PG_URL_1 || process.env.DATABASE_URL }),
-});
+let pgClient: PrismaClient;
 
 const mysqlClient = new PrismaClient({
 	adapter: (() => {
@@ -127,15 +125,13 @@ async function syncTable(table: (typeof TABLES)[0]) {
 async function main() {
 	console.log("=== PostgreSQL → MySQL Sync ===\n");
 
-	// Test connections
-	try {
-		await pgClient.$queryRaw`SELECT 1`;
-		console.log("PG connection: OK");
-	} catch (error: any) {
-		console.error("PG connection FAILED:", error.message);
-		process.exit(1);
-	}
+	// Connect to PG with failover across all configured URLs
+	console.log("Connecting to PostgreSQL...");
+	const { prisma: pg } = await createConnectedPrismaClient();
+	pgClient = pg;
+	console.log("PG connection: OK");
 
+	// Test MySQL connection
 	try {
 		await mysqlClient.$queryRaw`SELECT 1`;
 		console.log("MySQL connection: OK");

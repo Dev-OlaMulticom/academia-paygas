@@ -1,22 +1,22 @@
 import "dotenv/config";
-import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
-
-const adapter = new PrismaPg({
-	connectionString: process.env.PG_URL_1 || process.env.DATABASE_URL,
-	ssl: { rejectUnauthorized: false },
-});
-const prisma = new PrismaClient({ adapter });
+import { createConnectedPrismaClient } from "./db-connect";
 
 const ADMIN_EMAIL = "admin@paygas.com.br";
 const ADMIN_PASSWORD = "123456";
+
+let prisma: PrismaClient;
 
 async function main() {
 	console.log("🔍 Diagnosticando usuario admin...");
 	console.log(
 		`   DATABASE_URL: ${process.env.DATABASE_URL ? `definida (${process.env.DATABASE_URL.substring(0, 30)}...)` : "NO DEFINIDA"}`,
 	);
+	console.log("   Probando conexiones a bases de datos...");
+
+	const { prisma: client } = await createConnectedPrismaClient();
+	prisma = client;
 	console.log("");
 
 	const user = await prisma.user.findUnique({
@@ -85,4 +85,4 @@ main()
 		console.error("❌ Error:", e);
 		process.exit(1);
 	})
-	.finally(() => prisma.$disconnect());
+	.finally(() => prisma?.$disconnect());

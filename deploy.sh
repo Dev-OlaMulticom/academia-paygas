@@ -467,6 +467,34 @@ echo ""
 # ─── 7. Prisma: generate + migrate ───────────────────────
 echo "=== [7/10] Configurando base de datos ==="
 
+# Select the first reachable PostgreSQL URL for prisma migrate/db push.
+# prisma CLI commands use DATABASE_URL, so we override it if the primary
+# is unreachable (e.g. Supabase IPv6-only from a server without IPv6).
+REACHABLE_DB_URL=""
+for url in "$PG_URL_1" "$PG_URL_2" "$PG_URL_3" "$DATABASE_URL"; do
+    [ -z "$url" ] && continue
+    # Skip if already found
+    [ -n "$REACHABLE_DB_URL" ] && continue
+    # Quick TCP reachability check (5s timeout)
+    DB_HOST=$(echo "$url" | sed -n 's|.*@\([^:]*\):.*|\1|p')
+    DB_PORT=$(echo "$url" | sed -n 's|.*:\([0-9]*\)/.*|\1|p')
+    if [ -n "$DB_HOST" ] && [ -n "$DB_PORT" ]; then
+        if timeout 5 bash -c "echo > /dev/tcp/$DB_HOST/$DB_PORT" 2>/dev/null; then
+            REACHABLE_DB_URL="$url"
+            log_ok "DB reachable: $DB_HOST:$DB_PORT"
+        else
+            log_warn "DB no reachable (skipped): $DB_HOST:$DB_PORT"
+        fi
+    fi
+done
+
+if [ -n "$REACHABLE_DB_URL" ]; then
+    export DATABASE_URL="$REACHABLE_DB_URL"
+    log_ok "DATABASE_URL set to reachable DB for prisma commands"
+else
+    log_warn "No se pudo determinar DB reachable — usando DATABASE_URL del .env"
+fi
+
 # Generate PG client
 if npx prisma generate 2>&1; then
     log_ok "Prisma client (PostgreSQL) generado"

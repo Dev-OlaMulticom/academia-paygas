@@ -1,16 +1,15 @@
 import "dotenv/config";
-import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { createConnectedPrismaClient } from "./db-connect";
 
-const adapter = new PrismaPg({
-	connectionString: process.env.PG_URL_1 || process.env.DATABASE_URL,
-	ssl: { rejectUnauthorized: false },
-});
-const prisma = new PrismaClient({ adapter });
+let prisma: PrismaClient;
 
 async function main() {
 	console.log("🌱 Seeding database...");
+	console.log("   Probando conexiones a bases de datos...");
+	const { prisma: client } = await createConnectedPrismaClient();
+	prisma = client;
 	const defaultPassword = await bcrypt.hash("123456", 10);
 
 	// ============ USERS ============
@@ -742,4 +741,4 @@ main()
 		console.error(e);
 		process.exit(1);
 	})
-	.finally(() => prisma.$disconnect());
+	.finally(() => prisma?.$disconnect());
