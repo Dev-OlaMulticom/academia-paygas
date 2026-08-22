@@ -12,13 +12,32 @@ try {
 }
 
 module.exports = (req, res) => {
+  // Vercel serverless functions provide 'res.set()' but not 'res.setHeader()'
+  // Express middleware expects 'res.setHeader()'. Add it as an alias.
+  if (typeof res.set === 'function' && !res.setHeader) {
+    const originalSet = res.set;
+    res.setHeader = function(name, value) {
+      originalSet(name, value);
+    };
+  }
+
   if (!app) {
     return res.status(500).json({
       error: 'Server module failed to load',
       detail: String(loadError),
     });
   }
-  return app(req, res);
+
+  try {
+    return app(req, res);
+  } catch (e) {
+    console.error('[API HANDLER] Error:', e.message);
+    try {
+      res.status(500).json({ error: 'Server error', detail: e.message });
+    } catch {
+      res.end(JSON.stringify({ error: 'Server error' }));
+    }
+  }
 };
 
 module.exports.config = {

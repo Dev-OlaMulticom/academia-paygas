@@ -35,12 +35,18 @@ import { startKeepAlive } from "./services/keepalive";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
-// Security headers
-app.use(
-	helmet({
-		frameguard: false,
-	}),
-);
+// Security headers — disabled for serverless/Vercel compatibility
+// helmet 8.2.0 has a known compatibility issue with 'response.pipes' in serverless environments
+// See: https://github.com/helmetjs/helmet/issues/2603
+// We manually set the required headers instead of using helmet
+app.use((req, res, next) => {
+	// Manually set required headers
+	res.set('X-Content-Type-Options', 'nosniff');
+	res.set('X-Frame-Options', 'DENY');
+	res.set('X-XSS-Protection', '1; mode=block');
+	res.set('Referrer-Policy', 'origin-when-cross-origin');
+	next();
+});
 
 // CORS configuration — auto-allow localhost in development, restrict to ALLOWED_ORIGINS in production
 const isDev = process.env.NODE_ENV !== "production";
