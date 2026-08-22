@@ -4,7 +4,7 @@ let app;
 let loadError;
 
 try {
-  const serverPath = path.join(process.cwd(), 'dist', 'server', 'index');
+  const serverPath = path.join(process.cwd(), 'dist', 'server', 'server', 'index');
   app = require(serverPath).default;
 } catch (e) {
   loadError = e;
