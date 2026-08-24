@@ -6,6 +6,15 @@ prisma/generated/mysql
 # SSL certificates (never commit)
 server/certs/
 .ssh/
+.devin/
+.qwen/
+.opencode/
+.mimocode/
+.github/
+.taskmaster/
+.commandcode/
+.ai/
+wordpress-plugin-academia-paygas/
 
 # Database files
 *.db

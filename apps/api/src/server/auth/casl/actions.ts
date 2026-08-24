@@ -6,7 +6,7 @@
  * this single source — never inline literals — so that `KNOWN_ACTIONS` stays
  * in sync with what the rest of the app uses.
  */
-import { SHARED_ACTION_OBJECT, SHARED_ACTIONS, type SharedAction } from "../../../shared/casl/actions";
+import { SHARED_ACTION_OBJECT, SHARED_ACTIONS, type SharedAction } from "@shared/casl/actions";
 
 export const Actions = SHARED_ACTION_OBJECT;
 export type Action = SharedAction;
