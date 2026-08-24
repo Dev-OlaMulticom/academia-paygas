@@ -20,4 +20,3 @@ coverage
 Dockerfile
 docker-compose.yml
 .dockerignore
-pnpm-lock.yaml
