@@ -1,3 +1,6 @@
+packages:
+  - '.'
+
 allowBuilds:
   '@anthropic-ai/claude-code': false
   '@prisma/engines': true
