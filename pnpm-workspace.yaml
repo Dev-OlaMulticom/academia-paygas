@@ -12,3 +12,6 @@ allowBuilds:
   protobufjs: false
   tldjs: false
   tree-sitter-bash: false
+
+neverBuiltDependencies:
+  - node-pty

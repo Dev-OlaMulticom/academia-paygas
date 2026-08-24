@@ -7,7 +7,7 @@
 		"dev:client": "vite --config apps/web/vite.config.ts",
 		"dev:server": "tsx watch apps/api/src/server/index.ts",
 		"build": "npx prisma generate --schema=packages/db/prisma/schema.prisma && npx prisma generate --schema=packages/db/prisma/schema.mysql.prisma && concurrently -k -n vite,tsc \"vite build --config apps/web/vite.config.ts\" \"npx tsc --project tsconfig.server.json\"",
-		"build:server": "npx prisma generate --schema=packages/db/prisma/schema.prisma && npx prisma generate --schema=packages/db/prisma/schema.mysql.prisma && npx tsc --project tsconfig.server.json",
+		"build:server": "npx prisma generate --schema=packages/db/prisma/schema.prisma && npx prisma generate --schema=packages/db/prisma/schema.mysql.prisma && esbuild apps/api/src/server/index.ts --bundle --platform=node --format=cjs --packages=external --alias:@shared=./packages/shared/src --outfile=dist/server/index.js",
 		"build:client": "vite build --config apps/web/vite.config.ts",
 		"preview": "vite preview --config apps/web/vite.config.ts",
 		"start": "node dist/server/index.js",
@@ -136,6 +136,7 @@
 		"tsx": "^4.22.4",
 		"tw-animate-css": "1.3.3",
 		"typescript": "5.7.3",
+		"esbuild": "^0.28.0",
 		"vite": "^8.1.2"
 	},
 	"pnpm": {

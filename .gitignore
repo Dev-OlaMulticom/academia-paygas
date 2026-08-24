@@ -65,3 +65,6 @@ test-api.js
 # Cloudflare Workers local dev secrets
 .dev.vars
 .wrangler/
+
+# Generated Prisma clients (build artifacts)
+/prisma/generated/

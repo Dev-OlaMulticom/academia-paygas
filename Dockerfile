@@ -31,6 +31,7 @@ RUN corepack enable && corepack prepare pnpm@9 --activate
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
+COPY --from=builder /app/prisma/generated/mysql ./prisma/generated/mysql
 COPY --from=builder /app/package.json ./
 RUN pnpm install --frozen-lockfile --prod && pnpm prune --prod || true
 RUN chown -R app:app /app
