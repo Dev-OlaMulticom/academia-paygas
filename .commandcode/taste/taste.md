@@ -1,3 +1,0 @@
-- Prefers SSH key-based authentication sourced from the local `.ssh` directory over password-based auth. Confidence: 0.9
-- Security-conscious: scopes server access to only the specific target directory, avoiding broad root-level access. Confidence: 0.9
-- Communicates in Spanish. Confidence: 0.8
