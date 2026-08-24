@@ -13,21 +13,21 @@
 ### 1. ✅ Corrección de Configuración de Prisma 7
 - **Problema**: Schema tenía `provider = "mysql"` pero DATABASE_URL era PostgreSQL
 - **Solución**: Actualizado a `provider = "postgresql"`
-- **Ubicación**: `prisma/schema.prisma`
+- **Ubicación**: `packages/db/prisma/schema.prisma`
 
 ### 2. ✅ Actualización de Migration Lock
 - **Problema**: `migration_lock.toml` tenía `provider = "sqlite"`
 - **Solución**: Actualizado a `provider = "postgresql"`
-- **Ubicación**: `prisma/migrations/migration_lock.toml`
+- **Ubicación**: `packages/db/prisma/migrations/migration_lock.toml`
 
 ### 3. ✅ Corrección de Migraciones
 - **Problema**: Migraciones SQL fueron generadas para SQLite (usando `DATETIME` en lugar de `TIMESTAMP`)
 - **Solución**: Creada nueva migración compatibles con PostgreSQL
-- **Ubicación**: `prisma/migrations/20260616111410_init_postgresql/migration.sql`
+- **Ubicación**: `packages/db/prisma/migrations/20260616111410_init_postgresql/migration.sql`
 - **Estado**: ✅ Aplicadas exitosamente
 
 ### 4. ✅ Actualización de PrismaClient Configuration
-- **Ubicación**: `server/lib/prisma.ts`
+- **Ubicación**: `apps/api/apps/web/src/server/lib/prisma.ts`
 - **Cambio**: Removido `datasourceUrl` (deprecated en Prisma 7)
 - **Resultado**: Compatible con configuración de Prisma 7
 
@@ -108,7 +108,7 @@ VITE_API_KEY=zbbi9WIogUyxsumkKW0cxbm6FExPtKj4
 ## ⚠️ Problemas Detectados (No críticos para conexión)
 
 ### 1. TypeScript Build Errors
-- **Ubicación**: `server/routes/`
+- **Ubicación**: `apps/api/apps/web/src/server/routes/`
 - **Tipo**: Type safety issues
 - **Impacto**: ⚠️ Necesita corrección antes de deploy en producción
 - **Ejemplos**:
@@ -117,12 +117,12 @@ VITE_API_KEY=zbbi9WIogUyxsumkKW0cxbm6FExPtKj4
   - Properties `_count` faltando en queries
 
 **Archivos afectados**:
-- `server/routes/auth.ts`
-- `server/routes/cms.ts`
-- `server/routes/certificados.ts`
-- `server/routes/notificaciones.ts`
-- `server/routes/trilhas.ts`
-- `server/routes/usuarios.ts`
+- `apps/api/apps/web/src/server/routes/auth.ts`
+- `apps/api/apps/web/src/server/routes/cms.ts`
+- `apps/api/apps/web/src/server/routes/certificados.ts`
+- `apps/api/apps/web/src/server/routes/notificaciones.ts`
+- `apps/api/apps/web/src/server/routes/trilhas.ts`
+- `apps/api/apps/web/src/server/routes/usuarios.ts`
 
 ### 2. Archivos Temporales
 - `test_db.ts` (archivo de prueba)
@@ -136,7 +136,7 @@ VITE_API_KEY=zbbi9WIogUyxsumkKW0cxbm6FExPtKj4
 ## 🚀 Próximos Pasos Recomendados
 
 ### Inmediatos (Para producción)
-1. [ ] **Corregir TypeScript errors** en `server/routes/`
+1. [ ] **Corregir TypeScript errors** en `apps/api/apps/web/src/server/routes/`
    - Validar tipos de parámetros de entrada
    - Usar enum `Role` en lugar de strings
    - Agregar propiedad `_count` en queries cuando sea necesario

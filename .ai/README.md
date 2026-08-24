@@ -42,9 +42,9 @@ curl http://localhost:3001/api/health
 | **Gamification (XP/Levels)** | ✅ | [AGENTS.md #Gamification](AGENTS.md#gamification) |
 | **Email (Gmail + Resend)** | ✅ | [architecture.md #Email](architecture.md#email) |
 | **Activity Logging** | ✅ | [AGENTS.md #Activity Logs](AGENTS.md#activity-logs) |
-| **Certificates** | ✅ | `server/routes/certificates` |
-| **Forums** | ✅ | `server/routes/forum` |
-| **Analytics Dashboard** | ✅ | `server/routes/analytics` |
+| **Certificates** | ✅ | `apps/api/apps/web/src/server/routes/certificates` |
+| **Forums** | ✅ | `apps/api/apps/web/src/server/routes/forum` |
+| **Analytics Dashboard** | ✅ | `apps/api/apps/web/src/server/routes/analytics` |
 
 ---
 
@@ -109,14 +109,14 @@ academia-paygas/
 │   ├── DEPLOY-VERCEL-CLOUDFLARE.md ← Production deployment (Vercel + Cloudflare)
 │   └── SECURITY_CHANGES.md ← Security fixes & history
 │
-├── src/                    ← Frontend (React)
+├── apps/web/src/                    ← Frontend (React)
 │   ├── components/         ← React components + shadcn/ui
 │   ├── pages/              ← Page components
 │   ├── hooks/              ← Custom hooks
 │   ├── lib/                ← Frontend utilities
 │   └── main.tsx            ← Entry point
 │
-├── server/                 ← Backend (Express)
+├── apps/api/apps/web/src/server/                 ← Backend (Express)
 │   ├── routes/             ← API routes
 │   ├── middleware/         ← Auth, encryption, logging
 │   ├── services/           ← Business logic
@@ -124,10 +124,10 @@ academia-paygas/
 │   ├── auth/               ← CASL permissions
 │   └── index.ts            ← Entry point
 │
-├── shared/                 ← Shared code (frontend + backend)
+├── packages/shared/src/shared/                 ← Shared code (frontend + backend)
 │   └── casl/               ← CASL action definitions
 │
-├── prisma/                 ← Database schema
+├── packages/db/prisma/                 ← Database schema
 │   ├── schema.prisma       ← PostgreSQL schema
 │   ├── schema.mysql.prisma ← MySQL schema
 │   ├── migrations/         ← Migration files
@@ -141,7 +141,7 @@ academia-paygas/
 
 ## Important Gotchas
 
-1. **DB access:** NEVER call `prisma.*` directly in routes. Use `server/lib/db.ts` (DAL).
+1. **DB access:** NEVER call `prisma.*` directly in routes. Use `apps/api/apps/web/src/server/lib/db.ts` (DAL).
 2. **Naming:** DB table is `Curso` but frontend calls it "Curso" — cosmetic only.
 3. **Dev mode:** No database failover in dev (only production). Enable with `DB_INFRA_DEV=1`.
 4. **TypeScript config:** `tsconfig.server.json` uses `outDir: "./dist"` (not `./dist/server`) — do NOT change this.
@@ -165,6 +165,6 @@ When you update files in `.ai/`, all agents automatically reference the latest v
 
 - **Architecture deep dive:** See [architecture.md](architecture.md)
 - **Security issues:** See [SECURITY_CHANGES.md](SECURITY_CHANGES.md)
-- **API endpoints:** See `server/routes/` folder
-- **UI components:** See `src/components/ui/` (shadcn/ui)
+- **API endpoints:** See `apps/api/apps/web/src/server/routes/` folder
+- **UI components:** See `apps/web/src/components/ui/` (shadcn/ui)
 - **Design tokens:** See [DESIGN.md](DESIGN.md)

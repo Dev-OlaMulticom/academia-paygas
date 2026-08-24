@@ -6,10 +6,10 @@
 **Problema:** Las encryption keys estaban hardcodeadas y se exponían en el bundle del cliente.
 
 **Solución:**
-- `server/middleware/encryption.ts`: Genera encryption key dinámica en runtime si no existe en env
-- `server/index.ts`: Endpoint `/api/config` ahora requiere autenticación
-- `src/lib/crypto.ts`: Obtiene encryption key del servidor después del login
-- `src/hooks/useAuth.ts`: Resetea encryption key en login/logout
+- `apps/api/apps/web/src/server/middleware/encryption.ts`: Genera encryption key dinámica en runtime si no existe en env
+- `apps/api/apps/web/src/server/index.ts`: Endpoint `/api/config` ahora requiere autenticación
+- `apps/web/src/lib/crypto.ts`: Obtiene encryption key del servidor después del login
+- `apps/web/src/hooks/useAuth.ts`: Resetea encryption key en login/logout
 
 **Beneficio:** Las keys nunca quedan obsoletas post-build y se renuevan automáticamente.
 
@@ -37,7 +37,7 @@
 **Problema:** Sin rate limiting en registro de usuarios.
 
 **Solución:**
-- `server/index.ts`: Agregado rate limiting para `/api/usuarios` (5 req/hora)
+- `apps/api/apps/web/src/server/index.ts`: Agregado rate limiting para `/api/usuarios` (5 req/hora)
 
 **Beneficio:** Previene abuso del endpoint de registro.
 
@@ -47,7 +47,7 @@
 **Problema:** Un GESTOR podía crear usuarios ADMIN.
 
 **Solución:**
-- `server/routes/usuarios.ts`: GESTOR solo puede crear usuarios ATENDENTE
+- `apps/api/apps/web/src/server/routes/usuarios.ts`: GESTOR solo puede crear usuarios ATENDENTE
 - Validación de roles permitidos (ADMIN, GESTOR, ATENDENTE)
 - Validación de fortaleza de contraseña (mínimo 8 caracteres)
 
@@ -59,9 +59,9 @@
 **Problema:** Los tokens de verificación de email nunca expiraban.
 
 **Solución:**
-- `prisma/schema.prisma`: Agregado campo `tokenExpiry` al modelo User
-- `server/routes/auth.ts`: Validación de expiración en verificación de email
-- `server/routes/usuarios.ts`: Tokens se crean con expiración de 24 horas
+- `packages/db/prisma/schema.prisma`: Agregado campo `tokenExpiry` al modelo User
+- `apps/api/apps/web/src/server/routes/auth.ts`: Validación de expiración en verificación de email
+- `apps/api/apps/web/src/server/routes/usuarios.ts`: Tokens se crean con expiración de 24 horas
 
 **Beneficio:** Tokens expirados no pueden ser reutilizados.
 
@@ -71,7 +71,7 @@
 **Problema:** JWT secret era débil y predecible.
 
 **Solución:**
-- `server/middleware/auth.ts`: Genera JWT secret dinámico si el proporcionado es débil
+- `apps/api/apps/web/src/server/middleware/auth.ts`: Genera JWT secret dinámico si el proporcionado es débil
 - Validación de fortaleza del secret (mínimo 32 caracteres)
 
 **Beneficio:** Tokens JWT más seguros.
@@ -93,15 +93,15 @@
 
 | Archivo | Cambios |
 |---------|---------|
-| `server/middleware/encryption.ts` | Encryption key dinámica |
-| `server/middleware/auth.ts` | JWT secret seguro |
-| `server/index.ts` | Config endpoint autenticado, rate limiting |
-| `server/routes/auth.ts` | Validación de expiración de tokens |
-| `server/routes/usuarios.ts` | Validación de roles, rate limiting |
-| `prisma/schema.prisma` | Campo tokenExpiry |
-| `src/lib/crypto.ts` | Obtención de key desde servidor |
-| `src/lib/api.ts` | Eliminada API_KEY del cliente |
-| `src/hooks/useAuth.ts` | Reset de encryption key |
+| `apps/api/apps/web/src/server/middleware/encryption.ts` | Encryption key dinámica |
+| `apps/api/apps/web/src/server/middleware/auth.ts` | JWT secret seguro |
+| `apps/api/apps/web/src/server/index.ts` | Config endpoint autenticado, rate limiting |
+| `apps/api/apps/web/src/server/routes/auth.ts` | Validación de expiración de tokens |
+| `apps/api/apps/web/src/server/routes/usuarios.ts` | Validación de roles, rate limiting |
+| `packages/db/prisma/schema.prisma` | Campo tokenExpiry |
+| `apps/web/src/lib/crypto.ts` | Obtención de key desde servidor |
+| `apps/web/src/lib/api.ts` | Eliminada API_KEY del cliente |
+| `apps/web/src/hooks/useAuth.ts` | Reset de encryption key |
 | `vite.config.ts` | Eliminadas variables sensibles |
 | `.env.example` | Documentación de variables |
 

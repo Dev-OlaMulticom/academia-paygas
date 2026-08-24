@@ -29,7 +29,7 @@ pnpm dev              # Vite :5173 + Express :3001 with hot reload
 pnpm dev:client       # Vite dev server :5173
 
 # Backend only
-pnpm dev:server       # tsx watch server/index.ts :3001
+pnpm dev:server       # tsx watch apps/api/apps/web/src/server/index.ts :3001
 ```
 
 ### Build & Deploy
@@ -64,7 +64,7 @@ pnpm test             # Run all tests (node --import tsx --test tests/*.test.ts)
 
 ```bash
 npx prisma generate                                # Generate PG Prisma client
-npx prisma generate --schema=prisma/schema.mysql.prisma  # Generate MySQL client
+npx prisma generate --schema=packages/db/prisma/schema.mysql.prisma  # Generate MySQL client
 npx prisma migrate deploy                          # Apply pending migrations
 pnpm db:seed                                       # Seed test users
 pnpm db:reset                                      # Reset DB + seed
@@ -77,16 +77,16 @@ Single package, two compilation targets:
 
 | Target | Source | Output | Config |
 |--------|--------|--------|--------|
-| Frontend | `src/` | `dist/` | `tsconfig.json` (ESNext/bundler, `noEmit: true`) |
-| Backend | `server/` | `dist/server/` | `tsconfig.server.json` (CommonJS/node, `rootDir: "./"`, `outDir: "./dist"`) |
-| Shared | `shared/` | `dist/shared/` (compiled by tsc) | `@shared/*` alias in both tsconfigs + vite |
+| Frontend | `apps/web/src/` | `dist/` | `tsconfig.json` (ESNext/bundler, `noEmit: true`) |
+| Backend | `apps/api/apps/web/src/server/` | `dist/apps/api/apps/web/src/server/` | `tsconfig.server.json` (CommonJS/node, `rootDir: "./"`, `outDir: "./dist"`) |
+| Shared | `packages/shared/src/shared/` | `dist/packages/shared/src/shared/` (compiled by tsc) | `@packages/shared/src/shared/*` alias in both tsconfigs + vite |
 
-Entry points: `server/index.ts` (Express :3001), `src/main.tsx` → `src/App.tsx` (React Router).
+Entry points: `apps/api/apps/web/src/server/index.ts` (Express :3001), `apps/web/src/main.tsx` → `apps/web/src/App.tsx` (React Router).
 
 ### Path aliases
 
-- `@/*` → `./src/*` (frontend only)
-- `@shared/*` → `./shared/*` (both frontend and backend)
+- `@/*` → `./apps/web/src/*` (frontend only)
+- `@packages/shared/src/shared/*` → `./packages/shared/src/shared/*` (both frontend and backend)
 
 ### Linter
 
@@ -95,12 +95,12 @@ Excludes: `dist/`, `node_modules/`, `*.js`, `wordpress-plugin-academia-paygas/`,
 
 ### UI
 
-shadcn/ui (new-york style), Radix UI, TailwindCSS 4, Lucide icons. Components in `src/components/ui/`.
+shadcn/ui (new-york style), Radix UI, TailwindCSS 4, Lucide icons. Components in `apps/web/src/components/ui/`.
 Config: `components.json`, `tailwind.config.ts`, `postcss.config.mjs`.
 
 ### Backend routes
 
-All under `/api/`. Route files in `server/routes/`:
+All under `/api/`. Route files in `apps/api/apps/web/src/server/routes/`:
 `auth`, `usuarios`, `cms`, `certificates`, `notifications`, `progresso`, `dashboard`, `docs`, `analytics`, `forum`, `gamification`, `conquistas`, `public`, `modules`, `logs`, `xpconfig`, `import-export`, `adminDashboard`, `role-permissions`, `paygas-access`.
 
 ### Database
@@ -120,7 +120,7 @@ Health checks every 60s, keep-alive every 12h, background sync on recovery. **De
 
 ### Data Access Layer (DAL)
 
-All DB access through `server/lib/db.ts`. **Never call `prisma.*` directly in routes.**
+All DB access through `apps/api/apps/web/src/server/lib/db.ts`. **Never call `prisma.*` directly in routes.**
 
 ```ts
 import { db } from '../lib/db'
@@ -131,15 +131,15 @@ await db.update('user', { id: '123' }, { nome: 'New' })
 await db.delete('user', { id: '123' })
 ```
 
-Models configured in `server/lib/db-models.ts`. MySQL and Nhost are `null` when unconfigured — dual-write silently skips them.
+Models configured in `apps/api/apps/web/src/server/lib/db-models.ts`. MySQL and Nhost are `null` when unconfigured — dual-write silently skips them.
 
 ### Auth & Authorization
 
 JWT + bcryptjs. **Five roles:** `ADMIN`, `GESTOR`, `ATENDENTE`, `PARCEIRO_ACREDITADO`, `ERPS_REPRESENTANTE`.
 
-Tokens verified via `server/middleware/auth.ts`.
+Tokens verified via `apps/api/apps/web/src/server/middleware/auth.ts`.
 
-CASL-based RBAC/ABAC centralized in `server/auth/casl/`. Permissions DB-driven via `RoleConfig` table.
+CASL-based RBAC/ABAC centralized in `apps/api/apps/web/src/server/auth/casl/`. Permissions DB-driven via `RoleConfig` table.
 
 ```ts
 // Role-based (backward compat)
@@ -150,24 +150,24 @@ router.post('/users', authenticate, authorize('create', 'User'), handler)
 router.put('/users/:id', authenticate, authorize('update', 'User', JSON.stringify({ gestorId: req.userId })))
 ```
 
-Frontend permissions via `src/hooks/useAbility.ts` (custom lightweight engine, NOT `@casl/ability` runtime).
+Frontend permissions via `apps/web/src/hooks/useAbility.ts` (custom lightweight engine, NOT `@casl/ability` runtime).
 
 ### Encryption
 
 AES-256-GCM between client and server. Client fetches key from `GET /api/config` (requires auth token) before login.
-Client: `src/lib/crypto.ts`. Server: `server/middleware/encryption.ts`.
+Client: `apps/web/src/lib/crypto.ts`. Server: `apps/api/apps/web/src/server/middleware/encryption.ts`.
 
 ### Email
 
-Centralized via `server/services/email.ts`. Gmail SMTP primary, Resend SMTP backup, auto-fallback. Every email BCCs `email@academia.paygas.com.br`.
+Centralized via `apps/api/apps/web/src/server/services/email.ts`. Gmail SMTP primary, Resend SMTP backup, auto-fallback. Every email BCCs `email@academia.paygas.com.br`.
 
 ### Gamification
 
-XP configurable via `XPConfig` table. Level = `Math.floor(xp / 2000) + 1`. `awardPoints` in `server/services/gamification.ts` with 60s cache.
+XP configurable via `XPConfig` table. Level = `Math.floor(xp / 2000) + 1`. `awardPoints` in `apps/api/apps/web/src/server/services/gamification.ts` with 60s cache.
 
 ### Activity Logs
 
-All user actions logged via `logActivity(userId, acao, detalhes)` in `server/services/log.ts`.
+All user actions logged via `logActivity(userId, acao, detalhes)` in `apps/api/apps/web/src/server/services/log.ts`.
 
 ## Roles & Permissions
 
@@ -183,7 +183,7 @@ All user actions logged via `logActivity(userId, acao, detalhes)` in `server/ser
 
 ### CASL Actions
 
-Shared actions defined in `shared/casl/actions.ts`:
+Shared actions defined in `packages/shared/src/shared/casl/actions.ts`:
 - `create`, `read`, `update`, `delete`, `manage`
 - `assignRole`, `sendNotification`
 - `approveCertificate`, `issueCertificate`
@@ -192,7 +192,7 @@ Shared actions defined in `shared/casl/actions.ts`:
 
 ### Frontend Role Labels
 
-Role labels are database-driven via `RoleConfig` table. Frontend uses `src/data/role-labels.ts` for sync access.
+Role labels are database-driven via `RoleConfig` table. Frontend uses `apps/web/src/data/role-labels.ts` for sync access.
 
 **Default visual mapping (configurable):**
 | Role | Avatar BG | Icon |
@@ -221,14 +221,14 @@ Role labels are database-driven via `RoleConfig` table. Frontend uses `src/data/
 - **Always validate input** — User input is untrusted by default
 - **Use prepared queries** — Prisma (via DAL) handles this; never concatenate SQL
 - **Implement rate limiting** — Use `express-rate-limit` for API endpoints
-- **JWT tokens are time-limited** — Verify `exp` claim in `server/middleware/auth.ts`
+- **JWT tokens are time-limited** — Verify `exp` claim in `apps/api/apps/web/src/server/middleware/auth.ts`
 
 ### Common Vulnerabilities to Avoid
 
 | Vulnerability | Prevention | Example |
 |--------------|-----------|---------|
 | SQL Injection | Use DAL + Prisma | ✅ `db.findMany('user', ...)` <br> ❌ `prisma.$queryRaw(\`SELECT * FROM User WHERE id = ${id}\`)` |
-| CSRF | Express session + CORS | CORS configured in `server/index.ts` |
+| CSRF | Express session + CORS | CORS configured in `apps/api/apps/web/src/server/index.ts` |
 | XSS | React auto-escapes | Use `dangerouslySetInnerHTML` only when necessary |
 | Broken Auth | JWT + bcryptjs | Passwords hashed with bcryptjs, tokens signed with JWT_SECRET |
 | Data Exposure | Encryption middleware | AES-256-GCM enabled for sensitive data |
@@ -263,19 +263,19 @@ router.post('/login', authLimiter, handler)
 
 ## Gotchas
 
-- **CASL action list is hardcoded** in `authorize()` middleware — if you add a new CASL action in `shared/casl/actions.ts`, it's auto-detected via `KNOWN_ACTIONS` from `server/auth/casl/actions.ts`. Verify the import chain stays intact.
+- **CASL action list is hardcoded** in `authorize()` middleware — if you add a new CASL action in `packages/shared/src/shared/casl/actions.ts`, it's auto-detected via `KNOWN_ACTIONS` from `apps/api/apps/web/src/server/auth/casl/actions.ts`. Verify the import chain stays intact.
 - **CASL conditions must be JSON.stringified**: `authorize('update', 'User', JSON.stringify({ gestorId: req.userId }))`.
-- **Frontend CASL is custom** — `src/hooks/useAbility.ts` does NOT use `@casl/ability` at runtime. Backend is always source of truth.
+- **Frontend CASL is custom** — `apps/web/src/hooks/useAbility.ts` does NOT use `@casl/ability` at runtime. Backend is always source of truth.
 - **Naming gotcha:** DB table is `Curso` but frontend/CMS calls it "Curso". `cursoId` = `cursoId` in frontend. Cosmetic only.
 - **`prisma.config.ts`** auto-detects `--schema` arg to pick PG vs MySQL URL. Don't hardcode the datasource URL in `schema.prisma`.
 - **`pnpm build`** must run `prisma generate` (PG + MySQL) before vite/tsc — the script chains this automatically with `concurrently`.
-- **`tsconfig.server.json`** uses `rootDir: "./"` with `outDir: "./dist"`. This means `server/index.ts` compiles to `dist/server/index.js` and `shared/casl/actions.ts` compiles to `dist/shared/casl/actions.js`. Do NOT change `outDir` to `"./dist/server"` — it would produce `dist/server/server/index.js` (double `server`) breaking the start command.
-- **Two PrismaClient instances** for PG_URL_1: `server/lib/prisma.ts` (lazy Proxy) and `server/config/databases.ts` (registry). They now share the same pool via `getPrimaryPrisma()`.
+- **`tsconfig.server.json`** uses `rootDir: "./"` with `outDir: "./dist"`. This means `apps/api/apps/web/src/server/index.ts` compiles to `dist/apps/api/apps/web/src/server/index.js` and `packages/shared/src/shared/casl/actions.ts` compiles to `dist/packages/shared/src/shared/casl/actions.js`. Do NOT change `outDir` to `"./dist/server"` — it would produce `dist/apps/api/apps/web/src/server/apps/api/apps/web/src/server/index.js` (double `server`) breaking the start command.
+- **Two PrismaClient instances** for PG_URL_1: `apps/api/apps/web/src/server/lib/prisma.ts` (lazy Proxy) and `apps/api/apps/web/src/server/config/databases.ts` (registry). They now share the same pool via `getPrimaryPrisma()`.
 - **`db.transaction()`** only uses primary Prisma client — no replication to backups. Raw queries (`db.queryRaw()`) also only hit primary.
-- **Prisma uses PrismaPg adapter** (`@prisma/adapter-pg`), not the default binary engine. SSL: `{ rejectUnauthorized: false }`.
-- **MySQL uses MariaDB adapter** (`@prisma/adapter-mariadb`). MySQL schema uses `prisma db push` (no migrations).
-- **MySQL client generated to `prisma/generated/mysql/`** — this path is in `.gitignore`.
-- **HTTPS auto-detection**: Server looks for `server/certs/key.pem` and `cert.pem` relative to `__dirname`.
+- **Prisma uses PrismaPg adapter** (`@packages/db/prisma/adapter-pg`), not the default binary engine. SSL: `{ rejectUnauthorized: false }`.
+- **MySQL uses MariaDB adapter** (`@packages/db/prisma/adapter-mariadb`). MySQL schema uses `prisma db push` (no migrations).
+- **MySQL client generated to `packages/db/prisma/generated/mysql/`** — this path is in `.gitignore`.
+- **HTTPS auto-detection**: Server looks for `apps/api/apps/web/src/server/certs/key.pem` and `cert.pem` relative to `__dirname`.
 - **JWT_SECRET fallback chain**: env var (≥32 chars) → `.jwt-secret` file (≥16 chars) → auto-generate 64-byte hex and persist.
 - **`.htaccess` does nothing on nginx** — the nginx snippet in `deploy.sh` replaces its functionality.
 - **Vite dev proxy**: `/api` → `http://localhost:3001` (not https).
@@ -286,7 +286,7 @@ router.post('/login', authLimiter, handler)
 
 - **Commit format:** `tipo: descripcion` — types: feat, fix, security, docs, chore, deploy
 - **Language:** UI strings in Portuguese (pt-BR). Code identifiers also Portuguese (`curso`, `aula`, `licao`, `equipe`, `certificados`).
-- **Deploy target:** cPanel with nginx reverse proxy. `deploy.sh` handles nginx snippet, build, restart. Production runs `node dist/server/index.js` directly (not Passenger).
+- **Deploy target:** cPanel with nginx reverse proxy. `deploy.sh` handles nginx snippet, build, restart. Production runs `node dist/apps/api/apps/web/src/server/index.js` directly (not Passenger).
 
 ## Tests
 
@@ -298,7 +298,7 @@ pnpm test    # runs tests/*.test.ts
 
 | File | Covers |
 |------|--------|
-| `tests/casl-shared.test.ts` | `shared/casl/actions.ts` consistency |
+| `tests/casl-shared.test.ts` | `packages/shared/src/shared/casl/actions.ts` consistency |
 | `tests/jwt-fallback.test.ts` | JWT_SECRET fallback chain |
 
 Add a new test file → picked up automatically by `pnpm test`.

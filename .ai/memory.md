@@ -20,7 +20,7 @@ mcp_call_tool("codebase-memory-mcp", "search_graph", {
   query: "término de búsqueda en lenguaje natural",
   name_pattern: ".*regex.*",  // Búsqueda por nombre exacto
   label: "Function",          // Filtrar por tipo (Function, Class, Route, etc.)
-  file_pattern: "src/**/*.ts", // Filtrar por archivo
+  file_pattern: "apps/web/src/**/*.ts", // Filtrar por archivo
   limit: 200,                 // Límite de resultados (default 200)
   offset: 0                   // Para paginación
 })
@@ -278,8 +278,8 @@ mcp_call_tool("codebase-memory-mcp", "query_graph", {
 ### Gotchas específicos del proyecto
 
 1. **Dos tsconfigs**: Frontend y backend tienen configs separadas
-2. **Path aliases**: `@/*` → `./src/*` solo en frontend
-3. **Multi-database**: DAL abstraction layer en `server/lib/db.ts`
+2. **Path aliases**: `@/*` → `./apps/web/src/*` solo en frontend
+3. **Multi-database**: DAL abstraction layer en `apps/api/apps/web/src/server/lib/db.ts`
 4. **No tests**: Verificación manual via API health check
 
 ---

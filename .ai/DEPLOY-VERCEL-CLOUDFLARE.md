@@ -16,21 +16,21 @@ Cloudflare Worker (edge, dominio principal)
 ```
 
 **Por qué esta combinación y no dos backends independientes:** el backend
-Express (`server/`) concentra lógica sensible — auth JWT, bcrypt, permisos
+Express (`apps/api/apps/web/src/server/`) concentra lógica sensible — auth JWT, bcrypt, permisos
 CASL, rate limiting, cifrado AES-256-GCM. Reimplementarlo nativamente en
 Hono/Workers significaría mantener dos copias de ese código en dos runtimes
 distintos (con alto riesgo de que diverjan y uno quede inseguro — de hecho
-`worker/api.ts`, ya eliminado, tenía un login que aceptaba cualquier
+`apps/worker/api.ts`, ya eliminado, tenía un login que aceptaba cualquier
 contraseña). En su lugar:
 
 - **Vercel** aloja el único backend real (Express empaquetado como función
   serverless vía `api/[...slug].js`).
 - **Cloudflare Worker** sirve el SPA compilado (`dist/client`) desde el edge
-  y reenvía `/api/*` a Vercel (`worker/index.ts`). Desde el navegador, las
+  y reenvía `/api/*` a Vercel (`apps/worker/index.ts`). Desde el navegador, las
   llamadas a `/api/*` son same-origin (sin problemas de CORS).
 
 Si en el futuro se necesita que la API corra nativamente en Workers, hay que
-portar cada ruta de `server/routes/` a Hono, validar que `bcryptjs`/
+portar cada ruta de `apps/api/apps/web/src/server/routes/` a Hono, validar que `bcryptjs`/
 `jsonwebtoken` funcionen bajo `nodejs_compat`, y configurar un binding
 Hyperdrive para Postgres — es un trabajo grande, fuera del alcance de esta
 guía.
@@ -77,7 +77,7 @@ Ver `.env.example` para el detalle de cada variable.
    - `buildCommand`: `npx prisma generate && npx vite build && npx tsc --project tsconfig.server.json`
    - `outputDirectory`: `dist/client`
    - Función `api/[...slug].js`: `maxDuration: 30s`, `memory: 1024MB`,
-     `includeFiles: dist/server/**` (necesario porque requiere el server
+     `includeFiles: dist/apps/api/apps/web/src/server/**` (necesario porque requiere el server
      compilado con una ruta dinámica que el tracer de Vercel no detecta solo).
 4. Deploy. Verificar:
    ```bash

@@ -438,7 +438,7 @@ Classes especificas ja aplicadas:
 
 Substitui multiplos botoes de acao em tabelas por um unico botao `...` (ellipsis) com dropdown.
 
-**Componente:** `src/components/ActionMenu.tsx`
+**Componente:** `apps/web/src/components/ActionMenu.tsx`
 
 ```tsx
 import { ActionMenu } from "../components/ActionMenu";
@@ -796,7 +796,7 @@ transition: .8s;   /* Region bars */
 
 ## 8. Regra: Zero Inline Styles
 
-> **NENHUM componente deve usar `style={{...}}` no JSX.** Todo estilo deve ser definido em `src/index.css` usando classes CSS.
+> **NENHUM componente deve usar `style={{...}}` no JSX.** Todo estilo deve ser definido em `apps/web/src/index.css` usando classes CSS.
 
 ### 8.1 Excecao: Valores Dinamicos
 
@@ -863,18 +863,18 @@ Todas as classes CSS usam **nomes em portugues** seguindo o padrao:
 
 | Arquivo | Descricao | Linhas |
 |---------|-----------|--------|
-| `src/index.css` | Design system completo (~3400 linhas) | ~3400 |
-| `src/App.tsx` | Componentes React | ~136 |
-| `src/pages/DashboardPage.tsx` | Dashboard com gamificacao | ~120 |
-| `src/pages/ModulosPage.tsx` | Pagina de curso com accordion mobile | ~976 |
-| `src/layouts/AppLayout.tsx` | Layout principal | ~174 |
-| `server/services/email.ts` | Templates de email (orange) | ~349 |
-| `src/pages/VerificarEmailPage.tsx` | Verificacao de email (orange) | ~70 |
-| `src/pages/AdminDashboardPage.tsx` | Dashboard admin (CSS classes) | ~200 |
-| `src/pages/LoginPage.tsx` | Login com recuperacao (CSS classes) | ~170 |
-| `src/pages/NotifPage.tsx` | Notificacoes (CSS classes) | ~140 |
+| `apps/web/src/index.css` | Design system completo (~3400 linhas) | ~3400 |
+| `apps/web/src/App.tsx` | Componentes React | ~136 |
+| `apps/web/src/pages/DashboardPage.tsx` | Dashboard com gamificacao | ~120 |
+| `apps/web/src/pages/ModulosPage.tsx` | Pagina de curso com accordion mobile | ~976 |
+| `apps/web/src/layouts/AppLayout.tsx` | Layout principal | ~174 |
+| `apps/api/apps/web/src/server/services/email.ts` | Templates de email (orange) | ~349 |
+| `apps/web/src/pages/VerificarEmailPage.tsx` | Verificacao de email (orange) | ~70 |
+| `apps/web/src/pages/AdminDashboardPage.tsx` | Dashboard admin (CSS classes) | ~200 |
+| `apps/web/src/pages/LoginPage.tsx` | Login com recuperacao (CSS classes) | ~170 |
+| `apps/web/src/pages/NotifPage.tsx` | Notificacoes (CSS classes) | ~140 |
 
-**Nota:** O sistema atual utiliza CSS vanilla customizado em vez de Tailwind utility classes, apesar do Tailwind estar configurado no projeto. Todos os estilos estao em `src/index.css` — nenhum inline style e usado nos componentes (exceto valores dinamicos).
+**Nota:** O sistema atual utiliza CSS vanilla customizado em vez de Tailwind utility classes, apesar do Tailwind estar configurado no projeto. Todos os estilos estao em `apps/web/src/index.css` — nenhum inline style e usado nos componentes (exceto valores dinamicos).
 
 ---
 
@@ -922,7 +922,7 @@ import { Input } from '@/components/ui/input'
 
 ### Select / Dropdown
 
-**Componente:** `src/components/AppSelect.tsx` (wrapper sobre react-select)
+**Componente:** `apps/web/src/components/AppSelect.tsx` (wrapper sobre react-select)
 
 ```tsx
 import { AppSelect } from "../components/AppSelect";
@@ -989,7 +989,7 @@ import { Checkbox } from '@/components/ui/checkbox'
 
 ### Password Input
 
-**Componente:** `src/components/PasswordInput.tsx`
+**Componente:** `apps/web/src/components/PasswordInput.tsx`
 
 Input de senha com botao de toggle para mostrar/ocultar senha.
 
@@ -1161,7 +1161,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 ## 12. Component Gallery Reference
 
-**shadcn/ui components** (pre-configured in `src/components/ui/`):
+**shadcn/ui components** (pre-configured in `apps/web/src/components/ui/`):
 
 | Component | Path | Usage |
 |-----------|------|-------|
@@ -1183,7 +1183,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 | Badge | `ui/badge` | Status badges |
 | Avatar | `ui/avatar` | User avatars |
 
-**Custom PayGas components** (in `src/components/`):
+**Custom PayGas components** (in `apps/web/src/components/`):
 
 | Component | Path | Usage |
 |-----------|------|-------|
@@ -1211,7 +1211,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 
 ### When implementing a new page/component:
 
-1. **Check if component exists** in `src/components/ui/` or `src/components/`
+1. **Check if component exists** in `apps/web/src/components/ui/` or `apps/web/src/components/`
 2. **Use CSS classes** for styling (no inline styles)
 3. **Follow naming convention** — use Portuguese class names with appropriate prefix
 4. **Use `--pg-orange`** for primary actions
@@ -1225,12 +1225,12 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 ### Golden Rules
 
 ✅ **DO**
-- Use shadcn/ui components from `src/components/ui/`
+- Use shadcn/ui components from `apps/web/src/components/ui/`
 - Use `ActionMenu` for table row actions (single dropdown button)
 - Use `AppSelect` for all select/dropdowns (react-select with PayGas theme)
 - Use `PasswordInput` for all password fields (includes eye toggle)
-- Define styles in `src/index.css` with class names
-- Use `@shared/*` for shared types
+- Define styles in `apps/web/src/index.css` with class names
+- Use `@packages/shared/src/shared/*` for shared types
 - Style with CSS classes (dynamic values via `style={{}}` only)
 - Follow Portuguese naming for classes and identifiers
 - Apply `text-overflow: ellipsis` on columns with long text (emails, URLs, details)

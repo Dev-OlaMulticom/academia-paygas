@@ -32,7 +32,7 @@ npx vite build
 
 # Verificar build
 ls -la dist/
-# Deberías ver: index.html, assets/, server/
+# Deberías ver: index.html, assets/, apps/api/apps/web/src/server/
 ```
 
 ### Paso 2: Subir archivos a cPanel
@@ -157,15 +157,15 @@ bash scripts/deploy-cpanel.sh
 ├── app.js                    # Entry point (usado por cPanel Node.js App)
 ├── package.json              # Dependencias
 ├── .env                      # Variables de entorno (NO commitear)
-├── prisma/
+├── packages/db/prisma/
 │   ├── schema.prisma         # Esquema de base de datos
 │   └── migrations/           # Migraciones
-├── server/
+├── apps/api/apps/web/src/server/
 │   └── certs/                # Certificados SSL (opcional)
 ├── dist/
 │   ├── index.html            # SPA entry point
 │   ├── assets/               # CSS, JS, fonts
-│   └── server/
+│   └── apps/api/apps/web/src/server/
 │       └── index.js          # Servidor compilado
 ├── node_modules/             # Dependencias
 ├── deploy.sh                 # Script de deploy con auto-reparacion
