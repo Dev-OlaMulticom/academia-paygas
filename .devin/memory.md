@@ -33,7 +33,7 @@ mcp_call_tool("codebase-memory-mcp", "search_graph", {
   // Opciones adicionales:
   name_pattern: ".*regex.*",  // Búsqueda por nombre exacto
   label: "Function",          // Filtrar por tipo (Function, Class, Route, etc.)
-  file_pattern: "src/**/*.ts", // Filtrar por archivo
+  file_pattern: "apps/web/src/**/*.ts", // Filtrar por archivo
   limit: 200,                 // Límite de resultados (default 200)
   offset: 0                   // Para paginación
 })
@@ -259,7 +259,7 @@ mcp_call_tool("codebase-memory-mcp", "search_graph", {
   project: "home-soporte24hwww-Documentos-Repositorios-academia-paygas",
   query: "button component",
   label: "Function",
-  file_pattern: "src/components/**/*.tsx"
+  file_pattern: "apps/web/src/components/**/*.tsx"
 })
 ```
 
@@ -286,11 +286,11 @@ mcp_call_tool("codebase-memory-mcp", "query_graph", {
     CREATE (d:Decision {
       title: "Usar PrismaPg adapter en lugar de binary engine",
       context: "Necesitamos soporte SSL custom para PostgreSQL",
-      decision: "Usar @prisma/adapter-pg con driver pg",
+      decision: "Usar @packages/db/prisma/adapter-pg con driver pg",
       rationale: "Binary engine no soporta ssl: { rejectUnauthorized: false }",
       alternatives: ["Binary engine Prisma", "pg directo"],
       timestamp: datetime(),
-      files: ["server/lib/prisma.ts", "prisma/schema.prisma"]
+      files: ["apps/api/apps/web/src/server/lib/prisma.ts", "packages/db/prisma/schema.prisma"]
     })
   `
 })
@@ -305,7 +305,7 @@ mcp_call_tool("codebase-memory-mcp", "query_graph", {
     CREATE (p:Pattern {
       name: "Dual-write database pattern",
       description: "Escribir a primary y backup databases en paralelo",
-      files: ["server/lib/db.ts", "server/lib/db-models.ts"],
+      files: ["apps/api/apps/web/src/server/lib/db.ts", "apps/api/apps/web/src/server/lib/db-models.ts"],
       use_case: "Operaciones CRUD que necesitan failover",
       implementation: "Usar db.create(), db.update() etc. que escriben a todos los DBs",
       gotchas: ["db.transaction() solo usa primary", "Raw queries solo usan primary"]
@@ -324,7 +324,7 @@ mcp_call_tool("codebase-memory-mcp", "query_graph", {
       title: "Modulo vs Curso naming",
       description: "DB table es Modulo pero frontend llama Curso",
       impact: "Cosmetic only, schema no cambia",
-      files: ["prisma/schema.prisma", "src/pages/CMSPage.tsx"],
+      files: ["packages/db/prisma/schema.prisma", "apps/web/src/pages/CMSPage.tsx"],
       workaround: "Usar moduloId en DB, cursoId en frontend context"
     })
   `
@@ -374,8 +374,8 @@ mcp_call_tool("codebase-memory-mcp", "index_repository", {
 ### Gotchas específicos del proyecto
 
 1. **Dos tsconfigs**: Frontend y backend tienen configs separadas
-2. **Path aliases**: `@/*` → `./src/*` solo en frontend
-3. **Multi-database**: DAL abstraction layer en `server/lib/db.ts`
+2. **Path aliases**: `@/*` → `./apps/web/src/*` solo en frontend
+3. **Multi-database**: DAL abstraction layer en `apps/api/apps/web/src/server/lib/db.ts`
 4. **No tests**: Verificación manual via API health check
 
 ---

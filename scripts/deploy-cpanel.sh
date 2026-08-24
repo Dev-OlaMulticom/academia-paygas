@@ -95,10 +95,10 @@ echo "Step 5/6: Verifying build output"
 echo "═══════════════════════════════════════════════════════"
 
 # Check server build
-if [ -f "dist/server/index.js" ]; then
-    echo -e "${GREEN}✅ dist/server/index.js exists${NC}"
+if [ -f "dist/apps/api/src/server/index.js" ]; then
+    echo -e "${GREEN}✅ dist/apps/api/src/server/index.js exists${NC}"
 else
-    echo -e "${RED}❌ dist/server/index.js missing${NC}"
+    echo -e "${RED}❌ dist/apps/api/src/server/index.js missing${NC}"
     exit 1
 fi
 

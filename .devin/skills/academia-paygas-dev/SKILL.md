@@ -21,7 +21,7 @@ Usar este skill cuando:
 devin skill invoke academia-paygas-dev create-route --name="nombre-ruta" --methods="GET,POST"
 ```
 
-Crea una nueva ruta en `server/routes/` con:
+Crea una nueva ruta en `apps/api/apps/web/src/server/routes/` con:
 - Middleware de authentication
 - Error handling estándar
 - Logging con Pino
@@ -34,8 +34,8 @@ devin skill invoke academia-paygas-dev create-component --name="NombreComponente
 ```
 
 Crea un nuevo componente en:
-- `src/pages/` si es type="page"
-- `src/components/ui/` si es type="ui"
+- `apps/web/src/pages/` si es type="page"
+- `apps/web/src/components/ui/` si es type="ui"
 
 Con:
 - Estructura estándar
@@ -49,7 +49,7 @@ Con:
 devin skill invoke academia-paygas-dev create-migration --name="descripcion"
 ```
 
-Crea una nueva migration en `prisma/migrations/` con:
+Crea una nueva migration en `packages/db/prisma/migrations/` con:
 - Nombre timestamped
 - SQL o Prisma migration format
 - Instrucciones para aplicar
@@ -118,8 +118,8 @@ devin skill invoke academia-paygas-dev create-route \
 ```
 
 Resultado:
-- Crea `server/routes/conquistas.ts`
-- Agrega registro en `server/index.ts`
+- Crea `apps/api/apps/web/src/server/routes/conquistas.ts`
+- Agrega registro en `apps/api/apps/web/src/server/index.ts`
 - Aplica patrones de Route Pattern
 - Verifica lint y typecheck
 
@@ -133,8 +133,8 @@ devin skill invoke academia-paygas-dev create-component \
 ```
 
 Resultado:
-- Crea `src/pages/UserDashboardPage.tsx`
-- Agrega ruta en `src/App.tsx`
+- Crea `apps/web/src/pages/UserDashboardPage.tsx`
+- Agrega ruta en `apps/web/src/App.tsx`
 - Aplica patrones de Component Pattern
 - Usa componentes shadcn/ui
 

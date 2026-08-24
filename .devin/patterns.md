@@ -8,7 +8,7 @@ Documentar patrones reutilizables para evitar código duplicado y mantener consi
 
 ### JWT Authentication Pattern
 
-**Ubicación:** `server/middleware/auth.ts`
+**Ubicación:** `apps/api/apps/web/src/server/middleware/auth.ts`
 
 **Uso:**
 
@@ -32,7 +32,7 @@ router.put('/users/:id', authenticate, authorize('update', 'User', JSON.stringif
 
 ### Frontend Permission Check Pattern
 
-**Ubicación:** `src/hooks/useAbility.ts`
+**Ubicación:** `apps/web/src/hooks/useAbility.ts`
 
 **Uso:**
 
@@ -59,7 +59,7 @@ if (isAdmin) {
 
 ### DAL CRUD Pattern
 
-**Ubicación:** `server/lib/db.ts`
+**Ubicación:** `apps/api/apps/web/src/server/lib/db.ts`
 
 **Uso:**
 
@@ -92,7 +92,7 @@ await db.delete('user', { id: '123' })
 
 ### Multi-Database Dual-Write Pattern
 
-**Ubicación:** `server/lib/db.ts`, `server/lib/db-models.ts`
+**Ubicación:** `apps/api/apps/web/src/server/lib/db.ts`, `apps/api/apps/web/src/server/lib/db-models.ts`
 
 **Descripción:** Escribir a primary y backup databases en paralelo.
 
@@ -109,7 +109,7 @@ await db.delete('user', { id: '123' })
 
 ### Component Pattern (shadcn/ui)
 
-**Ubicación:** `src/components/ui/`
+**Ubicación:** `apps/web/src/components/ui/`
 
 **Uso:**
 
@@ -135,15 +135,15 @@ function MyComponent() {
 
 **Gotchas:**
 - Usar componentes existentes antes de crear nuevos
-- Seguir patrones en `src/pages/` para layouts complejos
+- Seguir patrones en `apps/web/src/pages/` para layouts complejos
 
 ---
 
 ### Custom Hook Pattern
 
-**Ubicación:** `src/hooks/`
+**Ubicación:** `apps/web/src/hooks/`
 
-**Ejemplo:** `src/hooks/useAuth.ts`, `src/hooks/useAbility.ts`
+**Ejemplo:** `apps/web/src/hooks/useAuth.ts`, `apps/web/src/hooks/useAbility.ts`
 
 **Uso:**
 
@@ -169,7 +169,7 @@ function MyComponent() {
 
 ### API Client Pattern
 
-**Ubicación:** `src/lib/api.ts`
+**Ubicación:** `apps/web/src/lib/api.ts`
 
 **Uso:**
 
@@ -200,7 +200,7 @@ await api.deleteUser(id)
 
 ### Route Pattern
 
-**Ubicación:** `server/routes/`
+**Ubicación:** `apps/api/apps/web/src/server/routes/`
 
 **Estructura:**
 
@@ -247,9 +247,9 @@ export default router
 
 ### Service Pattern
 
-**Ubicación:** `server/services/`
+**Ubicación:** `apps/api/apps/web/src/server/services/`
 
-**Ejemplo:** `server/services/email.ts`, `server/services/gamification.ts`
+**Ejemplo:** `apps/api/apps/web/src/server/services/email.ts`, `apps/api/apps/web/src/server/services/gamification.ts`
 
 **Uso:**
 
@@ -276,7 +276,7 @@ if (!result.success) {
 
 ### Middleware Pattern
 
-**Ubicación:** `server/middleware/`
+**Ubicación:** `apps/api/apps/web/src/server/middleware/`
 
 **Uso:**
 
@@ -297,7 +297,7 @@ router.get('/protected', authenticate, authorize('ADMIN'), handler)
 
 ### XP Award Pattern
 
-**Ubicación:** `server/services/gamification.ts`
+**Ubicación:** `apps/api/apps/web/src/server/services/gamification.ts`
 
 **Uso:**
 
@@ -323,7 +323,7 @@ await awardLoginPointsDaily(userId)
 
 ### Activity Log Pattern
 
-**Ubicación:** `server/services/log.ts`
+**Ubicación:** `apps/api/apps/web/src/server/services/log.ts`
 
 **Uso:**
 
@@ -342,7 +342,7 @@ await logActivity(userId, 'UPDATE_PROFILE', 'Updated nome and email')
 
 ## 📧 Email Pattern
 
-**Ubicación:** `server/services/email.ts`
+**Ubicación:** `apps/api/apps/web/src/server/services/email.ts`
 
 **Uso:**
 
@@ -372,7 +372,7 @@ if (result.success) {
 
 ## 🔐 Encryption Pattern
 
-**Ubicación:** `src/lib/crypto.ts` (client), `server/middleware/encryption.ts` (server)
+**Ubicación:** `apps/web/src/lib/crypto.ts` (client), `apps/api/apps/web/src/server/middleware/encryption.ts` (server)
 
 **Flujo:**
 
@@ -410,7 +410,7 @@ await fetch('/api/endpoint', {
 
 ### Form Pattern
 
-**Ubicación:** Varios en `src/pages/`
+**Ubicación:** Varios en `apps/web/src/pages/`
 
 **Estructura:**
 
@@ -452,7 +452,7 @@ function MyForm() {
 ```
 
 **Gotchas:**
-- Usar componentes de `src/components/ui/`
+- Usar componentes de `apps/web/src/components/ui/`
 - Manejar loading states
 - Manejar error states
 - Validar inputs antes de submit
@@ -461,7 +461,7 @@ function MyForm() {
 
 ### Table Pattern
 
-**Ubicación:** Varios en `src/pages/`
+**Ubicación:** Varios en `apps/web/src/pages/`
 
 **Estructura:**
 

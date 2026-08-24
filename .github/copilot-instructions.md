@@ -43,17 +43,17 @@ npx tsc --project tsconfig.server.json --noEmit     # Backend
 
 | Target | Source | Output | Config |
 |--------|--------|--------|--------|
-| Frontend | `src/` | `dist/` | `tsconfig.json` (ESNext, `noEmit: true`) |
-| Backend | `server/` | `dist/server/` | `tsconfig.server.json` (CommonJS) |
-| Shared | `shared/` | compiled by tsc | Used by both targets |
+| Frontend | `apps/web/src/` | `dist/` | `tsconfig.json` (ESNext, `noEmit: true`) |
+| Backend | `apps/api/apps/web/src/server/` | `dist/apps/api/apps/web/src/server/` | `tsconfig.server.json` (CommonJS) |
+| Shared | `packages/shared/src/shared/` | compiled by tsc | Used by both targets |
 
 **Entry points:**
-- Frontend: `src/main.tsx` → `src/App.tsx` (React Router, BrowserRouter)
-- Backend: `server/index.ts` (Express on port 3001)
+- Frontend: `apps/web/src/main.tsx` → `apps/web/src/App.tsx` (React Router, BrowserRouter)
+- Backend: `apps/api/apps/web/src/server/index.ts` (Express on port 3001)
 
 **Path aliases:**
-- `@/*` → `./src/*` (frontend only)
-- `@shared/*` → `./shared/*` (both frontend and backend)
+- `@/*` → `./apps/web/src/*` (frontend only)
+- `@packages/shared/src/shared/*` → `./packages/shared/src/shared/*` (both frontend and backend)
 
 ---
 
@@ -126,15 +126,15 @@ await prisma.user.create({ data: { ... } })  // WRONG
 **Important gotchas:**
 - `db.transaction()` only uses primary client — no replication to backups
 - Raw queries (`db.queryRaw()`) also only hit primary
-- DAL is in `server/lib/db.ts`
-- Models configured in `server/lib/db-models.ts`
+- DAL is in `apps/api/apps/web/src/server/lib/db.ts`
+- Models configured in `apps/api/apps/web/src/server/lib/db-models.ts`
 - MySQL/Nhost gracefully degrade if env vars not set (logs warnings)
 
 ---
 
 ## Authentication & Authorization
 
-**Auth:** JWT + bcryptjs. Tokens verified via `server/middleware/auth.ts`.
+**Auth:** JWT + bcryptjs. Tokens verified via `apps/api/apps/web/src/server/middleware/auth.ts`.
 
 **Five roles:**
 - `ADMIN` — Full system access
@@ -161,7 +161,7 @@ if (can('delete', 'User')) { /* show delete button */ }
 ```
 
 **Key gotchas:**
-- CASL actions defined in `shared/casl/actions.ts` (single source of truth)
+- CASL actions defined in `packages/shared/src/shared/casl/actions.ts` (single source of truth)
 - CASL conditions must be JSON.stringified in middleware
 - Frontend CASL is custom (NOT `@casl/ability` runtime) — backend is always source of truth
 - Permissions are DB-driven via `RoleConfig` table (runtime customization)
@@ -171,14 +171,14 @@ if (can('delete', 'User')) { /* show delete button */ }
 ## React Patterns
 
 **UI Components:**
-- shadcn/ui (new-york style) from `src/components/ui/`
+- shadcn/ui (new-york style) from `apps/web/src/components/ui/`
 - Radix UI primitives
 - TailwindCSS 4
 - Lucide icons
 
 **Hooks:**
 - `useAbility()` — Permission checks
-- `src/hooks/` — Custom hooks
+- `apps/web/src/hooks/` — Custom hooks
 - Avoid prop drilling where possible
 
 **Example:**
@@ -204,7 +204,7 @@ export function UserCard({ user }: { user: User }) {
 
 ## Express API Routes
 
-**All routes under `/api/`** in `server/routes/`:
+**All routes under `/api/`** in `apps/api/apps/web/src/server/routes/`:
 `auth`, `usuarios`, `cms`, `certificates`, `notifications`, `progresso`, `dashboard`, `docs`, `analytics`, `forum`, `gamification`, `conquistas`, `public`, `modules`, `logs`, `xpconfig`, `import-export`, `adminDashboard`, `role-permissions`, `paygas-access`.
 
 **Pattern:**
@@ -333,22 +333,22 @@ pnpm build
 
 This script runs (in order):
 1. `npx prisma generate` (PostgreSQL client)
-2. `npx prisma generate --schema=prisma/schema.mysql.prisma` (MySQL client)
+2. `npx prisma generate --schema=packages/db/prisma/schema.mysql.prisma` (MySQL client)
 3. `npx vite build` (frontend) + `npx tsc --project tsconfig.server.json` (backend) concurrently
 
 **Why prisma generate first?** TypeScript compilation needs Prisma types (e.g., `User`, `Modulo`).
 
 **Important gotcha:**
 - `tsconfig.server.json` uses `rootDir: "./"` with `outDir: "./dist"`
-- This means `server/index.ts` → `dist/server/index.js` and `shared/casl/actions.ts` → `dist/shared/casl/actions.js`
-- DO NOT change `outDir` to `"./dist/server"` — it would produce `dist/server/server/index.js` (double nesting)
+- This means `apps/api/apps/web/src/server/index.ts` → `dist/apps/api/apps/web/src/server/index.js` and `packages/shared/src/shared/casl/actions.ts` → `dist/packages/shared/src/shared/casl/actions.js`
+- DO NOT change `outDir` to `"./dist/server"` — it would produce `dist/apps/api/apps/web/src/server/apps/api/apps/web/src/server/index.js` (double nesting)
 
 **Deployment:**
 ```bash
 ./deploy.sh    # Auto-detects nginx, builds, restarts
 ```
 
-Production runs `node dist/server/index.js` directly (not Passenger).
+Production runs `node dist/apps/api/apps/web/src/server/index.js` directly (not Passenger).
 
 ---
 
@@ -357,10 +357,10 @@ Production runs `node dist/server/index.js` directly (not Passenger).
 ### Encryption
 - AES-256-GCM between client and server
 - Client fetches key from `GET /api/config` (requires auth token) before login
-- Client: `src/lib/crypto.ts` | Server: `server/middleware/encryption.ts`
+- Client: `apps/web/src/lib/crypto.ts` | Server: `apps/api/apps/web/src/server/middleware/encryption.ts`
 
 ### Email Service
-- Centralized via `server/services/email.ts`
+- Centralized via `apps/api/apps/web/src/server/services/email.ts`
 - Primary: Gmail SMTP | Backup: Resend SMTP (auto-fallback)
 - Every email BCCs `email@academia.paygas.com.br`
 - Returns `{ success, messageId, error }`
@@ -368,10 +368,10 @@ Production runs `node dist/server/index.js` directly (not Passenger).
 ### Gamification / XP
 - XP configurable via `XPConfig` table (editable by ADMIN)
 - Level = `Math.floor(xp / 2000) + 1`
-- `awardPoints` in `server/services/gamification.ts` with 60s cache
+- `awardPoints` in `apps/api/apps/web/src/server/services/gamification.ts` with 60s cache
 
 ### Activity Logs
-- All user actions logged via `logActivity(userId, acao, detalhes)` in `server/services/log.ts`
+- All user actions logged via `logActivity(userId, acao, detalhes)` in `apps/api/apps/web/src/server/services/log.ts`
 - ADMIN views logs at `/logs` with filters by user, action type, date range
 
 ---
@@ -380,14 +380,14 @@ Production runs `node dist/server/index.js` directly (not Passenger).
 
 - **Biome excludes:** `dist/`, `node_modules/`, `*.js`, `wordpress-plugin-academia-paygas/`, `api/`, `styles/`. These are intentional.
 - **Vite dev proxy:** `/api` proxies to `http://localhost:3001` (not https)
-- **HTTPS auto-detection:** Server looks for `server/certs/key.pem` and `cert.pem`
+- **HTTPS auto-detection:** Server looks for `apps/api/apps/web/src/server/certs/key.pem` and `cert.pem`
 - **JWT_SECRET fallback:** env var (≥32 chars) → `.jwt-secret` file (≥16 chars) → auto-generate 64-byte hex and persist
 - **`prisma.config.ts`** auto-detects `--schema` arg to pick PG vs MySQL URL
 - **`.htaccess` does nothing on nginx** — the nginx snippet in `deploy.sh` replaces its functionality
 - **Two PrismaClient instances** for PG_URL_1: both share the same pool via `getPrimaryPrisma()` after health check invalidation
-- **Prisma uses PrismaPg adapter** (`@prisma/adapter-pg`), not the default binary engine
-- **MySQL uses MariaDB adapter** (`@prisma/adapter-mariadb`)
-- **MySQL client generated to `prisma/generated/mysql/`** (in `.gitignore`)
+- **Prisma uses PrismaPg adapter** (`@packages/db/prisma/adapter-pg`), not the default binary engine
+- **MySQL uses MariaDB adapter** (`@packages/db/prisma/adapter-mariadb`)
+- **MySQL client generated to `packages/db/prisma/generated/mysql/`** (in `.gitignore`)
 
 ---
 

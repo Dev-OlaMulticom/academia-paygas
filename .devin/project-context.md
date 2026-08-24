@@ -12,9 +12,9 @@ No es un monorepo tradicional. Es un solo paquete con dos targets de compilació
 
 ```
 academia-paygas/
-├── src/              → Frontend (Vite, React 19) → dist/
-├── server/           → Backend (TSC, Express 5) → dist/server/
-├── prisma/           → Database schemas & migrations
+├── apps/web/src/              → Frontend (Vite, React 19) → dist/
+├── apps/api/apps/web/src/server/           → Backend (TSC, Express 5) → dist/apps/api/apps/web/src/server/
+├── packages/db/prisma/           → Database schemas & migrations
 └── public/           → Static assets
 ```
 
@@ -39,8 +39,8 @@ PostgreSQL (Primary) ←→ MySQL (Backup)
 
 ### Encryption
 
-- **Cliente**: `src/lib/crypto.ts` - Obtiene key de `GET /api/config`
-- **Servidor**: `server/middleware/encryption.ts` - Middleware global
+- **Cliente**: `apps/web/src/lib/crypto.ts` - Obtiene key de `GET /api/config`
+- **Servidor**: `apps/api/apps/web/src/server/middleware/encryption.ts` - Middleware global
 - **Algoritmo**: AES-256-GCM
 - **Flujo**:
   1. Cliente obtiene key del servidor
@@ -52,14 +52,14 @@ PostgreSQL (Primary) ←→ MySQL (Backup)
 
 - **Tokens**: JWT con 24h de validez
 - **Almacenamiento**: localStorage
-- **Verificación**: `server/middleware/auth.ts`
+- **Verificación**: `apps/api/apps/web/src/server/middleware/auth.ts`
 - **Roles**: ADMIN, GESTOR, ATENDENTE, PARCEIRO_ACREDITADO, ERPS_REPRESENTANTE
 
 ### Authorization
 
 - **Framework**: CASL (custom implementation)
-- **Backend**: `server/auth/casl/` - DB-driven permissions
-- **Frontend**: `src/hooks/useAbility.ts` - UI hints only
+- **Backend**: `apps/api/apps/web/src/server/auth/casl/` - DB-driven permissions
+- **Frontend**: `apps/web/src/hooks/useAbility.ts` - UI hints only
 - **Storage**: `RoleConfig` table en DB
 - **Regla**: Backend siempre es la fuente de verdad
 
@@ -83,7 +83,7 @@ MySQL (Backup: MYSQL_URL)
 
 ### Data Access Layer (DAL)
 
-**Siempre usar** `server/lib/db.ts`:
+**Siempre usar** `apps/api/apps/web/src/server/lib/db.ts`:
 
 ```typescript
 import { db } from '../lib/db'
@@ -101,7 +101,7 @@ await db.delete('user', { id: '123' })
 
 - `db.transaction()` solo usa primary (no replication)
 - Raw queries (`db.queryRaw()`) solo usan primary
-- Models configurados en `server/lib/db-models.ts`
+- Models configurados en `apps/api/apps/web/src/server/lib/db-models.ts`
 
 ## 🎨 Frontend
 
@@ -118,7 +118,7 @@ await db.delete('user', { id: '123' })
 ### Estructura
 
 ```
-src/
+apps/web/src/
 ├── components/
 │   └── ui/           # shadcn/ui components
 ├── pages/            # Route components
@@ -131,7 +131,7 @@ src/
 
 ### Path aliases
 
-- `@/*` → `./src/*` (configurado en tsconfig.json + vite.config.ts)
+- `@/*` → `./apps/web/src/*` (configurado en tsconfig.json + vite.config.ts)
 
 ### Conventions
 
@@ -154,7 +154,7 @@ src/
 ### Estructura
 
 ```
-server/
+apps/api/apps/web/src/server/
 ├── routes/           # API routes (all under /api/)
 ├── middleware/       # Express middleware
 ├── services/         # Business logic
@@ -193,7 +193,7 @@ Todas las rutas están bajo `/api/`:
 ### Sistema de XP
 
 - **Configuración**: DB-driven via `XPConfig` table
-- **Cache**: 60s in-memory cache en `server/services/gamification.ts`
+- **Cache**: 60s in-memory cache en `apps/api/apps/web/src/server/services/gamification.ts`
 - **Fallback**: Hardcoded defaults si DB falla
 - **Nivel**: `Math.floor(xp / 2000) + 1`
 
@@ -376,8 +376,8 @@ pnpm db:seed           # Seed test data
 - **biome.json**: Configuración de linter/formatter
 - **tsconfig.json**: Configuración TypeScript frontend
 - **tsconfig.server.json**: Configuración TypeScript backend
-- **prisma/schema.prisma**: Esquema PostgreSQL
-- **prisma/schema.mysql.prisma**: Esquema MySQL
+- **packages/db/prisma/schema.prisma**: Esquema PostgreSQL
+- **packages/db/prisma/schema.mysql.prisma**: Esquema MySQL
 
 ### Configuración Devin
 

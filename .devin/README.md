@@ -85,8 +85,8 @@ fd --version          # fd (búsqueda de archivos)
 - **biome.json**: Configuración de linter/formatter
 - **tsconfig.json**: Configuración TypeScript frontend
 - **tsconfig.server.json**: Configuración TypeScript backend
-- **prisma/schema.prisma**: Esquema de base de datos PostgreSQL
-- **prisma/schema.mysql.prisma**: Esquema de base de datos MySQL (backup)
+- **packages/db/prisma/schema.prisma**: Esquema de base de datos PostgreSQL
+- **packages/db/prisma/schema.mysql.prisma**: Esquema de base de datos MySQL (backup)
 
 ## 🔄 Integraciones
 

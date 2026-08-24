@@ -5,7 +5,7 @@
  */
 
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient } from "@packages/db/prisma/client";
 
 const prisma = new PrismaClient();
 

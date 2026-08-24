@@ -54,8 +54,8 @@ pnpm add -D vitest @vitest/ui
 
 **Archivos a crear:**
 - `vitest.config.ts`
-- `src/__tests__/` (frontend tests)
-- `server/__tests__/` (backend tests)
+- `apps/web/src/__tests__/` (frontend tests)
+- `apps/api/apps/web/src/server/__tests__/` (backend tests)
 
 ---
 
@@ -75,7 +75,7 @@ ENABLE_FAILOVER=true
 ```
 
 ```typescript
-// server/config/databases.ts
+// apps/api/apps/web/src/server/config/databases.ts
 const enableFailover = process.env.ENABLE_FAILOVER === 'true' || process.env.NODE_ENV === 'production'
 
 // Usar enableFailover en lógica de health checks y failover
@@ -104,7 +104,7 @@ pnpm add @casl/ability @casl/react
 ```
 
 ```typescript
-// src/auth/casl/ability.ts
+// apps/web/src/auth/casl/ability.ts
 import { AbilityBuilder, Ability } from '@casl/ability'
 
 // Reemplazar implementación custom con @casl/ability
@@ -134,7 +134,7 @@ pnpm add dexie
 ```
 
 ```typescript
-// src/lib/storage.ts
+// apps/web/src/lib/storage.ts
 import Dexie from 'dexie'
 
 const db = new Dexie('AcademiaPayGasDB')
@@ -216,7 +216,7 @@ pnpm add pino pino-pretty
 ```
 
 ```typescript
-// src/lib/logger.ts
+// apps/web/src/lib/logger.ts
 import pino from 'pino'
 
 const logger = pino({
@@ -258,7 +258,7 @@ pnpm add socket.io socket.io-client
 ```
 
 ```typescript
-// server/lib/socket.ts
+// apps/api/apps/web/src/server/lib/socket.ts
 import { Server } from 'socket.io'
 
 const io = new Server(server, {
@@ -296,7 +296,7 @@ pnpm add @google-analytics/data
 ```
 
 ```typescript
-// src/lib/analytics.ts
+// apps/web/src/lib/analytics.ts
 import { initializeGA } from '@google-analytics/data'
 
 initializeGA('GA_MEASUREMENT_ID')
@@ -358,7 +358,7 @@ pnpm add papaparse xlsx jspdf
 ```
 
 ```typescript
-// server/services/export.ts
+// apps/api/apps/web/src/server/services/export.ts
 import Papa from 'papaparse'
 
 export async function exportToCSV(data: any[], filename: string) {

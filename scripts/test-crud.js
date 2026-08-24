@@ -6,7 +6,7 @@
  */
 Object.defineProperty(exports, "__esModule", { value: true });
 require("dotenv/config");
-const client_1 = require("@prisma/client");
+const client_1 = require("@packages/db/prisma/client");
 const prisma = new client_1.PrismaClient();
 const results = [];
 function logResult(test, status, message) {

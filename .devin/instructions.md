@@ -164,23 +164,23 @@ Considerar:
 
 ### Patrones de React
 
-- Usar componentes de `src/components/ui/` (shadcn/ui)
-- Seguir patrones existentes en `src/pages/`
-- Usar hooks personalizados de `src/hooks/`
+- Usar componentes de `apps/web/src/components/ui/` (shadcn/ui)
+- Seguir patrones existentes en `apps/web/src/pages/`
+- Usar hooks personalizados de `apps/web/src/hooks/`
 - Evitar props drilling cuando sea posible
 
 ### Patrones de Express
 
 - Todas las rutas bajo `/api/`
-- Archivos de rutas en `server/routes/`
-- Usar middleware de `server/middleware/`
-- Nunca llamar `prisma.*` directamente en rutas (usar `server/lib/db.ts`)
+- Archivos de rutas en `apps/api/apps/web/src/server/routes/`
+- Usar middleware de `apps/api/apps/web/src/server/middleware/`
+- Nunca llamar `prisma.*` directamente en rutas (usar `apps/api/apps/web/src/server/lib/db.ts`)
 
 ## 🗄️ Base de datos
 
 ### Reglas de oro
 
-1. **Nunca llamar prisma directamente en rutas**: Usar `server/lib/db.ts`
+1. **Nunca llamar prisma directamente en rutas**: Usar `apps/api/apps/web/src/server/lib/db.ts`
 2. **Migrations requeridas**: Cualquier cambio de schema requiere migration
 3. **Multi-database**: Considerar backup databases en writes
 4. **DAL abstraction**: Usar `db.create()`, `db.findUnique()`, etc.
@@ -299,7 +299,7 @@ Documentar cuando:
 
 ### Herramientas
 
-- **Backend**: Logger Pino (configurado en `server/lib/logger.ts`)
+- **Backend**: Logger Pino (configurado en `apps/api/apps/web/src/server/lib/logger.ts`)
 - **Frontend**: Console.log (dev) + DevTools
 - **Database**: Prisma Studio o queries directas
 - **Network**: DevTools Network tab
