@@ -1,5 +1,5 @@
 {
-	"buildCommand": "npx prisma generate && npx vite build && npx tsc --project tsconfig.server.json",
+	"buildCommand": "npx prisma generate --schema=packages/db/prisma/schema.prisma && npx prisma generate --schema=packages/db/prisma/schema.mysql.prisma && pnpm --filter web build && npx tsc --project tsconfig.server.json",
 	"outputDirectory": "dist/client",
 	"framework": null,
 	"installCommand": "pnpm install",

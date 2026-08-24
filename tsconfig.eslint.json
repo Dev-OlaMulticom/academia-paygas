@@ -4,5 +4,5 @@
 		"rootDir": ".",
 		"noEmit": true
 	},
-	"include": ["server/**/*.ts", "prisma/**/*.ts", "scripts/**/*.ts"]
+	"include": ["apps/api/src/**/*.ts", "packages/db/prisma/**/*.ts", "scripts/**/*.ts"]
 }
