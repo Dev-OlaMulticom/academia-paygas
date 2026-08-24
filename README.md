@@ -1,8 +1,23 @@
 # Academia PayGas
 
-Monorepo semántico con Web + API + Workers + DB.
+Plataforma LMS + gamificación para PayGas. Arquitectura monolito modular con despliegue flexible: desarrollo local con pnpm/vite, producción con Docker o Vercel/Cloudflare.
 
-## Estructura
+## Arquitectura
+
+**Apps**
+- `apps/web/` → SPA React 19 + Vite + Tailwind. Alias `@` y `@shared`. Servida estáticamente, proxy API a `apps/api`.
+- `apps/api/` → Express 5 + TypeScript. Prisma DAL con failover multi-DB PG/MySQL, dual-write, keep-alive. Middlewares: auth JWT, encryption AES, rate-limit, security headers.
+- `apps/worker/` → Cloudflare Workers. Sirve assets y proxy `/api/*` a Vercel/API. No ejecuta Express nativamente.
+
+**Packages**
+- `packages/db/prisma/` → Esquemas `schema.prisma` PG y `schema.mysql.prisma`, migraciones, seed.
+- `packages/shared/` → Lógica CASL, quiz, tipos compartidos.
+
+**Flujo de datos**
+1. Usuario → Cloudflare Worker → asset estático o proxy API.
+2. API → `apps/api/src/server/lib/db.ts` DAL → registro `packages/db/prisma`.
+3. Failover: PG primario → PG backup → MySQL tercero con whitelist de tablas.
+4. Seguridad: JWT_SECRET/ENCRYPTION_KEY solo por env, CORS whitelist, CSP/HSTS.
 
 ```
 apps/
@@ -42,20 +57,35 @@ pnpm dev
 Web: http://localhost:5173
 API: http://localhost:3001/api/health
 
-## Producción
+## Despliegue
 
-### Docker recomendado
+### Opción 1: pnpm / Vite local
+Ideal para desarrollo y preview rápido.
+```bash
+corepack enable
+pnpm install
+cp .env.example .env
+pnpm db:generate && pnpm db:migrate && pnpm db:seed
+pnpm build          # build web + server
+pnpm preview        # Vite preview
+# o servidor API
+NODE_ENV=production node dist/server/index.js
+```
+
+### Opción 2: Docker
+Recomendado para producción self-hosted/Koyeb.
 ```bash
 docker compose up -d --build
 docker compose logs -f app
 docker compose down
 ```
+Dockerfile multi-stage Alpine, usuario no-root, read-only, healthcheck en `/api/health`.
 
-### Node nativo
-```bash
-pnpm build
-NODE_ENV=production node dist/server/index.js
-```
+### Opción 3: Vercel + Cloudflare
+- Web: Vite build desplegado en Vercel/Cloudflare Pages.
+- API: Express compilado como Serverless Function vía `api/[...slug].js`.
+- Worker: proxy `/api/*` a Vercel y sirve assets.
+Variables requeridas: `DATABASE_URL`, `JWT_SECRET`, `ENCRYPTION_KEY`, `FRONTEND_ORIGIN`.
 
 ## Scripts útiles
 
