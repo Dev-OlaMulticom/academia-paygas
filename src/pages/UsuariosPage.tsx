@@ -32,9 +32,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 		if (!q) return usuarios;
 		return usuarios.filter((u: any) => {
 			const gestor =
-				u.role === "ATENDENTE"
-					? u.gestorNome || gestores.find((g: any) => g.id === u.gestorId)?.nome || ""
-					: "";
+				u.role === "ATENDENTE" ? u.gestorNome || gestores.find((g: any) => g.id === u.gestorId)?.nome || "" : "";
 			return (
 				(u.nome || "").toLowerCase().includes(q) ||
 				(u.email || "").toLowerCase().includes(q) ||
@@ -439,109 +437,111 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 				<TablePagination page={page} totalItems={totalItems} itemsPerPage={10} onPageChange={setPage} />
 			</div>
 
-			{isGestor && equipeDetalhe.length > 0 && (() => {
-				const q = search.trim().toLowerCase();
-				const membrosFiltrados = q
-					? equipeDetalhe.filter(
-							(m: any) =>
-								(m.nome || "").toLowerCase().includes(q) ||
-								(m.email || "").toLowerCase().includes(q) ||
-								(m.estabelecimento?.nome || "").toLowerCase().includes(q),
-						)
-					: equipeDetalhe;
-				if (membrosFiltrados.length === 0) return null;
-				return (
-				<div className="user-equipe-section">
-					<div className="section-title user-equipe-title">Progresso Detalhado da Equipe</div>
-					{membrosFiltrados.map((member) => (
-						<div key={member.id} className="user-equipe-card">
-							<div
-								className="user-equipe-header"
-								onClick={() => setExpandedUser(expandedUser === member.id ? null : member.id)}
-							>
-								<div className="user-avatar user-equipe-avatar">
-									{member.nome
-										?.split(" ")
-										.map((n: string) => n[0])
-										.slice(0, 2)
-										.join("")}
-								</div>
-								<div className="user-equipe-info">
-									<b className="user-equipe-name">{member.nome}</b>
-									<div className="user-equipe-email">{member.email}</div>
-								</div>
-								<div className="user-equipe-stats">
-									<div className="user-equipe-stat">
-										<div className="user-equipe-stat-val" style={{ color: "var(--pg-orange)" }}>
-											{member.xp || 0}
+			{isGestor &&
+				equipeDetalhe.length > 0 &&
+				(() => {
+					const q = search.trim().toLowerCase();
+					const membrosFiltrados = q
+						? equipeDetalhe.filter(
+								(m: any) =>
+									(m.nome || "").toLowerCase().includes(q) ||
+									(m.email || "").toLowerCase().includes(q) ||
+									(m.estabelecimento?.nome || "").toLowerCase().includes(q),
+							)
+						: equipeDetalhe;
+					if (membrosFiltrados.length === 0) return null;
+					return (
+						<div className="user-equipe-section">
+							<div className="section-title user-equipe-title">Progresso Detalhado da Equipe</div>
+							{membrosFiltrados.map((member) => (
+								<div key={member.id} className="user-equipe-card">
+									<div
+										className="user-equipe-header"
+										onClick={() => setExpandedUser(expandedUser === member.id ? null : member.id)}
+									>
+										<div className="user-avatar user-equipe-avatar">
+											{member.nome
+												?.split(" ")
+												.map((n: string) => n[0])
+												.slice(0, 2)
+												.join("")}
 										</div>
-										<div className="user-equipe-stat-label">XP</div>
-									</div>
-									<div className="user-equipe-stat">
-										<div className="user-equipe-stat-val" style={{ color: "var(--pg-green)" }}>
-											{member.cursos?.filter((m: any) => m.aulasConcluidas === m.totalAulas && m.totalAulas > 0)
-												.length || 0}
+										<div className="user-equipe-info">
+											<b className="user-equipe-name">{member.nome}</b>
+											<div className="user-equipe-email">{member.email}</div>
 										</div>
-										<div className="user-equipe-stat-label">Concluídos</div>
-									</div>
-									<i
-										className={expandedUser === member.id ? "icon-chevron-up icon-sm" : "icon-chevron-down icon-sm"}
-										style={{ color: "var(--gray-400)" }}
-									/>
-								</div>
-							</div>
-
-							{expandedUser === member.id && (
-								<div className="user-equipe-body">
-									{member.cursos?.map((mod: any) => {
-										const percentual =
-											mod.totalAulas > 0 ? Math.round((mod.aulasConcluidas / mod.totalAulas) * 100) : 0;
-										return (
-											<div key={mod.id} className="user-equipe-mod">
-												<div className="user-equipe-mod-header">
-													<b className="user-equipe-mod-title">{mod.titulo}</b>
-													<span
-														className="user-equipe-mod-pct"
-														style={{ color: percentual === 100 ? "var(--pg-green)" : "var(--gray-500)" }}
-													>
-														{mod.aulasConcluidas}/{mod.totalAulas} aulas ({percentual}%)
-													</span>
+										<div className="user-equipe-stats">
+											<div className="user-equipe-stat">
+												<div className="user-equipe-stat-val" style={{ color: "var(--pg-orange)" }}>
+													{member.xp || 0}
 												</div>
-												<div className="track-prog-bar user-equipe-mod-bar">
-													<div
-														className={`track-prog-fill ${percentual === 100 ? "done" : ""}`}
-														style={{ width: `${percentual}%` }}
-													/>
-												</div>
-												<div className="user-equipe-aulas">
-													{mod.aulas?.map((aula: any) => (
-														<div key={aula.id} className="user-equipe-aula">
-															<i
-																className={aula.concluido ? "icon-check-circle icon-xs" : "icon-circle icon-xs"}
-																style={{ color: aula.concluido ? "var(--pg-green)" : "var(--gray-300)" }}
-															/>
-															<span
-																className="user-equipe-aula-name"
-																style={{ color: aula.concluido ? "var(--gray-700)" : "var(--gray-400)" }}
-															>
-																{aula.titulo}
-															</span>
-															{aula.licoes?.length > 0 && (
-																<span className="user-equipe-aula-licoes">({aula.licoes.length} lições)</span>
-															)}
-														</div>
-													))}
-												</div>
+												<div className="user-equipe-stat-label">XP</div>
 											</div>
-										);
-									})}
+											<div className="user-equipe-stat">
+												<div className="user-equipe-stat-val" style={{ color: "var(--pg-green)" }}>
+													{member.cursos?.filter((m: any) => m.aulasConcluidas === m.totalAulas && m.totalAulas > 0)
+														.length || 0}
+												</div>
+												<div className="user-equipe-stat-label">Concluídos</div>
+											</div>
+											<i
+												className={expandedUser === member.id ? "icon-chevron-up icon-sm" : "icon-chevron-down icon-sm"}
+												style={{ color: "var(--gray-400)" }}
+											/>
+										</div>
+									</div>
+
+									{expandedUser === member.id && (
+										<div className="user-equipe-body">
+											{member.cursos?.map((mod: any) => {
+												const percentual =
+													mod.totalAulas > 0 ? Math.round((mod.aulasConcluidas / mod.totalAulas) * 100) : 0;
+												return (
+													<div key={mod.id} className="user-equipe-mod">
+														<div className="user-equipe-mod-header">
+															<b className="user-equipe-mod-title">{mod.titulo}</b>
+															<span
+																className="user-equipe-mod-pct"
+																style={{ color: percentual === 100 ? "var(--pg-green)" : "var(--gray-500)" }}
+															>
+																{mod.aulasConcluidas}/{mod.totalAulas} aulas ({percentual}%)
+															</span>
+														</div>
+														<div className="track-prog-bar user-equipe-mod-bar">
+															<div
+																className={`track-prog-fill ${percentual === 100 ? "done" : ""}`}
+																style={{ width: `${percentual}%` }}
+															/>
+														</div>
+														<div className="user-equipe-aulas">
+															{mod.aulas?.map((aula: any) => (
+																<div key={aula.id} className="user-equipe-aula">
+																	<i
+																		className={aula.concluido ? "icon-check-circle icon-xs" : "icon-circle icon-xs"}
+																		style={{ color: aula.concluido ? "var(--pg-green)" : "var(--gray-300)" }}
+																	/>
+																	<span
+																		className="user-equipe-aula-name"
+																		style={{ color: aula.concluido ? "var(--gray-700)" : "var(--gray-400)" }}
+																	>
+																		{aula.titulo}
+																	</span>
+																	{aula.licoes?.length > 0 && (
+																		<span className="user-equipe-aula-licoes">({aula.licoes.length} lições)</span>
+																	)}
+																</div>
+															))}
+														</div>
+													</div>
+												);
+											})}
+										</div>
+									)}
 								</div>
-							)}
+							))}
 						</div>
-					))}
-				</div>
-				);
-			})()}
+					);
+				})()}
 
 			{showCreateModal && (
 				<div className="modal-overlay">

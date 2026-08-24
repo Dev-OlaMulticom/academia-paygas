@@ -1,0 +1,23 @@
+name = "academia-paygas"
+main = "worker/index.ts"
+compatibility_date = "2025-08-01"
+compatibility_flags = ["nodejs_compat"]
+
+[observability]
+enabled = true
+
+# Static SPA build output (see vite.config.ts -> build.outDir).
+[assets]
+directory = "./dist/client"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
+
+[vars]
+NODE_ENV = "production"
+# URL of the Vercel deployment hosting the Express API. Overridden per
+# environment below; update after the first Vercel deploy.
+API_ORIGIN = "https://academia-paygas.vercel.app"
+
+[env.staging.vars]
+NODE_ENV = "production"
+API_ORIGIN = "https://academia-paygas-git-staging.vercel.app"

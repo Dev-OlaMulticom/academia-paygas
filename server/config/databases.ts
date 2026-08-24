@@ -17,6 +17,27 @@ import logger from "../lib/logger";
 
 export type DatabaseStatus = "connected" | "degraded" | "disconnected" | "unknown";
 
+/**
+ * Resolve the `ssl` option for the `pg` adapter based on the connection
+ * string's host. Managed providers with a valid public CA (Neon, Supabase's
+ * pooler, etc.) can verify the certificate chain; providers behind
+ * self-signed certs need `rejectUnauthorized: false`. Defaults to the
+ * permissive (legacy) behavior when the host doesn't match a known
+ * verifiable provider, to avoid breaking existing self-hosted setups.
+ */
+export function resolveSslOption(url: string): { rejectUnauthorized: boolean } {
+	const verifiableHosts = [".neon.tech", ".vercel-storage.com"];
+	try {
+		const { hostname } = new URL(url.replace(/^postgres(ql)?:\/\//, "https://"));
+		if (verifiableHosts.some((suffix) => hostname.endsWith(suffix))) {
+			return { rejectUnauthorized: true };
+		}
+	} catch {
+		/* fall through to permissive default */
+	}
+	return { rejectUnauthorized: false };
+}
+
 export interface DatabaseEntry {
 	name: string;
 	url: string;
@@ -82,7 +103,7 @@ class DatabaseRegistry {
 		try {
 			const adapter = new PrismaPg({
 				connectionString: url,
-				ssl: { rejectUnauthorized: false },
+				ssl: resolveSslOption(url),
 				max: 5,
 			});
 			client = new PrismaClient({

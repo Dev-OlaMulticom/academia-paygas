@@ -19,7 +19,7 @@
 
 import type { PrismaClient } from "@prisma/client";
 
-import { dbRegistry } from "../config/databases";
+import { dbRegistry, resolveSslOption } from "../config/databases";
 
 const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient };
 
@@ -31,7 +31,7 @@ function buildClient(url: string): PrismaClient {
 
 	const adapter = new PrismaPg({
 		connectionString: url,
-		ssl: { rejectUnauthorized: false },
+		ssl: resolveSslOption(url),
 		max: 5,
 	});
 

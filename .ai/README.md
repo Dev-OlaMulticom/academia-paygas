@@ -83,7 +83,8 @@ npx tsc --project tsconfig.server.json --noEmit  # Backend typecheck
 | **Build a new feature** | [workflow.md](workflow.md) → [AGENTS.md](AGENTS.md) |
 | **Follow coding conventions** | [coding-rules.md](coding-rules.md) |
 | **Implement permissions/roles** | [AGENTS.md #Roles](AGENTS.md#roles--permissions) |
-| **Deploy to production** | [DEPLOY-CPANEL.md](DEPLOY-CPANEL.md) |
+| **Deploy to production (cPanel)** | [DEPLOY-CPANEL.md](DEPLOY-CPANEL.md) |
+| **Deploy to production (Vercel + Cloudflare)** | [DEPLOY-VERCEL-CLOUDFLARE.md](DEPLOY-VERCEL-CLOUDFLARE.md) |
 | **Design UI components** | [DESIGN.md](DESIGN.md) |
 | **Test changes** | [testing.md](testing.md) |
 | **Use codebase-memory-mcp** | [memory.md](memory.md) |
@@ -104,7 +105,8 @@ academia-paygas/
 │   ├── taskmaster.md       ← Task Master AI guide
 │   ├── memory.md           ← codebase-memory-mcp usage
 │   ├── DESIGN.md           ← UI design system
-│   ├── DEPLOY-CPANEL.md    ← Production deployment
+│   ├── DEPLOY-CPANEL.md    ← Production deployment (cPanel)
+│   ├── DEPLOY-VERCEL-CLOUDFLARE.md ← Production deployment (Vercel + Cloudflare)
 │   └── SECURITY_CHANGES.md ← Security fixes & history
 │
 ├── src/                    ← Frontend (React)

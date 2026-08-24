@@ -33,41 +33,60 @@ describe("JWT_SECRET fallback chain", () => {
 		assert.equal(auth.JWT_SECRET, "a".repeat(64));
 	});
 
-	it("falls back to .jwt-secret file when env is missing", () => {
-		const fixture = path.resolve(".jwt-secret-fixture");
-		const newSecret = "f".repeat(48); // ≥16 chars
-		fs.writeFileSync(fixture, newSecret, { mode: 0o600 });
-
-		try {
-			delete process.env.JWT_SECRET;
-			process.env.NODE_ENV = "development";
-
-			// Rename the fixture so the middleware sees it.
-			if (fs.existsSync(".jwt-secret")) fs.unlinkSync(".jwt-secret");
-			fs.renameSync(fixture, ".jwt-secret");
-			clearAuthModuleCache();
-
-			const auth = require("../server/middleware/auth");
-			assert.equal(auth.JWT_SECRET, newSecret);
-
-			// Restore fixture before next iteration.
-			fs.renameSync(".jwt-secret", fixture);
-			clearAuthModuleCache();
-		} finally {
-			if (fs.existsSync(fixture)) fs.unlinkSync(fixture);
-			if (fs.existsSync(".jwt-secret")) fs.unlinkSync(".jwt-secret");
-		}
-	});
-
-	it("generates a 128-char hex secret when nothing else is set", () => {
+	it("requires env var, no file fallback", () => {
+		const original = process.env.JWT_SECRET;
 		delete process.env.JWT_SECRET;
 		process.env.NODE_ENV = "development";
 
+		// Ensure no file fallback exists
 		if (fs.existsSync(".jwt-secret")) fs.unlinkSync(".jwt-secret");
 		clearAuthModuleCache();
 
-		const auth = require("../server/middleware/auth");
-		assert.match(auth.JWT_SECRET, SECRET_RE, "should be 64-byte hex string");
-		assert.ok(auth.JWT_SECRET.length >= 32, "should be ≥32 chars");
+		let exited = false;
+		const origExit = process.exit;
+		// @ts-expect-error
+		process.exit = (code: number) => {
+			exited = true;
+			throw new Error("process.exit:" + code);
+		};
+
+		try {
+			require("../server/middleware/auth");
+			assert.fail("should have exited");
+		} catch (e: any) {
+			assert.ok(exited, "process.exit should be called");
+		} finally {
+			// @ts-expect-error
+			process.exit = origExit;
+			process.env.JWT_SECRET = original;
+			clearAuthModuleCache();
+		}
+	});
+
+	it("rejects short env var", () => {
+		const original = process.env.JWT_SECRET;
+		process.env.JWT_SECRET = "short";
+		process.env.NODE_ENV = "development";
+		clearAuthModuleCache();
+
+		let exited = false;
+		const origExit = process.exit;
+		// @ts-expect-error
+		process.exit = (code: number) => {
+			exited = true;
+			throw new Error("process.exit:" + code);
+		};
+
+		try {
+			require("../server/middleware/auth");
+			assert.fail("should have exited");
+		} catch {
+			assert.ok(exited, "process.exit should be called for short secret");
+		} finally {
+			// @ts-expect-error
+			process.exit = origExit;
+			process.env.JWT_SECRET = original;
+			clearAuthModuleCache();
+		}
 	});
 });

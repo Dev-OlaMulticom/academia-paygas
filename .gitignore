@@ -5,6 +5,7 @@ prisma/generated/mysql
 
 # SSL certificates (never commit)
 server/certs/
+.ssh/
 
 # Database files
 *.db
@@ -51,3 +52,7 @@ test-api.js
 # Auto-generated runtime secrets (never commit)
 .jwt-secret
 .jwt-secret-fixture
+
+# Cloudflare Workers local dev secrets
+.dev.vars
+.wrangler/

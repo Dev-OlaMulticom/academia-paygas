@@ -4,6 +4,11 @@ import { defineConfig } from "vite";
 
 export default defineConfig({
 	plugins: [react()],
+	build: {
+		// Output the SPA here so wrangler.toml `assets.directory` can serve it.
+		outDir: "dist/client",
+		emptyOutDir: true,
+	},
 	resolve: {
 		alias: {
 			"@": path.resolve(__dirname, "./src"),

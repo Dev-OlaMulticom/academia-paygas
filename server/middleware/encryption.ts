@@ -9,19 +9,16 @@ const KEY_LENGTH = 32;
 const SALT_LENGTH = 64;
 const AUTH_TAG_LENGTH = 16;
 
-// Dynamic encryption key - generated at runtime if not provided
 let DYNAMIC_ENCRYPTION_KEY: string;
 
 function getEncryptionKey(): string {
 	if (!DYNAMIC_ENCRYPTION_KEY) {
-		// Use env var if provided, otherwise generate a random key
-		if (process.env.ENCRYPTION_KEY) {
-			DYNAMIC_ENCRYPTION_KEY = process.env.ENCRYPTION_KEY;
-		} else {
-			// Generate a random key for this server instance
-			DYNAMIC_ENCRYPTION_KEY = crypto.randomBytes(32).toString("hex");
-			logger.info("🔑 Generated dynamic encryption key for this session");
+		const key = process.env.ENCRYPTION_KEY;
+		if (!key || key.length < 32) {
+			logger.error("ENCRYPTION_KEY is required and must be at least 32 characters");
+			process.exit(1);
 		}
+		DYNAMIC_ENCRYPTION_KEY = key;
 	}
 	return DYNAMIC_ENCRYPTION_KEY;
 }

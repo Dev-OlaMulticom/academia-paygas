@@ -1,6 +1,6 @@
 import "dotenv/config";
-import { test, describe } from "node:test";
 import assert from "node:assert/strict";
+import { describe, test } from "node:test";
 
 /**
  * Simulates the original outage scenario:
@@ -15,67 +15,67 @@ import assert from "node:assert/strict";
  * 4. Routes the operation to PG_2 (Nhost)
  */
 describe("Cold-start failover (original outage scenario)", () => {
-  test("read failover when primary is IPv6-unreachable", async () => {
-    const { dbRegistry } = await import("../server/config/databases");
-    const { invalidateDelegateCache } = await import("../server/lib/db-models");
-    const { db } = await import("../server/lib/db");
+	test("read failover when primary is IPv6-unreachable", async () => {
+		const { dbRegistry } = await import("../server/config/databases");
+		const { invalidateDelegateCache } = await import("../server/lib/db-models");
+		const { db } = await import("../server/lib/db");
 
-    // Simulate cold start: all DBs unknown
-    for (const entry of dbRegistry.getAll()) {
-      dbRegistry.setStatus(entry.name, "unknown");
-    }
-    invalidateDelegateCache();
+		// Simulate cold start: all DBs unknown
+		for (const entry of dbRegistry.getAll()) {
+			dbRegistry.setStatus(entry.name, "unknown");
+		}
+		invalidateDelegateCache();
 
-    const primaryBefore = dbRegistry.getPrimary();
-    console.log("  Primary before:", primaryBefore?.name, "status:", primaryBefore?.status);
+		const primaryBefore = dbRegistry.getPrimary();
+		console.log("  Primary before:", primaryBefore?.name, "status:", primaryBefore?.status);
 
-    // This should trigger failover: try primary (Nhost, reachable) → succeed
-    // OR if primary is Supabase (unreachable), failover to Nhost
-    const count = await db.count("user");
-    assert.ok(count >= 0, "count should return a number");
+		// This should trigger failover: try primary (Nhost, reachable) → succeed
+		// OR if primary is Supabase (unreachable), failover to Nhost
+		const count = await db.count("user");
+		assert.ok(count >= 0, "count should return a number");
 
-    const primaryAfter = dbRegistry.getPrimary();
-    console.log("  Primary after:", primaryAfter?.name, "status:", primaryAfter?.status);
-    console.log("  ✓ count =", count);
-  });
+		const primaryAfter = dbRegistry.getPrimary();
+		console.log("  Primary after:", primaryAfter?.name, "status:", primaryAfter?.status);
+		console.log("  ✓ count =", count);
+	});
 
-  test("write failover when primary is IPv6-unreachable", async () => {
-    const { dbRegistry } = await import("../server/config/databases");
-    const { invalidateDelegateCache } = await import("../server/lib/db-models");
-    const { db } = await import("../server/lib/db");
+	test("write failover when primary is IPv6-unreachable", async () => {
+		const { dbRegistry } = await import("../server/config/databases");
+		const { invalidateDelegateCache } = await import("../server/lib/db-models");
+		const { db } = await import("../server/lib/db");
 
-    // Find admin user first (via whatever DB is available)
-    const user = await db.findUnique("user", { email: "admin@paygas.com.br" });
-    assert.ok(user, "admin user should exist");
+		// Find admin user first (via whatever DB is available)
+		const user = await db.findUnique("user", { email: "admin@paygas.com.br" });
+		assert.ok(user, "admin user should exist");
 
-    // Simulate cold start again
-    for (const entry of dbRegistry.getAll()) {
-      dbRegistry.setStatus(entry.name, "unknown");
-    }
-    invalidateDelegateCache();
+		// Simulate cold start again
+		for (const entry of dbRegistry.getAll()) {
+			dbRegistry.setStatus(entry.name, "unknown");
+		}
+		invalidateDelegateCache();
 
-    // This should trigger write failover if primary is unreachable
-    await db.update("user", { id: user.id }, { lastLogin: new Date() });
-    console.log("  ✓ write failover succeeded");
-  });
+		// This should trigger write failover if primary is unreachable
+		await db.update("user", { id: user.id }, { lastLogin: new Date() });
+		console.log("  ✓ write failover succeeded");
+	});
 
-  test("login flow works end-to-end with failover", async () => {
-    const { dbRegistry } = await import("../server/config/databases");
-    const { invalidateDelegateCache } = await import("../server/lib/db-models");
-    const { db } = await import("../server/lib/db");
+	test("login flow works end-to-end with failover", async () => {
+		const { dbRegistry } = await import("../server/config/databases");
+		const { invalidateDelegateCache } = await import("../server/lib/db-models");
+		const { db } = await import("../server/lib/db");
 
-    // Cold start
-    for (const entry of dbRegistry.getAll()) {
-      dbRegistry.setStatus(entry.name, "unknown");
-    }
-    invalidateDelegateCache();
+		// Cold start
+		for (const entry of dbRegistry.getAll()) {
+			dbRegistry.setStatus(entry.name, "unknown");
+		}
+		invalidateDelegateCache();
 
-    // Simulate login: findUnique + bcrypt compare + update lastLogin
-    const user = await db.findUnique("user", { email: "admin@paygas.com.br" });
-    assert.ok(user, "user should be found via failover");
-    assert.equal(user.role, "ADMIN", "admin user should have ADMIN role");
+		// Simulate login: findUnique + bcrypt compare + update lastLogin
+		const user = await db.findUnique("user", { email: "admin@paygas.com.br" });
+		assert.ok(user, "user should be found via failover");
+		assert.equal(user.role, "ADMIN", "admin user should have ADMIN role");
 
-    await db.update("user", { id: user.id }, { lastLogin: new Date() });
-    console.log("  ✓ login flow (findUnique + update) succeeded via failover");
-  });
+		await db.update("user", { id: user.id }, { lastLogin: new Date() });
+		console.log("  ✓ login flow (findUnique + update) succeeded via failover");
+	});
 });

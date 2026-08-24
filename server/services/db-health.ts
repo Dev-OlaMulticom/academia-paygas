@@ -8,7 +8,9 @@
  *   - Invalida cache de delegates quando a primaria muda
  *
  * Métricas disponíveis via `getLatencyStats()` (consumido em /api/health).
- * Intervalo para DBs conectadas: 60s (DEFAULT_INTERVAL). DBs offline usam
+ * Intervalo para DBs conectadas: 5s (DEFAULT_INTERVAL, heartbeat) — rápido o
+ * suficiente para detectar quedas/recuperações quase em tempo real e
+ * disparar o listener de real-time sync (db-realtime.ts). DBs offline usam
  * backoff exponencial (30s → 60s → 120s → max 5min) para não saturar logs.
  *
  * Usage:
@@ -22,7 +24,7 @@ import { dbRegistry } from "../config/databases";
 import { invalidateDelegateCache } from "../lib/db-models";
 import logger from "../lib/logger";
 
-const DEFAULT_INTERVAL = 60 * 1000;
+const DEFAULT_INTERVAL = 5 * 1000;
 const MAX_BACKOFF = 5 * 60 * 1000;
 const BASE_BACKOFF = 30 * 1000;
 const LATENCY_WINDOW = 20;
@@ -106,9 +108,7 @@ async function checkDatabase(
 		// some systems before the OS gives up, which blocks server startup.
 		await Promise.race([
 			client.$queryRaw`SELECT 1`,
-			new Promise((_, reject) =>
-				setTimeout(() => reject(new Error("health check timeout")), HEALTH_CHECK_TIMEOUT),
-			),
+			new Promise((_, reject) => setTimeout(() => reject(new Error("health check timeout")), HEALTH_CHECK_TIMEOUT)),
 		]);
 		const ms = Date.now() - start;
 		if (ms > MAX_LATENCY_OK) return { status: "degraded", ms };
@@ -142,6 +142,9 @@ async function runHealthChecks(): Promise<void> {
 				recoveredNames.push(entry.name);
 			} else if (newStatus === "disconnected") {
 				logger.warn(`[DB-HEALTH] ${entry.name}: OFFLINE (${prevStatus} → disconnected)`);
+				import("./db-realtime")
+					.then(({ detachRealtimeListener }) => detachRealtimeListener(entry.name))
+					.catch(() => {});
 			} else {
 				logger.info(`[DB-HEALTH] ${entry.name}: DEGRADADO (latencia ${ms}ms)`);
 			}
@@ -154,6 +157,12 @@ async function runHealthChecks(): Promise<void> {
 			if (newStatus === "disconnected") {
 				primaryChanged = true;
 			}
+		}
+
+		// Keep the real-time LISTEN client in sync with health status. Cheap
+		// no-op if already connected.
+		if (newStatus === "connected" || newStatus === "degraded") {
+			import("./db-realtime").then(({ attachRealtimeListener }) => attachRealtimeListener(entry.name)).catch(() => {});
 		}
 	}
 

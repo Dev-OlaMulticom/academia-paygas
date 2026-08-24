@@ -53,9 +53,12 @@ NHOST_URL="..."     # Legacy Nhost backup (fallback if PG_URL_* not set)
 ```
 
 - **PG_URL_1** through **PG_URL_10** supported — the registry scans dynamically.
-- **Health checks**: Every 60s, monitors all databases. Exponential backoff for disconnected ones.
+- **Heartbeat**: `server/services/db-health.ts` pings every DB every **5s** (`SELECT 1`, backoff to 5min when offline). Drives failover (primary switch) and (re)connects the real-time listener.
 - **Keep-alive**: Pings all databases every 12h to prevent free-tier pauses.
-- **Background sync**: When a completely empty database recovers, syncs all data from healthiest database.
+- **Sync — three layers**, from fastest to most thorough (see `server/services/db-sync.ts` and `db-realtime.ts` docstrings for the full rationale):
+  1. **Real-time** (`db-realtime.ts`): Postgres triggers (`prisma/migrations/20260824000000_add_realtime_sync_triggers`) `pg_notify` on every row change; the app `LISTEN`s on every healthy database and mirrors the single changed row to the others within milliseconds. Primary path while databases are online. DELETEs are logged but not propagated (no soft-delete policy).
+  2. **Incremental catch-up** (`db-sync.ts`, every 10s): cheap safety net — pulls rows newer than a per-table `updatedAt`/`createdAt` cursor. Catches anything the real-time layer missed (LISTEN/NOTIFY is fire-and-forget; a notification raised while nobody is listening is lost).
+  3. **Full hash-diff reconciliation** (`db-sync.ts`): the original `md5(row::text)` full-table comparison. Only runs at startup (seeds the incremental cursors), immediately on recovery from an outage, and every 15 minutes as a deep safety net.
 
 **Naming gotcha:** The DB table is `Curso` but the frontend/CMS calls it "Curso". The field `cursoId` is `cursoId` in frontend context. This is cosmetic only — the schema is not changing.
 
@@ -186,6 +189,7 @@ PORT=3001 nohup node dist/server/index.js > logs/app.log 2>&1 &
 - **`db-models.ts` uses health-aware `getPrimary()`** from the registry. When a database transitions health state, `db-health` calls `invalidateDelegateCache()` so reads re-route through the new primary.
 - **Backup tiers warn on missing config**: at DAL startup, if `MYSQL_URL`, `NHOST_URL`, or additional `PG_URL_*` are not configured the DAL logs a single warning so silent degradation is visible to operators.
 - **HTTPS auto-detection**: Server looks for `server/certs/key.pem` and `cert.pem` relative to `__dirname`. If found, creates HTTPS; otherwise plain HTTP.
+- **Real-time sync (`db-realtime.ts`) requires a persistent process** — it holds a long-lived `pg.Client` per database with `LISTEN` open. This works on cPanel and local dev, but **does NOT work on Vercel serverless functions** (see `DEPLOY-VERCEL-CLOUDFLARE.md`): each invocation is a short-lived, isolated process, so a `LISTEN` connection can't be kept open across requests. On serverless, only the incremental + full-diff layers apply — which is one more reason the Vercel deployment is configured to skip the multi-DB setup entirely (single Neon Postgres, no dual-write/backups).
 - **JWT_SECRET fallback chain**: env var → `.jwt-secret` file → auto-generate random 64-byte hex and persist to `.jwt-secret`.
 - When `MYSQL_URL` is not set, `prismaMysql` is `null` and all dual-write operations silently skip MySQL. **A warning is logged** so this isn't invisible.
 - When `NHOST_URL` is not set, `prismaNhost` is `null` and all dual-write operations silently skip Nhost.

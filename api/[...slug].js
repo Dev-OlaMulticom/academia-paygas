@@ -41,7 +41,7 @@ module.exports = (req, res) => {
 };
 
 module.exports.config = {
-  runtime: 'nodejs18.x',
+  runtime: 'nodejs20.x',
   api: {
     bodyParser: false,
   },

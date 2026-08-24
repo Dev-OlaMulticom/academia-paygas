@@ -1,54 +1,19 @@
-import crypto from "node:crypto";
 import type { NextFunction, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { KNOWN_ACTIONS } from "../auth/casl/actions";
 import { defineAbility } from "../auth/casl/defineAbility";
 import logger from "../lib/logger";
 
-const JWT_SECRET_FALLBACK_FILE = ".jwt-secret";
-
 function getJWTSecret(): string {
-	const envSecret = process.env.JWT_SECRET;
-
-	if (envSecret && envSecret.length >= 32) {
-		return envSecret;
+	const secret = process.env.JWT_SECRET;
+	if (!secret || secret.length < 32) {
+		logger.error("JWT_SECRET is required and must be at least 32 characters");
+		process.exit(1);
 	}
-
-	if (envSecret && envSecret.length < 32) {
-		logger.warn("⚠️  JWT_SECRET is shorter than 32 characters. Using it anyway but consider generating a longer one.");
-		return envSecret;
-	}
-
-	// Try to load persisted secret from file
-	try {
-		const fs = require("node:fs");
-		if (fs.existsSync(JWT_SECRET_FALLBACK_FILE)) {
-			const persisted = fs.readFileSync(JWT_SECRET_FALLBACK_FILE, "utf8").trim();
-			if (persisted && persisted.length >= 16) {
-				return persisted;
-			}
-		}
-	} catch {
-		/* */
-	}
-
-	// Generate new secret and persist it
-	const newSecret = crypto.randomBytes(64).toString("hex");
-	try {
-		const fs = require("node:fs");
-		fs.writeFileSync(JWT_SECRET_FALLBACK_FILE, newSecret, { mode: 0o600 });
-		logger.info("🔑 JWT secret generated and persisted to .jwt-secret");
-	} catch {
-		logger.warn("⚠️  Could not persist JWT secret. Tokens will be invalidated on restart.");
-	}
-
-	return newSecret;
+	return secret;
 }
 
 const JWT_SECRET = getJWTSecret();
-if (!process.env.JWT_SECRET) {
-	logger.info("🔑 Generated dynamic JWT secret for this session");
-}
 
 export interface AuthRequest extends Request {
 	userId?: string;

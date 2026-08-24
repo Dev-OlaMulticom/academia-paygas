@@ -268,126 +268,139 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 
 	const summary = useMemo(() => {
 		const total = allExportRows.length;
-		const concluidos = allExportRows.filter((r) => r.status === "Ativo" && Number(r.pctAulas.replace("%", "")) === 100).length;
+		const concluidos = allExportRows.filter(
+			(r) => r.status === "Ativo" && Number(r.pctAulas.replace("%", "")) === 100,
+		).length;
 		const certificados = allExportRows.reduce((s, r) => s + Number(r.certificados || 0), 0);
 		const pctSoma = allExportRows.reduce((s, r) => s + Number(r.pctAulas.replace("%", "")), 0);
 		const avgProgress = total > 0 ? Math.round(pctSoma / total) : 0;
 		return { total, concluidos, certificados, avgProgress };
 	}, [allExportRows]);
 
-	const exportCsv = useCallback((rows: ExportRow[], fileNameSuffix = "") => {
-		try {
-			setExporting("csv");
-			const cols = EXPORT_COLUMNS.filter((c) => !c.adminOnly || isAdmin);
-			const headers = cols.map((c) => c.header);
-			const escape = (v: any) => {
-				const s = String(v ?? "");
-				return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
-			};
-			const lines = [
-				headers.join(";"),
-				...rows.map((r) => cols.map((c) => escape(r[c.key])).join(";")),
-			];
-			const csv = "﻿" + lines.join("\n");
-			const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-			const url = URL.createObjectURL(blob);
-			const a = document.createElement("a");
-			a.href = url;
-			a.download = `equipe${fileNameSuffix}-${new Date().toISOString().slice(0, 10)}.csv`;
-			a.click();
-			URL.revokeObjectURL(url);
-			toast("CSV exportado com sucesso!", "success");
-		} catch (err) {
-			toast("Erro ao exportar CSV", "error");
-		} finally {
-			setExporting(null);
-		}
-	}, [allExportRows, isAdmin, toast]);
+	const exportCsv = useCallback(
+		(rows: ExportRow[], fileNameSuffix = "") => {
+			try {
+				setExporting("csv");
+				const cols = EXPORT_COLUMNS.filter((c) => !c.adminOnly || isAdmin);
+				const headers = cols.map((c) => c.header);
+				const escape = (v: any) => {
+					const s = String(v ?? "");
+					return /[",\n;]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
+				};
+				const lines = [headers.join(";"), ...rows.map((r) => cols.map((c) => escape(r[c.key])).join(";"))];
+				const csv = "﻿" + lines.join("\n");
+				const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+				const url = URL.createObjectURL(blob);
+				const a = document.createElement("a");
+				a.href = url;
+				a.download = `equipe${fileNameSuffix}-${new Date().toISOString().slice(0, 10)}.csv`;
+				a.click();
+				URL.revokeObjectURL(url);
+				toast("CSV exportado com sucesso!", "success");
+			} catch (err) {
+				toast("Erro ao exportar CSV", "error");
+			} finally {
+				setExporting(null);
+			}
+		},
+		[allExportRows, isAdmin, toast],
+	);
 
-	const exportPdf = useCallback(async (rows: ExportRow[], fileNameSuffix = "") => {
-		try {
-			setExporting("pdf");
-			const jsPDF = (await import("jspdf")).default;
-			const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
-			const pageW = doc.internal.pageSize.getWidth();
-			const pageH = doc.internal.pageSize.getHeight();
-			const margin = 8;
-			const pad = 1.5;
-			const lineH = 4;
+	const exportPdf = useCallback(
+		async (rows: ExportRow[], fileNameSuffix = "") => {
+			try {
+				setExporting("pdf");
+				const jsPDF = (await import("jspdf")).default;
+				const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+				const pageW = doc.internal.pageSize.getWidth();
+				const pageH = doc.internal.pageSize.getHeight();
+				const margin = 8;
+				const pad = 1.5;
+				const lineH = 4;
 
-			const cols = EXPORT_COLUMNS.filter((c) => !c.adminOnly || isAdmin);
-			const headers = cols.map((c) => c.header);
-			const weights = cols.map((c) => c.w);
-			const totalWeight = weights.reduce((a, b) => a + b, 0);
-			const avail = pageW - margin * 2;
-			const colW = weights.map((w) => Math.max(12, (w / totalWeight) * avail));
+				const cols = EXPORT_COLUMNS.filter((c) => !c.adminOnly || isAdmin);
+				const headers = cols.map((c) => c.header);
+				const weights = cols.map((c) => c.w);
+				const totalWeight = weights.reduce((a, b) => a + b, 0);
+				const avail = pageW - margin * 2;
+				const colW = weights.map((w) => Math.max(12, (w / totalWeight) * avail));
 
-			doc.setFontSize(11);
-			doc.setFont("helvetica", "bold");
-			doc.text(isGestor ? "Relatorio da Equipe" : "Relatorio de Equipes", margin, margin);
-			doc.setFontSize(8);
-			doc.setFont("helvetica", "normal");
-			doc.setTextColor(90, 90, 90);
-			doc.text(
-				`Gerado em ${new Date().toLocaleString("pt-BR")} • ${rows.length} atendente(s)`,
-				margin,
-				margin + 5,
-			);
-			doc.setTextColor(30, 30, 30);
-
-			let y = margin + 12;
-
-			const drawHeader = () => {
+				doc.setFontSize(11);
 				doc.setFont("helvetica", "bold");
-				doc.setFontSize(7);
-				doc.setFillColor(20, 30, 50);
-				doc.setTextColor(255, 255, 255);
-				const headerLines = headers.map((h, i) => doc.splitTextToSize(h, colW[i] - pad * 2));
-				const hH = Math.max(...headerLines.map((t) => t.length)) * lineH + pad * 2;
-				doc.rect(margin, y, colW.reduce((a, b) => a + b, 0), hH, "F");
-				let x = margin;
-				headerLines.forEach((lines, i) => {
-					lines.forEach((ln: string, li: number) => doc.text(ln, x + pad, y + pad + li * lineH + 3));
-					x += colW[i];
-				});
-				y += hH;
-			};
-
-			drawHeader();
-
-			rows.forEach((row, ri) => {
-				const cellLines = headers.map((_h, i) =>
-					doc.splitTextToSize(String(row[cols[i].key] ?? ""), colW[i] - pad * 2),
-				);
-				const rowH = Math.max(...cellLines.map((t) => t.length)) * lineH + pad * 2;
-				if (y + rowH > pageH - margin) {
-					doc.addPage();
-					y = margin;
-					drawHeader();
-				}
-				if (ri % 2 === 1) {
-					doc.setFillColor(245, 245, 245);
-					doc.rect(margin, y, colW.reduce((a, b) => a + b, 0), rowH, "F");
-				}
+				doc.text(isGestor ? "Relatorio da Equipe" : "Relatorio de Equipes", margin, margin);
+				doc.setFontSize(8);
 				doc.setFont("helvetica", "normal");
-				doc.setFontSize(7);
+				doc.setTextColor(90, 90, 90);
+				doc.text(`Gerado em ${new Date().toLocaleString("pt-BR")} • ${rows.length} atendente(s)`, margin, margin + 5);
 				doc.setTextColor(30, 30, 30);
-				let x = margin;
-				cellLines.forEach((lines, i) => {
-					lines.forEach((ln: string, li: number) => doc.text(ln, x + pad, y + pad + li * lineH + 3));
-					x += colW[i];
-				});
-				y += rowH;
-			});
 
-			doc.save(`equipe-${new Date().toISOString().slice(0, 10)}.pdf`);
-			toast("PDF exportado com sucesso!", "success");
-		} catch (err) {
-			toast("Erro ao exportar PDF", "error");
-		} finally {
-			setExporting(null);
-		}
-	}, [allExportRows, isAdmin, isGestor, toast]);
+				let y = margin + 12;
+
+				const drawHeader = () => {
+					doc.setFont("helvetica", "bold");
+					doc.setFontSize(7);
+					doc.setFillColor(20, 30, 50);
+					doc.setTextColor(255, 255, 255);
+					const headerLines = headers.map((h, i) => doc.splitTextToSize(h, colW[i] - pad * 2));
+					const hH = Math.max(...headerLines.map((t) => t.length)) * lineH + pad * 2;
+					doc.rect(
+						margin,
+						y,
+						colW.reduce((a, b) => a + b, 0),
+						hH,
+						"F",
+					);
+					let x = margin;
+					headerLines.forEach((lines, i) => {
+						lines.forEach((ln: string, li: number) => doc.text(ln, x + pad, y + pad + li * lineH + 3));
+						x += colW[i];
+					});
+					y += hH;
+				};
+
+				drawHeader();
+
+				rows.forEach((row, ri) => {
+					const cellLines = headers.map((_h, i) =>
+						doc.splitTextToSize(String(row[cols[i].key] ?? ""), colW[i] - pad * 2),
+					);
+					const rowH = Math.max(...cellLines.map((t) => t.length)) * lineH + pad * 2;
+					if (y + rowH > pageH - margin) {
+						doc.addPage();
+						y = margin;
+						drawHeader();
+					}
+					if (ri % 2 === 1) {
+						doc.setFillColor(245, 245, 245);
+						doc.rect(
+							margin,
+							y,
+							colW.reduce((a, b) => a + b, 0),
+							rowH,
+							"F",
+						);
+					}
+					doc.setFont("helvetica", "normal");
+					doc.setFontSize(7);
+					doc.setTextColor(30, 30, 30);
+					let x = margin;
+					cellLines.forEach((lines, i) => {
+						lines.forEach((ln: string, li: number) => doc.text(ln, x + pad, y + pad + li * lineH + 3));
+						x += colW[i];
+					});
+					y += rowH;
+				});
+
+				doc.save(`equipe-${new Date().toISOString().slice(0, 10)}.pdf`);
+				toast("PDF exportado com sucesso!", "success");
+			} catch (err) {
+				toast("Erro ao exportar PDF", "error");
+			} finally {
+				setExporting(null);
+			}
+		},
+		[allExportRows, isAdmin, isGestor, toast],
+	);
 
 	if (loading) {
 		return (
@@ -497,7 +510,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 											<div className="eq-audit-actions">
 												{mod.autoProcessStatus.certExpected && !mod.autoProcessStatus.certGenerated && (
 													<button
-									className="btn-secondary eq-audit-fix-btn"
+														className="btn-secondary eq-audit-fix-btn"
 														disabled={approving === `fix-cert-${mod.id}`}
 														onClick={() => handleFixCert(memberId, mod.id, mod.titulo)}
 													>
@@ -796,10 +809,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 			</div>
 			<div className="eq-toolbar-group">
 				<span className="eq-toolbar-label">Ordenar por:</span>
-				<button
-					className={`eq-sort-btn ${sortBy === "nome" ? "active" : ""}`}
-					onClick={() => setSortBy("nome")}
-				>
+				<button className={`eq-sort-btn ${sortBy === "nome" ? "active" : ""}`} onClick={() => setSortBy("nome")}>
 					<i className="icon-sort-alpha icon-xs" /> Nome
 				</button>
 				<button
@@ -846,9 +856,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 	);
 
 	if (isGestor) {
-		const members = sortMembers(
-			(Array.isArray(teamData) ? teamData : []).filter((m: any) => matchSearch(m, search)),
-		);
+		const members = sortMembers((Array.isArray(teamData) ? teamData : []).filter((m: any) => matchSearch(m, search)));
 		return (
 			<div className="page active">
 				<div className="page-header">
@@ -872,9 +880,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 	}
 
 	const teams = Array.isArray(teamData) ? teamData : [];
-	const sortedTeams = [...teams].sort((a: any, b: any) =>
-		localeCompare(a.gestor?.nome || "", b.gestor?.nome || ""),
-	);
+	const sortedTeams = [...teams].sort((a: any, b: any) => localeCompare(a.gestor?.nome || "", b.gestor?.nome || ""));
 	const totalMembros = teams.reduce((sum: number, t: any) => sum + (t.totalMembros || 0), 0);
 
 	return (
@@ -899,61 +905,69 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 				sortedTeams
 					.filter((team: any) => teamMatchesSearch(team, search))
 					.map((team: any, idx: number) => {
-					const membros = sortMembers((team.membros || []).filter((m: any) => matchSearch(m, search)));
-					const gestorNome = team.gestor?.nome || "sem-gestor";
-					const fileSuffix = `-${gestorNome
-						.normalize("NFD")
-						.replace(/[̀-ͯ]/g, "")
-						.toLowerCase()
-						.replace(/[^a-z0-9]+/g, "-")
-						.replace(/(^-|-$)/g, "")}`;
-					return (
-						<div key={team.gestor?.id || idx} className="eq-team-section">
-							{team.gestor && (
-								<div className="eq-team-header">
-									<div
-										className="user-avatar eq-team-avatar"
-										style={{ background: PERSONAS.GESTOR?.color || "var(--pg-gold)" }}
-									>
-										{team.gestor.nome
-											?.split(" ")
-											.map((n: string) => n[0])
-											.slice(0, 2)
-											.join("") || "?"}
-									</div>
-									<div className="eq-team-info">
-										<div className="eq-team-name">{team.gestor.nome}</div>
-										<div className="eq-team-email">{team.gestor.email}</div>
-									</div>
-									<span className="eq-team-count">{membros.length} atendente(s)</span>
-									<div className="eq-team-export">
-										<button
-											className="eq-export-btn eq-export-btn-sm"
-											disabled={exporting !== null}
-											onClick={() => exportCsv(buildExportRows(team.membros || [], gestorNome), fileSuffix)}
+						const membros = sortMembers((team.membros || []).filter((m: any) => matchSearch(m, search)));
+						const gestorNome = team.gestor?.nome || "sem-gestor";
+						const fileSuffix = `-${gestorNome
+							.normalize("NFD")
+							.replace(/[̀-ͯ]/g, "")
+							.toLowerCase()
+							.replace(/[^a-z0-9]+/g, "-")
+							.replace(/(^-|-$)/g, "")}`;
+						return (
+							<div key={team.gestor?.id || idx} className="eq-team-section">
+								{team.gestor && (
+									<div className="eq-team-header">
+										<div
+											className="user-avatar eq-team-avatar"
+											style={{ background: PERSONAS.GESTOR?.color || "var(--pg-gold)" }}
 										>
-											{exporting === "csv" ? <i className="icon-loader icon-xs" /> : <i className="icon-download icon-xs" />}
-											CSV
-										</button>
-										<button
-											className="eq-export-btn eq-export-btn-sm"
-											disabled={exporting !== null}
-											onClick={() => exportPdf(buildExportRows(team.membros || [], gestorNome), fileSuffix)}
-										>
-											{exporting === "pdf" ? <i className="icon-loader icon-xs" /> : <i className="icon-file-text icon-xs" />}
-											PDF
-										</button>
+											{team.gestor.nome
+												?.split(" ")
+												.map((n: string) => n[0])
+												.slice(0, 2)
+												.join("") || "?"}
+										</div>
+										<div className="eq-team-info">
+											<div className="eq-team-name">{team.gestor.nome}</div>
+											<div className="eq-team-email">{team.gestor.email}</div>
+										</div>
+										<span className="eq-team-count">{membros.length} atendente(s)</span>
+										<div className="eq-team-export">
+											<button
+												className="eq-export-btn eq-export-btn-sm"
+												disabled={exporting !== null}
+												onClick={() => exportCsv(buildExportRows(team.membros || [], gestorNome), fileSuffix)}
+											>
+												{exporting === "csv" ? (
+													<i className="icon-loader icon-xs" />
+												) : (
+													<i className="icon-download icon-xs" />
+												)}
+												CSV
+											</button>
+											<button
+												className="eq-export-btn eq-export-btn-sm"
+												disabled={exporting !== null}
+												onClick={() => exportPdf(buildExportRows(team.membros || [], gestorNome), fileSuffix)}
+											>
+												{exporting === "pdf" ? (
+													<i className="icon-loader icon-xs" />
+												) : (
+													<i className="icon-file-text icon-xs" />
+												)}
+												PDF
+											</button>
+										</div>
 									</div>
-								</div>
-							)}
-							{membros.length > 0 ? (
-								<div className="eq-users-list">{membros.map(renderAtendenteRow)}</div>
-							) : (
-								<div className="eq-team-empty">Nenhum atendente nesta equipe</div>
-							)}
-						</div>
-					);
-				})
+								)}
+								{membros.length > 0 ? (
+									<div className="eq-users-list">{membros.map(renderAtendenteRow)}</div>
+								) : (
+									<div className="eq-team-empty">Nenhum atendente nesta equipe</div>
+								)}
+							</div>
+						);
+					})
 			)}
 		</div>
 	);

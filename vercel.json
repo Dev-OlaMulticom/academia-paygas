@@ -1,8 +1,15 @@
 {
 	"buildCommand": "npx prisma generate && npx vite build && npx tsc --project tsconfig.server.json",
-	"outputDirectory": "dist",
+	"outputDirectory": "dist/client",
 	"framework": null,
 	"installCommand": "pnpm install",
+	"functions": {
+		"api/[...slug].js": {
+			"maxDuration": 30,
+			"memory": 1024,
+			"includeFiles": "dist/server/**"
+		}
+	},
 	"rewrites": [
 		{
 			"source": "/((?!api/).*)",

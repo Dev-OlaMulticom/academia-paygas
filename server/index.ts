@@ -5,7 +5,6 @@ import path from "node:path";
 import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
-import helmet from "helmet";
 import logger from "./lib/logger";
 import { encryptedPayload, getServerEncryptionKey } from "./middleware/encryption";
 import adminDashboardRoutes from "./routes/admin-dashboard";
@@ -29,6 +28,7 @@ import ssoRoutes from "./routes/sso";
 import usuariosRoutes from "./routes/usuarios";
 import xpconfigRoutes from "./routes/xpconfig";
 import { startHealthChecks } from "./services/db-health";
+import { startRealtimeSync } from "./services/db-realtime";
 import { startSyncWorker } from "./services/db-sync";
 import { startKeepAlive } from "./services/keepalive";
 
@@ -39,12 +39,18 @@ const PORT = process.env.PORT || 3001;
 // helmet 8.2.0 has a known compatibility issue with 'response.pipes' in serverless environments
 // See: https://github.com/helmetjs/helmet/issues/2603
 // We manually set the required headers instead of using helmet
-app.use((req, res, next) => {
-	// Manually set required headers
-	res.set('X-Content-Type-Options', 'nosniff');
-	res.set('X-Frame-Options', 'DENY');
-	res.set('X-XSS-Protection', '1; mode=block');
-	res.set('Referrer-Policy', 'origin-when-cross-origin');
+app.use((_req, res, next) => {
+	res.set("X-Content-Type-Options", "nosniff");
+	res.set("X-Frame-Options", "DENY");
+	res.set("X-XSS-Protection", "1; mode=block");
+	res.set("Referrer-Policy", "origin-when-cross-origin");
+	res.set(
+		"Content-Security-Policy",
+		"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'",
+	);
+	if (process.env.NODE_ENV === "production") {
+		res.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+	}
 	next();
 });
 
@@ -53,8 +59,8 @@ const isDev = process.env.NODE_ENV !== "production";
 const allowedOrigins = (process.env.ALLOWED_ORIGINS || "").split(",").filter(Boolean);
 
 if (allowedOrigins.length === 0 && !isDev) {
-	logger.warn("⚠️  ALLOWED_ORIGINS is not set. Cross-origin requests will be rejected.");
-	logger.warn('   Set ALLOWED_ORIGINS in .env (e.g. "https://academia.paygas.com.br")');
+	logger.error("ALLOWED_ORIGINS is required in production");
+	process.exit(1);
 }
 
 if (isDev) {
@@ -168,6 +174,7 @@ app.get("/api/health", async (_req, res) => {
 	const { getLatencyStats } = await import("./services/db-health");
 	const { getSyncStats } = await import("./services/db-sync");
 	const { getMigrationStats } = await import("./services/db-migrations");
+	const { getRealtimeStats } = await import("./services/db-realtime");
 
 	const primary = dbRegistry.getPrimary();
 	const healthyCount = dbRegistry.getHealthy().length;
@@ -176,6 +183,7 @@ app.get("/api/health", async (_req, res) => {
 	const latencyStats = getLatencyStats();
 	const syncStats = getSyncStats();
 	const migrationStats = getMigrationStats();
+	const realtimeStats = getRealtimeStats();
 
 	res.json({
 		status: healthyCount > 0 ? "ok" : "degraded",
@@ -185,6 +193,7 @@ app.get("/api/health", async (_req, res) => {
 			latency: latencyStats,
 		},
 		sync: syncStats,
+		realtime: realtimeStats,
 		migrations: migrationStats,
 		summary: {
 			total: totalCount,
@@ -203,18 +212,9 @@ app.get("/api/config", (req, res) => {
 	}
 	try {
 		const jwt = require("jsonwebtoken");
-		const JWT_SECRET_FALLBACK_FILE = ".jwt-secret";
-		let JWT_SECRET = process.env.JWT_SECRET;
-		if (!JWT_SECRET || JWT_SECRET.length < 16) {
-			try {
-				const fs = require("node:fs");
-				if (fs.existsSync(JWT_SECRET_FALLBACK_FILE)) {
-					const persisted = fs.readFileSync(JWT_SECRET_FALLBACK_FILE, "utf8").trim();
-					if (persisted && persisted.length >= 16) JWT_SECRET = persisted;
-				}
-			} catch {
-				/* */
-			}
+		const JWT_SECRET = process.env.JWT_SECRET;
+		if (!JWT_SECRET) {
+			return res.status(500).json({ error: "Server misconfiguration" });
 		}
 		jwt.verify(authHeader.split(" ")[1], JWT_SECRET);
 		res.json({ encryptionKey: getServerEncryptionKey() });
@@ -254,9 +254,11 @@ if (require.main === module) {
 				const { stopKeepAlive } = await import("./services/keepalive");
 				const { stopHealthChecks } = await import("./services/db-health");
 				const { stopSyncWorker } = await import("./services/db-sync");
+				const { stopRealtimeSync } = await import("./services/db-realtime");
 				stopKeepAlive();
 				stopHealthChecks();
 				stopSyncWorker();
+				stopRealtimeSync();
 
 				const { prisma } = await import("./lib/prisma");
 				await prisma.$disconnect();
@@ -307,7 +309,14 @@ if (require.main === module) {
 		startHealthChecks();
 
 		// Background sync: reconcilia divergencias de dados entre replicas
+		// (incremental a cada 10s + full-diff no startup/recovery/15min)
 		startSyncWorker();
+
+		// Real-time sync: LISTEN/NOTIFY — propaga cada INSERT/UPDATE entre bases
+		// em milissegundos, sem esperar os loops periodicos acima. db-health
+		// tambem (re)conecta o listener de cada base assim que ela fica saudavel,
+		// entao esta chamada cobre so o caso feliz do startup.
+		startRealtimeSync();
 
 		// Sync de migrations em background — aplica schemas pendentes nos
 		// backups (CREATE TABLE/ADD COLUMN/RENAME sao sempre aplicados; DROP

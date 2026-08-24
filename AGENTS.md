@@ -44,3 +44,11 @@ const videoId = ytMatch?.[1];
 - `56bef8f` fix: page-subtitle permite wrap en pantallas <800px
 - `43e14a6` fix: extraer solo video ID para embed YouTube, ignorar params de playlist
 - `c2b13bc` fix: responsive lesson-sidebar y media modal centrado en mobile
+
+## Secret Handling
+
+- Never hardcode credentials.
+- Load SSH_HOST, SSH_PORT and SSH_USER from `.env`.
+- Use the private key from `./ssh/`.
+- Never print secrets or include them in commits, logs or reports.
+- Abort if the SSH key permissions are insecure.

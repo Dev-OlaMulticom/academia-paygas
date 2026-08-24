@@ -1,44 +1,48 @@
 /**
- * Background Database Sync Worker — sync por diferencas de hash
+ * Background Database Sync — three layers
  *
- * Mantem as bases de backup consistentes com a primaria, em background, sem
- * bloquear requests. Estrategia:
+ *   1. Real-time (server/services/db-realtime.ts): Postgres triggers NOTIFY
+ *      on every row change; we LISTEN on every healthy database and mirror
+ *      the single changed row to the others within milliseconds. This is
+ *      the primary sync path while all databases are online.
+ *   2. Incremental catch-up (this file, `runIncrementalSync`, every 10s):
+ *      cheap safety net — pulls rows with `updatedAt`/`createdAt` newer than
+ *      the last cursor seen per (target, table). Catches anything the
+ *      real-time layer missed (e.g. app was briefly down, a NOTIFY was
+ *      dropped because nobody was LISTENing yet).
+ *   3. Full reconciliation (this file, `syncDatabaseToTarget`, hash-diff):
+ *      the expensive full-table `md5(row::text)` comparison. Only run:
+ *        - Once at startup (baseline — cursors above start counting from here).
+ *        - Immediately when a database recovers from being offline (db-health
+ *          calls `triggerSync(name)`), since it may have missed everything.
+ *        - Periodically as a deep safety net (FULL_SYNC_INTERVAL, default 15m)
+ *          to catch drift that neither of the above layers can (e.g. rows
+ *          edited directly in the DB without updating `updatedAt`).
  *
- *   1. Para cada backup saudavel, compara `md5(row::text)` entre primaria e
- *      backup, por tabela e por id.
- *   2. Rows que faltam no backup (id ausente) -> INSERT via ON CONFLICT.
- *   3. Rows presentes em ambos com hash divergente -> UPDATE (UPSERT).
- *   4. Nunca deleta (nao ha politica de soft-delete definida).
- *   5. Sync dispara em duas situacoes:
- *        - Periodicamente (SYNC_INTERVAL, default 60s), em background.
- *        - Imediatamente quando db-health detecta uma base que se recuperou.
- *
- * Fonte de verdade: `dbRegistry.getPrimary()`. Todos os backups convergem
- * para ela. Se a primaria mudar (failover), a nova primaria passa a ser a
- * fuente — cuidado: sincronizacao conflitante entre duas primarias antigas
- * poderia misturar dados. Em pratica, a primaria nova ja foi escolhida por
- * saude, entao e a mais atualizada.
- *
- * Nao bloqueia API: syncLoop usa Promise.allSettled, batches de 25 rows,
- * e `ON CONFLICT (id) DO UPDATE` que e seguro para colisões.
+ * Never deletes (no soft-delete policy defined) — inserts/updates only.
  *
  * Usage:
  *   import { startSyncWorker } from '../services/db-sync'
  *   startSyncWorker()
  *
  *   import { triggerSync } from '../services/db-sync'
- *   triggerSync('PG_2')   // forca sync imediato para a base recuperada
+ *   triggerSync('PG_2')   // forces an immediate FULL diff sync for a target
+ *
+ *   import { syncRow } from '../services/db-sync'
+ *   syncRow(sourceEntry, targetEntry, 'User', id)   // used by db-realtime.ts
  *
  *   import { getSyncStats } from '../services/db-sync'
- *   getSyncStats()        // -> { runs, rowsInserted, rowsUpdated, errors, ... }
+ *   getSyncStats()
  */
 import type { PrismaClient } from "@prisma/client";
 import { type DatabaseEntry, dbRegistry } from "../config/databases";
 import logger from "../lib/logger";
 
-const SYNC_INTERVAL = 60 * 1000;
+const FULL_SYNC_INTERVAL = 15 * 60 * 1000; // deep reconciliation safety net
+const INCREMENTAL_INTERVAL = 10 * 1000; // fast catch-up safety net
 const SYNC_BATCH_SIZE = 25;
 const SYNC_START_DELAY = 30 * 1000;
+const INCREMENTAL_BATCH_LIMIT = 500;
 
 // Tabelas em ordem de dependencias (pais antes dos filhos) para nao violar FKs.
 const TABLES_IN_ORDER = [
@@ -63,6 +67,42 @@ const TABLES_IN_ORDER = [
 	"UserConquista",
 ];
 
+const TABLE_SET = new Set(TABLES_IN_ORDER);
+
+function validateTableName(table: string): void {
+	if (!TABLE_SET.has(table)) {
+		throw new Error(`[DB-SYNC] Table name not allowed: ${table}`);
+	}
+}
+
+// Column used as an incremental cursor per table — `updatedAt` where the
+// model has it, otherwise `createdAt`/creation timestamp (append-mostly
+// tables). Mutable columns on tables without `updatedAt` (e.g. Notification's
+// `lida`) are NOT caught by the incremental layer — the real-time NOTIFY
+// layer handles those instantly instead, and the periodic full hash-diff
+// catches anything left over.
+const CURSOR_COLUMN: Record<string, string> = {
+	Estabelecimento: "updatedAt",
+	User: "updatedAt",
+	Curso: "updatedAt",
+	Aula: "updatedAt",
+	Licao: "updatedAt",
+	Quiz: "updatedAt",
+	QuizPergunta: "updatedAt",
+	QuizResponse: "updatedAt",
+	Progresso: "updatedAt",
+	Certificate: "updatedAt",
+	Notification: "createdAt",
+	ActivityLog: "createdAt",
+	PointsTransaction: "createdAt",
+	ForumPost: "updatedAt",
+	ModuleConfig: "updatedAt",
+	XPConfig: "updatedAt",
+	RoleConfig: "updatedAt",
+	Conquista: "updatedAt",
+	UserConquista: "dataConquista",
+};
+
 interface ColumnDef {
 	name: string;
 	type: string;
@@ -76,6 +116,9 @@ interface SyncStats {
 	rowsInserted: number;
 	rowsUpdated: number;
 	errors: number;
+	incrementalRuns: number;
+	incrementalRows: number;
+	realtimeRows: number;
 }
 
 const syncStats: SyncStats = {
@@ -83,17 +126,28 @@ const syncStats: SyncStats = {
 	rowsInserted: 0,
 	rowsUpdated: 0,
 	errors: 0,
+	incrementalRuns: 0,
+	incrementalRows: 0,
+	realtimeRows: 0,
 };
 
-let syncInterval: ReturnType<typeof setInterval> | null = null;
+let fullSyncInterval: ReturnType<typeof setInterval> | null = null;
+let incrementalInterval: ReturnType<typeof setInterval> | null = null;
 let isSyncing = false;
 let lastSyncAt: number | null = null;
+let lastIncrementalAt: number | null = null;
+
+// Incremental cursors: `${targetName}:${table}` -> last value of CURSOR_COLUMN
+// already synced to that target. Seeded to "now" right after the startup
+// full sync, so the incremental loop only ever looks forward from there.
+const cursors = new Map<string, Date>();
+const cursorKey = (targetName: string, table: string) => `${targetName}:${table}`;
 
 /**
  * Obtem definicoes de colunas de uma tabela (caching por nome). Usa
  * information_schema para nao depender do schema do Prisma.
  */
-async function getColumns(client: PrismaClient, table: string): Promise<ColumnDef[]> {
+export async function getColumns(client: PrismaClient, table: string): Promise<ColumnDef[]> {
 	const cached = columnCache.get(table);
 	if (cached) return cached;
 	const rows = (await client.$queryRawUnsafe(
@@ -115,6 +169,7 @@ async function getColumns(client: PrismaClient, table: string): Promise<ColumnDe
  */
 async function fetchHashes(client: PrismaClient, table: string): Promise<Array<{ id: string; h: string }>> {
 	try {
+		validateTableName(table);
 		return (await client.$queryRawUnsafe(`SELECT id, md5(t::text) AS h FROM "${table}" t`)) as Array<{
 			id: string;
 			h: string;
@@ -128,7 +183,12 @@ async function fetchHashes(client: PrismaClient, table: string): Promise<Array<{
 /**
  * Busca rows completas de uma tabela por id (somente as que precisamos syncar).
  */
-async function fetchRowsByIds(client: PrismaClient, table: string, ids: string[]): Promise<Record<string, any>[]> {
+export async function fetchRowsByIds(
+	client: PrismaClient,
+	table: string,
+	ids: string[],
+): Promise<Record<string, any>[]> {
+	validateTableName(table);
 	if (ids.length === 0) return [];
 	const cols = await getColumns(client, table);
 	const selectCols = cols.map((c) => `"${c.name}"`).join(",");
@@ -144,7 +204,7 @@ async function fetchRowsByIds(client: PrismaClient, table: string, ids: string[]
  * Processa em batches de SYNC_BATCH_SIZE para nao estourar parametros do PG.
  * Retorna numero de rows que tentamos inserir/atualizar (best-effort).
  */
-async function upsertRows(target: PrismaClient, table: string, rows: Record<string, any>[]): Promise<number> {
+export async function upsertRows(target: PrismaClient, table: string, rows: Record<string, any>[]): Promise<number> {
 	if (rows.length === 0) return 0;
 	const cols = await getColumns(target, table);
 	const nonIdCols = cols.filter((c) => !c.isId);
@@ -176,9 +236,54 @@ async function upsertRows(target: PrismaClient, table: string, rows: Record<stri
 }
 
 /**
- * Sincroniza uma tabela de source -> target comparando hashes por id.
+ * Sincroniza uma unica row (por id) de source -> target. Usado pelo
+ * real-time listener (db-realtime.ts) apos receber um NOTIFY. Compara o hash
+ * antes de escrever para (a) evitar writes desnecessarios e (b) interromper
+ * o ping-pong de notificacoes entre bases (A muda -> notifica -> escreve em B
+ * -> B notifica -> tentaria escrever de volta em A, mas o hash ja bate).
  */
-async function syncTable(
+export async function syncRow(
+	source: DatabaseEntry,
+	target: DatabaseEntry,
+	table: string,
+	id: string,
+): Promise<boolean> {
+	if (!source.client || !target.client) return false;
+	try {
+		const [[srcHash], [tgtHash]] = await Promise.all([
+			source.client.$queryRawUnsafe(`SELECT md5(t::text) AS h FROM "${table}" t WHERE id = $1`, id) as Promise<
+				Array<{ h: string }>
+			>,
+			target.client.$queryRawUnsafe(`SELECT md5(t::text) AS h FROM "${table}" t WHERE id = $1`, id) as Promise<
+				Array<{ h: string }>
+			>,
+		]);
+
+		if (!srcHash) {
+			// Row was deleted at the source — this project has no delete-sync
+			// policy (see module docstring), so we leave the target untouched.
+			return false;
+		}
+		if (tgtHash && tgtHash.h === srcHash.h) return false; // already in sync
+
+		const rows = await fetchRowsByIds(source.client, table, [id]);
+		if (rows.length === 0) return false;
+		await upsertRows(target.client, table, rows);
+		syncStats.realtimeRows++;
+		return true;
+	} catch (err: any) {
+		logger.warn(`[DB-SYNC] syncRow falhou (${table}#${id}, ${source.name}->${target.name}): ${err?.message || err}`);
+		syncStats.errors++;
+		return false;
+	}
+}
+
+/**
+ * Sincroniza uma tabela de source -> target comparando hashes por id
+ * (full diff — caro, usado apenas no startup / recovery / reconciliacao
+ * periodica; ver `runIncrementalSync` para o caminho barato).
+ */
+async function syncTableFullDiff(
 	source: PrismaClient,
 	target: PrismaClient,
 	table: string,
@@ -209,8 +314,8 @@ async function syncTable(
 }
 
 /**
- * Sincroniza todas as tabelas de source -> target. Nao lanca — erros sao
- * logados por tabela para nao abortar o sync inteiro.
+ * Sincroniza todas as tabelas de source -> target (full hash-diff). Nao
+ * lanca — erros sao logados por tabela para nao abortar o sync inteiro.
  */
 async function syncDatabaseToTarget(
 	source: DatabaseEntry,
@@ -220,11 +325,11 @@ async function syncDatabaseToTarget(
 
 	let totalInserted = 0;
 	let totalUpdated = 0;
-	logger.info(`[DB-SYNC] Sincronizando ${source.name} → ${target.name}`);
+	logger.info(`[DB-SYNC] Sincronizando (full) ${source.name} → ${target.name}`);
 
 	for (const table of TABLES_IN_ORDER) {
 		try {
-			const r = await syncTable(source.client, target.client, table);
+			const r = await syncTableFullDiff(source.client, target.client, table);
 			totalInserted += r.inserted;
 			totalUpdated += r.updated;
 		} catch (err: any) {
@@ -234,19 +339,26 @@ async function syncDatabaseToTarget(
 	}
 
 	logger.info(
-		`[DB-SYNC] Concluido ${source.name} → ${target.name}: ${totalInserted} novas, ${totalUpdated} atualizadas`,
+		`[DB-SYNC] Concluido (full) ${source.name} → ${target.name}: ${totalInserted} novas, ${totalUpdated} atualizadas`,
 	);
 	syncStats.rowsInserted += totalInserted;
 	syncStats.rowsUpdated += totalUpdated;
+
+	// Seed incremental cursors to "now" so the fast loop only looks forward
+	// from this known-consistent baseline.
+	const now = new Date();
+	for (const table of TABLES_IN_ORDER) {
+		cursors.set(cursorKey(target.name, table), now);
+	}
+
 	return { inserted: totalInserted, updated: totalUpdated };
 }
 
 /**
- * Rodada de sync: escolhe primaria atual e sincroniza para cada backup saudavel
- * em paralelo (Promise.allSettled). Protegido por `isSyncing` para evitar
- * concorrencia entre rodadas periodicas.
+ * Rodada de full-diff: escolhe primaria atual e sincroniza para cada backup
+ * saudavel em paralelo (Promise.allSettled). Protegido por `isSyncing`.
  */
-async function syncLoop(): Promise<void> {
+async function fullSyncLoop(): Promise<void> {
 	if (isSyncing) return;
 	const primary = dbRegistry.getPrimary();
 	if (!primary?.client) return;
@@ -274,33 +386,96 @@ async function syncLoop(): Promise<void> {
 }
 
 /**
- * Inicia o worker de sync periodica. Primeira rodada apos SYNC_START_DELAY.
+ * Rodada de catch-up incremental: para cada backup saudavel, busca rows com
+ * cursor (updatedAt/createdAt) maior que o ultimo visto e faz upsert. Muito
+ * mais barato que o full diff — seguro para rodar a cada poucos segundos.
+ */
+async function incrementalSyncLoop(): Promise<void> {
+	const primary = dbRegistry.getPrimary();
+	const primaryClient = primary?.client;
+	if (!primary || !primaryClient) return;
+	const backups = dbRegistry.getHealthy().filter((e) => e.name !== primary.name);
+	if (backups.length === 0) return;
+
+	syncStats.incrementalRuns++;
+	lastIncrementalAt = Date.now();
+
+	await Promise.allSettled(
+		backups.map(async (backup) => {
+			const backupClient = backup.client;
+			if (!backupClient) return;
+			for (const table of TABLES_IN_ORDER) {
+				const key = cursorKey(backup.name, table);
+				const since = cursors.get(key);
+				// No baseline yet (full sync hasn't run for this target) — skip;
+				// the full-diff pass will seed the cursor once it completes.
+				if (!since) continue;
+
+				const cursorCol = CURSOR_COLUMN[table];
+				try {
+					const rows = (await primaryClient.$queryRawUnsafe(
+						`SELECT * FROM "${table}" WHERE "${cursorCol}" > $1 ORDER BY "${cursorCol}" ASC LIMIT $2`,
+						since,
+						INCREMENTAL_BATCH_LIMIT,
+					)) as Record<string, any>[];
+					if (rows.length === 0) continue;
+
+					await upsertRows(backupClient, table, rows);
+					syncStats.incrementalRows += rows.length;
+					cursors.set(key, rows[rows.length - 1][cursorCol]);
+				} catch (err: any) {
+					logger.warn(
+						`[DB-SYNC] incremental ${table} (${primary.name}->${backup.name}) falhou: ${err?.message || err}`,
+					);
+					syncStats.errors++;
+				}
+			}
+		}),
+	);
+}
+
+/**
+ * Inicia os workers de sync: full-diff no startup (baseline) + periodico
+ * como safety net profundo, e o loop incremental rapido para catch-up.
  */
 export function startSyncWorker(): void {
-	if (syncInterval) {
+	if (fullSyncInterval || incrementalInterval) {
 		logger.info("[DB-SYNC] Ja rodando");
 		return;
 	}
-	logger.info(`[DB-SYNC] Worker iniciado (intervalo ${SYNC_INTERVAL / 1000}s)`);
+	logger.info(
+		`[DB-SYNC] Worker iniciado (incremental a cada ${INCREMENTAL_INTERVAL / 1000}s, full-diff a cada ${
+			FULL_SYNC_INTERVAL / 60000
+		}min)`,
+	);
 	setTimeout(() => {
-		syncLoop();
-		syncInterval = setInterval(syncLoop, SYNC_INTERVAL);
+		fullSyncLoop(); // baseline — seeds incremental cursors
+		fullSyncInterval = setInterval(fullSyncLoop, FULL_SYNC_INTERVAL);
+
+		setTimeout(() => {
+			incrementalSyncLoop();
+			incrementalInterval = setInterval(incrementalSyncLoop, INCREMENTAL_INTERVAL);
+		}, INCREMENTAL_INTERVAL);
 	}, SYNC_START_DELAY);
 }
 
 /**
- * Para o worker. Salva no shutdown.
+ * Para os workers. Salva no shutdown.
  */
 export function stopSyncWorker(): void {
-	if (syncInterval) {
-		clearInterval(syncInterval);
-		syncInterval = null;
-		logger.info("[DB-SYNC] Parado");
+	if (fullSyncInterval) {
+		clearInterval(fullSyncInterval);
+		fullSyncInterval = null;
 	}
+	if (incrementalInterval) {
+		clearInterval(incrementalInterval);
+		incrementalInterval = null;
+	}
+	logger.info("[DB-SYNC] Parado");
 }
 
 /**
- * Forca sync imediato (ex: apos recovery detectado pelo db-health).
+ * Forca sync FULL imediato (ex: apos recovery detectado pelo db-health).
  * Ignora `isSyncing` para nao esperar a rodada periodica — concorrencia e
  * segura porque usamos ON CONFLICT. Aceita um nome de target especifico ou
  * sync para todos os backups saudaveis.
@@ -318,7 +493,7 @@ export async function triggerSync(targetName?: string): Promise<boolean> {
 
 	if (targets.length === 0) return false;
 
-	logger.info(`[DB-SYNC] triggerSync disparado para ${targets.map((t) => t.name).join(", ")}`);
+	logger.info(`[DB-SYNC] triggerSync (full) disparado para ${targets.map((t) => t.name).join(", ")}`);
 	for (const target of targets) {
 		try {
 			await syncDatabaseToTarget(primary, target);
@@ -335,12 +510,14 @@ export async function triggerSync(targetName?: string): Promise<boolean> {
 export function getSyncStats(): SyncStats & {
 	isSyncing: boolean;
 	lastSyncAt: string | null;
+	lastIncrementalAt: string | null;
 } {
 	return {
 		...syncStats,
 		isSyncing,
 		lastSyncAt: lastSyncAt ? new Date(lastSyncAt).toISOString() : null,
+		lastIncrementalAt: lastIncrementalAt ? new Date(lastIncrementalAt).toISOString() : null,
 	};
 }
 
-export { syncDatabaseToTarget };
+export { syncDatabaseToTarget, TABLES_IN_ORDER };

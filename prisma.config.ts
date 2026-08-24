@@ -5,7 +5,16 @@ import { defineConfig } from "prisma/config";
 
 // Detect which schema is being used to pick the right database URL
 const schemaArg = process.argv.find((a) => a.includes("schema.mysql.prisma"));
-const url = schemaArg ? process.env.MYSQL_URL : process.env.PG_URL_1 || process.env.DATABASE_URL;
+
+// `migrate`/`db push` need a direct (non-pooled) connection — PgBouncer/Neon's
+// pooler doesn't support the advisory locks and prepared statements Prisma
+// Migrate relies on. `generate` and runtime queries can use the pooled URL.
+const isMigrateCommand = process.argv.some((a) => a === "migrate" || a === "push");
+const pgUrl = isMigrateCommand
+	? process.env.DIRECT_URL || process.env.PG_URL_1 || process.env.DATABASE_URL
+	: process.env.PG_URL_1 || process.env.DATABASE_URL;
+
+const url = schemaArg ? process.env.MYSQL_URL : pgUrl;
 
 export default defineConfig({
 	schema: schemaArg || "prisma/schema.prisma",

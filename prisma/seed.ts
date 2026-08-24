@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { PrismaClient } from "@prisma/client";
+import type { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { createConnectedPrismaClient } from "./db-connect";
 
