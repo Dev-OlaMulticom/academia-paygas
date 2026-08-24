@@ -66,11 +66,15 @@ corepack enable
 pnpm install
 cp .env.example .env
 pnpm db:generate && pnpm db:migrate && pnpm db:seed
-pnpm build          # build web + server
-pnpm preview        # Vite preview
-# o servidor API
+pnpm dev            # desarrollo con HMR
+```
+
+**Build producción**
+```bash
+pnpm build          # genera dist/client y dist/server
 NODE_ENV=production node dist/server/index.js
 ```
+`pnpm build` ejecuta Prisma generate, Vite build y tsc para server.
 
 ### Opción 2: Docker
 Recomendado para producción self-hosted/Koyeb.
@@ -86,6 +90,19 @@ Dockerfile multi-stage Alpine, usuario no-root, read-only, healthcheck en `/api/
 - API: Express compilado como Serverless Function vía `api/[...slug].js`.
 - Worker: proxy `/api/*` a Vercel y sirve assets.
 Variables requeridas: `DATABASE_URL`, `JWT_SECRET`, `ENCRYPTION_KEY`, `FRONTEND_ORIGIN`.
+
+### Opción 4: cPanel / Shared Hosting
+Build de producción optimizado para cPanel:
+```bash
+pnpm cpanel:build
+```
+Genera `dist/client` y `dist/server` listos para subir vía FTP.
+En cPanel:
+1. Subir `dist/client` a `public_html/`
+2. Subir `dist/server` a `public_html/api/` o directorio privado
+3. Crear `.htaccess` para proxy `/api/` a `dist/server/index.js` vía Node Passenger o cron.
+Scripts incluidos: `deploy.sh`, `start.sh`, `stop.sh`.
+Variables: `NODE_ENV=production`, `PORT`, `DATABASE_URL`, etc.
 
 ## Scripts útiles
 
