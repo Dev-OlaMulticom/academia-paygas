@@ -13,7 +13,7 @@ RUN --mount=type=cache,target=/root/.pnpm-store pnpm install --frozen-lockfile -
 
 FROM deps AS builder
 COPY . .
-RUN --mount=type=cache,target=/root/.pnpm-store pnpm prisma generate && pnpm prisma generate --schema=prisma/schema.mysql.prisma
+RUN --mount=type=cache,target=/root/.pnpm-store pnpm prisma generate --schema=packages/db/prisma/schema.prisma && pnpm prisma generate --schema=packages/db/prisma/schema.mysql.prisma
 RUN pnpm build:server
 RUN pnpm build:client
 
@@ -26,7 +26,7 @@ RUN corepack enable && corepack prepare pnpm@9 --activate
 
 COPY --from=deps /app/node_modules ./node_modules
 COPY --from=builder /app/dist ./dist
-COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
 COPY --from=builder /app/package.json ./
 RUN pnpm install --frozen-lockfile --prod && pnpm prune --prod || true
 RUN chown -R app:app /app

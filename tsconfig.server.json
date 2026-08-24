@@ -16,9 +16,9 @@
 		"sourceMap": true,
 		"allowSyntheticDefaultImports": true,
 		"paths": {
-			"@shared/*": ["./shared/*"]
+			"@shared/*": ["./packages/shared/src/*"]
 		}
 	},
-	"include": ["server/**/*.ts", "shared/**/*.ts"],
+	"include": ["apps/api/src/**/*.ts", "packages/shared/src/**/*.ts"],
 	"exclude": ["node_modules", "src", "tests"]
 }
