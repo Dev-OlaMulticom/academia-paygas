@@ -5,6 +5,8 @@ FROM node:${NODE_VERSION}-alpine AS base
 ENV PNPM_HOME="/root/.local/share/pnpm"
 ENV PATH="${PNPM_HOME}:${PATH}"
 RUN corepack enable && corepack prepare pnpm@9 --activate
+# Build toolchain for native modules (better-sqlite3) that lack musl prebuilds
+RUN apk add --no-cache python3 make g++ linux-headers
 WORKDIR /app
 
 FROM base AS deps
@@ -21,6 +23,8 @@ FROM node:${NODE_VERSION}-alpine AS runtime
 ENV NODE_ENV=production
 ENV PORT=3001
 RUN addgroup -S app && adduser -S app -G app
+# Build toolchain for native modules (better-sqlite3) installed in the --prod step
+RUN apk add --no-cache python3 make g++ linux-headers
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9 --activate
 
