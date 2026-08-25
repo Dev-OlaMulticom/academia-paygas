@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 
 const router = Router();
@@ -8,10 +8,10 @@ const router = Router();
 router.get("/stats", async (_req, res) => {
 	try {
 		const [totalUsers, totalModulos, totalAulas, totalCertificates] = await Promise.all([
-			db.count("user"),
-			db.count("curso"),
-			db.count("aula"),
-			db.count("certificate"),
+			drizzleDb.count("user"),
+			drizzleDb.count("curso"),
+			drizzleDb.count("aula"),
+			drizzleDb.count("certificate"),
 		]);
 
 		res.json({
