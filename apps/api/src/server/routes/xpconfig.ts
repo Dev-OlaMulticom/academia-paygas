@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { authenticate, authorize } from "../middleware/auth";
 
@@ -8,7 +8,7 @@ const router = Router();
 // GET /api/xp-config - Get all XP configuration
 router.get("/", authenticate, async (_req, res) => {
 	try {
-		const configs = await db.findMany("xPConfig", {
+		const configs = await drizzleDb.findMany("xPConfig", {
 			orderBy: { action: "asc" },
 		});
 		res.json(configs);
@@ -28,7 +28,7 @@ router.put("/:action", authenticate, authorize("ADMIN"), async (req: any, res) =
 			return res.status(400).json({ error: "points deve ser um número não negativo" });
 		}
 
-		const config = await db.upsert(
+		const config = await drizzleDb.upsert(
 			"xPConfig",
 			{ action },
 			{
@@ -60,12 +60,12 @@ router.post("/", authenticate, authorize("ADMIN"), async (req: any, res) => {
 			return res.status(400).json({ error: "action, label e points são obrigatórios" });
 		}
 
-		const existing = await db.findUnique("xPConfig", { action });
+		const existing = await drizzleDb.findUnique("xPConfig", { action });
 		if (existing) {
 			return res.status(409).json({ error: "Esta ação já existe" });
 		}
 
-		const config = await db.create("xPConfig", {
+		const config = await drizzleDb.create("xPConfig", {
 			action,
 			label,
 			points,
@@ -86,12 +86,12 @@ router.delete("/:action", authenticate, authorize("ADMIN"), async (req: any, res
 	try {
 		const action = String(req.params.action);
 
-		const existing = await db.findUnique("xPConfig", { action });
+		const existing = await drizzleDb.findUnique("xPConfig", { action });
 		if (!existing) {
 			return res.status(404).json({ error: "Ação de XP não encontrada" });
 		}
 
-		await db.delete("xPConfig", { action });
+		await drizzleDb.delete("xPConfig", { action });
 		res.json({ success: true, action });
 	} catch (error) {
 		logger.error("[XP CONFIG DELETE ERROR]", error);

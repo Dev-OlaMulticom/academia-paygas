@@ -24,6 +24,7 @@ export const TABLES: Record<string, any> = {
 	forumPost: schema.forumPost,
 	moduleConfig: schema.moduleConfig,
 	xpConfig: schema.xpConfig,
+	xPConfig: schema.xpConfig,
 	roleConfig: schema.roleConfig,
 	conquista: schema.conquista,
 	userConquista: schema.userConquista,

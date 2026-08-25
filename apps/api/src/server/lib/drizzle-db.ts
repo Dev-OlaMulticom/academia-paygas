@@ -1,7 +1,15 @@
+import { randomUUID } from "crypto";
 import { and, asc, desc, eq, sql } from "drizzle-orm";
 import { dbRegistry } from "../config/databases";
 import { getDrizzleModelDelegates, invalidateDrizzleDelegateCache } from "./drizzle-models";
 import logger from "./logger";
+
+function ensureId<T extends Record<string, any>>(data: T): T {
+	if (data.id === undefined || data.id === null) {
+		return { ...data, id: randomUUID() };
+	}
+	return data;
+}
 
 function isConnectionError(error: any): boolean {
 	const messages = [
@@ -26,7 +34,10 @@ function isConnectionError(error: any): boolean {
 		combined.includes("has ended") ||
 		combined.includes("after calling end") ||
 		combined.includes("Cannot use") ||
-		combined.includes("Failed query")
+		combined.includes("Connection terminated") ||
+		combined.includes("server closed the connection") ||
+		combined.includes("Connection refused") ||
+		combined.includes("Connection timed out")
 	);
 }
 
@@ -71,15 +82,16 @@ export const drizzleDb = {
 		let { primary, backups } = getDrizzleModelDelegates(modelName);
 		const table: any = primary.table;
 		const db: any = primary.db;
+		const payload = ensureId(data);
 		let result: any;
 		try {
-			const rows = (await db.insert(table).values(data).returning()) as any[];
+			const rows = (await db.insert(table).values(payload).returning()) as any[];
 			result = rows[0];
 		} catch (error: any) {
 			if (isConnectionError(error) && backups.length > 0) {
 				markPrimaryDown(error);
 				({ primary, backups } = getDrizzleModelDelegates(modelName));
-				const rows = (await primary.db.insert(primary.table as any).values(data).returning()) as any[];
+				const rows = (await primary.db.insert(primary.table as any).values(payload).returning()) as any[];
 				result = rows[0];
 			} else {
 				throw error;
@@ -87,7 +99,7 @@ export const drizzleDb = {
 		}
 
 		for (let i = 0; i < backups.length; i++) {
-			fireAndForget(`${backups[i].dbName}`, "create", modelName, backups[i].db.insert(backups[i].table as any).values(data).returning());
+			fireAndForget(`${backups[i].dbName}`, "create", modelName, backups[i].db.insert(backups[i].table as any).values(payload).returning());
 		}
 
 		return result;
@@ -97,21 +109,22 @@ export const drizzleDb = {
 		let { primary, backups } = getDrizzleModelDelegates(modelName);
 		const table: any = primary.table;
 		const db: any = primary.db;
+		const payload = data.map(ensureId);
 		let result: any;
 		try {
-			result = await db.insert(table).values(data).returning();
+			result = await db.insert(table).values(payload).returning();
 		} catch (error: any) {
 			if (isConnectionError(error) && backups.length > 0) {
 				markPrimaryDown(error);
 				({ primary, backups } = getDrizzleModelDelegates(modelName));
-				result = await primary.db.insert(primary.table as any).values(data).returning();
+				result = await primary.db.insert(primary.table as any).values(payload).returning();
 			} else {
 				throw error;
 			}
 		}
 
 		for (let i = 0; i < backups.length; i++) {
-			fireAndForget(`${backups[i].dbName}`, "createMany", modelName, backups[i].db.insert(backups[i].table as any).values(data).returning());
+			fireAndForget(`${backups[i].dbName}`, "createMany", modelName, backups[i].db.insert(backups[i].table as any).values(payload).returning());
 		}
 
 		return result;
@@ -303,6 +316,7 @@ export const drizzleDb = {
 		let { primary, backups } = getDrizzleModelDelegates(modelName);
 		const table: any = primary.table;
 		const db: any = primary.db;
+		const payload = ensureId(createData);
 		const conflictCols = Object.keys(where)
 			.filter((k) => where[k] !== undefined)
 			.map((k) => table[k]);
@@ -314,7 +328,7 @@ export const drizzleDb = {
 		try {
 			const rows = (await db
 				.insert(table)
-				.values(createData)
+				.values(payload)
 				.onConflictDoUpdate({ target: conflictCols, set: updateData })
 				.returning()) as any[];
 			result = rows[0];
@@ -329,7 +343,7 @@ export const drizzleDb = {
 					.map((k) => pTable[k]);
 				const rows = (await pDb
 					.insert(pTable)
-					.values(createData)
+					.values(payload)
 					.onConflictDoUpdate({ target: pConflictCols, set: updateData })
 					.returning()) as any[];
 				result = rows[0];
@@ -347,7 +361,7 @@ export const drizzleDb = {
 				`${backups[i].dbName}`,
 				"upsert",
 				modelName,
-				backups[i].db.insert(bTable).values(createData).onConflictDoUpdate({ target: bConds, set: updateData }).returning(),
+				backups[i].db.insert(bTable).values(payload).onConflictDoUpdate({ target: bConds, set: updateData }).returning(),
 			);
 		}
 

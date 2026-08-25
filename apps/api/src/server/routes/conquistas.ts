@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { type AuthRequest, authenticate, authorize } from "../middleware/auth";
 import { getStringParam } from "../utils/queryParams";
@@ -12,14 +12,14 @@ router.get("/", authenticate, async (req: AuthRequest, res) => {
 		const userId = req.userId!;
 		const userRole = req.userRole!;
 
-		const conquistas = await db.findMany("conquista", {
+		const conquistas = await drizzleDb.findMany("conquista", {
 			orderBy: { ordem: "asc" },
 		});
 
 		if (userRole === "ATENDENTE") {
-			const user = await db.findUnique("user", { id: userId }, { select: { xp: true } });
+			const user = await drizzleDb.findUnique("user", { id: userId });
 			const userXp = user?.xp || 0;
-			const userConquistas = await db.findMany("userConquista", { where: { userId } });
+			const userConquistas = await drizzleDb.findMany("userConquista", { where: { userId } });
 			const earnedIds = new Set(userConquistas.map((uc: any) => uc.conquistaId));
 
 			const filtered = conquistas
@@ -57,7 +57,7 @@ router.post("/", authenticate, authorize("ADMIN", "GESTOR"), async (req: AuthReq
 		if (!titulo || !descricao) {
 			return res.status(400).json({ error: "Titulo e descricao sao obrigatorios" });
 		}
-		const conquista = await db.create("conquista", {
+		const conquista = await drizzleDb.create("conquista", {
 			titulo,
 			descricao,
 			icone: icone || "🏆",
@@ -80,7 +80,7 @@ router.put("/:id", authenticate, authorize("ADMIN", "GESTOR"), async (req: AuthR
 		const { titulo, descricao, icone, cor, pontosMinimos, xpRecompensa, ativo, ordem } = req.body;
 		const id = getStringParam(req.params.id);
 		if (!id) return res.status(400).json({ error: "ID inválido" });
-		const conquista = await db.update(
+		const conquista = await drizzleDb.update(
 			"conquista",
 			{ id },
 			{
@@ -106,8 +106,8 @@ router.delete("/:id", authenticate, authorize("ADMIN"), async (req: AuthRequest,
 	try {
 		const id = getStringParam(req.params.id);
 		if (!id) return res.status(400).json({ error: "ID inválido" });
-		await db.deleteMany("userConquista", { conquistaId: id });
-		await db.delete("conquista", { id });
+		await drizzleDb.deleteMany("userConquista", { conquistaId: id });
+		await drizzleDb.delete("conquista", { id });
 		res.json({ success: true });
 	} catch (error) {
 		logger.error("[CONQUISTA DELETE ERROR]", error);
@@ -119,15 +119,19 @@ router.delete("/:id", authenticate, authorize("ADMIN"), async (req: AuthRequest,
 router.get("/my", authenticate, async (req: AuthRequest, res) => {
 	try {
 		const userId = req.userId!;
-		const userConquistas = await db.findMany("userConquista", {
-			where: { userId },
-			include: { conquista: true },
-		});
+		const [userConquistas, allConquistas] = await Promise.all([
+			drizzleDb.findMany("userConquista", { where: { userId } }),
+			drizzleDb.findMany("conquista"),
+		]);
+		const conquistaById = new Map(allConquistas.map((c: any) => [c.id, c]));
 		res.json(
-			userConquistas.map((uc: any) => ({
-				...uc.conquista,
-				dataConquista: uc.dataConquista,
-			})),
+			userConquistas.map((uc: any) => {
+				const c = conquistaById.get(uc.conquistaId);
+				return {
+					...c,
+					dataConquista: uc.dataConquista,
+				};
+			}),
 		);
 	} catch (error) {
 		logger.error("[MY CONQUISTAS ERROR]", error);
