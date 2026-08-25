@@ -1,0 +1,147 @@
+import "dotenv/config";
+import fs from "node:fs";
+import https from "node:https";
+import path from "node:path";
+import Fastify from "fastify";
+import logger from "./lib/logger";
+import { startHealthChecks } from "./services/db-health";
+import { startRealtimeSync } from "./services/db-realtime";
+import { startSyncWorker } from "./services/db-sync";
+import { startKeepAlive } from "./services/keepalive";
+import expressApp from "./index";
+
+const PORT = Number(process.env.PORT) || 3001;
+
+const app = Fastify({
+	logger: true,
+	trustProxy: true,
+});
+
+// Error handler — devuelve JSON como el Express anterior
+app.setErrorHandler((error: any, _request, reply) => {
+	logger.error("[FASTIFY ERROR]", error);
+	const statusCode = error.statusCode || 500;
+	reply.code(statusCode).send({ error: error.message || "Erro interno do servidor" });
+});
+
+// Security headers via onSend hook (same as Express middleware)
+app.addHook("onSend", async (_request, reply, _payload) => {
+	reply.header("X-Content-Type-Options", "nosniff");
+	reply.header("X-Frame-Options", "DENY");
+	reply.header("X-XSS-Protection", "1; mode=block");
+	reply.header("Referrer-Policy", "origin-when-cross-origin");
+	reply.header(
+		"Content-Security-Policy",
+		"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'",
+	);
+	if (process.env.NODE_ENV === "production") {
+		reply.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+	}
+});
+
+// Log memory usage every 60s
+function startMemoryLogging(): void {
+	setInterval(() => {
+		const mu = process.memoryUsage();
+		logger.info(`[MEM] rss=${mu.rss} heapUsed=${mu.heapUsed} external=${mu.external}`);
+	}, 60_000);
+}
+
+const start = async () => {
+	try {
+		// Mount the legacy Express app via @fastify/express
+		await app.register(import("@fastify/express"));
+		app.use(expressApp);
+
+		const certPath = path.resolve(__dirname, "certs");
+		const keyFile = path.join(certPath, "key.pem");
+		const certFile = path.join(certPath, "cert.pem");
+
+		let httpServer: any;
+
+		if (fs.existsSync(keyFile) && fs.existsSync(certFile)) {
+			const httpsOptions = {
+				key: fs.readFileSync(keyFile),
+				cert: fs.readFileSync(certFile),
+			};
+			httpServer = https.createServer(httpsOptions, app.server as any).listen(PORT, () => {
+				logger.info(`🔒 HTTPS Server running on https://localhost:${PORT}`);
+				startMemoryLogging();
+			});
+		} else {
+			await app.listen({ port: PORT, host: "0.0.0.0" });
+			httpServer = app.server;
+			logger.info(`🚀 HTTP Server running on http://localhost:${PORT} (no SSL certs found)`);
+			startMemoryLogging();
+		}
+
+		// Graceful shutdown
+		const shutdown = async (signal: string) => {
+			logger.info(`\n${signal} received. Shutting down gracefully...`);
+			try {
+				const { stopKeepAlive } = await import("./services/keepalive");
+				const { stopHealthChecks } = await import("./services/db-health");
+				const { stopSyncWorker } = await import("./services/db-sync");
+				const { stopRealtimeSync } = await import("./services/db-realtime");
+				stopKeepAlive();
+				stopHealthChecks();
+				stopSyncWorker();
+				stopRealtimeSync();
+			} catch {
+				/* ignore */
+			}
+			try {
+				if (httpServer?.close) await new Promise<void>((resolve) => httpServer.close(() => resolve()));
+				await app.close();
+			} catch {
+				/* ignore */
+			}
+			process.exit(0);
+		};
+
+		process.on("SIGTERM", (s) => shutdown(String(s)));
+		process.on("SIGINT", (s) => shutdown(String(s)));
+		process.on("uncaughtException", (err) => {
+			logger.error("[FATAL] Uncaught Exception:", err);
+			process.exit(1);
+		});
+		process.on("unhandledRejection", (reason) => {
+			logger.error("[FATAL] Unhandled Rejection:", reason);
+			process.exit(1);
+		});
+
+		logger.info(`[${new Date().toISOString()}] Server initialization complete, PID: ${process.pid}`);
+
+		// ─── Start Database Infrastructure Services ──────────────
+		const disableInfra = process.env.DB_INFRA_OFF === "1" || process.env.DB_INFRA_OFF === "true";
+		const microMode = process.env.MICRO_MODE === "1";
+		if (disableInfra) {
+			logger.info("[DB-INFRA] Desativado via DB_INFRA_OFF=1");
+		} else if (microMode) {
+			logger.info("[DB-INFRA] MICRO_MODE ativo: health (60s) + keep-alive");
+			startHealthChecks();
+			startKeepAlive();
+		} else {
+			startKeepAlive();
+			startHealthChecks();
+			startSyncWorker();
+			startRealtimeSync();
+			void (async () => {
+				try {
+					await new Promise((r) => setTimeout(r, 8000));
+					const { triggerMigrationSync } = await import("./services/db-migrations");
+					await triggerMigrationSync();
+					logger.info("[DB-INFRA] sync de migrations concluido");
+				} catch (err: any) {
+					logger.warn(`[DB-INFRA] sync de migrations falhou no startup: ${err?.message || err}`);
+				}
+			})();
+			logger.info("[DB-INFRA] keep-alive + health + sync + migrations iniciados");
+		}
+	} catch (err: any) {
+		logger.error(err);
+		process.exit(1);
+	}
+};
+
+start();

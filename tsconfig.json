@@ -19,5 +19,5 @@
 		}
 	},
 	"include": ["**/*.ts", "**/*.tsx"],
-	"exclude": ["node_modules", "server", "server-build", "dist", "apps/api/src", "packages/db/drizzle", "tests", "scripts"]
+	"exclude": ["node_modules", "server", "server-build", "dist", "apps/api/src", "packages/db/drizzle", "packages/db/prisma", "tests", "scripts"]
 }
