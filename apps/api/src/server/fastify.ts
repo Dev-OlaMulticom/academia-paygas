@@ -3,12 +3,19 @@ import fs from "node:fs";
 import https from "node:https";
 import path from "node:path";
 import Fastify from "fastify";
+import authPlugin from "./fastify-plugins/auth";
+// Fastify-native plugins (Phase 2 of Strangler Fig migration)
+import corsPlugin from "./fastify-plugins/cors";
+import encryptionPlugin from "./fastify-plugins/encryption";
+import rateLimitPlugin from "./fastify-plugins/rate-limit";
+// Fastify-native routes (Phase 3 — migrated from Express)
+import publicRoutes from "./fastify-routes/public";
+import expressApp from "./index";
 import logger from "./lib/logger";
 import { startHealthChecks } from "./services/db-health";
 import { startRealtimeSync } from "./services/db-realtime";
 import { startSyncWorker } from "./services/db-sync";
 import { startKeepAlive } from "./services/keepalive";
-import expressApp from "./index";
 
 const PORT = Number(process.env.PORT) || 3001;
 
@@ -49,7 +56,19 @@ function startMemoryLogging(): void {
 
 const start = async () => {
 	try {
-		// Mount the legacy Express app via @fastify/express
+		// ─── Register Fastify-native plugins (before Express mount) ───
+		// These apply to ALL routes: native Fastify routes AND the Express fallback.
+		await app.register(corsPlugin);
+		await app.register(rateLimitPlugin);
+		await app.register(authPlugin);
+		await app.register(encryptionPlugin);
+
+		// ─── Register Fastify-native routes (before Express mount) ───
+		// These take precedence over the Express fallback.
+		await app.register(publicRoutes, { prefix: "/api/public" });
+
+		// ─── Mount the legacy Express app via @fastify/express (Strangler Fig) ───
+		// Any route not yet migrated to Fastify falls through to Express.
 		await app.register(import("@fastify/express"));
 		app.use(expressApp);
 

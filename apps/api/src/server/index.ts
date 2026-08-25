@@ -1,11 +1,8 @@
 import "dotenv/config";
-import fs from "node:fs";
-import https from "node:https";
 import path from "node:path";
 import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
-import { dbRegistry } from "./config/databases";
 import logger from "./lib/logger";
 import { encryptedPayload, getServerEncryptionKey } from "./middleware/encryption";
 import adminDashboardRoutes from "./routes/admin-dashboard";
@@ -28,13 +25,8 @@ import rolePermissionsRoutes from "./routes/role-permissions";
 import ssoRoutes from "./routes/sso";
 import usuariosRoutes from "./routes/usuarios";
 import xpconfigRoutes from "./routes/xpconfig";
-import { startHealthChecks } from "./services/db-health";
-import { startRealtimeSync } from "./services/db-realtime";
-import { startSyncWorker } from "./services/db-sync";
-import { startKeepAlive } from "./services/keepalive";
 
 const app = express();
-const PORT = process.env.PORT || 3001;
 
 // Trust the first proxy in front of the container (ingress/LoadBalancer).
 // Required for express-rate-limit to correctly read X-Forwarded-For.
@@ -250,137 +242,8 @@ app.use((req, res, next) => {
 	res.sendFile(path.join(clientDir, "index.html"));
 });
 
-// Log memory usage every 60s to measure RSS/Heap/External on low-resource plans.
-function startMemoryLogging(): void {
-	setInterval(() => {
-		const mu = process.memoryUsage();
-		logger.info(`[MEM] rss=${mu.rss} heapUsed=${mu.heapUsed} external=${mu.external}`);
-	}, 60_000);
-}
-
-// Only start listening when run directly (not when imported by Passenger or test)
-if (require.main === module) {
-	const certPath = path.resolve(__dirname, "certs");
-	const keyFile = path.join(certPath, "key.pem");
-	const certFile = path.join(certPath, "cert.pem");
-
-	let server: ReturnType<typeof app.listen>;
-
-	if (fs.existsSync(keyFile) && fs.existsSync(certFile)) {
-		const httpsOptions = {
-			key: fs.readFileSync(keyFile),
-			cert: fs.readFileSync(certFile),
-		};
-
-		server = https.createServer(httpsOptions, app).listen(PORT, () => {
-			logger.info(`🔒 HTTPS Server running on https://localhost:${PORT}`);
-			startMemoryLogging();
-		});
-	} else {
-		server = app.listen(PORT, () => {
-			logger.info(`🚀 HTTP Server running on http://localhost:${PORT} (no SSL certs found)`);
-			startMemoryLogging();
-		});
-	}
-
-	// ─── Graceful Shutdown ──────────────────────────────────
-	const shutdown = async (signal: string) => {
-		logger.info(`\n${signal} received. Shutting down gracefully...`);
-		server.close(async () => {
-			try {
-				const { stopKeepAlive } = await import("./services/keepalive");
-				const { stopHealthChecks } = await import("./services/db-health");
-				const { stopSyncWorker } = await import("./services/db-sync");
-				const { stopRealtimeSync } = await import("./services/db-realtime");
-				stopKeepAlive();
-				stopHealthChecks();
-				stopSyncWorker();
-				stopRealtimeSync();
-
-				for (const e of dbRegistry.getAll()) {
-				await e.pool?.end().catch(() => {});
-			}
-				logger.info("Database connection closed.");
-			} catch {
-				/* ignore */
-			}
-			process.exit(0);
-		});
-		// Force kill after 10 seconds
-		setTimeout(() => {
-			logger.error("Forced shutdown after timeout.");
-			process.exit(1);
-		}, 10000);
-	};
-
-	process.on("SIGTERM", () => shutdown("SIGTERM"));
-	process.on("SIGINT", () => shutdown("SIGINT"));
-
-	// ─── Uncaught Error Handlers ────────────────────────────
-	process.on("uncaughtException", (err) => {
-		logger.error("[FATAL] Uncaught Exception:", err);
-		process.exit(1);
-	});
-
-	process.on("unhandledRejection", (reason) => {
-		logger.error("[FATAL] Unhandled Rejection:", reason);
-		process.exit(1);
-	});
-
-	// Log startup completion
-	logger.info(`[${new Date().toISOString()}] Server initialization complete, PID: ${process.pid}`);
-
-	// ─── Start Database Infrastructure Services ──────────────
-	// Keep-alive, health checks (with latency metrics) e sync por hash rodam
-	// SEMPRE — em dev e em prod. Nao ha mais guarda por NODE_ENV; os free-tiers
-	// Supabase/Nhost pausam apos 7 dias de inatividade, e sincronizacao em
-	// background garante consistencia entre replicas depois de falhas.
-	// Set DB_INFRA_OFF=1 para desativar tudo (ex: testes que usam DB mock).
-	const disableInfra = process.env.DB_INFRA_OFF === "1" || process.env.DB_INFRA_OFF === "true";
-	const microMode = process.env.MICRO_MODE === "1";
-	if (disableInfra) {
-		logger.info("[DB-INFRA] Desativado via DB_INFRA_OFF=1");
-	} else if (microMode) {
-		logger.info("[DB-INFRA] MICRO_MODE ativo: health (60s) + keep-alive");
-		startHealthChecks();
-		// Keep-alive is required on free-tier databases that sleep after inactivity.
-		// Interval is still configurable via KEEPALIVE_INTERVAL_MS.
-		startKeepAlive();
-	} else {
-		// Keep-alive: evita pausa das free-tiers (Supabase/Nhost)
-		startKeepAlive();
-
-		// Health checks: monitora latencia, detecta offline/online, dispara sync na recuperacao
-		startHealthChecks();
-
-		// Background sync: reconcilia divergencias de dados entre replicas
-		// (incremental a cada 10s + full-diff no startup/recovery/15min)
-		startSyncWorker();
-
-		// Real-time sync: LISTEN/NOTIFY — propaga cada INSERT/UPDATE entre bases
-		// em milissegundos, sem esperar os loops periodicos acima. db-health
-		// tambem (re)conecta o listener de cada base assim que ela fica saudavel,
-		// entao esta chamada cobre so o caso feliz do startup.
-		startRealtimeSync();
-
-		// Sync de migrations em background — aplica schemas pendentes nos
-		// backups (CREATE TABLE/ADD COLUMN/RENAME sao sempre aplicados; DROP
-		///TRUNCATE sao pulados para preservar dados). Import dinamico para nao
-		// acoplar startup ao modulo. Roda apos startSyncWorker sync inicial.
-		void (async () => {
-			try {
-				// Aguarda health-check inicial classificar quem esta online
-				await new Promise((r) => setTimeout(r, 8000));
-				const { triggerMigrationSync } = await import("./services/db-migrations");
-				await triggerMigrationSync();
-				logger.info("[DB-INFRA] sync de migrations concluido");
-			} catch (err: any) {
-				logger.warn(`[DB-INFRA] sync de migrations falhou no startup: ${err?.message || err}`);
-			}
-		})();
-
-		logger.info("[DB-INFRA] keep-alive + health + sync + migrations iniciados");
-	}
-}
+// Listening, graceful shutdown, and DB infra services are now handled by
+// fastify.ts (the Strangler Fig entry point). This file only exports the
+// Express app for mounting via @fastify/express.
 
 export default app;
