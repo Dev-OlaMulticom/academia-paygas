@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { type AuthRequest, authenticate, authorize } from "../middleware/auth";
 import { sendCustomEmail } from "../services/email";
@@ -23,35 +23,35 @@ router.get("/", authenticate, authorize("ADMIN"), async (_req: AuthRequest, res)
 			usersThisMonth,
 			progressThisMonth,
 		] = await Promise.all([
-			db.count("user"),
-			db.count("curso"),
-			db.count("aula"),
-			db.count("certificate"),
-			db.count("quizResponse", { concluido: true }),
-			db.count("notification"),
-			db.count("user", { createdAt: { gte: thirtyDaysAgo } }),
-			db.count("progresso", { createdAt: { gte: thirtyDaysAgo } }),
+			drizzleDb.count("user"),
+			drizzleDb.count("curso"),
+			drizzleDb.count("aula"),
+			drizzleDb.count("certificate"),
+			drizzleDb.count("quizResponse", { concluido: true }),
+			drizzleDb.count("notification"),
+			drizzleDb.count("user", { createdAt: { gte: thirtyDaysAgo } }),
+			drizzleDb.count("progresso", { createdAt: { gte: thirtyDaysAgo } }),
 		]);
 
-		const acessosRecentes = await db.findMany("activityLog", {
+		const acessosRecentes = await drizzleDb.findMany("activityLog", {
 			where: { acao: "Login" },
 			orderBy: { createdAt: "desc" },
 			take: 10,
 		});
 
-		const atividadesRecentes = await db.findMany("activityLog", {
+		const atividadesRecentes = await drizzleDb.findMany("activityLog", {
 			orderBy: { createdAt: "desc" },
 			take: 20,
 		});
 
 		// Aggregated query: get aula counts and progress counts per curso in bulk (avoids N+1)
-		const aulaCounts = (await db.groupBy("aula", {
+		const aulaCounts = (await drizzleDb.groupBy("aula", {
 			by: ["cursoId"],
 			_count: { id: true },
 		})) as any[];
 		const aulaCountMap = new Map(aulaCounts.map((ac: any) => [ac.cursoId, ac._count.id]));
 
-		const progressCounts = (await db.groupBy("progresso", {
+		const progressCounts = (await drizzleDb.groupBy("progresso", {
 			by: ["cursoId", "concluido"],
 			_count: { id: true },
 		})) as any[];
@@ -64,7 +64,7 @@ router.get("/", authenticate, authorize("ADMIN"), async (_req: AuthRequest, res)
 			progressMap.set(pc.cursoId, existing);
 		}
 
-		const cursos = (await db.findMany("curso")) as any[];
+		const cursos = (await drizzleDb.findMany("curso")) as any[];
 
 		const cursosRecentes = cursos.map((m: any) => {
 			const totalAulas = aulaCountMap.get(m.id) || 0;
@@ -115,7 +115,7 @@ router.post("/send-email", authenticate, authorize("ADMIN"), async (req: AuthReq
 			return res.status(400).json({ error: "userId, assunto e mensagem são obrigatórios" });
 		}
 
-		const targetUser = (await db.findUnique("user", { id: userId })) as any;
+		const targetUser = (await drizzleDb.findUnique("user", { id: userId })) as any;
 
 		if (!targetUser) {
 			return res.status(404).json({ error: "Usuário não encontrado" });

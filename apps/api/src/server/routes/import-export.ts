@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { authenticate, authorize } from "../middleware/auth";
 import { logActivity } from "../services/log";
@@ -143,7 +143,7 @@ function detectCsvType(headers: string[]): CsvType | null {
 
 router.get("/export/cursos", authenticate, authorize("ADMIN"), async (_req: any, res) => {
 	try {
-		const cursos = await db.findMany("curso", {
+		const cursos = await drizzleDb.findMany("curso", {
 			orderBy: { ordem: "asc" },
 		});
 		const headers = [
@@ -168,10 +168,21 @@ router.get("/export/cursos", authenticate, authorize("ADMIN"), async (_req: any,
 
 router.get("/export/aulas", authenticate, authorize("ADMIN"), async (_req: any, res) => {
 	try {
-		const aulas = await db.findMany("aula", {
-			include: { curso: { select: { id: true, titulo: true } } },
-			orderBy: [{ curso: { ordem: "asc" } }, { ordem: "asc" }],
-		});
+		const aulasRaw = (await drizzleDb.findMany("aula", { orderBy: { ordem: "asc" } })) as any[];
+		const cursoIds = [...new Set(aulasRaw.map((a: any) => a.cursoId).filter(Boolean))];
+		const cursos = (await drizzleDb.findMany("curso", {
+			where: { id: { in: cursoIds } },
+			select: { id: true, titulo: true, ordem: true },
+		})) as any[];
+		const cursoMap = new Map(cursos.map((c: any) => [c.id, c]));
+		const aulas = aulasRaw
+			.map((a: any) => ({ ...a, curso: cursoMap.get(a.cursoId) }))
+			.sort((a: any, b: any) => {
+				const ca = a.curso || { ordem: 0 };
+				const cb = b.curso || { ordem: 0 };
+				if (ca.ordem !== cb.ordem) return (ca.ordem || 0) - (cb.ordem || 0);
+				return (a.ordem || 0) - (b.ordem || 0);
+			});
 		const headers = [
 			"id",
 			"curso_id",
@@ -210,18 +221,30 @@ router.get("/export/aulas", authenticate, authorize("ADMIN"), async (_req: any, 
 
 router.get("/export/licoes", authenticate, authorize("ADMIN"), async (_req: any, res) => {
 	try {
-		const licoes = await db.findMany("licao", {
-			include: {
-				aula: {
-					select: {
-						id: true,
-						titulo: true,
-						curso: { select: { id: true, titulo: true } },
-					},
-				},
-			},
-			orderBy: [{ aula: { curso: { ordem: "asc" } } }, { aula: { ordem: "asc" } }, { ordem: "asc" }],
-		});
+		const licoesRaw = (await drizzleDb.findMany("licao", { orderBy: { ordem: "asc" } })) as any[];
+		const aulaIds = [...new Set(licoesRaw.map((l: any) => l.aulaId).filter(Boolean))];
+		const aulas = (await drizzleDb.findMany("aula", {
+			where: { id: { in: aulaIds } },
+			select: { id: true, titulo: true, ordem: true, cursoId: true },
+		})) as any[];
+		const cursoIds = [...new Set(aulas.map((a: any) => a.cursoId).filter(Boolean))];
+		const cursos = (await drizzleDb.findMany("curso", {
+			where: { id: { in: cursoIds } },
+			select: { id: true, titulo: true, ordem: true },
+		})) as any[];
+		const cursoMap = new Map(cursos.map((c: any) => [c.id, c]));
+		const aulaMap = new Map(aulas.map((a: any) => [a.id, { ...a, curso: cursoMap.get(a.cursoId) }]));
+		const licoes = licoesRaw
+			.map((l: any) => ({ ...l, aula: aulaMap.get(l.aulaId) }))
+			.sort((a: any, b: any) => {
+				const ca = a.aula?.curso || { ordem: 0 };
+				const cb = b.aula?.curso || { ordem: 0 };
+				if (ca.ordem !== cb.ordem) return (ca.ordem || 0) - (cb.ordem || 0);
+				const aa = a.aula || { ordem: 0 };
+				const ab = b.aula || { ordem: 0 };
+				if (aa.ordem !== ab.ordem) return (aa.ordem || 0) - (ab.ordem || 0);
+				return (a.ordem || 0) - (b.ordem || 0);
+			});
 		const headers = [
 			"id",
 			"curso_id",
@@ -258,19 +281,42 @@ router.get("/export/licoes", authenticate, authorize("ADMIN"), async (_req: any,
 
 router.get("/export/quiz", authenticate, authorize("ADMIN"), async (_req: any, res) => {
 	try {
-		const quizzes = await db.findMany("quiz", {
-			include: {
-				perguntas: { orderBy: { ordem: "asc" } },
-				aula: {
-					select: {
-						id: true,
-						titulo: true,
-						curso: { select: { id: true, titulo: true } },
-					},
-				},
-			},
-			orderBy: [{ aula: { curso: { ordem: "asc" } } }, { aula: { ordem: "asc" } }],
-		});
+		const quizzesRaw = (await drizzleDb.findMany("quiz")) as any[];
+		const aulaIds = [...new Set(quizzesRaw.map((q: any) => q.aulaId).filter(Boolean))];
+		const aulas = (await drizzleDb.findMany("aula", {
+			where: { id: { in: aulaIds } },
+			select: { id: true, titulo: true, ordem: true, cursoId: true },
+		})) as any[];
+		const cursoIds = [...new Set(aulas.map((a: any) => a.cursoId).filter(Boolean))];
+		const cursos = (await drizzleDb.findMany("curso", {
+			where: { id: { in: cursoIds } },
+			select: { id: true, titulo: true, ordem: true },
+		})) as any[];
+		const quizIds = quizzesRaw.map((q: any) => q.id);
+		const perguntas = quizIds.length
+			? (await drizzleDb.findMany("quizPergunta", {
+					where: { quizId: { in: quizIds } },
+					orderBy: { ordem: "asc" },
+				})) as any[]
+			: [];
+		const perguntasByQuiz = perguntas.reduce((acc: Record<string, any[]>, p: any) => {
+			acc[p.quizId] = acc[p.quizId] || [];
+			acc[p.quizId].push(p);
+			return acc;
+		}, {} as Record<string, any[]>);
+		const cursoMap = new Map(cursos.map((c: any) => [c.id, c]));
+		const aulaMap = new Map(aulas.map((a: any) => [a.id, { ...a, curso: cursoMap.get(a.cursoId) }]));
+		const quizzes = quizzesRaw
+			.map((q: any) => ({ ...q, aula: aulaMap.get(q.aulaId), perguntas: perguntasByQuiz[q.id] || [] }))
+			.sort((a: any, b: any) => {
+				const ca = a.aula?.curso || { ordem: 0 };
+				const cb = b.aula?.curso || { ordem: 0 };
+				if (ca.ordem !== cb.ordem) return (ca.ordem || 0) - (cb.ordem || 0);
+				const aa = a.aula || { ordem: 0 };
+				const ab = b.aula || { ordem: 0 };
+				if (aa.ordem !== ab.ordem) return (aa.ordem || 0) - (ab.ordem || 0);
+				return 0;
+			});
 		const headers = [
 			"curso_id",
 			"curso_titulo",
@@ -345,7 +391,7 @@ router.get("/export/all", authenticate, authorize("ADMIN"), async (_req: any, re
 		const rows: string[][] = [];
 
 		// Cursos
-		const cursos = await db.findMany("curso", { orderBy: { ordem: "asc" } });
+		const cursos = await drizzleDb.findMany("curso", { orderBy: { ordem: "asc" } });
 		for (const m of cursos) {
 			rows.push([
 				"curso",
@@ -382,10 +428,22 @@ router.get("/export/all", authenticate, authorize("ADMIN"), async (_req: any, re
 		}
 
 		// Aulas
-		const aulas = await db.findMany("aula", {
-			include: { curso: { select: { id: true, titulo: true } } },
-			orderBy: [{ curso: { ordem: "asc" } }, { ordem: "asc" }],
-		});
+		{
+		const aulasRaw = (await drizzleDb.findMany("aula", { orderBy: { ordem: "asc" } })) as any[];
+		const cursoIds = [...new Set(aulasRaw.map((a: any) => a.cursoId).filter(Boolean))];
+		const cursos = (await drizzleDb.findMany("curso", {
+			where: { id: { in: cursoIds } },
+			select: { id: true, titulo: true, ordem: true },
+		})) as any[];
+		const cursoMap = new Map(cursos.map((c: any) => [c.id, c]));
+		const aulas = aulasRaw
+			.map((a: any) => ({ ...a, curso: cursoMap.get(a.cursoId) }))
+			.sort((a: any, b: any) => {
+				const ca = a.curso || { ordem: 0 };
+				const cb = b.curso || { ordem: 0 };
+				if (ca.ordem !== cb.ordem) return (ca.ordem || 0) - (cb.ordem || 0);
+				return (a.ordem || 0) - (b.ordem || 0);
+			});
 		for (const a of aulas) {
 			rows.push([
 				"aula",
@@ -420,20 +478,34 @@ router.get("/export/all", authenticate, authorize("ADMIN"), async (_req: any, re
 				"",
 			]);
 		}
+		}
 
 		// Licoes
-		const licoes = await db.findMany("licao", {
-			include: {
-				aula: {
-					select: {
-						id: true,
-						titulo: true,
-						curso: { select: { id: true, titulo: true } },
-					},
-				},
-			},
-			orderBy: [{ aula: { curso: { ordem: "asc" } } }, { aula: { ordem: "asc" } }, { ordem: "asc" }],
-		});
+		{
+		const licoesRaw = (await drizzleDb.findMany("licao", { orderBy: { ordem: "asc" } })) as any[];
+		const aulaIds = [...new Set(licoesRaw.map((l: any) => l.aulaId).filter(Boolean))];
+		const aulas = (await drizzleDb.findMany("aula", {
+			where: { id: { in: aulaIds } },
+			select: { id: true, titulo: true, ordem: true, cursoId: true },
+		})) as any[];
+		const cursoIds = [...new Set(aulas.map((a: any) => a.cursoId).filter(Boolean))];
+		const cursos = (await drizzleDb.findMany("curso", {
+			where: { id: { in: cursoIds } },
+			select: { id: true, titulo: true, ordem: true },
+		})) as any[];
+		const cursoMap = new Map(cursos.map((c: any) => [c.id, c]));
+		const aulaMap = new Map(aulas.map((a: any) => [a.id, { ...a, curso: cursoMap.get(a.cursoId) }]));
+		const licoes = licoesRaw
+			.map((l: any) => ({ ...l, aula: aulaMap.get(l.aulaId) }))
+			.sort((a: any, b: any) => {
+				const ca = a.aula?.curso || { ordem: 0 };
+				const cb = b.aula?.curso || { ordem: 0 };
+				if (ca.ordem !== cb.ordem) return (ca.ordem || 0) - (cb.ordem || 0);
+				const aa = a.aula || { ordem: 0 };
+				const ab = b.aula || { ordem: 0 };
+				if (aa.ordem !== ab.ordem) return (aa.ordem || 0) - (ab.ordem || 0);
+				return (a.ordem || 0) - (b.ordem || 0);
+			});
 		for (const l of licoes) {
 			rows.push([
 				"licao",
@@ -468,21 +540,46 @@ router.get("/export/all", authenticate, authorize("ADMIN"), async (_req: any, re
 				"",
 			]);
 		}
+		}
 
 		// Quiz perguntas
-		const quizzes = await db.findMany("quiz", {
-			include: {
-				perguntas: { orderBy: { ordem: "asc" } },
-				aula: {
-					select: {
-						id: true,
-						titulo: true,
-						curso: { select: { id: true, titulo: true } },
-					},
-				},
-			},
-			orderBy: [{ aula: { curso: { ordem: "asc" } } }, { aula: { ordem: "asc" } }],
-		});
+		{
+		const quizzesRaw = (await drizzleDb.findMany("quiz")) as any[];
+		const aulaIds = [...new Set(quizzesRaw.map((q: any) => q.aulaId).filter(Boolean))];
+		const aulas = (await drizzleDb.findMany("aula", {
+			where: { id: { in: aulaIds } },
+			select: { id: true, titulo: true, ordem: true, cursoId: true },
+		})) as any[];
+		const cursoIds = [...new Set(aulas.map((a: any) => a.cursoId).filter(Boolean))];
+		const cursos = (await drizzleDb.findMany("curso", {
+			where: { id: { in: cursoIds } },
+			select: { id: true, titulo: true, ordem: true },
+		})) as any[];
+		const quizIds = quizzesRaw.map((q: any) => q.id);
+		const perguntas = quizIds.length
+			? (await drizzleDb.findMany("quizPergunta", {
+					where: { quizId: { in: quizIds } },
+					orderBy: { ordem: "asc" },
+				})) as any[]
+			: [];
+		const perguntasByQuiz = perguntas.reduce((acc: Record<string, any[]>, p: any) => {
+			acc[p.quizId] = acc[p.quizId] || [];
+			acc[p.quizId].push(p);
+			return acc;
+		}, {} as Record<string, any[]>);
+		const cursoMap = new Map(cursos.map((c: any) => [c.id, c]));
+		const aulaMap = new Map(aulas.map((a: any) => [a.id, { ...a, curso: cursoMap.get(a.cursoId) }]));
+		const quizzes = quizzesRaw
+			.map((q: any) => ({ ...q, aula: aulaMap.get(q.aulaId), perguntas: perguntasByQuiz[q.id] || [] }))
+			.sort((a: any, b: any) => {
+				const ca = a.aula?.curso || { ordem: 0 };
+				const cb = b.aula?.curso || { ordem: 0 };
+				if (ca.ordem !== cb.ordem) return (ca.ordem || 0) - (cb.ordem || 0);
+				const aa = a.aula || { ordem: 0 };
+				const ab = b.aula || { ordem: 0 };
+				if (aa.ordem !== ab.ordem) return (aa.ordem || 0) - (ab.ordem || 0);
+				return 0;
+			});
 		for (const quiz of quizzes) {
 			if (quiz.perguntas.length === 0) {
 				rows.push([
@@ -554,6 +651,7 @@ router.get("/export/all", authenticate, authorize("ADMIN"), async (_req: any, re
 				}
 			}
 		}
+		}
 
 		const csv = [UNIFIED_HEADERS.join(","), ...rows.map((r) => r.join(","))].join("\n");
 		sendCsv(res, "conteudo-completo.csv", csv);
@@ -567,7 +665,7 @@ router.get("/export/all", authenticate, authorize("ADMIN"), async (_req: any, re
 
 router.get("/export/curso/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
-		const curso = await db.findUnique("curso", { id: req.params.id });
+		const curso = await drizzleDb.findUnique("curso", { id: req.params.id });
 		if (!curso) return res.status(404).json({ error: "Curso nao encontrado" });
 		const headers = [
 			"id",
@@ -592,11 +690,12 @@ router.get("/export/curso/:id", authenticate, authorize("ADMIN"), async (req: an
 
 router.get("/export/aula/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
-		const aula = await db.findUnique(
-			"aula",
-			{ id: req.params.id },
-			{ include: { curso: { select: { id: true, titulo: true } } } },
-		);
+		const aulaRaw = (await drizzleDb.findUnique("aula", { id: req.params.id })) as any;
+		if (!aulaRaw) return res.status(404).json({ error: "Aula nao encontrada" });
+		const curso = aulaRaw
+			? (await drizzleDb.findUnique("curso", { id: aulaRaw.cursoId }, { select: { id: true, titulo: true } }))
+			: null;
+		const aula = { ...aulaRaw, curso };
 		if (!aula) return res.status(404).json({ error: "Aula nao encontrada" });
 		const headers = [
 			"id",
@@ -637,15 +736,13 @@ router.get("/export/aula/:id", authenticate, authorize("ADMIN"), async (req: any
 
 router.get("/export/licao/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
-		const licao = await db.findUnique(
-			"licao",
-			{
-				id: req.params.id,
-			},
-			{
-				include: { aula: { select: { id: true, titulo: true, curso: { select: { id: true, titulo: true } } } } },
-			},
-		);
+		const licaoRaw = (await drizzleDb.findUnique("licao", { id: req.params.id })) as any;
+		if (!licaoRaw) return res.status(404).json({ error: "Licao nao encontrada" });
+		const aula = licaoRaw
+			? (await drizzleDb.findUnique("aula", { id: licaoRaw.aulaId }, { select: { id: true, titulo: true, cursoId: true } }))
+			: null;
+		const curso = aula ? (await drizzleDb.findUnique("curso", { id: aula.cursoId }, { select: { id: true, titulo: true } })) : null;
+		const licao = { ...licaoRaw, aula: { ...aula, curso } };
 		if (!licao) return res.status(404).json({ error: "Licao nao encontrada" });
 		const headers = [
 			"id",
@@ -686,18 +783,17 @@ router.get("/export/licao/:id", authenticate, authorize("ADMIN"), async (req: an
 
 router.get("/export/quiz/:id", authenticate, authorize("ADMIN"), async (req: any, res) => {
 	try {
-		const quiz = await db.findUnique(
-			"quiz",
-			{
-				id: req.params.id,
-			},
-			{
-				include: {
-					perguntas: { orderBy: { ordem: "asc" } },
-					aula: { select: { id: true, titulo: true, curso: { select: { id: true, titulo: true } } } },
-				},
-			},
-		);
+		const quizRaw = (await drizzleDb.findUnique("quiz", { id: req.params.id })) as any;
+		if (!quizRaw) return res.status(404).json({ error: "Quiz nao encontrado" });
+		const aula = quizRaw
+			? (await drizzleDb.findUnique("aula", { id: quizRaw.aulaId }, { select: { id: true, titulo: true, cursoId: true } }))
+			: null;
+		const curso = aula ? (await drizzleDb.findUnique("curso", { id: aula.cursoId }, { select: { id: true, titulo: true } })) : null;
+		const perguntas = (await drizzleDb.findMany("quizPergunta", {
+			where: { quizId: req.params.id },
+			orderBy: { ordem: "asc" },
+		})) as any[];
+		const quiz = { ...quizRaw, aula: { ...aula, curso }, perguntas };
 		if (!quiz) return res.status(404).json({ error: "Quiz nao encontrado" });
 		const headers = [
 			"curso_titulo",
@@ -738,11 +834,10 @@ router.get("/export/quiz/:id", authenticate, authorize("ADMIN"), async (req: any
 
 router.get("/list/cursos", authenticate, authorize("ADMIN"), async (_req: any, res) => {
 	try {
-		const cursos = await db.findMany("curso", {
-			orderBy: { ordem: "asc" },
-			include: { _count: { select: { aulas: true } } },
-		});
-		res.json(cursos.map((c: any) => ({ id: c.id, titulo: c.titulo, ordem: c.ordem, aulaCount: c._count.aulas })));
+		const cursos = (await drizzleDb.findMany("curso", { orderBy: { ordem: "asc" } })) as any[];
+		const aulaCounts = (await drizzleDb.groupBy("aula", { by: ["cursoId"], _count: { id: true } })) as any[];
+		const countMap = new Map(aulaCounts.map((c: any) => [c.cursoId, c._count.id]));
+		res.json(cursos.map((c: any) => ({ id: c.id, titulo: c.titulo, ordem: c.ordem, aulaCount: countMap.get(c.id) || 0 })));
 	} catch (error) {
 		logger.error("[LIST CURSOS ERROR]", error);
 		res.status(500).json({ error: "Erro ao listar cursos" });
@@ -751,18 +846,34 @@ router.get("/list/cursos", authenticate, authorize("ADMIN"), async (_req: any, r
 
 router.get("/list/aulas", authenticate, authorize("ADMIN"), async (_req: any, res) => {
 	try {
-		const aulas = await db.findMany("aula", {
-			include: { curso: { select: { id: true, titulo: true } }, _count: { select: { licoes: true } } },
-			orderBy: [{ curso: { ordem: "asc" } }, { ordem: "asc" }],
-		});
+		const aulasRaw = (await drizzleDb.findMany("aula", { orderBy: { ordem: "asc" } })) as any[];
+		const cursoIds = [...new Set(aulasRaw.map((a: any) => a.cursoId).filter(Boolean))];
+		const cursos = (await drizzleDb.findMany("curso", {
+			where: { id: { in: cursoIds } },
+			select: { id: true, titulo: true, ordem: true },
+		})) as any[];
+		const cursoMap = new Map(cursos.map((c: any) => [c.id, c]));
+		const aulaIds = aulasRaw.map((a: any) => a.id);
+		const licaoCounts = aulaIds.length
+			? (await drizzleDb.groupBy("licao", { by: ["aulaId"], _count: { id: true } })) as any[]
+			: [];
+		const countMap = new Map(licaoCounts.map((c: any) => [c.aulaId, c._count.id]));
+		const aulas = aulasRaw
+			.map((a: any) => ({ ...a, curso: cursoMap.get(a.cursoId), licaoCount: countMap.get(a.id) || 0 }))
+			.sort((a: any, b: any) => {
+				const ca = a.curso || { ordem: 0 };
+				const cb = b.curso || { ordem: 0 };
+				if (ca.ordem !== cb.ordem) return (ca.ordem || 0) - (cb.ordem || 0);
+				return (a.ordem || 0) - (b.ordem || 0);
+			});
 		res.json(
 			aulas.map((a: any) => ({
 				id: a.id,
 				titulo: a.titulo,
-				cursoId: a.curso.id,
-				cursoTitulo: a.curso.titulo,
+				cursoId: a.curso?.id,
+				cursoTitulo: a.curso?.titulo,
 				tipo: a.tipo,
-				licaoCount: a._count.licoes,
+				licaoCount: a.licaoCount,
 			})),
 		);
 	} catch (error) {
@@ -773,18 +884,38 @@ router.get("/list/aulas", authenticate, authorize("ADMIN"), async (_req: any, re
 
 router.get("/list/licoes", authenticate, authorize("ADMIN"), async (_req: any, res) => {
 	try {
-		const licoes = await db.findMany("licao", {
-			include: { aula: { select: { id: true, titulo: true, curso: { select: { id: true, titulo: true } } } } },
-			orderBy: [{ aula: { curso: { ordem: "asc" } } }, { aula: { ordem: "asc" } }, { ordem: "asc" }],
-		});
+		const licoesRaw = (await drizzleDb.findMany("licao", { orderBy: { ordem: "asc" } })) as any[];
+		const aulaIds = [...new Set(licoesRaw.map((l: any) => l.aulaId).filter(Boolean))];
+		const aulas = (await drizzleDb.findMany("aula", {
+			where: { id: { in: aulaIds } },
+			select: { id: true, titulo: true, ordem: true, cursoId: true },
+		})) as any[];
+		const cursoIds = [...new Set(aulas.map((a: any) => a.cursoId).filter(Boolean))];
+		const cursos = (await drizzleDb.findMany("curso", {
+			where: { id: { in: cursoIds } },
+			select: { id: true, titulo: true, ordem: true },
+		})) as any[];
+		const cursoMap = new Map(cursos.map((c: any) => [c.id, c]));
+		const aulaMap = new Map(aulas.map((a: any) => [a.id, { ...a, curso: cursoMap.get(a.cursoId) }]));
+		const licoes = licoesRaw
+			.map((l: any) => ({ ...l, aula: aulaMap.get(l.aulaId) }))
+			.sort((a: any, b: any) => {
+				const ca = a.aula?.curso || { ordem: 0 };
+				const cb = b.aula?.curso || { ordem: 0 };
+				if (ca.ordem !== cb.ordem) return (ca.ordem || 0) - (cb.ordem || 0);
+				const aa = a.aula || { ordem: 0 };
+				const ab = b.aula || { ordem: 0 };
+				if (aa.ordem !== ab.ordem) return (aa.ordem || 0) - (ab.ordem || 0);
+				return (a.ordem || 0) - (b.ordem || 0);
+			});
 		res.json(
 			licoes.map((l: any) => ({
 				id: l.id,
 				titulo: l.titulo,
-				aulaId: l.aula.id,
-				aulaTitulo: l.aula.titulo,
-				cursoId: l.aula.curso.id,
-				cursoTitulo: l.aula.curso.titulo,
+				aulaId: l.aula?.id,
+				aulaTitulo: l.aula?.titulo,
+				cursoId: l.aula?.curso?.id,
+				cursoTitulo: l.aula?.curso?.titulo,
 				tipo: l.tipo,
 			})),
 		);
@@ -796,22 +927,44 @@ router.get("/list/licoes", authenticate, authorize("ADMIN"), async (_req: any, r
 
 router.get("/list/quizzes", authenticate, authorize("ADMIN"), async (_req: any, res) => {
 	try {
-		const quizzes = await db.findMany("quiz", {
-			include: {
-				aula: { select: { id: true, titulo: true, curso: { select: { id: true, titulo: true } } } },
-				_count: { select: { perguntas: true } },
-			},
-			orderBy: [{ aula: { curso: { ordem: "asc" } } }, { aula: { ordem: "asc" } }],
-		});
+		const quizzesRaw = (await drizzleDb.findMany("quiz")) as any[];
+		const aulaIds = [...new Set(quizzesRaw.map((q: any) => q.aulaId).filter(Boolean))];
+		const aulas = (await drizzleDb.findMany("aula", {
+			where: { id: { in: aulaIds } },
+			select: { id: true, titulo: true, ordem: true, cursoId: true },
+		})) as any[];
+		const cursoIds = [...new Set(aulas.map((a: any) => a.cursoId).filter(Boolean))];
+		const cursos = (await drizzleDb.findMany("curso", {
+			where: { id: { in: cursoIds } },
+			select: { id: true, titulo: true, ordem: true },
+		})) as any[];
+		const quizIds = quizzesRaw.map((q: any) => q.id);
+		const perguntaCounts = quizIds.length
+			? (await drizzleDb.groupBy("quizPergunta", { by: ["quizId"], _count: { id: true } })) as any[]
+			: [];
+		const countMap = new Map(perguntaCounts.map((c: any) => [c.quizId, c._count.id]));
+		const cursoMap = new Map(cursos.map((c: any) => [c.id, c]));
+		const aulaMap = new Map(aulas.map((a: any) => [a.id, { ...a, curso: cursoMap.get(a.cursoId) }]));
+		const quizzes = quizzesRaw
+			.map((q: any) => ({ ...q, aula: aulaMap.get(q.aulaId), perguntaCount: countMap.get(q.id) || 0 }))
+			.sort((a: any, b: any) => {
+				const ca = a.aula?.curso || { ordem: 0 };
+				const cb = b.aula?.curso || { ordem: 0 };
+				if (ca.ordem !== cb.ordem) return (ca.ordem || 0) - (cb.ordem || 0);
+				const aa = a.aula || { ordem: 0 };
+				const ab = b.aula || { ordem: 0 };
+				if (aa.ordem !== ab.ordem) return (aa.ordem || 0) - (ab.ordem || 0);
+				return 0;
+			});
 		res.json(
 			quizzes.map((q: any) => ({
 				id: q.id,
 				titulo: q.titulo,
-				aulaId: q.aula.id,
-				aulaTitulo: q.aula.titulo,
-				cursoId: q.aula.curso.id,
-				cursoTitulo: q.aula.curso.titulo,
-				perguntaCount: q._count.perguntas,
+				aulaId: q.aula?.id,
+				aulaTitulo: q.aula?.titulo,
+				cursoId: q.aula?.curso?.id,
+				cursoTitulo: q.aula?.curso?.titulo,
+				perguntaCount: q.perguntaCount,
 			})),
 		);
 	} catch (error) {
@@ -909,9 +1062,9 @@ router.post("/detect", authenticate, authorize("ADMIN"), async (req: any, res) =
 		}[] = [];
 
 		if (detectedType === "quiz_pergunta") {
-			const allCursos = await db.findMany("curso", { select: { id: true, titulo: true } });
+			const allCursos = await drizzleDb.findMany("curso", { select: { id: true, titulo: true } });
 			const cursoMapDb = new Map(allCursos.map((m: any) => [m.titulo, m.id]));
-			const allAulasDb = await db.findMany("aula", { select: { id: true, titulo: true, cursoId: true } });
+			const allAulasDb = await drizzleDb.findMany("aula", { select: { id: true, titulo: true, cursoId: true } });
 
 			const hasCurso = has("curso_titulo") || has("curso_id");
 			const hasAula = has("aula_titulo") || has("aula_id");
@@ -946,13 +1099,35 @@ router.post("/detect", authenticate, authorize("ADMIN"), async (req: any, res) =
 			}
 
 			// Load existing quizzes for user to pick
-			const quizzesDb = await db.findMany("quiz", {
-				include: {
-					aula: { select: { titulo: true, curso: { select: { titulo: true } } } },
-					_count: { select: { perguntas: true } },
-				},
-				orderBy: [{ aula: { curso: { ordem: "asc" } } }, { aula: { ordem: "asc" } }],
-			});
+			const quizzesRaw = (await drizzleDb.findMany("quiz")) as any[];
+			const aulaIds = [...new Set(quizzesRaw.map((q: any) => q.aulaId).filter(Boolean))];
+			const aulas = (await drizzleDb.findMany("aula", {
+				where: { id: { in: aulaIds } },
+				select: { id: true, titulo: true, ordem: true, cursoId: true },
+			})) as any[];
+			const cursoIds = [...new Set(aulas.map((a: any) => a.cursoId).filter(Boolean))];
+			const cursos = (await drizzleDb.findMany("curso", {
+				where: { id: { in: cursoIds } },
+				select: { id: true, titulo: true, ordem: true },
+			})) as any[];
+			const quizIds = quizzesRaw.map((q: any) => q.id);
+			const perguntaCounts = quizIds.length
+				? (await drizzleDb.groupBy("quizPergunta", { by: ["quizId"], _count: { id: true } })) as any[]
+				: [];
+			const countMap = new Map(perguntaCounts.map((c: any) => [c.quizId, c._count.id]));
+			const cursoMap = new Map(cursos.map((c: any) => [c.id, c]));
+			const aulaMap = new Map(aulas.map((a: any) => [a.id, { ...a, curso: cursoMap.get(a.cursoId) }]));
+			const quizzesDb = quizzesRaw
+				.map((q: any) => ({ ...q, aula: aulaMap.get(q.aulaId), _count: { perguntas: countMap.get(q.id) || 0 } }))
+				.sort((a: any, b: any) => {
+					const ca = a.aula?.curso || { ordem: 0 };
+					const cb = b.aula?.curso || { ordem: 0 };
+					if (ca.ordem !== cb.ordem) return (ca.ordem || 0) - (cb.ordem || 0);
+					const aa = a.aula || { ordem: 0 };
+					const ab = b.aula || { ordem: 0 };
+					if (aa.ordem !== ab.ordem) return (aa.ordem || 0) - (ab.ordem || 0);
+					return 0;
+				});
 			existingQuizzes = quizzesDb.map((q: any) => ({
 				id: q.id,
 				titulo: q.titulo,
@@ -1001,11 +1176,11 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 		const errors: { row: number; field: string; message: string }[] = [];
 
 		// Pre-load lookups
-		const allModulos = await db.findMany("curso", { select: { id: true, titulo: true } });
+		const allModulos = await drizzleDb.findMany("curso", { select: { id: true, titulo: true } });
 		const cursoByTitulo = new Map(allModulos.map((m: any) => [m.titulo, m.id]));
 		const cursoById = new Map(allModulos.map((m: any) => [m.id, m.titulo]));
 
-		const allAulas = await db.findMany("aula", { select: { id: true, titulo: true, cursoId: true } });
+		const allAulas = await drizzleDb.findMany("aula", { select: { id: true, titulo: true, cursoId: true } });
 		const aulaByKey = new Map(allAulas.map((a: any) => [`${a.cursoId}:${a.titulo}`, a.id]));
 		const aulaById = new Map(allAulas.map((a: any) => [a.id, a]));
 
@@ -1032,8 +1207,8 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				if (existing) return existing;
 			}
 			if (createIfMissing && titulo) {
-				const maxOrdem = (await db.aggregate("aula", { where: { cursoId }, _max: { ordem: true } }))._max.ordem || 0;
-				const created = await db.create("aula", {
+				const maxOrdem = (await drizzleDb.aggregate("aula", { where: { cursoId }, _max: { ordem: true } }))._max.ordem || 0;
+				const created = await drizzleDb.create("aula", {
 					cursoId,
 					titulo,
 					descricao: "",
@@ -1115,9 +1290,9 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 			}
 
 			if (isUpsert && obj.id?.trim()) {
-				const existing = await db.findUnique("curso", { id: obj.id.trim() });
+				const existing = await drizzleDb.findUnique("curso", { id: obj.id.trim() });
 				if (existing) {
-					await db.update(
+					await drizzleDb.update(
 						"curso",
 						{ id: obj.id.trim() },
 						{
@@ -1135,14 +1310,14 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				}
 			}
 
-			const existingByTitle = await db.findFirst("curso", { titulo });
+			const existingByTitle = await drizzleDb.findFirst("curso", { titulo });
 			if (existingByTitle) {
 				result.skipped++;
 				continue;
 			}
 
-			const maxOrdem = (await db.aggregate("curso", { _max: { ordem: true } }))._max.ordem || 0;
-			const created = await db.create("curso", {
+			const maxOrdem = (await drizzleDb.aggregate("curso", { _max: { ordem: true } }))._max.ordem || 0;
+			const created = await drizzleDb.create("curso", {
 				titulo,
 				descricao: obj.descricao || "",
 				ordem: parseIntSafe(obj.ordem) ?? maxOrdem + 1,
@@ -1176,9 +1351,9 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 			}
 
 			if (isUpsert && obj.id?.trim()) {
-				const existing = await db.findUnique("aula", { id: obj.id.trim() });
+				const existing = await drizzleDb.findUnique("aula", { id: obj.id.trim() });
 				if (existing) {
-					await db.update(
+					await drizzleDb.update(
 						"aula",
 						{ id: obj.id.trim() },
 						{
@@ -1198,14 +1373,14 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				}
 			}
 
-			const existingAula = await db.findFirst("aula", { cursoId, titulo });
+			const existingAula = await drizzleDb.findFirst("aula", { cursoId, titulo });
 			if (existingAula) {
 				result.skipped++;
 				continue;
 			}
 
-			const maxOrdem = (await db.aggregate("aula", { where: { cursoId }, _max: { ordem: true } }))._max.ordem || 0;
-			const created = await db.create("aula", {
+			const maxOrdem = (await drizzleDb.aggregate("aula", { where: { cursoId }, _max: { ordem: true } }))._max.ordem || 0;
+			const created = await drizzleDb.create("aula", {
 				cursoId,
 				titulo,
 				descricao: obj.descricao || "",
@@ -1246,9 +1421,9 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 			}
 
 			if (isUpsert && obj.id?.trim()) {
-				const existing = await db.findUnique("licao", { id: obj.id.trim() });
+				const existing = await drizzleDb.findUnique("licao", { id: obj.id.trim() });
 				if (existing) {
-					await db.update(
+					await drizzleDb.update(
 						"licao",
 						{ id: obj.id.trim() },
 						{
@@ -1265,14 +1440,14 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				}
 			}
 
-			const existingLicao = await db.findFirst("licao", { aulaId, titulo });
+			const existingLicao = await drizzleDb.findFirst("licao", { aulaId, titulo });
 			if (existingLicao) {
 				result.skipped++;
 				continue;
 			}
 
-			const maxOrdem = (await db.aggregate("licao", { where: { aulaId }, _max: { ordem: true } }))._max.ordem || 0;
-			await db.create("licao", {
+			const maxOrdem = (await drizzleDb.aggregate("licao", { where: { aulaId }, _max: { ordem: true } }))._max.ordem || 0;
+			await drizzleDb.create("licao", {
 				aulaId,
 				titulo,
 				tipo: tipoLicao as any,
@@ -1284,7 +1459,7 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 			});
 			result.createdItems.push({
 				type: "licao",
-				id: (await db.findFirst("licao", { aulaId, titulo }))?.id || "",
+				id: (await drizzleDb.findFirst("licao", { aulaId, titulo }))?.id || "",
 				titulo,
 				aulaId,
 			});
@@ -1294,17 +1469,17 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 		// QUIZ PERGUNTAS
 		// If targetQuizId is provided, bypass parent resolution and attach directly
 		if (targetQuizId && typeGroups.quiz_pergunta.length > 0) {
-			const targetQuiz = await db.findUnique("quiz", { id: targetQuizId });
+			const targetQuiz = await drizzleDb.findUnique("quiz", { id: targetQuizId });
 			if (!targetQuiz) {
 				return res.status(400).json({ error: "Quiz destino nao encontrado" });
 			}
 
-			const existingPerguntas = await db.findMany("quizPergunta", { where: { quizId: targetQuizId } });
+			const existingPerguntas = await drizzleDb.findMany("quizPergunta", { where: { quizId: targetQuizId } });
 			const existingByPergunta = new Map(existingPerguntas.map((p: any) => [p.pergunta, p]));
 			const existingById = new Map(existingPerguntas.map((p: any) => [p.id, p]));
 
 			const maxOrdem =
-				(await db.aggregate("quizPergunta", { where: { quizId: targetQuizId }, _max: { ordem: true } }))._max.ordem ||
+				(await drizzleDb.aggregate("quizPergunta", { where: { quizId: targetQuizId }, _max: { ordem: true } }))._max.ordem ||
 				0;
 			let ordemCounter = maxOrdem;
 
@@ -1336,7 +1511,7 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				if (isUpsert && r.pergunta_id?.trim()) {
 					const existing = existingById.get(r.pergunta_id.trim());
 					if (existing) {
-						await db.update(
+						await drizzleDb.update(
 							"quizPergunta",
 							{ id: r.pergunta_id.trim() },
 							{
@@ -1360,7 +1535,7 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				}
 
 				ordemCounter++;
-				await db.create("quizPergunta", {
+				await drizzleDb.create("quizPergunta", {
 					quizId: targetQuizId,
 					pergunta: perguntaText,
 					opcaoA: r.opcaoA.trim(),
@@ -1374,17 +1549,15 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				result.created++;
 			}
 
-			const quizForItem = await db.findUnique(
-				"quiz",
-				{ id: targetQuizId },
-				{ include: { aula: { select: { cursoId: true } } } },
-			);
+			const quizAula = targetQuiz
+				? (await drizzleDb.findUnique("aula", { id: (targetQuiz as any).aulaId }, { select: { cursoId: true } }))
+				: null;
 			result.createdItems.push({
 				type: "quiz",
 				id: targetQuizId,
 				titulo: (targetQuiz as any).titulo,
 				aulaId: (targetQuiz as any).aulaId,
-				cursoId: quizForItem?.aula?.cursoId,
+				cursoId: quizAula?.cursoId,
 			});
 		} else {
 			// Original flow: resolve parents from CSV columns
@@ -1418,9 +1591,9 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 				const notaMinima = parseIntSafe(first.notaMinima) ?? 7;
 				const autoGerar = parseBool(first.autoGerarCertificado) || parseBool(first.autoGerar);
 
-				let quiz = await db.findUnique("quiz", { aulaId });
+				let quiz = await drizzleDb.findUnique("quiz", { aulaId });
 				if (!quiz) {
-					const newQuiz = await db.create("quiz", {
+					const newQuiz = await drizzleDb.create("quiz", {
 						aulaId,
 						titulo: quizTitulo,
 						notaMinima,
@@ -1438,12 +1611,12 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 					result.created++;
 				}
 
-				const existingPerguntas = await db.findMany("quizPergunta", { where: { quizId: quiz!.id } });
+				const existingPerguntas = await drizzleDb.findMany("quizPergunta", { where: { quizId: quiz!.id } });
 				const existingByPergunta = new Map(existingPerguntas.map((p: any) => [p.pergunta, p]));
 				const existingById = new Map(existingPerguntas.map((p: any) => [p.id, p]));
 
 				const maxOrdem =
-					(await db.aggregate("quizPergunta", { where: { quizId: quiz!.id }, _max: { ordem: true } }))._max.ordem || 0;
+					(await drizzleDb.aggregate("quizPergunta", { where: { quizId: quiz!.id }, _max: { ordem: true } }))._max.ordem || 0;
 
 				let ordemCounter = maxOrdem;
 				for (const r of groupRows) {
@@ -1474,7 +1647,7 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 					if (isUpsert && r.pergunta_id?.trim()) {
 						const existing = existingById.get(r.pergunta_id.trim());
 						if (existing) {
-							await db.update(
+							await drizzleDb.update(
 								"quizPergunta",
 								{ id: r.pergunta_id.trim() },
 								{
@@ -1498,7 +1671,7 @@ router.post("/import/unified", authenticate, authorize("ADMIN"), async (req: any
 					}
 
 					ordemCounter++;
-					await db.create("quizPergunta", {
+					await drizzleDb.create("quizPergunta", {
 						quizId: quiz!.id,
 						pergunta: perguntaText,
 						opcaoA: r.opcaoA.trim(),
@@ -1549,11 +1722,11 @@ router.post("/import/cursos", authenticate, authorize("ADMIN"), async (req: any,
 			return res.status(400).json({ error: "CSV vazio ou sem cabeçalhos" });
 		}
 		const objects = rowsToObjects(headers, rows);
-		const existing = await db.findMany("curso", { select: { titulo: true } });
+		const existing = await drizzleDb.findMany("curso", { select: { titulo: true } });
 		const existingTitles = new Set(existing.map((m: any) => m.titulo));
 		let created = 0;
 		let skipped = 0;
-		const maxOrdem = (await db.aggregate("curso", { _max: { ordem: true } }))._max.ordem || 0;
+		const maxOrdem = (await drizzleDb.aggregate("curso", { _max: { ordem: true } }))._max.ordem || 0;
 		for (let i = 0; i < objects.length; i++) {
 			const obj = objects[i];
 			const titulo = obj.titulo?.trim();
@@ -1565,7 +1738,7 @@ router.post("/import/cursos", authenticate, authorize("ADMIN"), async (req: any,
 				skipped++;
 				continue;
 			}
-			await db.create("curso", {
+			await drizzleDb.create("curso", {
 				titulo,
 				descricao: obj.descricao || "",
 				ordem: maxOrdem + i + 1,
@@ -1597,7 +1770,7 @@ router.post("/import/aulas", authenticate, authorize("ADMIN"), async (req: any, 
 			return res.status(400).json({ error: "CSV vazio ou sem cabeçalhos" });
 		}
 		const objects = rowsToObjects(headers, rows);
-		const cursos = await db.findMany("curso", { select: { id: true, titulo: true } });
+		const cursos = await drizzleDb.findMany("curso", { select: { id: true, titulo: true } });
 		const cursoMap = new Map(cursos.map((m: any) => [m.titulo, m.id]));
 		let created = 0;
 		let skipped = 0;
@@ -1613,14 +1786,14 @@ router.post("/import/aulas", authenticate, authorize("ADMIN"), async (req: any, 
 				skipped++;
 				continue;
 			}
-			const existingAula = await db.findFirst("aula", { cursoId, titulo });
+			const existingAula = await drizzleDb.findFirst("aula", { cursoId, titulo });
 			if (existingAula) {
 				skipped++;
 				continue;
 			}
-			const maxOrdem = (await db.aggregate("aula", { where: { cursoId }, _max: { ordem: true } }))._max.ordem || 0;
+			const maxOrdem = (await drizzleDb.aggregate("aula", { where: { cursoId }, _max: { ordem: true } }))._max.ordem || 0;
 			const tipoAula = (obj.tipo_aula || obj.tipo || "VIDEO").trim().toUpperCase();
-			await db.create("aula", {
+			await drizzleDb.create("aula", {
 				cursoId,
 				titulo,
 				descricao: obj.descricao || "",
@@ -1654,9 +1827,9 @@ router.post("/import/licoes", authenticate, authorize("ADMIN"), async (req: any,
 			return res.status(400).json({ error: "CSV vazio ou sem cabeçalhos" });
 		}
 		const objects = rowsToObjects(headers, rows);
-		const cursos = await db.findMany("curso", { select: { id: true, titulo: true } });
+		const cursos = await drizzleDb.findMany("curso", { select: { id: true, titulo: true } });
 		const cursoMap = new Map(cursos.map((m: any) => [m.titulo, m.id]));
-		const aulas = await db.findMany("aula", { select: { id: true, titulo: true, cursoId: true } });
+		const aulas = await drizzleDb.findMany("aula", { select: { id: true, titulo: true, cursoId: true } });
 		const aulaMap = new Map(aulas.map((a: any) => [`${a.cursoId}:${a.titulo}`, a.id]));
 		let created = 0;
 		let skipped = 0;
@@ -1679,14 +1852,14 @@ router.post("/import/licoes", authenticate, authorize("ADMIN"), async (req: any,
 				skipped++;
 				continue;
 			}
-			const existing = await db.findFirst("licao", { aulaId, titulo });
+			const existing = await drizzleDb.findFirst("licao", { aulaId, titulo });
 			if (existing) {
 				skipped++;
 				continue;
 			}
-			const maxOrdem = (await db.aggregate("licao", { where: { aulaId }, _max: { ordem: true } }))._max.ordem || 0;
+			const maxOrdem = (await drizzleDb.aggregate("licao", { where: { aulaId }, _max: { ordem: true } }))._max.ordem || 0;
 			const tipoLicao = (obj.tipo_aula || obj.tipo || "TEXTO").trim().toUpperCase();
-			await db.create("licao", {
+			await drizzleDb.create("licao", {
 				aulaId,
 				titulo,
 				tipo: VALID_TIPOS.includes(tipoLicao) ? (tipoLicao as any) : "TEXTO",
@@ -1717,9 +1890,9 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 			return res.status(400).json({ error: "CSV vazio ou sem cabeçalhos" });
 		}
 		const objects = rowsToObjects(headers, rows);
-		const cursos = await db.findMany("curso", { select: { id: true, titulo: true } });
+		const cursos = await drizzleDb.findMany("curso", { select: { id: true, titulo: true } });
 		const cursoMap = new Map(cursos.map((m: any) => [m.titulo, m.id]));
-		const aulas = await db.findMany("aula", { select: { id: true, titulo: true, cursoId: true } });
+		const aulas = await drizzleDb.findMany("aula", { select: { id: true, titulo: true, cursoId: true } });
 		const aulaMap = new Map(aulas.map((a: any) => [`${a.cursoId}:${a.titulo}`, a.id]));
 		let created = 0;
 		let skipped = 0;
@@ -1742,8 +1915,8 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 			if (!aulaId) {
 				// Auto-create aula if missing
 				const maxOrdemAula =
-					(await db.aggregate("aula", { where: { cursoId }, _max: { ordem: true } }))._max.ordem || 0;
-				const createdAula = await db.create("aula", {
+					(await drizzleDb.aggregate("aula", { where: { cursoId }, _max: { ordem: true } }))._max.ordem || 0;
+				const createdAula = await drizzleDb.create("aula", {
 					cursoId,
 					titulo: aulaTitulo,
 					descricao: "",
@@ -1770,9 +1943,9 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 			const notaMinima = parseIntSafe(first.notaMinima) ?? 7;
 			const autoGerar = parseBool(first.autoGerarCertificado);
 
-			let quiz = await db.findUnique("quiz", { aulaId });
+			let quiz = await drizzleDb.findUnique("quiz", { aulaId });
 			if (!quiz) {
-				const newQuiz = await db.create("quiz", {
+				const newQuiz = await drizzleDb.create("quiz", {
 					aulaId,
 					titulo: quizTitulo,
 					notaMinima,
@@ -1782,7 +1955,7 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 				created++;
 			}
 
-			const existingPerguntas = await db.findMany("quizPergunta", { where: { quizId: quiz!.id } });
+			const existingPerguntas = await drizzleDb.findMany("quizPergunta", { where: { quizId: quiz!.id } });
 			const existingPerguntaTexts = new Set(existingPerguntas.map((p: any) => p.pergunta));
 
 			const perguntasToAdd = group.filter(
@@ -1794,11 +1967,11 @@ router.post("/import/quiz", authenticate, authorize("ADMIN"), async (req: any, r
 			}
 
 			const maxOrdem =
-				(await db.aggregate("quizPergunta", { where: { quizId: quiz!.id }, _max: { ordem: true } }))._max.ordem || 0;
+				(await drizzleDb.aggregate("quizPergunta", { where: { quizId: quiz!.id }, _max: { ordem: true } }))._max.ordem || 0;
 			for (let i = 0; i < perguntasToAdd.length; i++) {
 				const p = perguntasToAdd[i];
 				const correta = (p.correta || "A").trim().toUpperCase();
-				await db.create("quizPergunta", {
+				await drizzleDb.create("quizPergunta", {
 					quizId: quiz!.id,
 					pergunta: p.pergunta.trim(),
 					opcaoA: p.opcaoA || "",
@@ -1832,7 +2005,7 @@ router.post("/search-by-titles", authenticate, authorize("ADMIN"), async (req: a
 		const results: { type: string; id: string; titulo: string; cursoId?: string; aulaId?: string }[] = [];
 
 		// Search cursos
-		const cursos = await db.findMany("curso", {
+		const cursos = await drizzleDb.findMany("curso", {
 			where: { titulo: { in: titles } },
 			select: { id: true, titulo: true },
 		});
@@ -1841,7 +2014,7 @@ router.post("/search-by-titles", authenticate, authorize("ADMIN"), async (req: a
 		}
 
 		// Search aulas (with parent curso info)
-		const aulas = await db.findMany("aula", {
+		const aulas = await drizzleDb.findMany("aula", {
 			where: { titulo: { in: titles } },
 			select: { id: true, titulo: true, cursoId: true },
 		});
@@ -1850,10 +2023,17 @@ router.post("/search-by-titles", authenticate, authorize("ADMIN"), async (req: a
 		}
 
 		// Search quizzes (with parent aula and curso info)
-		const quizzes = await db.findMany("quiz", {
+		const quizzesRaw = (await drizzleDb.findMany("quiz", {
 			where: { titulo: { in: titles } },
-			select: { id: true, titulo: true, aulaId: true, aula: { select: { cursoId: true } } },
-		});
+			select: { id: true, titulo: true, aulaId: true },
+		})) as any[];
+		const quizAulaIds = [...new Set(quizzesRaw.map((q: any) => q.aulaId).filter(Boolean))];
+		const quizAulas = (await drizzleDb.findMany("aula", {
+			where: { id: { in: quizAulaIds } },
+			select: { id: true, cursoId: true },
+		})) as any[];
+		const aulaMap = new Map(quizAulas.map((a: any) => [a.id, a]));
+		const quizzes = quizzesRaw.map((q: any) => ({ ...q, aula: aulaMap.get(q.aulaId) }));
 		for (const q of quizzes) {
 			results.push({ type: "quiz", id: q.id, titulo: q.titulo, aulaId: q.aulaId, cursoId: q.aula?.cursoId });
 		}

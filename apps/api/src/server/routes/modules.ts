@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { type AuthRequest, authenticate, authorize } from "../middleware/auth";
 import { logActivity } from "../services/log";
@@ -30,10 +30,10 @@ router.get("/", authenticate, async (_req: AuthRequest, res) => {
 	try {
 		// Ensure all default modules exist via DAL dual-write
 		for (const mod of DEFAULT_MODULES) {
-			await db.upsert("moduleConfig", { key: mod.key }, mod, {});
+			await drizzleDb.upsert("moduleConfig", { key: mod.key }, mod, {});
 		}
 
-		const modules = await db.findMany("moduleConfig", {
+		const modules = await drizzleDb.findMany("moduleConfig", {
 			orderBy: { key: "asc" },
 		});
 
@@ -60,7 +60,7 @@ router.put("/:key", authenticate, authorize("ADMIN"), async (req: AuthRequest, r
 			return res.status(400).json({ error: `O curso "${key}" nao pode ser desativado` });
 		}
 
-		const module = await db.upsert("moduleConfig", { key }, { key, label: String(key), enabled }, { enabled });
+		const module = await drizzleDb.upsert("moduleConfig", { key }, { key, label: String(key), enabled }, { enabled });
 
 		await logActivity(req.userId!, "Curso Toggle", `${key}: ${enabled ? "ativado" : "desativado"}`);
 		res.json(module);
@@ -73,7 +73,7 @@ router.put("/:key", authenticate, authorize("ADMIN"), async (req: AuthRequest, r
 // GET /api/admin/modules/enabled - Get only enabled module keys (public-ish, for sidebar)
 router.get("/enabled", authenticate, async (_req: AuthRequest, res) => {
 	try {
-		const modules = await db.findMany("moduleConfig", {
+		const modules = await drizzleDb.findMany("moduleConfig", {
 			where: { enabled: true },
 			select: { key: true },
 		});

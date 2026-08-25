@@ -1,6 +1,6 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { PayGasSSOError, type PayGasSSOResponse, validateSSOTicketWithRaw } from "../lib/paygas-sso-client";
 import { JWT_SECRET } from "../middleware/auth";
@@ -149,7 +149,7 @@ router.get("/sso", async (req, res) => {
 	try {
 		await awardLoginPointsDaily(user.id);
 		await logActivity(user.id, "Login SSO", "Acesso via SSO PayGas");
-		await db.update("user", { id: user.id }, { lastLogin: new Date() });
+		await drizzleDb.update("user", { id: user.id }, { lastLogin: new Date() });
 	} catch (err) {
 		// Non-blocking: log but don't fail the login
 		logger.warn("[SSO] Erro ao registrar atividade:", err);

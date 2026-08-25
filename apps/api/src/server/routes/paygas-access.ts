@@ -20,7 +20,7 @@ import bcrypt from "bcryptjs";
 import { Router } from "express";
 import rateLimit from "express-rate-limit";
 import jwt from "jsonwebtoken";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import {
 	generateTemporaryPassword,
@@ -100,7 +100,7 @@ router.post("/paygas-access", payGasLimiter, async (req, res) => {
 		const employee: PayGasEmployee = lookup.employee;
 
 		// Find an existing user by email
-		let user: any = await db.findUnique("user", { email: employee.email });
+		let user: any = await drizzleDb.findUnique("user", { email: employee.email });
 
 		let isNewlyCreated = false;
 		let temporaryPassword: string | null = null;
@@ -111,7 +111,7 @@ router.post("/paygas-access", payGasLimiter, async (req, res) => {
 			const hashedPassword = await bcrypt.hash(temporaryPassword, 12);
 
 			try {
-				user = await db.create("user", {
+				user = await drizzleDb.create("user", {
 					email: employee.email,
 					nome: employee.name,
 					senha: hashedPassword,
@@ -121,7 +121,7 @@ router.post("/paygas-access", payGasLimiter, async (req, res) => {
 				isNewlyCreated = true;
 			} catch (createErr: any) {
 				// Race: somebody else just created it. Reload.
-				user = await db.findUnique("user", { email: employee.email });
+				user = await drizzleDb.findUnique("user", { email: employee.email });
 				if (!user) throw createErr;
 			}
 		}
@@ -131,7 +131,7 @@ router.post("/paygas-access", payGasLimiter, async (req, res) => {
 		await logActivity(user.id, "Login PayGas", `Acesso via PayGas (${isNewlyCreated ? "novo" : "existente"})`);
 
 		// Update lastLogin
-		await db.update("user", { id: user.id }, { lastLogin: new Date() });
+		await drizzleDb.update("user", { id: user.id }, { lastLogin: new Date() });
 
 		// Sign JWT (24h)
 		const token = jwt.sign({ userId: user.id, role: user.role, gestorId: user.gestorId || null }, JWT_SECRET, {

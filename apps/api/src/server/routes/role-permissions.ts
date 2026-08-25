@@ -6,7 +6,7 @@
  * PUT /api/role-permissions/:role — update a role's permissions (admin only)
  */
 import { Router } from "express";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { authenticate, authorize } from "../middleware/auth";
 import { getAllRoleConfigs, invalidateRoleCache } from "../services/role-permissions";
@@ -16,7 +16,7 @@ const router = Router();
 // GET /api/role-permissions — get current user's role permissions
 router.get("/", authenticate, async (req: any, res) => {
 	try {
-		const row = await db.findUnique(
+		const row = await drizzleDb.findUnique(
 			"roleConfig",
 			{ role: req.userRole },
 			{
@@ -53,12 +53,12 @@ router.put("/:role", authenticate, authorize("ADMIN"), async (req: any, res) => 
 		const { permissions, label, description, ativo, ordem } = req.body;
 
 		// Validate role exists
-		const existing = await db.findUnique("roleConfig", { role });
+		const existing = await drizzleDb.findUnique("roleConfig", { role });
 		if (!existing) {
 			return res.status(404).json({ error: "Role não encontrada" });
 		}
 
-		const updated = await db.update(
+		const updated = await drizzleDb.update(
 			"roleConfig",
 			{ role },
 			{
@@ -87,12 +87,12 @@ router.post("/", authenticate, authorize("ADMIN"), async (req: any, res) => {
 			return res.status(400).json({ error: "role e label são obrigatórios" });
 		}
 
-		const existing = await db.findUnique("roleConfig", { role });
+		const existing = await drizzleDb.findUnique("roleConfig", { role });
 		if (existing) {
 			return res.status(409).json({ error: "Role já existe" });
 		}
 
-		const created = await db.create("roleConfig", {
+		const created = await drizzleDb.create("roleConfig", {
 			role,
 			label,
 			description: description || null,
