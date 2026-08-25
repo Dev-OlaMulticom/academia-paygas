@@ -51,7 +51,6 @@ RUN apk add --no-cache --virtual .build-deps python3 make g++ linux-headers && \
     pnpm install --frozen-lockfile --prod && (pnpm prune --prod || true) && \
     pnpm prisma generate --schema=packages/db/prisma/schema.prisma && \
     pnpm prisma generate --schema=packages/db/prisma/schema.mysql.prisma && \
-    node -e "require('@prisma/client')" && \
     apk del .build-deps
 RUN chown -R app:app /app
 USER app
