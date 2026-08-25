@@ -1,8 +1,7 @@
 import crypto from "node:crypto";
-import type { Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { Router } from "express";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { passedQuizResult } from "../lib/quiz";
 import { type AuthRequest, authenticate, authorize } from "../middleware/auth";
@@ -15,7 +14,7 @@ const router = Router();
 
 // Helper: check if gestor owns the user
 async function gestorOwnsUser(gestorId: string, userId: string): Promise<boolean> {
-	const user = (await db.findUnique("user", { id: userId })) as any;
+	const user = (await drizzleDb.findUnique("user", { id: userId })) as any;
 	return user?.gestorId === gestorId;
 }
 
@@ -29,15 +28,37 @@ router.get("/", authenticate, authorize("ADMIN", "GESTOR"), async (req: AuthRequ
 		const where = req.userRole === "GESTOR" ? { gestorId: req.userId } : {};
 
 		const [users, total] = await Promise.all([
-			db.findMany("user", {
+			drizzleDb.findMany("user", {
 				where,
 				orderBy: { nome: "asc" },
 				skip,
 				take: limit,
-				include: { estabelecimento: true },
 			}),
-			db.count("user", where),
+			drizzleDb.count("user", where),
 		]);
+
+		const userIds = (users as any[]).map((u: any) => u.id);
+		const estIds = (users as any[])
+			.map((u: any) => u.estabelecimentoId)
+			.filter(Boolean);
+		const [progressos, certificates, estabelecimentos] = await Promise.all([
+			drizzleDb.findMany("progresso", { where: { userId: { in: userIds } } }),
+			drizzleDb.findMany("certificate", { where: { userId: { in: userIds } } }),
+			drizzleDb.findMany("estabelecimento", { where: { id: { in: estIds } } }),
+		]);
+
+		const progressCountByUser = new Map<string, number>();
+		for (const p of progressos as any[]) {
+			progressCountByUser.set(p.userId, (progressCountByUser.get(p.userId) || 0) + 1);
+		}
+		const certCountByUser = new Map<string, number>();
+		for (const c of certificates as any[]) {
+			certCountByUser.set(c.userId, (certCountByUser.get(c.userId) || 0) + 1);
+		}
+		const estById = new Map<string, any>();
+		for (const e of estabelecimentos as any[]) {
+			estById.set(e.id, e);
+		}
 
 		const usersWithXp = (users as any[]).map((u: any) => ({
 			id: u.id,
@@ -51,14 +72,14 @@ router.get("/", authenticate, authorize("ADMIN", "GESTOR"), async (req: AuthRequ
 			gestorNome: u.gestor?.nome || null,
 			xp: u.xp,
 			level: u.level,
-			progressCount: u._count?.progressos || 0,
-			certCount: u._count?.certificates || 0,
-			estabelecimento: u.estabelecimento
+			progressCount: progressCountByUser.get(u.id) || 0,
+			certCount: certCountByUser.get(u.id) || 0,
+			estabelecimento: estById.get(u.estabelecimentoId)
 				? {
-						id: u.estabelecimento.id,
-						nome: u.estabelecimento.nome,
-						cidade: u.estabelecimento.cidade,
-						uf: u.estabelecimento.uf,
+						id: estById.get(u.estabelecimentoId).id,
+						nome: estById.get(u.estabelecimentoId).nome,
+						cidade: estById.get(u.estabelecimentoId).cidade,
+						uf: estById.get(u.estabelecimentoId).uf,
 					}
 				: null,
 		}));
@@ -91,7 +112,7 @@ router.post("/", authenticate, authorize("ADMIN", "GESTOR"), async (req: AuthReq
 			return res.status(400).json({ error: "Role inválido" });
 		}
 
-		const exists = await db.findUnique("user", { email });
+		const exists = await drizzleDb.findUnique("user", { email });
 		if (exists) return res.status(409).json({ error: "Email já cadastrado" });
 
 		if (req.userRole === "GESTOR" && role !== "ATENDENTE") {
@@ -115,11 +136,11 @@ router.post("/", authenticate, authorize("ADMIN", "GESTOR"), async (req: AuthReq
 		const verificationToken = crypto.randomBytes(32).toString("hex");
 		const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-		const user = (await db.create("user", {
+		const user = (await drizzleDb.create("user", {
 			email,
 			nome,
 			senha: hashedPassword,
-			role: role as Role,
+			role: role as any,
 			gestorId: finalGestorId,
 			tokenVerificacao: verificationToken,
 			tokenExpiry,
@@ -158,7 +179,7 @@ router.put("/change-password", authenticate, async (req: AuthRequest, res) => {
 			return res.status(400).json({ error: "Nova senha deve ter pelo menos 8 caracteres" });
 		}
 
-		const user = (await db.findUnique("user", { id: req.userId! })) as any;
+		const user = (await drizzleDb.findUnique("user", { id: req.userId! })) as any;
 		if (!user) {
 			return res.status(404).json({ error: "Usuário não encontrado" });
 		}
@@ -169,7 +190,7 @@ router.put("/change-password", authenticate, async (req: AuthRequest, res) => {
 		}
 
 		const hashedPassword = await bcrypt.hash(newPassword, 12);
-		await db.update("user", { id: req.userId! }, { senha: hashedPassword });
+		await drizzleDb.update("user", { id: req.userId! }, { senha: hashedPassword });
 
 		await logActivity(req.userId!, "Alterar Senha", "Senha alterada com sucesso");
 		res.json({ message: "Senha alterada com sucesso" });
@@ -199,10 +220,10 @@ router.put("/:id", authenticate, authorize("ADMIN", "GESTOR"), async (req: AuthR
 		const updateData: any = {};
 		if (nome) updateData.nome = nome;
 		if (email) updateData.email = email;
-		if (role) updateData.role = role as Role;
+		if (role) updateData.role = role as any;
 		if (gestorId !== undefined) updateData.gestorId = gestorId || null;
 
-		const user = (await db.update("user", { id }, updateData)) as any;
+		const user = (await drizzleDb.update("user", { id }, updateData)) as any;
 
 		await logActivity(req.userId!, "Editar Usuario", `Editou usuario: ${user.nome}`);
 		res.json({
@@ -230,8 +251,8 @@ router.delete("/:id", authenticate, authorize("ADMIN", "GESTOR"), async (req: Au
 			if (!isOwn) return res.status(403).json({ error: "Sem permissão para excluir este usuario" });
 		}
 
-		const user = (await db.findUnique("user", { id })) as any;
-		await db.delete("user", { id });
+		const user = (await drizzleDb.findUnique("user", { id })) as any;
+		await drizzleDb.delete("user", { id });
 
 		await logActivity(req.userId!, "Excluir Usuario", `Excluiu usuario: ${user?.nome} (${user?.email})`);
 		res.json({ success: true });
@@ -245,45 +266,88 @@ router.delete("/:id", authenticate, authorize("ADMIN", "GESTOR"), async (req: Au
 router.get("/equipe", authenticate, authorize("ADMIN", "GESTOR"), async (req: AuthRequest, res) => {
 	try {
 		if (req.userRole === "GESTOR") {
-			const members = (await db.findMany("user", {
+			const members = (await drizzleDb.findMany("user", {
 				where: { gestorId: req.userId },
-				include: { estabelecimento: true },
 			})) as any[];
 
-			const result = members.map((m: any) => ({
-				id: m.id,
-				nome: m.nome,
-				email: m.email,
-				role: m.role,
-				xp: m.xp,
-				level: m.level,
-				certCount: m._count?.certificates || 0,
-				progressCount: m._count?.progressos || 0,
-				estabelecimento: m.estabelecimento
-					? {
-							id: m.estabelecimento.id,
-							nome: m.estabelecimento.nome,
-							cidade: m.estabelecimento.cidade,
-							uf: m.estabelecimento.uf,
-						}
-					: null,
-			}));
+			const memberIds = members.map((m: any) => m.id);
+			const estIds = members.map((m: any) => m.estabelecimentoId).filter(Boolean);
+			const [progressos, certificates, estabelecimentos] = await Promise.all([
+				drizzleDb.findMany("progresso", { where: { userId: { in: memberIds } } }),
+				drizzleDb.findMany("certificate", { where: { userId: { in: memberIds } } }),
+				drizzleDb.findMany("estabelecimento", { where: { id: { in: estIds } } }),
+			]);
+
+			const progressCountByUser = new Map<string, number>();
+			for (const p of progressos as any[]) {
+				progressCountByUser.set(p.userId, (progressCountByUser.get(p.userId) || 0) + 1);
+			}
+			const certCountByUser = new Map<string, number>();
+			for (const c of certificates as any[]) {
+				certCountByUser.set(c.userId, (certCountByUser.get(c.userId) || 0) + 1);
+			}
+			const estById = new Map<string, any>();
+			for (const e of estabelecimentos as any[]) {
+				estById.set(e.id, e);
+			}
+
+			const result = members.map((m: any) => {
+				const est = estById.get(m.estabelecimentoId);
+				return {
+					id: m.id,
+					nome: m.nome,
+					email: m.email,
+					role: m.role,
+					xp: m.xp,
+					level: m.level,
+					certCount: certCountByUser.get(m.id) || 0,
+					progressCount: progressCountByUser.get(m.id) || 0,
+					estabelecimento: est
+						? {
+								id: est.id,
+								nome: est.nome,
+								cidade: est.cidade,
+								uf: est.uf,
+							}
+						: null,
+				};
+			});
 
 			return res.json(result);
 		}
 
 		// ADMIN sees all teams grouped by gestor
-		const gestores = (await db.findMany("user", {
+		const gestores = (await drizzleDb.findMany("user", {
 			where: { role: "GESTOR" },
 			orderBy: { nome: "asc" },
 		})) as any[];
 
 		const teams = await Promise.all(
 			gestores.map(async (g: any) => {
-				const atendentes = (await db.findMany("user", {
+				const atendentes = (await drizzleDb.findMany("user", {
 					where: { gestorId: g.id },
-					include: { estabelecimento: true },
 				})) as any[];
+
+				const atendenteIds = atendentes.map((a: any) => a.id);
+				const estIds = atendentes.map((a: any) => a.estabelecimentoId).filter(Boolean);
+				const [progressos, certificates, estabelecimentos] = await Promise.all([
+					drizzleDb.findMany("progresso", { where: { userId: { in: atendenteIds } } }),
+					drizzleDb.findMany("certificate", { where: { userId: { in: atendenteIds } } }),
+					drizzleDb.findMany("estabelecimento", { where: { id: { in: estIds } } }),
+				]);
+
+				const progressCountByUser = new Map<string, number>();
+				for (const p of progressos as any[]) {
+					progressCountByUser.set(p.userId, (progressCountByUser.get(p.userId) || 0) + 1);
+				}
+				const certCountByUser = new Map<string, number>();
+				for (const c of certificates as any[]) {
+					certCountByUser.set(c.userId, (certCountByUser.get(c.userId) || 0) + 1);
+				}
+				const estById = new Map<string, any>();
+				for (const e of estabelecimentos as any[]) {
+					estById.set(e.id, e);
+				}
 
 				return {
 					gestor: {
@@ -291,24 +355,27 @@ router.get("/equipe", authenticate, authorize("ADMIN", "GESTOR"), async (req: Au
 						nome: g.nome,
 						email: g.email,
 					},
-					membros: atendentes.map((a: any) => ({
-						id: a.id,
-						nome: a.nome,
-						email: a.email,
-						role: a.role,
-						xp: a.xp,
-						level: a.level,
-						certCount: a._count?.certificates || 0,
-						progressCount: a._count?.progressos || 0,
-						estabelecimento: a.estabelecimento
-							? {
-									id: a.estabelecimento.id,
-									nome: a.estabelecimento.nome,
-									cidade: a.estabelecimento.cidade,
-									uf: a.estabelecimento.uf,
-								}
-							: null,
-					})),
+					membros: atendentes.map((a: any) => {
+						const est = estById.get(a.estabelecimentoId);
+						return {
+							id: a.id,
+							nome: a.nome,
+							email: a.email,
+							role: a.role,
+							xp: a.xp,
+							level: a.level,
+							certCount: certCountByUser.get(a.id) || 0,
+							progressCount: progressCountByUser.get(a.id) || 0,
+							estabelecimento: est
+								? {
+										id: est.id,
+										nome: est.nome,
+										cidade: est.cidade,
+										uf: est.uf,
+									}
+								: null,
+						};
+					}),
 					totalMembros: atendentes.length,
 				};
 			}),
@@ -327,25 +394,22 @@ router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async 
 	try {
 		const allUsersQuery =
 			req.userRole === "GESTOR"
-				? (db.findMany("user", {
-						where: { gestorId: req.userId },
-						include: { estabelecimento: true },
-					}) as Promise<any[]>)
-				: (db.findMany("user", {
-						where: { role: "ATENDENTE" },
-						include: { estabelecimento: true },
-					}) as Promise<any[]>);
+				? (drizzleDb.findMany("user", { where: { gestorId: req.userId } }) as Promise<any[]>)
+				: (drizzleDb.findMany("user", { where: { role: "ATENDENTE" } }) as Promise<any[]>);
 
 		// Fetch all required data in parallel
-		const [allUsers, cursos, progressosAll, quizResponsesAll, certificatesAll, notificationsAll, aulasAll] =
+		const [allUsers, cursos, progressosAll, quizResponsesAll, certificatesAll, notificationsAll, aulasAll, quizzesAll, perguntasAll, estabelecimentosAll] =
 			await Promise.all([
 				allUsersQuery,
-				db.findMany("curso", { orderBy: { ordem: "asc" } }) as Promise<any[]>,
-				db.findMany("progresso", { where: { concluido: true } }) as Promise<any[]>,
-				db.findMany("quizResponse", {}) as Promise<any[]>,
-				db.findMany("certificate", {}) as Promise<any[]>,
-				db.findMany("notification", { where: { titulo: "Curso Completo" } }) as Promise<any[]>,
-				db.findMany("aula", { include: { quiz: { include: { perguntas: true } } } }) as Promise<any[]>,
+				drizzleDb.findMany("curso", { orderBy: { ordem: "asc" } }) as Promise<any[]>,
+				drizzleDb.findMany("progresso", { where: { concluido: true } }) as Promise<any[]>,
+				drizzleDb.findMany("quizResponse", {}) as Promise<any[]>,
+				drizzleDb.findMany("certificate", {}) as Promise<any[]>,
+				drizzleDb.findMany("notification", { where: { titulo: "Curso Completo" } }) as Promise<any[]>,
+				drizzleDb.findMany("aula") as Promise<any[]>,
+				drizzleDb.findMany("quiz") as Promise<any[]>,
+				drizzleDb.findMany("quizPergunta") as Promise<any[]>,
+				drizzleDb.findMany("estabelecimento") as Promise<any[]>,
 			]);
 
 		const userIds = new Set(allUsers.map((u) => u.id));
@@ -383,9 +447,31 @@ router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async 
 			notificationsByUser.set(n.fromId, arr);
 		}
 
-		// Group aulas by cursoId
+		// Build lookup maps for aula quizzes and estabelecimentos
+		const estById = new Map<string, any>();
+		for (const e of estabelecimentosAll) {
+			estById.set(e.id, e);
+		}
+
+		const quizByAulaId = new Map<string, any>();
+		for (const q of quizzesAll) {
+			quizByAulaId.set(q.aulaId, q);
+		}
+
+		const perguntasByQuizId = new Map<string, any[]>();
+		for (const p of perguntasAll) {
+			const arr = perguntasByQuizId.get(p.quizId) || [];
+			arr.push(p);
+			perguntasByQuizId.set(p.quizId, arr);
+		}
+
+		// Group aulas by cursoId and merge quiz/perguntas in JS
 		const aulasByModulo = new Map<string, any[]>();
 		for (const a of aulasAll) {
+			const quiz = quizByAulaId.get(a.id);
+			if (quiz) {
+				a.quiz = { ...quiz, perguntas: perguntasByQuizId.get(quiz.id) || [] };
+			}
 			const arr = aulasByModulo.get(a.cursoId) || [];
 			arr.push(a);
 			aulasByModulo.set(a.cursoId, arr);
@@ -470,6 +556,7 @@ router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async 
 				};
 			});
 
+			const est = estById.get(m.estabelecimentoId);
 			return {
 				id: m.id,
 				nome: m.nome,
@@ -478,12 +565,12 @@ router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async 
 				xp: m.xp,
 				lastLogin: m.lastLogin,
 				gestorId: m.gestorId,
-				estabelecimento: m.estabelecimento
+				estabelecimento: est
 					? {
-							id: m.estabelecimento.id,
-							nome: m.estabelecimento.nome,
-							cidade: m.estabelecimento.cidade,
-							uf: m.estabelecimento.uf,
+							id: est.id,
+							nome: est.nome,
+							cidade: est.cidade,
+							uf: est.uf,
 						}
 					: null,
 				cursos: cursosProcessed,
@@ -499,9 +586,9 @@ router.get("/equipe/detalhe", authenticate, authorize("ADMIN", "GESTOR"), async 
 // GET /api/usuarios/equipe/stats - Team stats for admin
 router.get("/equipe/stats", authenticate, authorize("ADMIN"), async (_req: AuthRequest, res) => {
 	try {
-		const totalGestores = await db.count("user", { role: "GESTOR" });
-		const totalAtendentes = await db.count("user", { role: "ATENDENTE" });
-		const totalAtendentesComGestor = await db.count("user", { role: "ATENDENTE", gestorId: { not: null } });
+		const totalGestores = await drizzleDb.count("user", { role: "GESTOR" });
+		const totalAtendentes = await drizzleDb.count("user", { role: "ATENDENTE" });
+		const totalAtendentesComGestor = await drizzleDb.count("user", { role: "ATENDENTE", gestorId: { $ne: null } });
 		const totalAtendentesSemGestor = totalAtendentes - totalAtendentesComGestor;
 
 		res.json({
@@ -522,7 +609,7 @@ router.post("/:id/validate-account", authenticate, authorize("ADMIN", "GESTOR"),
 		const id = getStringParam(req.params.id);
 		if (!id) return res.status(400).json({ error: "ID invalido" });
 
-		const user = (await db.findUnique("user", { id })) as any;
+		const user = (await drizzleDb.findUnique("user", { id })) as any;
 		if (!user) return res.status(404).json({ error: "Usuario nao encontrado" });
 
 		if (req.userRole === "GESTOR" && user.gestorId !== req.userId) {
@@ -534,7 +621,7 @@ router.post("/:id/validate-account", authenticate, authorize("ADMIN", "GESTOR"),
 			return res.json({ message: "Conta já validada anteriormente" });
 		}
 
-		await db.update(
+		await drizzleDb.update(
 			"user",
 			{ id },
 			{
@@ -560,7 +647,7 @@ router.post("/:id/resend-verification", authenticate, authorize("ADMIN", "GESTOR
 		const id = getStringParam(req.params.id);
 		if (!id) return res.status(400).json({ error: "ID invalido" });
 
-		const user = (await db.findUnique("user", { id })) as any;
+		const user = (await drizzleDb.findUnique("user", { id })) as any;
 		if (!user) return res.status(404).json({ error: "Usuario nao encontrado" });
 
 		if (req.userRole === "GESTOR" && user.gestorId !== req.userId) {
@@ -574,7 +661,7 @@ router.post("/:id/resend-verification", authenticate, authorize("ADMIN", "GESTOR
 		const verificationToken = crypto.randomBytes(32).toString("hex");
 		const tokenExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
 
-		await db.update("user", { id }, { tokenVerificacao: verificationToken, tokenExpiry });
+		await drizzleDb.update("user", { id }, { tokenVerificacao: verificationToken, tokenExpiry });
 
 		const emailResult = await sendVerificationEmail(user.email, user.nome, verificationToken);
 		await logActivity(
@@ -596,7 +683,7 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 		const userId = getStringParam(req.params.userId)!;
 		const { tipo, targetId } = req.body; // tipo: 'quiz' | 'aula' | 'curso', targetId: quiz/aula/curso id
 
-		const targetUser = (await db.findUnique("user", { id: userId })) as any;
+		const targetUser = (await drizzleDb.findUnique("user", { id: userId })) as any;
 		if (!targetUser) return res.status(404).json({ error: "Usuario nao encontrado" });
 
 		if (req.userRole === "GESTOR" && targetUser.gestorId !== req.userId) {
@@ -604,27 +691,26 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 		}
 
 		if (tipo === "quiz" && targetId) {
-			const quiz = (await db.findUnique(
-				"quiz",
-				{ id: targetId },
-				{
-					include: { perguntas: true, aula: true },
-				},
-			)) as any;
-			if (!quiz) return res.status(404).json({ error: "Quiz nao encontrado" });
+			const quizRow = (await drizzleDb.findUnique("quiz", { id: targetId })) as any;
+			if (!quizRow) return res.status(404).json({ error: "Quiz nao encontrado" });
+			const [perguntas, aula] = await Promise.all([
+				drizzleDb.findMany("quizPergunta", { where: { quizId: targetId } }) as Promise<any[]>,
+				drizzleDb.findUnique("aula", { id: quizRow.aulaId }) as Promise<any>,
+			]);
+			const quiz = { ...quizRow, perguntas, aula };
 
 			const { nota, total } = passedQuizResult(quiz);
 
-			await db.upsert(
+			await drizzleDb.upsert(
 				"quizResponse",
-				{ quizId_userId: { quizId: targetId, userId } },
+				{ quizId: targetId, userId },
 				{ quizId: targetId, userId, nota, total, concluido: true, respostas: {} },
 				{ nota, total, concluido: true, respostas: {} },
 			);
 
-			await db.upsert(
+			await drizzleDb.upsert(
 				"progresso",
-				{ cursoId_aulaId_userId: { cursoId: quiz.aula.cursoId, aulaId: quiz.aulaId, userId } },
+				{ cursoId: quiz.aula.cursoId, aulaId: quiz.aulaId, userId },
 				{ cursoId: quiz.aula.cursoId, aulaId: quiz.aulaId, userId, concluido: true },
 				{ concluido: true },
 			);
@@ -634,29 +720,25 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 		}
 
 		if (tipo === "aula" && targetId) {
-			const aula = (await db.findUnique("aula", { id: targetId })) as any;
+			const aula = (await drizzleDb.findUnique("aula", { id: targetId })) as any;
 			if (!aula) return res.status(404).json({ error: "Aula nao encontrada" });
 
-			await db.upsert(
+			await drizzleDb.upsert(
 				"progresso",
-				{ cursoId_aulaId_userId: { cursoId: aula.cursoId, aulaId: targetId, userId } },
+				{ cursoId: aula.cursoId, aulaId: targetId, userId },
 				{ cursoId: aula.cursoId, aulaId: targetId, userId, concluido: true },
 				{ concluido: true },
 			);
 
 			if (aula.quizId) {
-				const quiz = (await db.findUnique(
-					"quiz",
-					{ id: aula.quizId },
-					{
-						include: { perguntas: true },
-					},
-				)) as any;
-				if (quiz) {
+				const quizRow = (await drizzleDb.findUnique("quiz", { id: aula.quizId })) as any;
+				if (quizRow) {
+					const perguntas = (await drizzleDb.findMany("quizPergunta", { where: { quizId: aula.quizId } })) as any[];
+					const quiz = { ...quizRow, perguntas };
 					const { nota, total } = passedQuizResult(quiz);
-					await db.upsert(
+					await drizzleDb.upsert(
 						"quizResponse",
-						{ quizId_userId: { quizId: aula.quizId, userId } },
+						{ quizId: aula.quizId, userId },
 						{ quizId: aula.quizId, userId, nota, total, concluido: true, respostas: {} },
 						{ nota, total, concluido: true, respostas: {} },
 					);
@@ -668,28 +750,43 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 		}
 
 		if (tipo === "curso" && targetId) {
-			const curso = (await db.findUnique(
-				"curso",
-				{ id: targetId },
-				{
-					include: { aulas: { include: { quiz: { include: { perguntas: true } } } } },
-				},
-			)) as any;
-			if (!curso) return res.status(404).json({ error: "Curso nao encontrado" });
+			const cursoRow = (await drizzleDb.findUnique("curso", { id: targetId })) as any;
+			if (!cursoRow) return res.status(404).json({ error: "Curso nao encontrado" });
+
+			const aulas = (await drizzleDb.findMany("aula", { where: { cursoId: targetId } })) as any[];
+			const aulaIds = aulas.map((a: any) => a.id);
+			const quizzes = (await drizzleDb.findMany("quiz", { where: { aulaId: { in: aulaIds } } })) as any[];
+			const quizIds = quizzes.map((q: any) => q.id);
+			const perguntas = (await drizzleDb.findMany("quizPergunta", { where: { quizId: { in: quizIds } } })) as any[];
+
+			const perguntasByQuizId = new Map<string, any[]>();
+			for (const p of perguntas) {
+				const arr = perguntasByQuizId.get(p.quizId) || [];
+				arr.push(p);
+				perguntasByQuizId.set(p.quizId, arr);
+			}
+			const quizByAulaId = new Map<string, any>();
+			for (const q of quizzes) {
+				quizByAulaId.set(q.aulaId, { ...q, perguntas: perguntasByQuizId.get(q.id) || [] });
+			}
+			for (const aula of aulas) {
+				aula.quiz = quizByAulaId.get(aula.id) || null;
+			}
+			const curso = { ...cursoRow, aulas };
 
 			for (const aula of curso.aulas) {
-				await db.upsert(
+				await drizzleDb.upsert(
 					"progresso",
-					{ cursoId_aulaId_userId: { cursoId: targetId, aulaId: aula.id, userId } },
+					{ cursoId: targetId, aulaId: aula.id, userId },
 					{ cursoId: targetId, aulaId: aula.id, userId, concluido: true },
 					{ concluido: true },
 				);
 
 				if (aula.quiz) {
 					const { nota, total } = passedQuizResult(aula.quiz);
-					await db.upsert(
+					await drizzleDb.upsert(
 						"quizResponse",
-						{ quizId_userId: { quizId: aula.quiz.id, userId } },
+						{ quizId: aula.quiz.id, userId },
 						{ quizId: aula.quiz.id, userId, nota, total, concluido: true, respostas: {} },
 						{ nota, total, concluido: true, respostas: {} },
 					);
@@ -697,9 +794,9 @@ router.post("/:userId/auto-approve", authenticate, authorize("ADMIN", "GESTOR"),
 			}
 
 			if (curso.autoCertificado) {
-				const existing = (await db.findFirst("certificate", { where: { userId, cursoId: targetId } })) as any;
+				const existing = (await drizzleDb.findFirst("certificate", { userId, cursoId: targetId })) as any;
 				if (!existing) {
-					await db.create("certificate", {
+					await drizzleDb.create("certificate", {
 						userId,
 						cursoId: targetId,
 						status: "APPROVED",
@@ -728,19 +825,19 @@ router.post("/:userId/fix-cert", authenticate, authorize("ADMIN", "GESTOR"), asy
 		const userId = getStringParam(req.params.userId)!;
 		const { cursoId } = req.body as { cursoId: string };
 
-		const targetUser = (await db.findUnique("user", { id: userId })) as any;
+		const targetUser = (await drizzleDb.findUnique("user", { id: userId })) as any;
 		if (!targetUser) return res.status(404).json({ error: "Usuario nao encontrado" });
 		if (req.userRole === "GESTOR" && targetUser.gestorId !== req.userId) {
 			return res.status(403).json({ error: "Voce so pode gerenciar atendentes da sua equipe" });
 		}
 
-		const curso = (await db.findUnique("curso", { id: cursoId })) as any;
+		const curso = (await drizzleDb.findUnique("curso", { id: cursoId })) as any;
 		if (!curso) return res.status(404).json({ error: "Curso nao encontrado" });
 
-		const existing = (await db.findFirst("certificate", { where: { userId, cursoId } })) as any;
+		const existing = (await drizzleDb.findFirst("certificate", { userId, cursoId })) as any;
 		if (existing) {
 			if (existing.status !== "APPROVED") {
-				await db.update("certificate", { id: existing.id }, { status: "APPROVED" });
+				await drizzleDb.update("certificate", { id: existing.id }, { status: "APPROVED" });
 			}
 			await logActivity(
 				req.userId!,
@@ -750,7 +847,7 @@ router.post("/:userId/fix-cert", authenticate, authorize("ADMIN", "GESTOR"), asy
 			return res.json({ message: "Certificado corrigido para APPROVED" });
 		}
 
-		await db.create("certificate", { userId, cursoId, status: "APPROVED" });
+		await drizzleDb.create("certificate", { userId, cursoId, status: "APPROVED" });
 		await awardPointsIfNotAwarded(userId, "CERTIFICATE", `CERTIFICATE:curso:${cursoId}`);
 		await logActivity(
 			req.userId!,
@@ -770,7 +867,7 @@ router.post("/:userId/fix-notify", authenticate, authorize("ADMIN", "GESTOR"), a
 		const userId = getStringParam(req.params.userId)!;
 		const { titulo, mensagem } = req.body;
 
-		const targetUser = (await db.findUnique("user", { id: userId })) as any;
+		const targetUser = (await drizzleDb.findUnique("user", { id: userId })) as any;
 		if (!targetUser) return res.status(404).json({ error: "Usuario nao encontrado" });
 		if (req.userRole === "GESTOR" && targetUser.gestorId !== req.userId) {
 			return res.status(403).json({ error: "Voce so pode gerenciar atendentes da sua equipe" });
@@ -779,7 +876,7 @@ router.post("/:userId/fix-notify", authenticate, authorize("ADMIN", "GESTOR"), a
 		const gestorId = targetUser.gestorId;
 		if (!gestorId) return res.status(400).json({ error: "Usuario nao tem gestor associado" });
 
-		const notif = await db.create("notification", {
+		const notif = await drizzleDb.create("notification", {
 			fromId: userId,
 			toId: gestorId,
 			titulo: titulo || "Atualizacao de progresso",
@@ -804,15 +901,15 @@ router.post("/:userId/fix-progress", authenticate, authorize("ADMIN", "GESTOR"),
 		const userId = getStringParam(req.params.userId)!;
 		const { aulaId, cursoId } = req.body;
 
-		const targetUser = (await db.findUnique("user", { id: userId })) as any;
+		const targetUser = (await drizzleDb.findUnique("user", { id: userId })) as any;
 		if (!targetUser) return res.status(404).json({ error: "Usuario nao encontrado" });
 		if (req.userRole === "GESTOR" && targetUser.gestorId !== req.userId) {
 			return res.status(403).json({ error: "Voce so pode gerenciar atendentes da sua equipe" });
 		}
 
-		await db.upsert(
+		await drizzleDb.upsert(
 			"progresso",
-			{ cursoId_aulaId_userId: { cursoId, aulaId, userId } },
+			{ cursoId, aulaId, userId },
 			{ cursoId, aulaId, userId, concluido: true },
 			{ concluido: true },
 		);
