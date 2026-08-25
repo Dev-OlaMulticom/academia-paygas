@@ -35,6 +35,10 @@ import { startKeepAlive } from "./services/keepalive";
 const app = express();
 const PORT = process.env.PORT || 3001;
 
+// Trust the first proxy in front of the container (ingress/LoadBalancer).
+// Required for express-rate-limit to correctly read X-Forwarded-For.
+app.set("trust proxy", 1);
+
 // Security headers — disabled for serverless/Vercel compatibility
 // helmet 8.2.0 has a known compatibility issue with 'response.pipes' in serverless environments
 // See: https://github.com/helmetjs/helmet/issues/2603
