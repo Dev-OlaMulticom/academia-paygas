@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { type AuthRequest, authenticate } from "../middleware/auth";
 
@@ -94,16 +94,16 @@ router.get("/achievements", authenticate, async (req: AuthRequest, res) => {
 		const userId = req.userId!;
 
 		const [totalAulasConcluidas, totalModulosConcluidos, totalQuizzes, user] = await Promise.all([
-			db.count("progresso", { userId, concluido: true }),
-			db
+			drizzleDb.count("progresso", { userId, concluido: true }),
+			drizzleDb
 				.groupBy("progresso", { by: ["aulaId"], where: { userId, concluido: true } })
 				.then((groups) => {
 					const aulaIds = groups.map((g: any) => g.aulaId);
-					return db.findMany("aula", { where: { id: { in: aulaIds } }, select: { cursoId: true } });
+					return drizzleDb.findMany("aula", { where: { id: { in: aulaIds } }, select: { cursoId: true } });
 				})
 				.then((aulas: any[]) => new Set(aulas.map((a: any) => a.cursoId)).size),
-			db.count("quizResponse", { userId, concluido: true }),
-			db.findUnique("user", { id: userId }, { select: { xp: true, level: true } }),
+			drizzleDb.count("quizResponse", { userId, concluido: true }),
+			drizzleDb.findUnique("user", { id: userId }, { select: { xp: true, level: true } }),
 		]);
 
 		const results = GAMIFICATION_ACHIEVEMENTS.map((a) => {
@@ -155,7 +155,7 @@ router.get("/achievements", authenticate, async (req: AuthRequest, res) => {
 // GET /api/gamification/leaderboard
 router.get("/leaderboard", authenticate, async (_req: AuthRequest, res) => {
 	try {
-		const users = await db.findMany("user", {
+		const users = await drizzleDb.findMany("user", {
 			select: {
 				id: true,
 				nome: true,
@@ -191,10 +191,10 @@ router.get("/leaderboard", authenticate, async (_req: AuthRequest, res) => {
 router.get("/stats", authenticate, async (req: AuthRequest, res) => {
 	try {
 		const userId = req.userId!;
-		const user = await db.findUnique("user", { id: userId }, { select: { xp: true, level: true } });
+		const user = await drizzleDb.findUnique("user", { id: userId }, { select: { xp: true, level: true } });
 
-		const totalAulasConcluidas = await db.count("progresso", { userId, concluido: true });
-		const totalAulasGlobal = await db.count("aula");
+		const totalAulasConcluidas = await drizzleDb.count("progresso", { userId, concluido: true });
+		const totalAulasGlobal = await drizzleDb.count("aula");
 
 		const XP_PER_LEVEL = 2000;
 		res.json({

@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { and, asc, desc, eq, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, ilike, inArray, isNull, like, lt, lte, ne, notIlike, notInArray, notLike, sql } from "drizzle-orm";
 import { dbRegistry } from "../config/databases";
 import { getDrizzleModelDelegates, invalidateDrizzleDelegateCache } from "./drizzle-models";
 import logger from "./logger";
@@ -55,12 +55,82 @@ function fireAndForget(backupName: string, operation: string, modelName: string,
 	});
 }
 
+const ALLOWED_OPS = [
+	"eq", "ne", "gt", "gte", "lt", "lte", "in", "nin", "contains", "icontains",
+	"startsWith", "istartsWith", "endsWith", "iendsWith",
+];
+
+function buildCondition(table: any, key: string, value: any): any {
+	if (value === null) return isNull(table[key]);
+	if (value !== null && typeof value === "object" && !Array.isArray(value)) {
+		const opEntries = Object.entries(value).filter(([op]) => op.startsWith("$") || ALLOWED_OPS.includes(op));
+		if (opEntries.length === 0) {
+			// Plain object without operators is treated as equality (JSON/JSONB etc)
+			return eq(table[key], value);
+		}
+		const conditions: any[] = [];
+		for (const [op, operand] of opEntries) {
+			const col = table[key];
+			switch (op) {
+				case "$eq":
+					conditions.push(eq(col, operand));
+					break;
+				case "$ne":
+					conditions.push(ne(col, operand));
+					break;
+				case "$gt":
+					conditions.push(gt(col, operand));
+					break;
+				case "$gte":
+					conditions.push(gte(col, operand));
+					break;
+				case "$lt":
+					conditions.push(lt(col, operand));
+					break;
+				case "$lte":
+					conditions.push(lte(col, operand));
+					break;
+				case "$in":
+					conditions.push(inArray(col, Array.isArray(operand) ? operand : [operand]));
+					break;
+				case "$nin":
+					conditions.push(notInArray(col, Array.isArray(operand) ? operand : [operand]));
+					break;
+				case "$contains":
+					conditions.push(like(col, `%${operand}%`));
+					break;
+				case "$icontains":
+					conditions.push(ilike(col, `%${operand}%`));
+					break;
+				case "$startsWith":
+					conditions.push(like(col, `${operand}%`));
+					break;
+				case "$istartsWith":
+					conditions.push(ilike(col, `${operand}%`));
+					break;
+				case "$endsWith":
+					conditions.push(like(col, `%${operand}`));
+					break;
+				case "$iendsWith":
+					conditions.push(ilike(col, `%${operand}`));
+					break;
+				default:
+					conditions.push(eq(col, operand));
+					break;
+			}
+		}
+		if (conditions.length === 1) return conditions[0];
+		return and(...conditions);
+	}
+	return eq(table[key], value);
+}
+
 function buildWhere(table: any, where: Record<string, any> | undefined): any {
 	if (!where) return undefined;
 	const conditions: any[] = [];
 	for (const [key, value] of Object.entries(where)) {
 		if (value === undefined) continue;
-		conditions.push(eq(table[key], value));
+		conditions.push(buildCondition(table, key, value));
 	}
 	if (conditions.length === 0) return undefined;
 	if (conditions.length === 1) return conditions[0];
@@ -75,6 +145,17 @@ function buildOrderBy(table: any, orderBy: Record<string, any> | undefined): any
 		else if (value === "desc") out.push(desc(table[key]));
 	}
 	return out.length ? out : undefined;
+}
+
+function buildSelect(table: any, select: Record<string, any> | undefined): Record<string, any> | undefined {
+	if (!select) return undefined;
+	const columns: Record<string, any> = {};
+	for (const [key, value] of Object.entries(select)) {
+		if (value === true && table[key] !== undefined) {
+			columns[key] = table[key];
+		}
+	}
+	return Object.keys(columns).length > 0 ? columns : undefined;
 }
 
 export const drizzleDb = {
@@ -130,24 +211,25 @@ export const drizzleDb = {
 		return result;
 	},
 
-	async findUnique(modelName: string, where: Record<string, any>) {
+	async findUnique(modelName: string, where: Record<string, any>, opts?: { select?: Record<string, any> }) {
 		const { primary, backups } = getDrizzleModelDelegates(modelName);
 		const table: any = primary.table;
 		const db: any = primary.db;
 		const conds = buildWhere(table, where);
+		const columns = buildSelect(table, opts?.select);
 		try {
-			const rows = conds
-				? ((await db.select().from(table).where(conds).limit(1)) as any[])
-				: ((await db.select().from(table).limit(1)) as any[]);
+			let q: any = columns ? db.select(columns).from(table) : db.select().from(table);
+			if (conds) q = q.where(conds);
+			const rows = (await q.limit(1)) as any[];
 			return rows[0] || null;
 		} catch (error) {
 			for (const backup of backups) {
 				try {
 					const bTable: any = backup.table;
 					const bDb: any = backup.db;
-					const rows = conds
-						? ((await bDb.select().from(bTable).where(conds).limit(1)) as any[])
-						: ((await bDb.select().from(bTable).limit(1)) as any[]);
+					let q: any = columns ? bDb.select(columns).from(bTable) : bDb.select().from(bTable);
+					if (conds) q = q.where(conds);
+					const rows = (await q.limit(1)) as any[];
 					return rows[0] || null;
 				} catch {
 					/* next */
@@ -157,14 +239,19 @@ export const drizzleDb = {
 		}
 	},
 
-	async findFirst(modelName: string, where?: Record<string, any>, opts?: { orderBy?: Record<string, any> }) {
+	async findFirst(
+		modelName: string,
+		where?: Record<string, any>,
+		opts?: { orderBy?: Record<string, any>; select?: Record<string, any> },
+	) {
 		const { primary, backups } = getDrizzleModelDelegates(modelName);
 		const table: any = primary.table;
 		const db: any = primary.db;
 		const conds = buildWhere(table, where);
 		const orderBy = buildOrderBy(table, opts?.orderBy);
+		const columns = buildSelect(table, opts?.select);
 		try {
-			let q: any = db.select().from(table);
+			let q: any = columns ? db.select(columns).from(table) : db.select().from(table);
 			if (conds) q = q.where(conds);
 			if (orderBy) q = q.orderBy(...orderBy);
 			const rows = (await q.limit(1)) as any[];
@@ -174,7 +261,7 @@ export const drizzleDb = {
 				try {
 					const bTable: any = backup.table;
 					const bDb: any = backup.db;
-					let q: any = bDb.select().from(bTable);
+					let q: any = columns ? bDb.select(columns).from(bTable) : bDb.select().from(bTable);
 					if (conds) q = q.where(conds);
 					if (orderBy) q = q.orderBy(...orderBy);
 					const rows = (await q.limit(1)) as any[];
@@ -192,6 +279,7 @@ export const drizzleDb = {
 		options: {
 			where?: Record<string, any>;
 			orderBy?: Record<string, any>;
+			select?: Record<string, any>;
 			skip?: number;
 			take?: number;
 		} = {},
@@ -201,8 +289,9 @@ export const drizzleDb = {
 		const db: any = primary.db;
 		const conds = buildWhere(table, options.where);
 		const orderBy = buildOrderBy(table, options.orderBy);
+		const columns = buildSelect(table, options.select);
 		try {
-			let q: any = db.select().from(table);
+			let q: any = columns ? db.select(columns).from(table) : db.select().from(table);
 			if (conds) q = q.where(conds);
 			if (orderBy) q = q.orderBy(...orderBy);
 			if (options.skip) q = q.offset(options.skip);
@@ -213,7 +302,7 @@ export const drizzleDb = {
 				try {
 					const bTable: any = backup.table;
 					const bDb: any = backup.db;
-					let q: any = bDb.select().from(bTable);
+					let q: any = columns ? bDb.select(columns).from(bTable) : bDb.select().from(bTable);
 					if (conds) q = q.where(conds);
 					if (orderBy) q = q.orderBy(...orderBy);
 					if (options.skip) q = q.offset(options.skip);
