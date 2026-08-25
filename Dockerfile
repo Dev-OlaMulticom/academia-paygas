@@ -37,8 +37,9 @@ COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-lock.yaml ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --prod && (pnpm prune --prod || true)
-# Copy the generated Prisma client from the builder (runtime node_modules is not generated).
-COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
+# Generate the Prisma client at build time in the runtime image (required for .prisma/client).
+# The generated code is small; doing it here avoids bundling dev deps and keeps the builder cache clean.
+RUN pnpm prisma generate --schema=packages/db/prisma/schema.prisma && pnpm prisma generate --schema=packages/db/prisma/schema.mysql.prisma
 RUN chown -R app:app /app
 USER app
 EXPOSE 3001
