@@ -1,10 +1,18 @@
 import pino from "pino";
 
-const isDev = process.env.NODE_ENV !== "production";
+const isDev = process.env.NODE_ENV === "development";
+const prettyAvailable = isDev && (() => {
+	try {
+		require.resolve("pino-pretty");
+		return true;
+	} catch {
+		return false;
+	}
+})();
 
 const baseLogger = pino({
 	level: process.env.LOG_LEVEL || (isDev ? "debug" : "info"),
-	transport: isDev
+	transport: prettyAvailable
 		? {
 				target: "pino-pretty",
 				options: { colorize: true, translateTime: "SYS:standard", ignore: "pid,hostname" },
