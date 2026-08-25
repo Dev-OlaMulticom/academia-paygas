@@ -223,6 +223,13 @@ app.get("/api/config", (req, res) => {
 	}
 });
 
+const clientDir = path.join(__dirname, "../client");
+app.use(express.static(clientDir));
+app.get("*", (req, res, next) => {
+	if (req.path.startsWith("/api")) return next();
+	res.sendFile(path.join(clientDir, "index.html"));
+});
+
 // Only start listening when run directly (not when imported by Passenger or test)
 if (require.main === module) {
 	const certPath = path.resolve(__dirname, "certs");
