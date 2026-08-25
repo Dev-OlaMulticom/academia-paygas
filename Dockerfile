@@ -11,6 +11,17 @@ WORKDIR /app
 
 FROM base AS deps
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# Fast lockfile sync check (~0.5s) before the expensive install (~45s).
+# Fails early with an actionable message if package.json was edited without
+# regenerating pnpm-lock.yaml (the cause of ERR_PNPM_OUTDATED_LOCKFILE).
+RUN pnpm install --frozen-lockfile --lockfile-only || ( \
+      echo "==========================================================" && \
+      echo "ERROR: pnpm-lock.yaml is out of sync with package.json." && \
+      echo "Fix locally: pnpm install --lockfile-only" && \
+      echo "Then commit the updated pnpm-lock.yaml." && \
+      echo "==========================================================" && \
+      exit 1 \
+    )
 RUN --mount=type=cache,target=/root/.pnpm-store pnpm install --frozen-lockfile --prod=false
 
 FROM deps AS builder
