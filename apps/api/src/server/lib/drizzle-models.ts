@@ -47,6 +47,7 @@ export interface DrizzleModelDelegate {
 	db: DrizzleDb;
 	table: any;
 	name: string;
+	dbName: string;
 }
 
 export interface DrizzleModelDelegates {
@@ -79,10 +80,10 @@ export function getDrizzleModelDelegates(modelName: string): DrizzleModelDelegat
 	for (const entry of all) {
 		if (entry.name === primaryEntry.name) continue;
 		const db = getDrizzleClient(entry);
-		if (db) backups.push({ db, table, name: modelName });
+		if (db) backups.push({ db, table, name: modelName, dbName: entry.name });
 	}
 
-	return { primary: { db: primaryDb, table, name: modelName }, backups, mysql: null };
+	return { primary: { db: primaryDb, table, name: modelName, dbName: primaryEntry.name }, backups, mysql: null };
 }
 
 export function invalidateDrizzleDelegateCache(): void {

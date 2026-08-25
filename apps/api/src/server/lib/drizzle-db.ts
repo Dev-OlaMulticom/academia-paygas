@@ -4,18 +4,29 @@ import { getDrizzleModelDelegates, invalidateDrizzleDelegateCache } from "./driz
 import logger from "./logger";
 
 function isConnectionError(error: any): boolean {
-	const msg = String(error?.message || error?.code || error || "");
+	const messages = [
+		String(error?.message || ""),
+		String(error?.code || ""),
+		String(error?.cause?.message || ""),
+		String(error?.cause?.code || ""),
+		String(error || ""),
+	];
+	const combined = messages.join(" ");
 	return (
-		msg.includes("ENETUNREACH") ||
-		msg.includes("ECONNREFUSED") ||
-		msg.includes("ECONNRESET") ||
-		msg.includes("ETIMEDOUT") ||
-		msg.includes("EHOSTUNREACH") ||
-		msg.includes("P1001") ||
-		msg.includes("P1002") ||
-		msg.includes("Can't reach database server") ||
-		msg.includes("connect ENOTFOUND") ||
-		msg.includes("pool timeout")
+		combined.includes("ENETUNREACH") ||
+		combined.includes("ECONNREFUSED") ||
+		combined.includes("ECONNRESET") ||
+		combined.includes("ETIMEDOUT") ||
+		combined.includes("EHOSTUNREACH") ||
+		combined.includes("P1001") ||
+		combined.includes("P1002") ||
+		combined.includes("Can't reach database server") ||
+		combined.includes("connect ENOTFOUND") ||
+		combined.includes("pool timeout") ||
+		combined.includes("has ended") ||
+		combined.includes("after calling end") ||
+		combined.includes("Cannot use") ||
+		combined.includes("Failed query")
 	);
 }
 
@@ -76,7 +87,7 @@ export const drizzleDb = {
 		}
 
 		for (let i = 0; i < backups.length; i++) {
-			fireAndForget(`PG_${i + 2}`, "create", modelName, backups[i].db.insert(backups[i].table as any).values(data).returning());
+			fireAndForget(`${backups[i].dbName}`, "create", modelName, backups[i].db.insert(backups[i].table as any).values(data).returning());
 		}
 
 		return result;
@@ -100,7 +111,7 @@ export const drizzleDb = {
 		}
 
 		for (let i = 0; i < backups.length; i++) {
-			fireAndForget(`PG_${i + 2}`, "createMany", modelName, backups[i].db.insert(backups[i].table as any).values(data).returning());
+			fireAndForget(`${backups[i].dbName}`, "createMany", modelName, backups[i].db.insert(backups[i].table as any).values(data).returning());
 		}
 
 		return result;
@@ -250,7 +261,7 @@ export const drizzleDb = {
 		for (let i = 0; i < backups.length; i++) {
 			const bTable: any = backups[i].table;
 			const bConds = buildWhere(bTable, where);
-			fireAndForget(`PG_${i + 2}`, "update", modelName, backups[i].db.update(bTable).set(data).where(bConds).returning());
+			fireAndForget(`${backups[i].dbName}`, "update", modelName, backups[i].db.update(bTable).set(data).where(bConds).returning());
 		}
 
 		return result;
@@ -282,7 +293,7 @@ export const drizzleDb = {
 		for (let i = 0; i < backups.length; i++) {
 			const bTable: any = backups[i].table;
 			const bConds = buildWhere(bTable, where);
-			fireAndForget(`PG_${i + 2}`, "updateMany", modelName, backups[i].db.update(bTable).set(data).where(bConds).returning());
+			fireAndForget(`${backups[i].dbName}`, "updateMany", modelName, backups[i].db.update(bTable).set(data).where(bConds).returning());
 		}
 
 		return result;
@@ -333,7 +344,7 @@ export const drizzleDb = {
 				.filter((k) => where[k] !== undefined)
 				.map((k) => bTable[k]);
 			fireAndForget(
-				`PG_${i + 2}`,
+				`${backups[i].dbName}`,
 				"upsert",
 				modelName,
 				backups[i].db.insert(bTable).values(createData).onConflictDoUpdate({ target: bConds, set: updateData }).returning(),
@@ -369,7 +380,7 @@ export const drizzleDb = {
 		for (let i = 0; i < backups.length; i++) {
 			const bTable: any = backups[i].table;
 			const bConds = buildWhere(bTable, where);
-			fireAndForget(`PG_${i + 2}`, "delete", modelName, backups[i].db.delete(bTable).where(bConds).returning());
+			fireAndForget(`${backups[i].dbName}`, "delete", modelName, backups[i].db.delete(bTable).where(bConds).returning());
 		}
 
 		return result;
@@ -401,7 +412,7 @@ export const drizzleDb = {
 		for (let i = 0; i < backups.length; i++) {
 			const bTable: any = backups[i].table;
 			const bConds = buildWhere(bTable, where);
-			fireAndForget(`PG_${i + 2}`, "deleteMany", modelName, backups[i].db.delete(bTable).where(bConds).returning());
+			fireAndForget(`${backups[i].dbName}`, "deleteMany", modelName, backups[i].db.delete(bTable).where(bConds).returning());
 		}
 
 		return result;
