@@ -42,7 +42,7 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
 				headers: { Authorization: `Bearer ${token}` },
 			});
 			if (res.ok) {
-				const data = await res.json();
+				const data = (await res.json()) as { count?: number };
 				setUnreadCount(data.count || 0);
 			}
 		} catch {

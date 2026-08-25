@@ -62,11 +62,11 @@ class ApiClient {
 		clearTimeout(timeoutId);
 
 		if (!res.ok) {
-			const error = await res.json().catch(() => ({ error: "Erro desconhecido" }));
+			const error = (await res.json().catch(() => ({ error: "Erro desconhecido" }))) as { error?: string };
 			throw new Error(error.error || `HTTP ${res.status}`);
 		}
 
-		const data = await res.json();
+		const data = (await res.json()) as { encrypted?: string } & T;
 
 		if (data?.encrypted && this.encryptionEnabled) {
 			try {

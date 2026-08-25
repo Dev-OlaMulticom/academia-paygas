@@ -14,10 +14,10 @@
 		"jsx": "react-jsx",
 		"incremental": true,
 		"paths": {
-			"@/*": ["./src/*"],
-			"@shared/*": ["./shared/*"]
+			"@/*": ["./apps/web/src/*"],
+			"@shared/*": ["./packages/shared/src/*"]
 		}
 	},
 	"include": ["**/*.ts", "**/*.tsx"],
-	"exclude": ["node_modules", "server", "server-build", "dist"]
+	"exclude": ["node_modules", "server", "server-build", "dist", "apps/api/src", "packages/db/drizzle", "tests", "scripts"]
 }

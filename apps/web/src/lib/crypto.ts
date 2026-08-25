@@ -16,7 +16,7 @@ async function fetchEncryptionKey(): Promise<string> {
 		if (token) headers.Authorization = `Bearer ${token}`;
 		const res = await fetch(`${API_BASE}/config`, { headers });
 		if (res.ok) {
-			const data = await res.json();
+			const data = (await res.json()) as { encryptionKey?: string };
 			if (data.encryptionKey) {
 				return data.encryptionKey;
 			}

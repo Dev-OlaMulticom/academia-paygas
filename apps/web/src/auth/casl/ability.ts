@@ -157,9 +157,9 @@ export async function loadRolePermissions(): Promise<void> {
 				headers: { Authorization: `Bearer ${token}` },
 			});
 			if (res.ok) {
-				const data = await res.json();
+				const data = (await res.json()) as { role?: string; permissions?: unknown[] };
 				if (data.role && Array.isArray(data.permissions)) {
-					dbPermissionsCache[data.role] = data.permissions;
+					dbPermissionsCache[data.role] = data.permissions as AbilityRule[];
 				}
 			}
 		} catch {
