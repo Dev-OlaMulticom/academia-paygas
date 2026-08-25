@@ -21,7 +21,7 @@
  *   getLatencyStats()
  */
 import { dbRegistry } from "../config/databases";
-import { invalidateDelegateCache } from "../lib/db-models";
+import { invalidateDrizzleDelegateCache } from "../lib/drizzle-models";
 import logger from "../lib/logger";
 
 const DEFAULT_INTERVAL = process.env.MICRO_MODE === "1" ? 60 * 1000 : 15 * 1000;
@@ -167,7 +167,7 @@ async function runHealthChecks(): Promise<void> {
 	}
 
 	if (primaryChanged) {
-		invalidateDelegateCache();
+		invalidateDrizzleDelegateCache();
 		const primary = dbRegistry.getPrimary();
 		if (primary) logger.info(`[DB-HEALTH] Primaria agora: ${primary.name}`);
 	}

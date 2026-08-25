@@ -1,4 +1,4 @@
-import type { PointsAction } from "@prisma/client";
+type PointsAction = string;
 import { drizzleDb } from "../lib/drizzle-db";
 
 // Default XP values — used as fallback if DB config is not available

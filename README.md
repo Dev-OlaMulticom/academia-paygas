@@ -6,17 +6,18 @@ Plataforma LMS + gamificación para PayGas. Arquitectura monolito modular con de
 
 **Apps**
 - `apps/web/` → SPA React 19 + Vite + Tailwind. Alias `@` y `@shared`. Servida estáticamente, proxy API a `apps/api`.
-- `apps/api/` → Express 5 + TypeScript. Prisma DAL con failover multi-DB PG/MySQL, dual-write, keep-alive. Middlewares: auth JWT, encryption AES, rate-limit, security headers.
+- `apps/api/` → Express 5 + TypeScript. **Drizzle ORM** DAL con failover multi-DB PG, dual-write, keep-alive. Middlewares: auth JWT, encryption AES, rate-limit, security headers.
 - `apps/worker/` → Cloudflare Workers. Sirve assets y proxy `/api/*` a Vercel/API. No ejecuta Express nativamente.
 
 **Packages**
-- `packages/db/prisma/` → Esquemas `schema.prisma` PG y `schema.mysql.prisma`, migraciones, seed.
+- `packages/db/drizzle/pg/` → Esquemas Drizzle PG (`schema.ts`) y relaciones.
+- `packages/db/prisma/` → Esquemas Prisma legacy (`schema.prisma` / `schema.mysql.prisma`), aún usados por migraciones y sync de infra.
 - `packages/shared/` → Lógica CASL, quiz, tipos compartidos.
 
 **Flujo de datos**
 1. Usuario → Cloudflare Worker → asset estático o proxy API.
-2. API → `apps/api/src/server/lib/db.ts` DAL → registro `packages/db/prisma`.
-3. Failover: PG primario → PG backup → MySQL tercero con whitelist de tablas.
+2. API → `apps/api/src/server/lib/drizzle-db.ts` DAL → registro `packages/db/drizzle/pg/schema.ts`.
+3. Failover: PG primario → PG backup. DAL legacy en `apps/api/src/server/lib/_legacy/`.
 4. Seguridad: JWT_SECRET/ENCRYPTION_KEY solo por env, CORS whitelist, CSP/HSTS.
 
 ```

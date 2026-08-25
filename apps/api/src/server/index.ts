@@ -5,6 +5,7 @@ import path from "node:path";
 import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
+import { dbRegistry } from "./config/databases";
 import logger from "./lib/logger";
 import { encryptedPayload, getServerEncryptionKey } from "./middleware/encryption";
 import adminDashboardRoutes from "./routes/admin-dashboard";
@@ -296,8 +297,9 @@ if (require.main === module) {
 				stopSyncWorker();
 				stopRealtimeSync();
 
-				const { prisma } = await import("./lib/prisma");
-				await prisma.$disconnect();
+				for (const e of dbRegistry.getAll()) {
+				await e.pool?.end().catch(() => {});
+			}
 				logger.info("Database connection closed.");
 			} catch {
 				/* ignore */

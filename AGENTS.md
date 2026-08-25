@@ -39,6 +39,15 @@ const videoId = ytMatch?.[1];
 // Construye: https://www.youtube.com/embed/{videoId}?playsinline=1&rel=0&...
 ```
 
+## Drizzle ORM Migration (completada)
+
+- DAL principal: `apps/api/src/server/lib/drizzle-db.ts`.
+- Esquema: `packages/db/drizzle/pg/schema.ts`.
+- Rutas y servicios del API migradas a `drizzleDb` (Phases 3 y 4).
+- DAL legacy (`db.ts`, `prisma.ts`, etc.) fue movido a `apps/api/src/server/lib/_legacy/` y excluido de `tsconfig.server.json`.
+- `packages/db/prisma/` aún se usa para migraciones Prisma y sync de infra (`db-health`, `db-sync`, `db-migrations`).
+- `npx tsc --project tsconfig.server.json --noEmit` y `npx tsc --noEmit` deben permanecer limpios.
+
 ## Commits recientes
 
 - `56bef8f` fix: page-subtitle permite wrap en pantallas <800px
