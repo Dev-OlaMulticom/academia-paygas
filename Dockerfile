@@ -22,9 +22,8 @@ RUN pnpm build:client
 FROM node:${NODE_VERSION}-alpine AS runtime
 ENV NODE_ENV=production
 ENV PORT=3001
+ENV NODE_OPTIONS="--max-old-space-size=192"
 RUN addgroup -S app && adduser -S app -G app
-# Build toolchain for native modules (better-sqlite3) installed in the --prod step
-RUN apk add --no-cache python3 make g++ linux-headers
 WORKDIR /app
 RUN corepack enable && corepack prepare pnpm@9 --activate
 
@@ -36,10 +35,12 @@ COPY --from=builder /app/prisma/generated/mysql ./prisma/generated/mysql
 COPY --from=builder /app/package.json ./
 COPY --from=builder /app/pnpm-lock.yaml ./
 COPY --from=builder /app/pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile --prod && (pnpm prune --prod || true)
-# Generate the Prisma client at build time in the runtime image (required for .prisma/client).
-# The generated code is small; doing it here avoids bundling dev deps and keeps the builder cache clean.
-RUN pnpm prisma generate --schema=packages/db/prisma/schema.prisma && pnpm prisma generate --schema=packages/db/prisma/schema.mysql.prisma
+# Install build toolchain, run prod install + prune + prisma generate, then remove toolchain to keep image small.
+RUN apk add --no-cache --virtual .build-deps python3 make g++ linux-headers && \
+    pnpm install --frozen-lockfile --prod && (pnpm prune --prod || true) && \
+    pnpm prisma generate --schema=packages/db/prisma/schema.prisma && \
+    pnpm prisma generate --schema=packages/db/prisma/schema.mysql.prisma && \
+    apk del .build-deps
 RUN chown -R app:app /app
 USER app
 EXPOSE 3001
