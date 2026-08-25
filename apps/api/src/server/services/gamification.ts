@@ -1,5 +1,5 @@
 import type { PointsAction } from "@prisma/client";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 
 // Default XP values — used as fallback if DB config is not available
 const DEFAULT_POINTS: Record<string, number> = {
@@ -25,7 +25,7 @@ async function getXPConfig(): Promise<Record<string, number>> {
 	}
 
 	try {
-		const configs = await db.findMany("xPConfig");
+		const configs = await drizzleDb.findMany("xPConfig");
 		xpConfigCache = {};
 		for (const c of configs) {
 			xpConfigCache[c.action] = c.points;
@@ -55,29 +55,15 @@ export async function awardPoints(userId: string, action: PointsAction, details?
 
 	if (points === 0) return 0;
 
-	await db.transaction(async (tx) => {
-		await tx.pointsTransaction.create({
-			data: { userId, action, points, details },
-		});
-		await tx.user.update({
-			where: { id: userId },
-			data: { xp: { increment: points } },
-		});
-	});
-
-	// MySQL also gets the transaction via DAL (fire-and-forget)
-	// db.create handles MySQL dual-write, but we also need the user XP update there
-	await db.update("user", { id: userId }, { xp: { increment: points } } as any);
-
-	// Normalize XP to at most 2 decimals (round up) and persist level.
-	// `db.update` writes the absolute value to primary, backups and MySQL,
-	// so every tier ends up with the same clean value.
-	const updated = (await db.findUnique("user", { id: userId })) as { xp: number } | null;
-	if (updated) {
-		const roundedXp = roundXpUp(updated.xp || 0);
-		const newLevel = Math.floor(roundedXp / 2000) + 1;
-		await db.update("user", { id: userId }, { xp: roundedXp, level: newLevel });
-	}
+	// drizzleDb does not support Prisma-style transactions or atomic increments,
+	// so we create the transaction record, read the current XP, and set the
+	// rounded total + derived level directly.
+	await drizzleDb.create("pointsTransaction", { userId, action, points, details });
+	const before = (await drizzleDb.findUnique("user", { id: userId })) as { xp?: number } | null;
+	const currentXp = before?.xp || 0;
+	const roundedXp = roundXpUp(currentXp + points);
+	const newLevel = Math.floor(roundedXp / 2000) + 1;
+	await drizzleDb.update("user", { id: userId }, { xp: roundedXp, level: newLevel });
 
 	return points;
 }
@@ -88,7 +74,7 @@ export async function awardPoints(userId: string, action: PointsAction, details?
  * Returns 0 if already awarded, otherwise the points awarded.
  */
 export async function awardPointsIfNotAwarded(userId: string, action: PointsAction, dedupKey: string): Promise<number> {
-	const existing = await db.findFirst("pointsTransaction", { userId, action, details: dedupKey });
+	const existing = await drizzleDb.findFirst("pointsTransaction", { userId, action, details: dedupKey });
 	if (existing) return 0;
 	return awardPoints(userId, action, dedupKey);
 }
@@ -100,7 +86,7 @@ export async function awardLoginPointsDaily(userId: string): Promise<number> {
 	const startOfDay = new Date();
 	startOfDay.setHours(0, 0, 0, 0);
 
-	const existing = await db.findFirst("pointsTransaction", {
+	const existing = await drizzleDb.findFirst("pointsTransaction", {
 		userId,
 		action: "LOGIN",
 		createdAt: { gte: startOfDay },
@@ -110,20 +96,20 @@ export async function awardLoginPointsDaily(userId: string): Promise<number> {
 }
 
 export async function getUserPoints(userId: string) {
-	const user = (await db.findUnique("user", { id: userId })) as { xp?: number } | null;
+	const user = (await drizzleDb.findUnique("user", { id: userId })) as { xp?: number } | null;
 
-	const transactions = await db.findMany("pointsTransaction", {
+	const transactions = await drizzleDb.findMany("pointsTransaction", {
 		where: { userId },
 		orderBy: { createdAt: "desc" },
 		take: 50,
 	});
 
-	const byAction = await db.groupBy("pointsTransaction", {
+	const byAction = (await drizzleDb.groupBy("pointsTransaction", {
 		by: ["action"],
 		where: { userId },
 		_sum: { points: true },
 		_count: { id: true },
-	});
+	})) as any[];
 
 	return {
 		totalXp: user?.xp || 0,
@@ -138,9 +124,9 @@ export async function getUserPoints(userId: string) {
 }
 
 export async function getTeamPoints(gestorId?: string) {
-	const where = gestorId ? { gestorId } : {};
+	const where = gestorId ? { gestorId } : ({} as Record<string, any>);
 
-	const users = (await db.findMany("user", {
+	const users = (await drizzleDb.findMany("user", {
 		where,
 		orderBy: { xp: "desc" },
 	})) as any[];

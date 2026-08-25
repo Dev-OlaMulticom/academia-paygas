@@ -1,4 +1,4 @@
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 
 export interface EstabelecimentoData {
@@ -37,7 +37,7 @@ export async function upsertEstabelecimento(data: EstabelecimentoData) {
 	if (data.ativo !== undefined) update.ativo = data.ativo;
 
 	try {
-		return await db.upsert("estabelecimento", { id: data.id }, create, update);
+		return await drizzleDb.upsert("estabelecimento", { id: data.id }, create, update);
 	} catch (err) {
 		logger.warn(`[SSO] Erro ao sincronizar estabelecimento ${data.id}:`, err);
 		return null;

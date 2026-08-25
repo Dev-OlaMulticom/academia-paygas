@@ -1,4 +1,4 @@
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 
 interface GestorCandidate {
@@ -55,15 +55,15 @@ export function selectGestorForUser(
 }
 
 async function getGestorLoadMap(): Promise<Map<string, number>> {
-	const rows = (await db.groupBy("user", {
-		by: ["gestorId"],
-		where: { role: "ATENDENTE", gestorId: { not: null } },
-		_count: { _all: true },
+	const rows = (await drizzleDb.findMany("user", {
+		where: { role: "ATENDENTE" },
+		select: { gestorId: true },
 	})) as any[];
 	const map = new Map<string, number>();
 	for (const row of rows) {
-		const count = row?._count?._all ?? 0;
-		if (row.gestorId) map.set(row.gestorId, count);
+		const id = row?.gestorId;
+		if (!id) continue;
+		map.set(id, (map.get(id) ?? 0) + 1);
 	}
 	return map;
 }
@@ -76,11 +76,11 @@ async function getGestorLoadMap(): Promise<Map<string, number>> {
 export async function ensureGestorAssigned(user: any): Promise<any> {
 	if (!user || user.gestorId || user.role !== "ATENDENTE") return user;
 
-	const gestores = (await db.findMany("user", { where: { role: "GESTOR" } })) as GestorCandidate[];
+	const gestores = (await drizzleDb.findMany("user", { where: { role: "GESTOR" } })) as GestorCandidate[];
 	let gestor = selectGestorForUser(user, gestores, await getGestorLoadMap());
 
 	if (!gestor) {
-		const admin = (await db.findFirst("user", { role: "ADMIN" })) as any;
+		const admin = (await drizzleDb.findFirst("user", { role: "ADMIN" })) as any;
 		if (!admin) {
 			logger.warn(`[SSO] Nenhum gestor/admin disponível para atribuir a ${user.id}`);
 			return user;
@@ -88,7 +88,7 @@ export async function ensureGestorAssigned(user: any): Promise<any> {
 		gestor = { id: admin.id, nome: admin.nome };
 	}
 
-	user = await db.update("user", { id: user.id }, { gestorId: gestor.id });
+	user = await drizzleDb.update("user", { id: user.id }, { gestorId: gestor.id });
 	logger.info(`[SSO] Gestor ${gestor.id} asignado automaticamente a ${user.id}`);
 	return user;
 }

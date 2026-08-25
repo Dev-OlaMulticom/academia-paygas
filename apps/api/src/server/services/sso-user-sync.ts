@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { upsertEstabelecimento } from "./estabelecimento-sync";
 
@@ -48,10 +48,12 @@ function roleSyncData(currentRole: string, perfil?: string): Record<string, unkn
 // PostgreSQL emails are case-sensitive by default. PayGas sends lowercase, but
 // legacy accounts may be stored with mixed case ("Heullerzt@gmail.com").
 // Look up case-insensitively so SSO links the account instead of duplicating it.
-function findUserByEmail(email: string) {
-	return db.findFirst("user", {
-		email: { equals: email, mode: "insensitive" },
+async function findUserByEmail(email: string) {
+	const matches = await drizzleDb.findMany("user", {
+		where: { email: { icontains: email } },
 	});
+	const normalized = email.toLowerCase();
+	return matches.find((u: any) => u?.email?.toLowerCase() === normalized) || null;
 }
 
 export async function findOrCreateSSOUser(data: SSOUserData) {
@@ -69,7 +71,7 @@ export async function findOrCreateSSOUser(data: SSOUserData) {
 	}
 
 	// 1. Lookup by paygasSub (primary identifier)
-	let user = await db.findUnique("user", { paygasSub: data.sub });
+	let user = await drizzleDb.findUnique("user", { paygasSub: data.sub });
 
 	if (user) {
 		// Sync mutable fields. Nome is only updated when the stored value is
@@ -88,7 +90,7 @@ export async function findOrCreateSSOUser(data: SSOUserData) {
 		Object.assign(syncData, roleSyncData(user.role, data.perfil));
 
 		if (Object.keys(syncData).length > 0) {
-			user = await db.update("user", { id: user.id }, syncData);
+			user = await drizzleDb.update("user", { id: user.id }, syncData);
 			logger.info(`[SSO] Usuário ${user.id} sincronizado`);
 		}
 		return user;
@@ -109,7 +111,7 @@ export async function findOrCreateSSOUser(data: SSOUserData) {
 			};
 			Object.assign(linkData, roleSyncData(existingByEmail.role, data.perfil));
 
-			user = await db.update("user", { id: existingByEmail.id }, linkData);
+			user = await drizzleDb.update("user", { id: existingByEmail.id }, linkData);
 			logger.info(`[SSO] Usuário existente ${existingByEmail.id} vinculado ao paygasSub`);
 			return user;
 		}
@@ -120,7 +122,7 @@ export async function findOrCreateSSOUser(data: SSOUserData) {
 	const hashedPassword = await bcrypt.hash(randomPassword, 12);
 
 	try {
-		user = await db.create("user", {
+		user = await drizzleDb.create("user", {
 			email: data.email,
 			nome: data.nome,
 			senha: hashedPassword,
@@ -151,7 +153,7 @@ export async function findOrCreateSSOUser(data: SSOUserData) {
 				};
 				Object.assign(linkData, roleSyncData(user.role, data.perfil));
 
-				user = await db.update("user", { id: user.id }, linkData);
+				user = await drizzleDb.update("user", { id: user.id }, linkData);
 				return user;
 			}
 		}
