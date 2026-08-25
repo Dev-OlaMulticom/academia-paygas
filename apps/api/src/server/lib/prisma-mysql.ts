@@ -11,7 +11,7 @@ const globalForPrismaMysql = globalThis as unknown as { prismaMysql: any };
 
 function createMysqlClient(): any | null {
 	const url = process.env.MYSQL_URL;
-	if (!url) return null;
+	if (process.env.MICRO_MODE === "1" || !url) return null;
 
 	try {
 		// Parse mysql://user:pass@host:port/database
