@@ -13,6 +13,7 @@
 
 import { PrismaPg } from "@prisma/adapter-pg";
 import { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
 import logger from "../lib/logger";
 
 export type DatabaseStatus = "connected" | "degraded" | "disconnected" | "unknown";
@@ -42,6 +43,7 @@ export interface DatabaseEntry {
 	name: string;
 	url: string;
 	client: PrismaClient | null;
+	pool: Pool | null;
 	status: DatabaseStatus;
 	lastCheck: Date | null;
 	lastError: string | null;
@@ -99,14 +101,17 @@ class DatabaseRegistry {
 
 	private createEntry(name: string, url: string, priority: number): DatabaseEntry {
 		let client: PrismaClient | null = null;
+		let pool: Pool | null = null;
 
 		try {
 			const micro = process.env.MICRO_MODE === "1";
 			const rawPool = process.env.PG_POOL_SIZE ? parseInt(process.env.PG_POOL_SIZE, 10) : NaN;
 			const poolSize = Number.isNaN(rawPool) ? (micro ? 2 : 10) : rawPool;
+			const ssl = resolveSslOption(url);
+			pool = new Pool({ connectionString: url, ssl, max: poolSize });
 			const adapter = new PrismaPg({
 				connectionString: url,
-				ssl: resolveSslOption(url),
+				ssl,
 				max: poolSize,
 			});
 			client = new PrismaClient({
@@ -121,6 +126,7 @@ class DatabaseRegistry {
 			name,
 			url,
 			client,
+			pool,
 			status: "unknown",
 			lastCheck: null,
 			lastError: null,

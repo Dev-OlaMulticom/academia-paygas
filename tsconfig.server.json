@@ -19,6 +19,6 @@
 			"@shared/*": ["./packages/shared/src/*"]
 		}
 	},
-	"include": ["apps/api/src/**/*.ts", "packages/shared/src/**/*.ts"],
+	"include": ["apps/api/src/**/*.ts", "packages/shared/src/**/*.ts", "packages/db/drizzle/pg/**/*.ts"],
 	"exclude": ["node_modules", "src", "tests"]
 }
