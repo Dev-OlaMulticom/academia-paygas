@@ -3,7 +3,7 @@
  *
  * Parses PG_URL_1, PG_URL_2, PG_URL_3... from environment variables.
  * Falls back to legacy DATABASE_URL + NHOST_URL for backward compatibility.
- * Each database gets a Prisma client + health status.
+ * Each database gets a `pg` Pool + health status.
  *
  * Usage:
  *   import { dbRegistry } from '../config/databases'
@@ -11,8 +11,6 @@
  *   const allHealthy = dbRegistry.getHealthy()
  */
 
-import { PrismaPg } from "@prisma/adapter-pg";
-import { PrismaClient } from "@prisma/client";
 import { Pool } from "pg";
 import logger from "../lib/logger";
 
@@ -42,7 +40,6 @@ export function resolveSslOption(url: string): { rejectUnauthorized: boolean } {
 export interface DatabaseEntry {
 	name: string;
 	url: string;
-	client: PrismaClient | null;
 	pool: Pool | null;
 	status: DatabaseStatus;
 	lastCheck: Date | null;
@@ -100,7 +97,6 @@ class DatabaseRegistry {
 	}
 
 	private createEntry(name: string, url: string, priority: number): DatabaseEntry {
-		let client: PrismaClient | null = null;
 		let pool: Pool | null = null;
 
 		try {
@@ -109,23 +105,13 @@ class DatabaseRegistry {
 			const poolSize = Number.isNaN(rawPool) ? (micro ? 2 : 10) : rawPool;
 			const ssl = resolveSslOption(url);
 			pool = new Pool({ connectionString: url, ssl, max: poolSize });
-			const adapter = new PrismaPg({
-				connectionString: url,
-				ssl,
-				max: poolSize,
-			});
-			client = new PrismaClient({
-				adapter,
-				log: process.env.NODE_ENV === "production" ? ["error"] : ["warn", "error"],
-			});
 		} catch (error: any) {
-			logger.error(`[DB-REGISTRY] Failed to create client for ${name}:`, error.message);
+			logger.error(`[DB-REGISTRY] Failed to create pool for ${name}:`, error.message);
 		}
 
 		return {
 			name,
 			url,
-			client,
 			pool,
 			status: "unknown",
 			lastCheck: null,
@@ -187,10 +173,10 @@ class DatabaseRegistry {
 		}
 	}
 
-	/** Get a PrismaClient by name */
-	getClient(name: string): PrismaClient | null {
+	/** Get a database entry by name */
+	getByName(name: string): DatabaseEntry | null {
 		this.init();
-		return this.entries.find((e) => e.name === name)?.client || null;
+		return this.entries.find((e) => e.name === name) || null;
 	}
 
 	/** Get summary for health endpoint */

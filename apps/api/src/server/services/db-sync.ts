@@ -34,7 +34,7 @@
  *   import { getSyncStats } from '../services/db-sync'
  *   getSyncStats()
  */
-import type { PrismaClient } from "@prisma/client";
+import { Pool } from "pg";
 import { type DatabaseEntry, dbRegistry } from "../config/databases";
 import logger from "../lib/logger";
 
@@ -143,17 +143,27 @@ let lastIncrementalAt: number | null = null;
 const cursors = new Map<string, Date>();
 const cursorKey = (targetName: string, table: string) => `${targetName}:${table}`;
 
+async function queryRaw<T extends Record<string, any> = Record<string, any>>(
+	pool: Pool,
+	text: string,
+	values: any[] = [],
+): Promise<T[]> {
+	const result = await pool.query<T>({ text, values });
+	return result.rows;
+}
+
 /**
  * Obtem definicoes de colunas de uma tabela (caching por nome). Usa
  * information_schema para nao depender do schema do Prisma.
  */
-export async function getColumns(client: PrismaClient, table: string): Promise<ColumnDef[]> {
+export async function getColumns(pool: Pool, table: string): Promise<ColumnDef[]> {
 	const cached = columnCache.get(table);
 	if (cached) return cached;
-	const rows = (await client.$queryRawUnsafe(
+	const rows = await queryRaw<{ column_name: string; data_type: string }>(
+		pool,
 		`SELECT column_name, data_type FROM information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position`,
-		table,
-	)) as Array<{ column_name: string; data_type: string }>;
+		[table],
+	);
 	const cols = rows.map((r) => ({
 		name: r.column_name,
 		type: r.data_type,
@@ -167,13 +177,10 @@ export async function getColumns(client: PrismaClient, table: string): Promise<C
  * Obtem pares (id, hash) de uma tabela. `md5(t::text)` e estavel em PG para o
  * mesmo conteudo de row. Retorna [] se a tabela nao existir ou falhar.
  */
-async function fetchHashes(client: PrismaClient, table: string): Promise<Array<{ id: string; h: string }>> {
+async function fetchHashes(pool: Pool, table: string): Promise<Array<{ id: string; h: string }>> {
 	try {
 		validateTableName(table);
-		return (await client.$queryRawUnsafe(`SELECT id, md5(t::text) AS h FROM "${table}" t`)) as Array<{
-			id: string;
-			h: string;
-		}>;
+		return await queryRaw<{ id: string; h: string }>(pool, `SELECT id, md5(t::text) AS h FROM "${table}" t`);
 	} catch (err: any) {
 		logger.warn(`[DB-SYNC] Falha ao ler hashes de ${table}: ${err?.message || err}`);
 		return [];
@@ -183,20 +190,17 @@ async function fetchHashes(client: PrismaClient, table: string): Promise<Array<{
 /**
  * Busca rows completas de uma tabela por id (somente as que precisamos syncar).
  */
-export async function fetchRowsByIds(
-	client: PrismaClient,
-	table: string,
-	ids: string[],
-): Promise<Record<string, any>[]> {
+export async function fetchRowsByIds(pool: Pool, table: string, ids: string[]): Promise<Record<string, any>[]> {
 	validateTableName(table);
 	if (ids.length === 0) return [];
-	const cols = await getColumns(client, table);
+	const cols = await getColumns(pool, table);
 	const selectCols = cols.map((c) => `"${c.name}"`).join(",");
 	const placeholders = ids.map((_, i) => `$${i + 1}`).join(",");
-	return (await client.$queryRawUnsafe(
+	return await queryRaw<Record<string, any>>(
+		pool,
 		`SELECT ${selectCols} FROM "${table}" WHERE id IN (${placeholders})`,
-		...ids,
-	)) as Record<string, any>[];
+		ids,
+	);
 }
 
 /**
@@ -204,8 +208,8 @@ export async function fetchRowsByIds(
  * Processa em batches de SYNC_BATCH_SIZE para nao estourar parametros do PG.
  * Retorna numero de rows que tentamos inserir/atualizar (best-effort).
  */
-export async function upsertRows(target: PrismaClient, table: string, rows: Record<string, any>[]): Promise<number> {
-	if (rows.length === 0) return 0;
+export async function upsertRows(target: Pool | null, table: string, rows: Record<string, any>[]): Promise<number> {
+	if (!target || rows.length === 0) return 0;
 	const cols = await getColumns(target, table);
 	const nonIdCols = cols.filter((c) => !c.isId);
 	const colNames = cols.map((c) => `"${c.name}"`).join(",");
@@ -231,10 +235,10 @@ export async function upsertRows(target: PrismaClient, table: string, rows: Reco
 			}
 		}
 		try {
-			await target.$queryRawUnsafe(
-				`INSERT INTO "${table}" (${colNames}) VALUES ${valuePlaceholders} ${conflictClause}`,
-				...params,
-			);
+			await target.query({
+				text: `INSERT INTO "${table}" (${colNames}) VALUES ${valuePlaceholders} ${conflictClause}`,
+				values: params,
+			});
 			affected += batch.length;
 		} catch (err: any) {
 			logger.warn(`[DB-SYNC] upsert ${table} falhou: ${err?.message || err}`);
@@ -257,15 +261,11 @@ export async function syncRow(
 	table: string,
 	id: string,
 ): Promise<boolean> {
-	if (!source.client || !target.client) return false;
+	if (!source.pool || !target.pool) return false;
 	try {
 		const [[srcHash], [tgtHash]] = await Promise.all([
-			source.client.$queryRawUnsafe(`SELECT md5(t::text) AS h FROM "${table}" t WHERE id = $1`, id) as Promise<
-				Array<{ h: string }>
-			>,
-			target.client.$queryRawUnsafe(`SELECT md5(t::text) AS h FROM "${table}" t WHERE id = $1`, id) as Promise<
-				Array<{ h: string }>
-			>,
+			queryRaw<{ h: string }>(source.pool, `SELECT md5(t::text) AS h FROM "${table}" t WHERE id = $1`, [id]),
+			queryRaw<{ h: string }>(target.pool, `SELECT md5(t::text) AS h FROM "${table}" t WHERE id = $1`, [id]),
 		]);
 
 		if (!srcHash) {
@@ -275,9 +275,9 @@ export async function syncRow(
 		}
 		if (tgtHash && tgtHash.h === srcHash.h) return false; // already in sync
 
-		const rows = await fetchRowsByIds(source.client, table, [id]);
+		const rows = await fetchRowsByIds(source.pool, table, [id]);
 		if (rows.length === 0) return false;
-		await upsertRows(target.client, table, rows);
+		await upsertRows(target.pool, table, rows);
 		syncStats.realtimeRows++;
 		return true;
 	} catch (err: any) {
@@ -292,11 +292,7 @@ export async function syncRow(
  * (full diff — caro, usado apenas no startup / recovery / reconciliacao
  * periodica; ver `runIncrementalSync` para o caminho barato).
  */
-async function syncTableFullDiff(
-	source: PrismaClient,
-	target: PrismaClient,
-	table: string,
-): Promise<{ inserted: number; updated: number }> {
+async function syncTableFullDiff(source: Pool, target: Pool, table: string): Promise<{ inserted: number; updated: number }> {
 	const [sourceHashes, targetHashes] = await Promise.all([fetchHashes(source, table), fetchHashes(target, table)]);
 
 	if (sourceHashes.length === 0) return { inserted: 0, updated: 0 };
@@ -330,7 +326,7 @@ async function syncDatabaseToTarget(
 	source: DatabaseEntry,
 	target: DatabaseEntry,
 ): Promise<{ inserted: number; updated: number }> {
-	if (!source.client || !target.client) return { inserted: 0, updated: 0 };
+	if (!source.pool || !target.pool) return { inserted: 0, updated: 0 };
 
 	let totalInserted = 0;
 	let totalUpdated = 0;
@@ -338,7 +334,7 @@ async function syncDatabaseToTarget(
 
 	for (const table of TABLES_IN_ORDER) {
 		try {
-			const r = await syncTableFullDiff(source.client, target.client, table);
+			const r = await syncTableFullDiff(source.pool, target.pool, table);
 			totalInserted += r.inserted;
 			totalUpdated += r.updated;
 		} catch (err: any) {
@@ -370,7 +366,7 @@ async function syncDatabaseToTarget(
 async function fullSyncLoop(): Promise<void> {
 	if (isSyncing) return;
 	const primary = dbRegistry.getPrimary();
-	if (!primary?.client) return;
+	if (!primary?.pool) return;
 
 	const backups = dbRegistry.getHealthy().filter((e) => e.name !== primary.name);
 	if (backups.length === 0) return;
@@ -401,8 +397,8 @@ async function fullSyncLoop(): Promise<void> {
  */
 async function incrementalSyncLoop(): Promise<void> {
 	const primary = dbRegistry.getPrimary();
-	const primaryClient = primary?.client;
-	if (!primary || !primaryClient) return;
+	const primaryPool = primary?.pool;
+	if (!primary || !primaryPool) return;
 	const backups = dbRegistry.getHealthy().filter((e) => e.name !== primary.name);
 	if (backups.length === 0) return;
 
@@ -411,8 +407,8 @@ async function incrementalSyncLoop(): Promise<void> {
 
 	await Promise.allSettled(
 		backups.map(async (backup) => {
-			const backupClient = backup.client;
-			if (!backupClient) return;
+			const backupPool = backup.pool;
+			if (!backupPool) return;
 			for (const table of TABLES_IN_ORDER) {
 				const key = cursorKey(backup.name, table);
 				const since = cursors.get(key);
@@ -422,14 +418,14 @@ async function incrementalSyncLoop(): Promise<void> {
 
 				const cursorCol = CURSOR_COLUMN[table];
 				try {
-					const rows = (await primaryClient.$queryRawUnsafe(
+					const rows = await queryRaw<Record<string, any>>(
+						primaryPool,
 						`SELECT * FROM "${table}" WHERE "${cursorCol}" > $1 ORDER BY "${cursorCol}" ASC LIMIT $2`,
-						since,
-						INCREMENTAL_BATCH_LIMIT,
-					)) as Record<string, any>[];
+						[since, INCREMENTAL_BATCH_LIMIT],
+					);
 					if (rows.length === 0) continue;
 
-					await upsertRows(backupClient, table, rows);
+					await upsertRows(backupPool, table, rows);
 					syncStats.incrementalRows += rows.length;
 					cursors.set(key, rows[rows.length - 1][cursorCol]);
 				} catch (err: any) {
@@ -495,7 +491,7 @@ export function stopSyncWorker(): void {
  */
 export async function triggerSync(targetName?: string): Promise<boolean> {
 	const primary = dbRegistry.getPrimary();
-	if (!primary?.client) {
+	if (!primary?.pool) {
 		logger.warn("[DB-SYNC] triggerSync: sem primaria saudavel");
 		return false;
 	}

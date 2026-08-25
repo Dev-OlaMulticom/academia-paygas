@@ -100,14 +100,15 @@ const HEALTH_CHECK_TIMEOUT = 5000;
 async function checkDatabase(
 	name: string,
 ): Promise<{ status: "connected" | "degraded" | "disconnected"; ms: number | null }> {
-	const client = dbRegistry.getClient(name);
-	if (!client) return { status: "disconnected", ms: null };
+	const entry = dbRegistry.getByName(name);
+	const pool = entry?.pool;
+	if (!pool) return { status: "disconnected", ms: null };
 	try {
 		const start = Date.now();
 		// Race the query against a timeout — ENETUNREACH can take 30s+ on
 		// some systems before the OS gives up, which blocks server startup.
 		await Promise.race([
-			client.$queryRaw`SELECT 1`,
+			pool.query("SELECT 1"),
 			new Promise((_, reject) => setTimeout(() => reject(new Error("health check timeout")), HEALTH_CHECK_TIMEOUT)),
 		]);
 		const ms = Date.now() - start;

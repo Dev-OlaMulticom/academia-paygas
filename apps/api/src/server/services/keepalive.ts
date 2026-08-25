@@ -30,14 +30,14 @@ async function pingAllDatabases(): Promise<void> {
 	logger.info(`[KEEP-ALIVE] Pinging ${entries.length} database(s)...`);
 
 	for (const entry of entries) {
-		if (!entry.client) {
-			logger.info(`[KEEP-ALIVE]   ${entry.name}: no client (skipped)`);
+		if (!entry.pool) {
+			logger.info(`[KEEP-ALIVE]   ${entry.name}: no pool (skipped)`);
 			continue;
 		}
 
 		try {
 			const start = Date.now();
-			await entry.client.$queryRaw`SELECT 1`;
+			await entry.pool.query("SELECT 1");
 			const latency = Date.now() - start;
 
 			logger.info(`[KEEP-ALIVE]   ${entry.name}: OK (${latency}ms)`);

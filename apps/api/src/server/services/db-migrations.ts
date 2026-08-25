@@ -31,7 +31,7 @@
 import crypto from "node:crypto";
 import fs from "node:fs";
 import path from "node:path";
-import { dbRegistry } from "../config/databases";
+import { type DatabaseEntry, dbRegistry } from "../config/databases";
 import logger from "../lib/logger";
 
 const MIGRATIONS_DIR = path.resolve(__dirname, "../../prisma/migrations");
@@ -203,9 +203,10 @@ function classifyStatement(stmt: string): ParsedStatement {
  * antigas do Prisma nao criavam essa constraint (apenas PK em `id`). Por isso
  * `recordMigration` usa SELECT-then-INSERT/UPDATE.
  */
-async function getAppliedMigrations(client: any): Promise<Set<string>> {
+async function getAppliedMigrations(target: DatabaseEntry): Promise<Set<string>> {
+	if (!target.pool) return new Set();
 	try {
-		await client.$queryRawUnsafe(`
+		await target.pool.query(`
 			CREATE TABLE IF NOT EXISTS "${PRISMA_TABLE}" (
 				id VARCHAR(36) NOT NULL,
 				migration_name VARCHAR(255) NOT NULL,
@@ -218,9 +219,10 @@ async function getAppliedMigrations(client: any): Promise<Set<string>> {
 				CONSTRAINT "${PRISMA_TABLE}_pkey" PRIMARY KEY ("id")
 			)
 		`);
-		const rows = (await client.$queryRawUnsafe(
-			`SELECT migration_name FROM "${PRISMA_TABLE}" WHERE rolled_back_at IS NULL`,
-		)) as Array<{ migration_name: string }>;
+		const { rows } = await target.pool.query<{ migration_name: string }>({
+			text: `SELECT migration_name FROM "${PRISMA_TABLE}" WHERE rolled_back_at IS NULL`,
+			values: [],
+		});
 		return new Set(rows.map((r) => r.migration_name));
 	} catch (err: any) {
 		logger.warn(`[DB-MIG] Falha ao ler ${PRISMA_TABLE}: ${err?.message}`);
@@ -236,29 +238,24 @@ async function getAppliedMigrations(client: any): Promise<Set<string>> {
  * O campo `checksum` e obrigatorio (NOT NULL) no schema do Prisma — passamos o
  * SHA-1 do SQL da migration (mesmo calculo que o Prisma faz).
  */
-async function recordMigration(client: any, name: string, sql: string, logs: string): Promise<void> {
+async function recordMigration(target: DatabaseEntry, name: string, sql: string, logs: string): Promise<void> {
+	if (!target.pool) return;
 	const checksum = crypto.createHash("sha1").update(sql).digest("hex");
-	const existing = (await client.$queryRawUnsafe(
-		`SELECT id FROM "${PRISMA_TABLE}" WHERE migration_name = $1 LIMIT 1`,
-		name,
-	)) as Array<{ id: string }>;
+	const { rows: existing } = await target.pool.query<{ id: string }>({
+		text: `SELECT id FROM "${PRISMA_TABLE}" WHERE migration_name = $1 LIMIT 1`,
+		values: [name],
+	});
 	if (existing.length > 0) {
-		await client.$queryRawUnsafe(
-			`UPDATE "${PRISMA_TABLE}" SET finished_at = NOW(), logs = $2, checksum = $3, rolled_back_at = NULL WHERE id = $1`,
-			existing[0].id,
-			logs,
-			checksum,
-		);
+		await target.pool.query({
+			text: `UPDATE "${PRISMA_TABLE}" SET finished_at = NOW(), logs = $2, checksum = $3, rolled_back_at = NULL WHERE id = $1`,
+			values: [existing[0].id, logs, checksum],
+		});
 	} else {
-		await client.$queryRawUnsafe(
-			`INSERT INTO "${PRISMA_TABLE}" (id, migration_name, finished_at, applied_steps_count, logs, checksum)
-			 VALUES ($1, $2, NOW(), $3, $4, $5)`,
-			crypto.randomUUID(),
-			name,
-			1,
-			logs,
-			checksum,
-		);
+		await target.pool.query({
+			text: `INSERT INTO "${PRISMA_TABLE}" (id, migration_name, finished_at, applied_steps_count, logs, checksum)
+				 VALUES ($1, $2, NOW(), $3, $4, $5)`,
+			values: [crypto.randomUUID(), name, 1, logs, checksum],
+		});
 	}
 }
 
@@ -268,7 +265,8 @@ async function recordMigration(client: any, name: string, sql: string, logs: str
  * exist" sao tratados como sucesso (statements sao idempotentes por IF EXISTS/IF
  * NOT EXISTS). Records a migration como aplicada.
  */
-async function applyMigration(target: any, migration: MigrationFile): Promise<{ applied: number; skipped: number }> {
+async function applyMigration(target: DatabaseEntry, migration: MigrationFile): Promise<{ applied: number; skipped: number }> {
+	if (!target.pool) return { applied: 0, skipped: 0 };
 	const statements = splitStatements(migration.sql).map(classifyStatement);
 	let applied = 0;
 	let skipped = 0;
@@ -283,7 +281,7 @@ async function applyMigration(target: any, migration: MigrationFile): Promise<{ 
 			continue;
 		}
 		try {
-			await target.$queryRawUnsafe(s.sql);
+			await target.pool.query(s.sql);
 			applied++;
 		} catch (err: any) {
 			const msg = err?.message || "";
@@ -315,17 +313,17 @@ async function applyMigration(target: any, migration: MigrationFile): Promise<{ 
  * criacao automatica exigiria reproduzir constraints/indices; deixamos para
  * operacao manual. Esta funcao foca em colunas adicionadas (caso tipico do db push).
  */
-async function reconcileSchemaDrift(target: any, source: any): Promise<{ columnsAdded: number }> {
-	const sourceTabs = (await source.$queryRawUnsafe(
-		`SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
-	)) as Array<{ tablename: string }>;
-	const targetTabsSet = new Set(
-		(
-			(await target.$queryRawUnsafe(`SELECT tablename FROM pg_tables WHERE schemaname = 'public'`)) as Array<{
-				tablename: string;
-			}>
-		).map((t) => t.tablename),
-	);
+async function reconcileSchemaDrift(target: DatabaseEntry, source: DatabaseEntry): Promise<{ columnsAdded: number }> {
+	if (!target.pool || !source.pool) return { columnsAdded: 0 };
+	const { rows: sourceTabs } = await source.pool.query<{ tablename: string }>({
+		text: `SELECT tablename FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
+		values: [],
+	});
+	const { rows: targetTabs } = await target.pool.query<{ tablename: string }>({
+		text: `SELECT tablename FROM pg_tables WHERE schemaname = 'public'`,
+		values: [],
+	});
+	const targetTabsSet = new Set(targetTabs.map((t) => t.tablename));
 
 	let columnsAdded = 0;
 	for (const { tablename } of sourceTabs) {
@@ -337,24 +335,21 @@ async function reconcileSchemaDrift(target: any, source: any): Promise<{ columns
 			continue;
 		}
 
-		const srcCols = (await source.$queryRawUnsafe(
-			`SELECT column_name, data_type, column_default, is_nullable
-			 FROM information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position`,
-			tablename,
-		)) as Array<{
+		const { rows: srcCols } = await source.pool.query<{
 			column_name: string;
 			data_type: string;
 			column_default: string | null;
 			is_nullable: string;
-		}>;
-		const tgtColsSet = new Set(
-			(
-				(await target.$queryRawUnsafe(
-					`SELECT column_name FROM information_schema.columns WHERE table_name = $1`,
-					tablename,
-				)) as Array<{ column_name: string }>
-			).map((c) => c.column_name),
-		);
+		}>({
+			text: `SELECT column_name, data_type, column_default, is_nullable
+				 FROM information_schema.columns WHERE table_name = $1 ORDER BY ordinal_position`,
+			values: [tablename],
+		});
+		const { rows: tgtCols } = await target.pool.query<{ column_name: string }>({
+			text: `SELECT column_name FROM information_schema.columns WHERE table_name = $1`,
+			values: [tablename],
+		});
+		const tgtColsSet = new Set(tgtCols.map((c) => c.column_name));
 
 		for (const col of srcCols) {
 			if (tgtColsSet.has(col.column_name)) continue;
@@ -366,7 +361,7 @@ async function reconcileSchemaDrift(target: any, source: any): Promise<{ columns
 					" ",
 				);
 			try {
-				await target.$queryRawUnsafe(sql);
+				await target.pool.query(sql);
 				columnsAdded++;
 				stats.statementsApplied++;
 				logger.info(`[DB-MIG] drift: adicionado "${tablename}"."${col.column_name}"`);
@@ -387,8 +382,8 @@ async function reconcileSchemaDrift(target: any, source: any): Promise<{ columns
 export async function syncMigrationsToTarget(
 	targetName: string,
 ): Promise<{ applied: number; skipped: number; migrations: number }> {
-	const target = dbRegistry.getAll().find((e) => e.name === targetName);
-	if (!target?.client) {
+	const target = dbRegistry.getByName(targetName);
+	if (!target?.pool) {
 		return { applied: 0, skipped: 0, migrations: 0 };
 	}
 	const primary = dbRegistry.getPrimary();
@@ -396,7 +391,7 @@ export async function syncMigrationsToTarget(
 		logger.info(`[DB-MIG] ${targetName} e primaria — pulando sync de migrations`);
 		return { applied: 0, skipped: 0, migrations: 0 };
 	}
-	if (!primary?.client) {
+	if (!primary?.pool) {
 		logger.warn(`[DB-MIG] sem primaria saudavel para comparar drift`);
 		return { applied: 0, skipped: 0, migrations: 0 };
 	}
@@ -409,7 +404,7 @@ export async function syncMigrationsToTarget(
 	isRunning = true;
 	try {
 		const files = listMigrationFiles();
-		const appliedSet = await getAppliedMigrations(target.client);
+		const appliedSet = await getAppliedMigrations(target);
 		const pending = files.filter((f) => !appliedSet.has(f.name));
 
 		stats.runs++;
@@ -423,7 +418,7 @@ export async function syncMigrationsToTarget(
 			);
 			for (const m of pending) {
 				try {
-					const r = await applyMigration(target.client, m);
+					const r = await applyMigration(target, m);
 					totalApplied += r.applied;
 					totalSkipped += r.skipped;
 					stats.migrationsApplied++;
@@ -441,7 +436,7 @@ export async function syncMigrationsToTarget(
 
 		// Reconcilia drift de schema (colunas adicionadas via db push na primaria).
 		// Sempre roda — nao tem custo se schemas estao alinhados.
-		const drift = await reconcileSchemaDrift(target.client, primary.client);
+		const drift = await reconcileSchemaDrift(target, primary);
 		if (drift.columnsAdded > 0) {
 			logger.info(`[DB-MIG] ${targetName}: drift reconciliado (+${drift.columnsAdded} colunas)`);
 		}

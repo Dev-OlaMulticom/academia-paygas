@@ -233,10 +233,10 @@ app.get("/health", async (_req, res) => {
 	try {
 		const { dbRegistry } = await import("./config/databases");
 		const primary = dbRegistry.getPrimary();
-		if (!primary?.client) {
+		if (!primary?.pool) {
 			return res.status(503).json({ status: "error", message: "no database" });
 		}
-		await primary.client.$queryRaw`SELECT 1`;
+		await primary.pool.query("SELECT 1");
 		res.status(200).json({ status: "ok", uptime: process.uptime() });
 	} catch (err: any) {
 		res.status(503).json({ status: "error", message: err.message });
