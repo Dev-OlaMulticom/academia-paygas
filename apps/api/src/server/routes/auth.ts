@@ -1,7 +1,7 @@
 import bcrypt from "bcryptjs";
 import { Router } from "express";
 import jwt from "jsonwebtoken";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { type AuthRequest, authenticate, JWT_SECRET } from "../middleware/auth";
 import { isEmailConfigured, sendPasswordResetEmail } from "../services/email";
@@ -14,6 +14,19 @@ const router = Router();
 // Mount Acesso PayGas routes under /api/auth/paygas-*
 router.use("/paygas", payGasRoutes);
 
+async function getEstabelecimento(estabelecimentoId: string | null | undefined) {
+	if (!estabelecimentoId) return null;
+	const e = await drizzleDb.findUnique("estabelecimento", { id: estabelecimentoId });
+	return e
+		? {
+				id: e.id,
+				nome: e.nome,
+				cidade: e.cidade,
+				uf: e.uf,
+			}
+		: null;
+}
+
 // POST /api/auth/login
 router.post("/login", async (req, res) => {
 	try {
@@ -22,7 +35,7 @@ router.post("/login", async (req, res) => {
 			return res.status(400).json({ error: "Email e senha são obrigatórios" });
 		}
 
-		const user = (await db.findUnique("user", { email })) as any;
+		const user = (await drizzleDb.findUnique("user", { email })) as any;
 		if (!user) {
 			logger.warn(`[AUTH LOGIN] Usuario nao encontrado: ${email}`);
 			return res.status(401).json({ error: "Credenciais inválidas" });
@@ -34,7 +47,7 @@ router.post("/login", async (req, res) => {
 			return res.status(401).json({ error: "Credenciais inválidas" });
 		}
 
-		await db.update("user", { id: user.id }, { lastLogin: new Date() });
+		await drizzleDb.update("user", { id: user.id }, { lastLogin: new Date() });
 
 		// Award login points (max once per day)
 		await awardLoginPointsDaily(user.id);
@@ -44,6 +57,8 @@ router.post("/login", async (req, res) => {
 		const token = jwt.sign({ userId: user.id, role: user.role, gestorId: user.gestorId || null }, JWT_SECRET, {
 			expiresIn: "24h",
 		});
+
+		const estabelecimento = await getEstabelecimento(user.estabelecimentoId);
 
 		res.json({
 			token,
@@ -55,14 +70,7 @@ router.post("/login", async (req, res) => {
 				xp: user.xp,
 				gestorId: user.gestorId,
 				perfil: user.perfil,
-				estabelecimento: user.estabelecimento
-					? {
-							id: user.estabelecimento.id,
-							nome: user.estabelecimento.nome,
-							cidade: user.estabelecimento.cidade,
-							uf: user.estabelecimento.uf,
-						}
-					: null,
+				estabelecimento,
 			},
 		});
 	} catch (error) {
@@ -74,8 +82,11 @@ router.post("/login", async (req, res) => {
 // GET /api/auth/me
 router.get("/me", authenticate, async (req: AuthRequest, res) => {
 	try {
-		const user = (await db.findUnique("user", { id: req.userId! }, { include: { estabelecimento: true } })) as any;
+		const user = (await drizzleDb.findUnique("user", { id: req.userId! })) as any;
 		if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
+
+		const estabelecimento = await getEstabelecimento(user.estabelecimentoId);
+
 		res.json({
 			id: user.id,
 			email: user.email,
@@ -84,14 +95,7 @@ router.get("/me", authenticate, async (req: AuthRequest, res) => {
 			xp: user.xp,
 			gestorId: user.gestorId,
 			perfil: user.perfil,
-			estabelecimento: user.estabelecimento
-				? {
-						id: user.estabelecimento.id,
-						nome: user.estabelecimento.nome,
-						cidade: user.estabelecimento.cidade,
-						uf: user.estabelecimento.uf,
-					}
-				: null,
+			estabelecimento,
 			createdAt: user.createdAt,
 			lastLogin: user.lastLogin,
 		});
@@ -109,7 +113,7 @@ router.get("/verify-email", async (req, res) => {
 			return res.status(400).json({ error: "Token de verificacao invalido" });
 		}
 
-		const user = (await db.findFirst("user", { tokenVerificacao: token })) as any;
+		const user = (await drizzleDb.findFirst("user", { tokenVerificacao: token })) as any;
 
 		if (!user) {
 			return res.status(404).json({ error: "Token invalido ou expirado" });
@@ -124,7 +128,7 @@ router.get("/verify-email", async (req, res) => {
 			return res.json({ message: "Email ja verificado", alreadyVerified: true });
 		}
 
-		await db.update(
+		await drizzleDb.update(
 			"user",
 			{ id: user.id },
 			{
@@ -154,7 +158,7 @@ router.post("/forgot-password", async (req, res) => {
 			return res.status(400).json({ error: "Email é obrigatório" });
 		}
 
-		const user = (await db.findUnique("user", { email })) as any;
+		const user = (await drizzleDb.findUnique("user", { email })) as any;
 		if (!user) {
 			// Silently succeed to prevent email enumeration
 			return res.json({ message: "Se o email estiver cadastrado, você receberá um código de redefinição." });
@@ -163,7 +167,7 @@ router.post("/forgot-password", async (req, res) => {
 		const code = Math.floor(100000 + Math.random() * 900000).toString();
 		const expiry = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-		await db.update(
+		await drizzleDb.update(
 			"user",
 			{ id: user.id },
 			{
@@ -202,14 +206,14 @@ router.post("/reset-password", async (req, res) => {
 			return res.status(400).json({ error: "A senha deve ter pelo menos 8 caracteres" });
 		}
 
-		const user = (await db.findUnique("user", { email })) as any;
+		const user = (await drizzleDb.findUnique("user", { email })) as any;
 		if (!user || user.tokenRecuperacao !== code) {
 			return res.status(400).json({ error: "Código inválido ou email incorreto" });
 		}
 
 		if (user.tokenRecuperacaoExpiry && new Date() > user.tokenRecuperacaoExpiry) {
 			// Clear expired token
-			await db.update(
+			await drizzleDb.update(
 				"user",
 				{ id: user.id },
 				{
@@ -221,7 +225,7 @@ router.post("/reset-password", async (req, res) => {
 		}
 
 		const hashedPassword = await bcrypt.hash(newPassword, 12);
-		await db.update(
+		await drizzleDb.update(
 			"user",
 			{ id: user.id },
 			{
