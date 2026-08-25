@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { authenticate } from "../middleware/auth";
 import { getTeamPoints, getUserPoints } from "../services/gamification";
@@ -21,16 +21,16 @@ router.get("/", authenticate, async (req: any, res) => {
 			recentActivity,
 			userPoints,
 		] = await Promise.all([
-			db.count("curso"),
-			db.groupBy("progresso", {
+			drizzleDb.count("curso"),
+			drizzleDb.groupBy("progresso", {
 				by: ["cursoId"],
 				where: { userId, concluido: true },
 			}),
-			db.count("certificate", { userId, status: "ISSUED" }),
-			db.count("aula"),
-			db.count("progresso", { userId, concluido: true }),
-			db.count("quizResponse", { userId, concluido: true }),
-			db.findMany("activityLog", {
+			drizzleDb.count("certificate", { userId, status: "ISSUED" }),
+			drizzleDb.count("aula"),
+			drizzleDb.count("progresso", { userId, concluido: true }),
+			drizzleDb.count("quizResponse", { userId, concluido: true }),
+			drizzleDb.findMany("activityLog", {
 				where: { userId },
 				take: 5,
 				orderBy: { createdAt: "desc" },

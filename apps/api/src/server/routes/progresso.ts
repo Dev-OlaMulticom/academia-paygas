@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { authenticate } from "../middleware/auth";
 import { awardPointsIfNotAwarded } from "../services/gamification";
@@ -10,7 +10,7 @@ const router = Router();
 // GET /api/progresso
 router.get("/", authenticate, async (req: any, res) => {
 	try {
-		const progresso = await db.findMany("progresso", {
+		const progresso = await drizzleDb.findMany("progresso", {
 			where: { userId: req.userId },
 		});
 		res.json(progresso);
@@ -28,35 +28,37 @@ router.put("/", authenticate, async (req: any, res) => {
 			return res.status(400).json({ error: "cursoId e aulaId são obrigatórios" });
 		}
 
-		const existing = await db.findFirst("progresso", {
+		const existing = await drizzleDb.findFirst("progresso", {
 			cursoId,
 			aulaId,
 			userId: req.userId,
 		});
 
-		const progresso = await db.upsert(
+		const progresso = await drizzleDb.upsert(
 			"progresso",
-			{ cursoId_aulaId_userId: { cursoId, aulaId, userId: req.userId } },
+			{ cursoId, aulaId, userId: req.userId },
 			{ cursoId, aulaId, userId: req.userId, concluido: concluido !== false },
 			{ concluido: concluido !== false },
 		);
 
 		// Award points for lesson completion (only if newly completed)
 		if (!existing?.concluido && concluido !== false) {
-			const aula = (await db.findUnique("aula", { id: aulaId })) as any;
+			const aula = (await drizzleDb.findUnique("aula", { id: aulaId })) as any;
 			await awardPointsIfNotAwarded(req.userId, "LESSON_COMPLETE", `LESSON_COMPLETE:aula:${aulaId}`);
 			await logActivity(req.userId, "Aula Concluida", `Aula: ${aula?.titulo || aulaId}`);
 
 			// Check if all aulas in the curso are completed
-			const curso = (await db.findUnique("curso", { id: cursoId })) as any;
+			const curso = (await drizzleDb.findUnique("curso", { id: cursoId })) as any;
 			if (curso) {
-				const completedCount = await db.count("progresso", {
+				const completedCount = await drizzleDb.count("progresso", {
 					cursoId,
 					userId: req.userId,
 					concluido: true,
 				});
 
-				if (completedCount >= curso.aulas?.length) {
+				const aulas = (await drizzleDb.findMany("aula", { where: { cursoId } })) as any[];
+
+				if (completedCount >= aulas.length) {
 					await awardPointsIfNotAwarded(req.userId, "MODULE_COMPLETE", `MODULE_COMPLETE:curso:${cursoId}`);
 					await logActivity(req.userId, "Curso Concluido", `Curso: ${curso.titulo}`);
 				}
@@ -73,18 +75,18 @@ router.put("/", authenticate, async (req: any, res) => {
 // GET /api/progresso/stats
 router.get("/stats", authenticate, async (req: any, res) => {
 	try {
-		const totalAulas = await db.count("aula");
-		const concluidas = await db.count("progresso", {
+		const totalAulas = await drizzleDb.count("aula");
+		const concluidas = await drizzleDb.count("progresso", {
 			userId: req.userId,
 			concluido: true,
 		});
 
-		const cursosIniciados = await db.groupBy("progresso", {
+		const cursosIniciados = await drizzleDb.groupBy("progresso", {
 			by: ["cursoId"],
 			where: { userId: req.userId },
 		});
 
-		const user = (await db.findUnique("user", { id: req.userId })) as any;
+		const user = (await drizzleDb.findUnique("user", { id: req.userId })) as any;
 
 		res.json({
 			totalAulas,
@@ -105,10 +107,10 @@ router.post("/restart-request", authenticate, async (req: any, res) => {
 		const { cursoId, aulaId } = req.body;
 		if (!cursoId) return res.status(400).json({ error: "cursoId é obrigatório" });
 
-		const user = (await db.findUnique("user", { id: req.userId })) as any;
+		const user = (await drizzleDb.findUnique("user", { id: req.userId })) as any;
 		if (!user) return res.status(404).json({ error: "Usuário não encontrado" });
 
-		const curso = (await db.findUnique("curso", { id: cursoId })) as any;
+		const curso = (await drizzleDb.findUnique("curso", { id: cursoId })) as any;
 		const cursoTitulo = curso?.titulo || cursoId;
 
 		// Determine recipient: gestor or admin
@@ -116,7 +118,7 @@ router.post("/restart-request", authenticate, async (req: any, res) => {
 		let targetType = "GESTOR";
 		if (!targetId) {
 			// No gestor — find first admin
-			const admin = await db.findFirst("user", { role: "ADMIN" }, { select: { id: true } });
+			const admin = await drizzleDb.findFirst("user", { role: "ADMIN" }, { select: { id: true } });
 			targetId = admin?.id || null;
 			targetType = "ADMIN";
 		}
@@ -129,7 +131,7 @@ router.post("/restart-request", authenticate, async (req: any, res) => {
 		const titulo = `Solicitação de Reinício`;
 		const mensagem = `${user.nome} (${user.role}) solicitou reinício de progresso da ${scope}.`;
 
-		await db.create("notification", {
+		await drizzleDb.create("notification", {
 			fromId: req.userId,
 			toId: targetId,
 			titulo,
@@ -160,8 +162,8 @@ router.put("/restart", authenticate, async (req: any, res) => {
 			return res.status(400).json({ error: "userId e cursoId são obrigatórios" });
 		}
 
-		const requester = (await db.findUnique("user", { id: req.userId })) as any;
-		const targetUser = (await db.findUnique("user", { id: userId })) as any;
+		const requester = (await drizzleDb.findUnique("user", { id: req.userId })) as any;
+		const targetUser = (await drizzleDb.findUnique("user", { id: userId })) as any;
 		if (!targetUser) return res.status(404).json({ error: "Usuário alvo não encontrado" });
 
 		// Authorization: ADMIN can restart anyone, GESTOR only their team
@@ -173,25 +175,30 @@ router.put("/restart", authenticate, async (req: any, res) => {
 		if (aulaId) where.aulaId = aulaId;
 
 		// Logical restart: mark as restarted, increment count, set concluido=false
-		const result = await db.updateMany("progresso", where, {
-			concluido: false,
-			reiniciado: true,
-			restartCount: { increment: 1 },
-		});
+		const toRestart = await drizzleDb.findMany("progresso", { where });
+		const updated = await Promise.all(
+			toRestart.map((p: any) =>
+				drizzleDb.update("progresso", { id: p.id }, {
+					concluido: false,
+					reiniciado: true,
+					restartCount: (p.restartCount ?? 0) + 1,
+				}),
+			),
+		);
 
-		const curso = (await db.findUnique("curso", { id: cursoId })) as any;
+		const curso = (await drizzleDb.findUnique("curso", { id: cursoId })) as any;
 		const scope = aulaId ? `aula` : `curso "${curso?.titulo || cursoId}"`;
 		await logActivity(req.userId, "Reinício Aprovado", `Reiniciou progresso de ${scope} para ${targetUser.nome}`);
 
 		// Notify the user that their restart was approved
-		await db.create("notification", {
+		await drizzleDb.create("notification", {
 			fromId: req.userId,
 			toId: userId,
 			titulo: "Reinício Aprovado",
 			mensagem: `Seu pedido de reinício do ${scope} foi aprovado. Você pode recomeçar do zero.`,
 		});
 
-		res.json({ success: true, updated: result.count });
+		res.json({ success: true, updated: updated.length });
 	} catch (error) {
 		logger.error("[ROUTE ERROR]", error);
 		res.status(500).json({ error: "Erro ao reiniciar progresso" });
