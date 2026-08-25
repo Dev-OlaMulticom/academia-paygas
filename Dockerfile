@@ -33,7 +33,8 @@ COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
 COPY --from=builder /app/prisma/generated/mysql ./prisma/generated/mysql
 COPY --from=builder /app/package.json ./
-RUN pnpm install --frozen-lockfile --prod && pnpm prune --prod || true
+RUN pnpm install --frozen-lockfile --prod && (pnpm prune --prod || true)
+RUN pnpm prisma generate --schema=packages/db/prisma/schema.prisma && pnpm prisma generate --schema=packages/db/prisma/schema.mysql.prisma
 RUN chown -R app:app /app
 USER app
 EXPOSE 3001
