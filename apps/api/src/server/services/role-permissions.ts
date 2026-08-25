@@ -8,7 +8,7 @@
  */
 
 import logger from "../lib/logger";
-import { prisma } from "../lib/prisma";
+import { drizzleDb } from "../lib/drizzle-db";
 
 const CACHE_TTL_MS = 60_000; // 60 seconds
 
@@ -31,7 +31,7 @@ let lastFetch = 0;
 let refreshPromise: Promise<void> | null = null;
 
 async function refreshCache(): Promise<void> {
-	const rows = await prisma.roleConfig.findMany({
+	const rows = await drizzleDb.findMany("roleConfig", {
 		where: { ativo: true },
 		orderBy: { ordem: "asc" },
 	});
