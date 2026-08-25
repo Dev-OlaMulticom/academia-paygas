@@ -54,10 +54,6 @@ async function pingAllDatabases(): Promise<void> {
  * Pings all databases every 12 hours. First ping after 5 minutes.
  */
 export function startKeepAlive() {
-	if (process.env.MICRO_MODE === "1") {
-		logger.info("[KEEP-ALIVE] MICRO_MODE: keep-alive desativado");
-		return;
-	}
 	if (keepAliveInterval || keepAliveTimeout) {
 		logger.info("[KEEP-ALIVE] Already running");
 		return;

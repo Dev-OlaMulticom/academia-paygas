@@ -339,8 +339,11 @@ if (require.main === module) {
 	if (disableInfra) {
 		logger.info("[DB-INFRA] Desativado via DB_INFRA_OFF=1");
 	} else if (microMode) {
-		logger.info("[DB-INFRA] MICRO_MODE ativo: somente health checks (60s)");
+		logger.info("[DB-INFRA] MICRO_MODE ativo: health (60s) + keep-alive");
 		startHealthChecks();
+		// Keep-alive is required on free-tier databases that sleep after inactivity.
+		// Interval is still configurable via KEEPALIVE_INTERVAL_MS.
+		startKeepAlive();
 	} else {
 		// Keep-alive: evita pausa das free-tiers (Supabase/Nhost)
 		startKeepAlive();
