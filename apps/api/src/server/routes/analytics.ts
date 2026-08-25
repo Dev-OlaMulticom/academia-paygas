@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { type AuthRequest, authenticate } from "../middleware/auth";
 import { getAllRoleConfigs } from "../services/role-permissions";
@@ -13,20 +13,20 @@ router.get("/overview", authenticate, async (_req: AuthRequest, res) => {
 		const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
 		const [totalUsers, totalAulas, _totalProgressos, totalCertificates, quizzesAprovados] = await Promise.all([
-			db.count("user"),
-			db.count("aula"),
-			db.count("progresso", { concluido: true }),
-			db.count("certificate"),
-			db.count("quizResponse", { concluido: true }),
+			drizzleDb.count("user"),
+			drizzleDb.count("aula"),
+			drizzleDb.count("progresso", { concluido: true }),
+			drizzleDb.count("certificate"),
+			drizzleDb.count("quizResponse", { concluido: true }),
 		]);
 
-		const totalModulos = await db.count("curso");
+		const totalModulos = await drizzleDb.count("curso");
 
-		const progressosMes = await db.count("progresso", {
+		const progressosMes = await drizzleDb.count("progresso", {
 			createdAt: { gte: thirtyDaysAgo },
 		});
 
-		const usersMes = await db.count("user", {
+		const usersMes = await drizzleDb.count("user", {
 			createdAt: { gte: thirtyDaysAgo },
 		});
 
@@ -51,23 +51,36 @@ router.get("/overview", authenticate, async (_req: AuthRequest, res) => {
 // GET /api/analytics/modules
 router.get("/modules", authenticate, async (_req: AuthRequest, res) => {
 	try {
-		const cursos = await db.findMany("curso", {
-			include: {
-				aulas: {
-					include: {
-						progressos: { select: { id: true, concluido: true } },
-					},
-				},
-			},
-		});
+		const [cursos, aulas, progressos] = await Promise.all([
+			drizzleDb.findMany("curso"),
+			drizzleDb.findMany("aula"),
+			drizzleDb.findMany("progresso", { where: { concluido: true } }),
+		]);
 
-		const _totalUsers = await db.count("user");
+		const aulasByCurso = new Map<string, any[]>();
+		for (const a of aulas) {
+			const list = aulasByCurso.get(a.cursoId) || [];
+			list.push(a);
+			aulasByCurso.set(a.cursoId, list);
+		}
+
+		const progressoByAula = new Map<string, any[]>();
+		for (const p of progressos) {
+			const list = progressoByAula.get(p.aulaId) || [];
+			list.push(p);
+			progressoByAula.set(p.aulaId, list);
+		}
 
 		const result = cursos
 			.map((m: any) => {
-				const totalAcessos = m.aulas.reduce((sum: number, a: any) => sum + a.progressos.length, 0);
-				const totalConcluidos = m.aulas.reduce(
-					(sum: number, a: any) => sum + a.progressos.filter((p: any) => p.concluido).length,
+				const cursoAulas = aulasByCurso.get(m.id) || [];
+				const totalAcessos = cursoAulas.reduce(
+					(sum: number, a: any) => sum + (progressoByAula.get(a.id)?.length || 0),
+					0,
+				);
+				const totalConcluidos = cursoAulas.reduce(
+					(sum: number, a: any) =>
+						sum + (progressoByAula.get(a.id)?.filter((p: any) => p.concluido).length || 0),
 					0,
 				);
 				return {
@@ -88,7 +101,7 @@ router.get("/modules", authenticate, async (_req: AuthRequest, res) => {
 // GET /api/analytics/personas
 router.get("/personas", authenticate, async (_req: AuthRequest, res) => {
 	try {
-		const users = await db.groupBy("user", {
+		const users = await drizzleDb.groupBy("user", {
 			by: ["role"],
 			_count: { id: true },
 			_avg: { xp: true },
@@ -114,9 +127,7 @@ router.get("/personas", authenticate, async (_req: AuthRequest, res) => {
 // GET /api/analytics/regions
 router.get("/regions", authenticate, async (_req: AuthRequest, res) => {
 	try {
-		const users = await db.findMany("user", {
-			select: { xp: true, progressos: { select: { concluido: true } } },
-		});
+		const total = await drizzleDb.count("user");
 
 		const regionData = [
 			{ name: "Norte", icon: "🌿", users: 0, pct: 0, growth: "+12%" },
@@ -126,12 +137,11 @@ router.get("/regions", authenticate, async (_req: AuthRequest, res) => {
 			{ name: "Sul", icon: "⛵", users: 0, pct: 0, growth: "+15%" },
 		];
 
-		const total = users.length || 1;
 		const totalRegions = regionData.length;
 
 		regionData.forEach((r) => {
 			r.users = Math.round(total / totalRegions);
-			r.pct = Math.round((r.users / total) * 100);
+			r.pct = Math.round((r.users / Math.max(total, 1)) * 100);
 		});
 
 		res.json(regionData);
@@ -144,7 +154,7 @@ router.get("/regions", authenticate, async (_req: AuthRequest, res) => {
 // GET /api/analytics/municipios
 router.get("/municipios", authenticate, async (_req: AuthRequest, res) => {
 	try {
-		const totalUsers = await db.count("user");
+		const totalUsers = await drizzleDb.count("user");
 
 		const municipios = [
 			{

@@ -71,47 +71,48 @@ function buildCondition(table: any, key: string, value: any): any {
 		const conditions: any[] = [];
 		for (const [op, operand] of opEntries) {
 			const col = table[key];
-			switch (op) {
-				case "$eq":
+			const opKey = op.replace(/^\$/, "");
+			switch (opKey) {
+				case "eq":
 					conditions.push(eq(col, operand));
 					break;
-				case "$ne":
+				case "ne":
 					conditions.push(ne(col, operand));
 					break;
-				case "$gt":
+				case "gt":
 					conditions.push(gt(col, operand));
 					break;
-				case "$gte":
+				case "gte":
 					conditions.push(gte(col, operand));
 					break;
-				case "$lt":
+				case "lt":
 					conditions.push(lt(col, operand));
 					break;
-				case "$lte":
+				case "lte":
 					conditions.push(lte(col, operand));
 					break;
-				case "$in":
+				case "in":
 					conditions.push(inArray(col, Array.isArray(operand) ? operand : [operand]));
 					break;
-				case "$nin":
+				case "nin":
 					conditions.push(notInArray(col, Array.isArray(operand) ? operand : [operand]));
 					break;
-				case "$contains":
+				case "contains":
 					conditions.push(like(col, `%${operand}%`));
 					break;
-				case "$icontains":
+				case "icontains":
 					conditions.push(ilike(col, `%${operand}%`));
 					break;
-				case "$startsWith":
+				case "startsWith":
 					conditions.push(like(col, `${operand}%`));
 					break;
-				case "$istartsWith":
+				case "istartsWith":
 					conditions.push(ilike(col, `${operand}%`));
 					break;
-				case "$endsWith":
+				case "endsWith":
 					conditions.push(like(col, `%${operand}`));
 					break;
-				case "$iendsWith":
+				case "iendsWith":
 					conditions.push(ilike(col, `%${operand}`));
 					break;
 				default:
@@ -606,6 +607,8 @@ export const drizzleDb = {
 			where?: Record<string, any>;
 			_sum?: Record<string, boolean>;
 			_avg?: Record<string, boolean>;
+			_max?: Record<string, boolean>;
+			_min?: Record<string, boolean>;
 			_count?: Record<string, boolean> | Record<string, Record<string, boolean>> | boolean;
 			orderBy?: Record<string, any>;
 			take?: number;
@@ -633,7 +636,33 @@ export const drizzleDb = {
 		const orderBy = buildOrderBy(table, options.orderBy);
 		if (orderBy) q = q.orderBy(...orderBy);
 		if (options.take) q = q.limit(options.take);
-		return (await q) as any[];
+		const raw = (await q) as any[];
+		return raw.map((row) => {
+			const out: any = {};
+			for (const key of options.by) out[key] = row[key];
+			const counts: Record<string, any> = {};
+			if (typeof options._count === "object" && options._count) {
+				for (const [k, v] of Object.entries(options._count)) {
+					if (v) counts[k] = row[`_count_${k}`];
+				}
+			} else if (typeof options._count === "boolean" && options._count) {
+				out._count = row._count;
+			}
+			if (Object.keys(counts).length) out._count = counts;
+			const sums: Record<string, any> = {};
+			if (options._sum) for (const [k, v] of Object.entries(options._sum)) if (v) sums[k] = row[`_sum_${k}`];
+			if (Object.keys(sums).length) out._sum = sums;
+			const avgs: Record<string, any> = {};
+			if (options._avg) for (const [k, v] of Object.entries(options._avg)) if (v) avgs[k] = row[`_avg_${k}`];
+			if (Object.keys(avgs).length) out._avg = avgs;
+			const maxs: Record<string, any> = {};
+			if (options._max) for (const [k, v] of Object.entries(options._max)) if (v) maxs[k] = row[`_max_${k}`];
+			if (Object.keys(maxs).length) out._max = maxs;
+			const mins: Record<string, any> = {};
+			if (options._min) for (const [k, v] of Object.entries(options._min)) if (v) mins[k] = row[`_min_${k}`];
+			if (Object.keys(mins).length) out._min = mins;
+			return out;
+		});
 	},
 
 	invalidateDelegateCache: invalidateDrizzleDelegateCache,
