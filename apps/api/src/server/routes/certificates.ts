@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db } from "../lib/db";
+import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { authenticate, authorize } from "../middleware/auth";
 import { logActivity } from "../services/log";
@@ -21,7 +21,7 @@ router.get("/", authenticate, async (req: any, res) => {
 			where = {};
 		} else if (req.userRole === "GESTOR") {
 			// Gestor sees own + team members' certificates
-			const teamMembers = await db.findMany("user", {
+			const teamMembers = await drizzleDb.findMany("user", {
 				where: { gestorId: req.userId },
 				select: { id: true },
 			});
@@ -33,25 +33,44 @@ router.get("/", authenticate, async (req: any, res) => {
 		}
 
 		const [certs, total] = await Promise.all([
-			db.findMany("certificate", {
+			drizzleDb.findMany("certificate", {
 				where,
 				orderBy: { createdAt: "desc" },
 				skip,
 				take: limit,
-				include: {
-					user: {
-						select: { id: true, nome: true, email: true, role: true, gestorId: true },
-					},
-					curso: {
-						select: { id: true, titulo: true, icone: true, certificadoTemplate: true },
-					},
-				},
 			}),
-			db.count("certificate", where),
+			drizzleDb.count("certificate", where),
 		]);
 
+		const userIds = [...new Set(certs.map((c: any) => c.userId))];
+		const cursoIds = [...new Set(certs.map((c: any) => c.cursoId))];
+
+		const [users, cursos] = await Promise.all([
+			userIds.length
+				? drizzleDb.findMany("user", {
+						where: { id: { in: userIds } },
+						select: { id: true, nome: true, email: true, role: true, gestorId: true },
+				  })
+				: [],
+			cursoIds.length
+				? drizzleDb.findMany("curso", {
+						where: { id: { in: cursoIds } },
+						select: { id: true, titulo: true, icone: true, certificadoTemplate: true },
+				  })
+				: [],
+		]);
+
+		const userById = new Map(users.map((u: any) => [u.id, u]));
+		const cursoById = new Map(cursos.map((c: any) => [c.id, c]));
+
+		const data = certs.map((cert: any) => ({
+			...cert,
+			user: userById.get(cert.userId) || null,
+			curso: cursoById.get(cert.cursoId) || null,
+		}));
+
 		res.json({
-			data: certs,
+			data,
 			pagination: {
 				page,
 				limit,
@@ -71,11 +90,11 @@ router.post("/", authenticate, async (req: any, res) => {
 		const { cursoId } = req.body;
 		if (!cursoId) return res.status(400).json({ error: "cursoId é obrigatório" });
 
-		const curso = (await db.findUnique("curso", { id: cursoId })) as any;
+		const curso = (await drizzleDb.findUnique("curso", { id: cursoId })) as any;
 		if (!curso) return res.status(404).json({ error: "Módulo não encontrado" });
 
-		const aulas = (await db.findMany("aula", { where: { cursoId } })) as any[];
-		const completedCount = await db.count("progresso", {
+		const aulas = (await drizzleDb.findMany("aula", { where: { cursoId } })) as any[];
+		const completedCount = await drizzleDb.count("progresso", {
 			cursoId,
 			userId: req.userId,
 			concluido: true,
@@ -86,9 +105,9 @@ router.post("/", authenticate, async (req: any, res) => {
 
 		// Atomic upsert to prevent race condition duplicates
 		const certStatus = curso.autoCertificado ? "APPROVED" : "PENDING";
-		const cert = (await db.upsert(
+		const cert = (await drizzleDb.upsert(
 			"certificate",
-			{ userId_cursoId: { userId: req.userId, cursoId } },
+			{ userId: req.userId, cursoId },
 			{ userId: req.userId, cursoId, status: certStatus },
 			{},
 		)) as any;
@@ -107,7 +126,7 @@ router.put("/:id/approve", authenticate, authorize("ADMIN"), async (req: any, re
 		const id = getStringParam(req.params.id);
 		if (!id) return res.status(400).json({ error: "ID inválido" });
 
-		const existing = (await db.findUnique("certificate", { id })) as any;
+		const existing = (await drizzleDb.findUnique("certificate", { id })) as any;
 		if (!existing) return res.status(404).json({ error: "Certificado não encontrado" });
 		if (existing.status !== "PENDING") {
 			return res.status(400).json({
@@ -115,7 +134,7 @@ router.put("/:id/approve", authenticate, authorize("ADMIN"), async (req: any, re
 			});
 		}
 
-		const cert = (await db.update(
+		const cert = (await drizzleDb.update(
 			"certificate",
 			{ id },
 			{
@@ -139,7 +158,7 @@ router.put("/:id/issue", authenticate, authorize("ADMIN"), async (req: any, res)
 		const id = getStringParam(req.params.id);
 		if (!id) return res.status(400).json({ error: "ID inválido" });
 
-		const existing = (await db.findUnique("certificate", { id })) as any;
+		const existing = (await drizzleDb.findUnique("certificate", { id })) as any;
 		if (!existing) return res.status(404).json({ error: "Certificado não encontrado" });
 		if (existing.status !== "APPROVED") {
 			return res.status(400).json({
@@ -147,7 +166,7 @@ router.put("/:id/issue", authenticate, authorize("ADMIN"), async (req: any, res)
 			});
 		}
 
-		const cert = (await db.update("certificate", { id }, { status: "ISSUED" })) as any;
+		const cert = (await drizzleDb.update("certificate", { id }, { status: "ISSUED" })) as any;
 
 		await logActivity(req.userId!, "Certificado Emitido", `Certificado: ${id}`);
 		res.json(cert);
