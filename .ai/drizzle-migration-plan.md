@@ -1,7 +1,8 @@
 # Plan de migración Prisma → Drizzle
 
 > **Status:** plan de referencia. No es una recomendación inmediata de ejecución.  
-> **Objetivo:** reemplazar completamente Prisma por Drizzle ORM en el backend (`apps/api`) manteniendo las mismas capacidades: multi-PostgreSQL failover, MySQL dual-write, health checks, sync y migrations.
+> **Objetivo:** reemplazar completamente Prisma por Drizzle ORM en el backend (`apps/api`) manteniendo las mismas capacidades: multi-PostgreSQL failover, MySQL dual-write, health checks, sync y migrations.  
+> **Política central:** cada fase se prueba y se comprueba antes de pasar a la siguiente. **No se avanza con gate rojo.**
 
 ---
 
@@ -22,6 +23,33 @@ La migración a Drizzle debe conservar:
 - `db-sync` y `db-migrations` para replicas.
 - `LISTEN/NOTIFY` de `db-realtime`.
 - Encriptación AES-256-GCM y auth JWT sin cambios de contrato.
+
+---
+
+## Política de gates y pruebas
+
+### Regla de oro
+
+**Cada fase tiene un gate. Si el gate no pasa, no se avanza.** El gate incluye código, tests y validación en un entorno no productivo.
+
+### Entorno de pruebas requerido
+
+- Base de datos PostgreSQL de staging con datos representativos.
+- Opcionalmente un segundo PG de backup para probar failover.
+- Container local o de staging con `MICRO_MODE=0` y `MICRO_MODE=1`.
+- Northflank staging o local con Dockerfile.
+
+### Checklist general antes de cada gate
+
+- [ ] `npx tsc --project tsconfig.server.json --noEmit` pasa sin errores.
+- [ ] `pnpm build` genera `dist/server/index.js` y `dist/client` sin fallos.
+- [ ] El contenedor Docker arranca y responde `GET /health`.
+- [ ] No hay errores de runtime en los logs del contenedor (30 min de uptime).
+- [ ] Se puede hacer rollback a la versión anterior en <10 minutos.
+
+### Rollback base
+
+Si cualquier fase falla, se revierte el PR/MR, se restaura la imagen anterior y se vuelve a `prisma`. No se intenta arreglar "en caliente" en producción.
 
 ---
 
@@ -47,7 +75,7 @@ No se reescribe todo de una vez. Se crea una **capa de DAL paralela en Drizzle**
 
 ---
 
-## Fase 0 — Preparación (1 semana)
+## Fase 0 — Preparación
 
 ### Objetivo
 Tener Drizzle instalado, un esquema PG traducido y una conexión funcional de prueba sin tocar producción.
@@ -67,13 +95,26 @@ Tener Drizzle instalado, un esquema PG traducido y una conexión funcional de pr
 5. Correr `npx drizzle-kit generate` y verificar que las migraciones son equivalentes a las de Prisma.
 6. Crear un script de prueba `packages/db/drizzle/test.ts` que conecte, lea un `User` y cierre. Validar tipos.
 
-### Checkpoint
-- [ ] `drizzle-kit generate` produce migraciones equivalentes.
-- [ ] Script de prueba lee/escribe una fila en PostgreSQL con tipos correctos.
+### Pruebas obligatorias
+
+- [ ] Comparar 1 a 1 las tablas: cada `model` de Prisma tiene una tabla en `schema.ts`.
+- [ ] Comparar tipos: `DateTime` → `timestamp`, `Json` → `jsonb`, `enum` → `pgEnum`.
+- [ ] Script `test.ts` lee y escribe una fila sin errores de tipo.
+- [ ] `npx tsc --noEmit` pasa con los nuevos esquemas.
+
+### Criterios de gate Fase 0
+
+- [ ] `drizzle-kit generate` produce migraciones equivalentes a las de Prisma.
+- [ ] Script de prueba lee/escribe `User` en PostgreSQL con tipos correctos.
+- [ ] Build del servidor no se rompe con las nuevas dependencias.
+
+### Si falla
+
+- Revisar mapeo de tipos y relaciones. No avanzar a Fase 1.
 
 ---
 
-## Fase 1 — DAL Drizzle + registry PG (1-2 semanas)
+## Fase 1 — DAL Drizzle + registry PG
 
 ### Objetivo
 Replicar la abstracción de `lib/db.ts` y `lib/db-models.ts` pero sobre Drizzle.
@@ -97,19 +138,28 @@ Replicar la abstracción de `lib/db.ts` y `lib/db-models.ts` pero sobre Drizzle.
 4. Implementar failover de lectura igual que hoy: reintentar en backups.
 5. Implementar escritura primaria + fire-and-forget a backups PG.
 
-### Decisiones importantes
+### Pruebas obligatorias
 
-- Usar `pg` nativo con un `Pool` por base de datos. Drizzle recibe el `Pool` o un cliente de `pg`.
-- No intentar reemplazar `db-registry` todavía; solo agregar el cliente Drizzle junto al Prisma.
+- [ ] Test unitario: `drizzle-db.create('user', ...)` devuelve el mismo objeto que Prisma.
+- [ ] Test unitario: `drizzle-db.findMany('curso', { where: { ativo: true } })` devuelve el mismo resultado y tipos.
+- [ ] Test de failover: caer `PG_1` y verificar que la lectura pasa a `PG_2`.
+- [ ] Test de escritura: crear un registro, verificar que existe en primaria y que el backup intenta replicar sin bloquear.
+- [ ] Test de JSONB: crear un `RoleConfig` con `permissions` y leerlo; comparar estructura con Prisma.
 
-### Checkpoint
-- [ ] `drizzle-db.ts` pasa tests de CRUD contra una sola base.
-- [ ] Failover de lectura funciona con PG_1 caído.
-- [ ] Escritura a primaria + backups no bloquea.
+### Criterios de gate Fase 1
+
+- [ ] `drizzle-db.ts` pasa todos los tests de CRUD contra una sola base.
+- [ ] Failover de lectura funciona con `PG_1` caído.
+- [ ] Escritura a primaria + backups no bloquea y no genera diferencias de tipo.
+- [ ] Container arranca y `GET /health` responde usando Drizzle para la query de salud.
+
+### Si falla
+
+- No migrar ninguna ruta. Refinar `drizzle-db.ts` y `drizzle-models.ts`.
 
 ---
 
-## Fase 2 — Middleware, auth y encriptación (1 semana)
+## Fase 2 — Middleware, auth y encriptación
 
 ### Objetivo
 Asegurar que auth y encriptación funcionan con el nuevo DAL sin depender de Prisma.
@@ -121,12 +171,26 @@ Asegurar que auth y encriptación funcionan con el nuevo DAL sin depender de Pri
 3. Verificar que `getServerEncryptionKey` (`/api/config`) siga resolviendo.
 4. Si aún no se migra a Fastify, dejar `auth.ts` y `encryption.ts` como middleware de Express. Si se migra, adaptar a Fastify `preHandler` / `onSend`.
 
-### Checkpoint
-- [ ] Login y endpoints con body cifrado funcionan con Drizzle DAL.
+### Pruebas obligatorias
+
+- [ ] Login con email/password cifrado devuelve el mismo JWT que antes.
+- [ ] Endpoint con `x-encrypted: true` recibe body cifrado, lo descifra, procesa y devuelve respuesta cifrada.
+- [ ] Token inválido devuelve `401` igual.
+- [ ] Usuario sin rol correcto devuelve `403` igual.
+
+### Criterios de gate Fase 2
+
+- [ ] Login, endpoints con body cifrado y rate-limit funcionan con Drizzle DAL.
+- [ ] No hay diferencias en el contrato de respuesta.
+- [ ] `npx tsc --project tsconfig.server.json --noEmit` pasa.
+
+### Si falla
+
+- Revisar `encryption.ts` (posiblemente la serialización de body cambia con Drizzle).
 
 ---
 
-## Fase 3 — Migración ruta por ruta (2-3 semanas)
+## Fase 3 — Migración ruta por ruta
 
 ### Objetivo
 Cada ruta de `apps/api/src/server/routes/*.ts` pasa de `import { db } from '../lib/db'` a `import { db } from '../lib/drizzle-db'`.
@@ -147,14 +211,26 @@ Cada ruta de `apps/api/src/server/routes/*.ts` pasa de `import { db } from '../l
 - Reescribir queries con `Prisma.sql` y `$queryRaw` a `drizzle-orm/sql` o `pg.raw`.
 - Revisar `JSONB` (`RoleConfig.permissions`) para usar `jsonb` de Drizzle y serializar antes de insertar.
 
-### Checkpoint por fase
-- [ ] 3 rutas iniciales migradas y testeadas.
-- [ ] 50% de rutas migradas.
-- [ ] 100% de rutas migradas.
+### Pruebas obligatorias por ruta
+
+- [ ] Test funcional end-to-end de cada ruta migrada.
+- [ ] Comparar payloads de respuesta contra Prisma para 5 llamadas representativas.
+- [ ] Verificar status codes y errores (400, 401, 403, 404, 500).
+
+### Criterios de gate Fase 3
+
+- [ ] 100% de las 21 rutas migradas.
+- [ ] Suite de pruebas funcional pasa (login, CRUD de cursos, quizzes, certificados, reportes).
+- [ ] Container en staging arranca y responde sin errores de `pool timeout` ni `MODULE_NOT_FOUND`.
+- [ ] No queda ningún `import { db } from '../lib/db'` en `routes/`.
+
+### Si falla
+
+- Revertir el PR de la ruta problemática y corregir. Continuar con las demás solo si el fallo es aislado.
 
 ---
 
-## Fase 4 — Workers y sync (1-2 semanas)
+## Fase 4 — Workers y sync
 
 ### Objetivo
 Reescribir `db-sync.ts`, `db-realtime.ts`, `db-migrations.ts` sin `PrismaClient`.
@@ -175,14 +251,27 @@ Reescribir `db-sync.ts`, `db-realtime.ts`, `db-migrations.ts` sin `PrismaClient`
 4. **db-health.ts**
    - Usar `pg.Pool` del registro para latencia y estado.
 
-### Checkpoint
-- [ ] Sync incremental + full pasan en ambiente de staging.
+### Pruebas obligatorias
+
+- [ ] `db-health` marca bases como `connected` / `disconnected` correctamente.
+- [ ] `db-sync` full completa sin `22P02` (JSONB) ni `pool timeout`.
+- [ ] `db-sync` incremental detecta y replica cambios.
+- [ ] `db-realtime` escucha y propaga `INSERT/UPDATE/DELETE` en <1s.
+- [ ] `MICRO_MODE=1` desactiva sync y realtime correctamente.
+
+### Criterios de gate Fase 4
+
+- [ ] Sync incremental + full pasan en ambiente de staging con 2 bases.
 - [ ] `LISTEN/NOTIFY` propaga cambios en <1s.
 - [ ] `MICRO_MODE` sigue desactivando realtime y sync.
 
+### Si falla
+
+- No eliminar Prisma. Revisar queries raw y serialización JSONB.
+
 ---
 
-## Fase 5 — MySQL dual-write (1 semana)
+## Fase 5 — MySQL dual-write
 
 ### Objetivo
 Reescribir `prisma-mysql.ts` con `drizzle-orm/mysql2`.
@@ -195,12 +284,24 @@ Reescribir `prisma-mysql.ts` con `drizzle-orm/mysql2`.
 4. Adaptar `drizzle-models.ts` para que `mysql` sea el nuevo delegate MySQL.
 5. `MICRO_MODE` ya desactiva MySQL; ese guardia se mantiene.
 
-### Checkpoint
-- [ ] MySQL dual-write funciona en paralelo con PG (staging).
+### Pruebas obligatorias
+
+- [ ] `MYSQL_URL` ausente → dual-write es nulo, sin logs de `pool timeout`.
+- [ ] `MYSQL_URL` presente → escritura se replica en MySQL y falla sin bloquear.
+- [ ] Comparar 5 modelos críticos (`user`, `curso`, `aula`, `quiz`, `progresso`) entre PG y MySQL después de escritura.
+
+### Criterios de gate Fase 5
+
+- [ ] MySQL dual-write funciona en staging con datos consistentes.
+- [ ] `MICRO_MODE=1` no intenta conectar MySQL.
+
+### Si falla
+
+- Dejar MySQL desactivado en producción (`MICRO_MODE=1` o sin `MYSQL_URL`) y documentar la limitación.
 
 ---
 
-## Fase 6 — Limpieza y build (1 semana)
+## Fase 6 — Limpieza y build
 
 ### Objetivo
 Eliminar todo rastro de Prisma del repositorio, salvo `prisma/schema` como referencia.
@@ -214,10 +315,24 @@ Eliminar todo rastro de Prisma del repositorio, salvo `prisma/schema` como refer
 5. Actualizar `AGENTS.md` y `.ai/AGENTS.md` con los nuevos comandos.
 6. Correr `pnpm build`, `pnpm test`, `npx tsc --project tsconfig.server.json --noEmit`.
 
-### Checkpoint
+### Pruebas obligatorias
+
+- [ ] `pnpm build` completo sin `prisma`.
+- [ ] `docker build . -t academia-paygas:test` y `docker run` responden `/health`.
+- [ ] Test suite `pnpm test` pasa.
+- [ ] Login + crear curso + responder quiz + generar certificado en staging.
+- [ ] 30 min de uptime sin errores en logs.
+
+### Criterios de gate Fase 6
+
 - [ ] Build limpio sin `prisma`.
 - [ ] Tests pasan.
 - [ ] Imagen Docker se construye y arranca.
+- [ ] No queda `import` de Prisma en `apps/api/src/server`.
+
+### Si falla
+
+- No deployar a producción. Volver a la imagen anterior. Rehacer la fase que rompió.
 
 ---
 
@@ -232,16 +347,16 @@ Eliminar todo rastro de Prisma del repositorio, salvo `prisma/schema` como refer
 
 ## Resumen de estimación
 
-| Fase | Esfuerzo estimado | Riesgo |
-|------|-------------------|--------|
-| Fase 0 | 1 semana | Medio |
-| Fase 1 | 1-2 semanas | Alto |
-| Fase 2 | 1 semana | Medio |
-| Fase 3 | 2-3 semanas | Alto |
-| Fase 4 | 1-2 semanas | Alto |
-| Fase 5 | 1 semana | Medio |
-| Fase 6 | 1 semana | Medio |
-| **Total** | **8-12 semanas** | **Muy alto** |
+| Fase | Esfuerzo estimado | Riesgo | Gate principal |
+|------|-------------------|--------|----------------|
+| Fase 0 | 1 semana | Medio | Esquema traducido y conexión funcional |
+| Fase 1 | 1-2 semanas | Alto | DAL con failover y CRUD probados |
+| Fase 2 | 1 semana | Medio | Login + encriptación con Drizzle |
+| Fase 3 | 2-3 semanas | Alto | 100% de rutas migradas y testeadas |
+| Fase 4 | 1-2 semanas | Alto | Workers sync/realtime funcionando |
+| Fase 5 | 1 semana | Medio | MySQL dual-write consistente |
+| Fase 6 | 1 semana | Medio | Build limpio, Docker y tests OK |
+| **Total** | **8-12 semanas** | **Muy alto** | — |
 
 ---
 
