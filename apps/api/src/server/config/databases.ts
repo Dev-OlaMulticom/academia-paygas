@@ -104,7 +104,7 @@ class DatabaseRegistry {
 			const adapter = new PrismaPg({
 				connectionString: url,
 				ssl: resolveSslOption(url),
-				max: 5,
+				max: 10,
 			});
 			client = new PrismaClient({
 				adapter,

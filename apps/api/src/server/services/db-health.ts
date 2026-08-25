@@ -24,7 +24,7 @@ import { dbRegistry } from "../config/databases";
 import { invalidateDelegateCache } from "../lib/db-models";
 import logger from "../lib/logger";
 
-const DEFAULT_INTERVAL = 5 * 1000;
+const DEFAULT_INTERVAL = 15 * 1000;
 const MAX_BACKOFF = 5 * 60 * 1000;
 const BASE_BACKOFF = 30 * 1000;
 const LATENCY_WINDOW = 20;
@@ -196,8 +196,6 @@ async function runHealthChecks(): Promise<void> {
 		}
 	}
 
-	const summary = entries.map((e) => `${e.name}=${e.status}`).join(", ");
-	logger.info(`[DB-HEALTH] ${summary}`);
 }
 
 /**

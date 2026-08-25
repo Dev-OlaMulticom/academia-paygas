@@ -38,11 +38,11 @@ import type { PrismaClient } from "@prisma/client";
 import { type DatabaseEntry, dbRegistry } from "../config/databases";
 import logger from "../lib/logger";
 
-const FULL_SYNC_INTERVAL = 15 * 60 * 1000; // deep reconciliation safety net
-const INCREMENTAL_INTERVAL = 10 * 1000; // fast catch-up safety net
+const FULL_SYNC_INTERVAL = 60 * 60 * 1000; // deep reconciliation safety net
+const INCREMENTAL_INTERVAL = 30 * 1000; // fast catch-up safety net
 const SYNC_BATCH_SIZE = 25;
 const SYNC_START_DELAY = 30 * 1000;
-const INCREMENTAL_BATCH_LIMIT = 500;
+const INCREMENTAL_BATCH_LIMIT = 100;
 
 // Tabelas em ordem de dependencias (pais antes dos filhos) para nao violar FKs.
 const TABLES_IN_ORDER = [
@@ -219,7 +219,16 @@ export async function upsertRows(target: PrismaClient, table: string, rows: Reco
 		const valuePlaceholders = batch.map(() => `(${cols.map(() => `$${paramIdx++}`).join(",")})`).join(",");
 		const params: any[] = [];
 		for (const row of batch) {
-			for (const c of cols) params.push(row[c.name] ?? null);
+			for (const c of cols) {
+				const raw = row[c.name] ?? null;
+				if (raw === null || raw === undefined) {
+					params.push(null);
+				} else if (c.type === "json" || c.type === "jsonb") {
+					params.push(typeof raw === "string" ? raw : JSON.stringify(raw));
+				} else {
+					params.push(raw);
+				}
+			}
 		}
 		try {
 			await target.$queryRawUnsafe(
