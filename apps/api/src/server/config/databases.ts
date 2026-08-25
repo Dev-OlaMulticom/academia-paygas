@@ -101,10 +101,13 @@ class DatabaseRegistry {
 		let client: PrismaClient | null = null;
 
 		try {
+			const micro = process.env.MICRO_MODE === "1";
+			const rawPool = process.env.PG_POOL_SIZE ? parseInt(process.env.PG_POOL_SIZE, 10) : NaN;
+			const poolSize = Number.isNaN(rawPool) ? (micro ? 2 : 10) : rawPool;
 			const adapter = new PrismaPg({
 				connectionString: url,
 				ssl: resolveSslOption(url),
-				max: 10,
+				max: poolSize,
 			});
 			client = new PrismaClient({
 				adapter,

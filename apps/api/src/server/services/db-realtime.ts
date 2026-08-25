@@ -172,6 +172,10 @@ export function detachRealtimeListener(name: string): void {
  * is online.
  */
 export function startRealtimeSync(): void {
+	if (process.env.MICRO_MODE === "1") {
+		logger.info("[DB-REALTIME] MICRO_MODE: realtime sync desativado");
+		return;
+	}
 	const healthy = dbRegistry.getHealthy();
 	logger.info(`[DB-REALTIME] Iniciando LISTEN em ${healthy.length} base(s): ${healthy.map((e) => e.name).join(", ")}`);
 	for (const entry of healthy) {

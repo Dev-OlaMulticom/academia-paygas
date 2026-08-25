@@ -448,6 +448,10 @@ async function incrementalSyncLoop(): Promise<void> {
  * como safety net profundo, e o loop incremental rapido para catch-up.
  */
 export function startSyncWorker(): void {
+	if (process.env.MICRO_MODE === "1") {
+		logger.info("[DB-SYNC] MICRO_MODE: sync worker desativado");
+		return;
+	}
 	if (fullSyncInterval || incrementalInterval) {
 		logger.info("[DB-SYNC] Ja rodando");
 		return;

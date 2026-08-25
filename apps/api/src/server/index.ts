@@ -227,12 +227,35 @@ app.get("/api/config", (req, res) => {
 	}
 });
 
+// Minimal health endpoint for Northflank/probes — does not require API auth and avoids dynamic imports.
+app.get("/health", async (_req, res) => {
+	try {
+		const { dbRegistry } = await import("./config/databases");
+		const primary = dbRegistry.getPrimary();
+		if (!primary?.client) {
+			return res.status(503).json({ status: "error", message: "no database" });
+		}
+		await primary.client.$queryRaw`SELECT 1`;
+		res.status(200).json({ status: "ok", uptime: process.uptime() });
+	} catch (err: any) {
+		res.status(503).json({ status: "error", message: err.message });
+	}
+});
+
 const clientDir = path.join(__dirname, "../client");
 app.use(express.static(clientDir));
 app.use((req, res, next) => {
 	if (req.method !== "GET" || req.path.startsWith("/api")) return next();
 	res.sendFile(path.join(clientDir, "index.html"));
 });
+
+// Log memory usage every 60s to measure RSS/Heap/External on low-resource plans.
+function startMemoryLogging(): void {
+	setInterval(() => {
+		const mu = process.memoryUsage();
+		logger.info(`[MEM] rss=${mu.rss} heapUsed=${mu.heapUsed} external=${mu.external}`);
+	}, 60_000);
+}
 
 // Only start listening when run directly (not when imported by Passenger or test)
 if (require.main === module) {
@@ -250,10 +273,12 @@ if (require.main === module) {
 
 		server = https.createServer(httpsOptions, app).listen(PORT, () => {
 			logger.info(`🔒 HTTPS Server running on https://localhost:${PORT}`);
+			startMemoryLogging();
 		});
 	} else {
 		server = app.listen(PORT, () => {
 			logger.info(`🚀 HTTP Server running on http://localhost:${PORT} (no SSL certs found)`);
+			startMemoryLogging();
 		});
 	}
 
@@ -310,8 +335,12 @@ if (require.main === module) {
 	// background garante consistencia entre replicas depois de falhas.
 	// Set DB_INFRA_OFF=1 para desativar tudo (ex: testes que usam DB mock).
 	const disableInfra = process.env.DB_INFRA_OFF === "1" || process.env.DB_INFRA_OFF === "true";
+	const microMode = process.env.MICRO_MODE === "1";
 	if (disableInfra) {
 		logger.info("[DB-INFRA] Desativado via DB_INFRA_OFF=1");
+	} else if (microMode) {
+		logger.info("[DB-INFRA] MICRO_MODE ativo: somente health checks (60s)");
+		startHealthChecks();
 	} else {
 		// Keep-alive: evita pausa das free-tiers (Supabase/Nhost)
 		startKeepAlive();

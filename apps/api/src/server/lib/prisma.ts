@@ -29,10 +29,13 @@ function buildClient(url: string): PrismaClient {
 	// eslint-disable-next-line @typescript-eslint/no-require-imports
 	const { PrismaClient } = require("@prisma/client") as typeof import("@prisma/client");
 
+	const micro = process.env.MICRO_MODE === "1";
+	const rawPool = process.env.PG_POOL_SIZE ? parseInt(process.env.PG_POOL_SIZE, 10) : NaN;
+	const poolSize = Number.isNaN(rawPool) ? (micro ? 2 : 5) : rawPool;
 	const adapter = new PrismaPg({
 		connectionString: url,
 		ssl: resolveSslOption(url),
-		max: 5,
+		max: poolSize,
 	});
 
 	return new PrismaClient({

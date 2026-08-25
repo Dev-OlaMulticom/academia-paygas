@@ -24,7 +24,7 @@ import { dbRegistry } from "../config/databases";
 import { invalidateDelegateCache } from "../lib/db-models";
 import logger from "../lib/logger";
 
-const DEFAULT_INTERVAL = 15 * 1000;
+const DEFAULT_INTERVAL = process.env.MICRO_MODE === "1" ? 60 * 1000 : 15 * 1000;
 const MAX_BACKOFF = 5 * 60 * 1000;
 const BASE_BACKOFF = 30 * 1000;
 const LATENCY_WINDOW = 20;
@@ -160,8 +160,8 @@ async function runHealthChecks(): Promise<void> {
 		}
 
 		// Keep the real-time LISTEN client in sync with health status. Cheap
-		// no-op if already connected.
-		if (newStatus === "connected" || newStatus === "degraded") {
+		// no-op if already connected. Disabled in MICRO_MODE.
+		if (process.env.MICRO_MODE !== "1" && (newStatus === "connected" || newStatus === "degraded")) {
 			import("./db-realtime").then(({ attachRealtimeListener }) => attachRealtimeListener(entry.name)).catch(() => {});
 		}
 	}
@@ -176,7 +176,8 @@ async function runHealthChecks(): Promise<void> {
 	// 1) Sync de migrations (alinha schema — adiciona tabelas/cols, jamais apaga dados)
 	// 2) Sync de dados (copia rows divergentes da primaria para o backup)
 	// Imports dinamicos para evitar dependencia circular.
-	if (recoveredNames.length > 0) {
+	// Disabled in MICRO_MODE.
+	if (process.env.MICRO_MODE !== "1" && recoveredNames.length > 0) {
 		try {
 			const { triggerMigrationSync } = await import("./db-migrations");
 			const { triggerSync } = await import("./db-sync");
