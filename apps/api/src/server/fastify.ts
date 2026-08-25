@@ -9,7 +9,12 @@ import corsPlugin from "./fastify-plugins/cors";
 import encryptionPlugin from "./fastify-plugins/encryption";
 import rateLimitPlugin from "./fastify-plugins/rate-limit";
 // Fastify-native routes (Phase 3 — migrated from Express)
+import analyticsRoutes from "./fastify-routes/analytics";
+import conquistasRoutes from "./fastify-routes/conquistas";
+import docsRoutes from "./fastify-routes/docs";
+import gamificationRoutes from "./fastify-routes/gamification";
 import publicRoutes from "./fastify-routes/public";
+import xpconfigRoutes from "./fastify-routes/xpconfig";
 import expressApp from "./index";
 import logger from "./lib/logger";
 import { startHealthChecks } from "./services/db-health";
@@ -24,10 +29,17 @@ const app = Fastify({
 	trustProxy: true,
 });
 
-// Error handler — devuelve JSON como el Express anterior
+// Error handler — devuelve JSON como el Express anterior.
+// Si un preHandler ya seteo un status code (ej: reply.code(401) antes de throw),
+// respeta ese code; si no, usa error.statusCode o 500.
 app.setErrorHandler((error: any, _request, reply) => {
-	logger.error("[FASTIFY ERROR]", error);
-	const statusCode = error.statusCode || 500;
+	const statusCode = error.statusCode || reply.statusCode || 500;
+	// Auth errors (401/403) are expected — log as debug, not error
+	if (statusCode === 401 || statusCode === 403) {
+		logger.debug(`[FASTIFY ${statusCode}] ${error.message}`);
+	} else {
+		logger.error("[FASTIFY ERROR]", error);
+	}
 	reply.code(statusCode).send({ error: error.message || "Erro interno do servidor" });
 });
 
@@ -66,6 +78,11 @@ const start = async () => {
 		// ─── Register Fastify-native routes (before Express mount) ───
 		// These take precedence over the Express fallback.
 		await app.register(publicRoutes, { prefix: "/api/public" });
+		await app.register(docsRoutes, { prefix: "/api/docs" });
+		await app.register(analyticsRoutes, { prefix: "/api/analytics" });
+		await app.register(gamificationRoutes, { prefix: "/api/gamification" });
+		await app.register(xpconfigRoutes, { prefix: "/api/xp-config" });
+		await app.register(conquistasRoutes, { prefix: "/api/conquistas" });
 
 		// ─── Mount the legacy Express app via @fastify/express (Strangler Fig) ───
 		// Any route not yet migrated to Fastify falls through to Express.

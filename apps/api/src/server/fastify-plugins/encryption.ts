@@ -24,7 +24,8 @@ const encryptionPlugin: FastifyPluginCallback = (fastify: FastifyInstance, _opts
 				const decrypted = decryptSync(body.encrypted);
 				request.body = JSON.parse(decrypted);
 			} catch {
-				return reply.code(400).send({ error: "Dados encriptados inválidos" });
+				reply.code(400);
+				throw new Error("Dados encriptados inválidos");
 			}
 		} else if (request.url?.includes("/auth/login") && body) {
 			// Diagnostic: verify body is intact for login (mirrors Express behavior)

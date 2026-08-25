@@ -38,7 +38,8 @@ declare module "fastify" {
 export async function authenticate(request: FastifyRequest, reply: FastifyReply) {
 	const authHeader = request.headers.authorization;
 	if (!authHeader?.startsWith("Bearer ")) {
-		return reply.code(401).send({ error: "Token não fornecido" });
+		reply.code(401);
+		throw new Error("Token não fornecido");
 	}
 
 	const token = authHeader.split(" ")[1];
@@ -48,7 +49,8 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
 		request.userRole = decoded.role;
 		request.userGestorId = decoded.gestorId || null;
 	} catch {
-		return reply.code(401).send({ error: "Token inválido" });
+		reply.code(401);
+		throw new Error("Token inválido");
 	}
 }
 
@@ -68,7 +70,8 @@ export async function authenticate(request: FastifyRequest, reply: FastifyReply)
 export function authorize(...args: string[]) {
 	return async (request: FastifyRequest, reply: FastifyReply) => {
 		if (!request.userRole || !request.userId) {
-			return reply.code(403).send({ error: "Sem permissão" });
+			reply.code(403);
+			throw new Error("Sem permissão");
 		}
 
 		// Detect pattern: if first arg is a known CASL action → ability check
@@ -88,17 +91,15 @@ export function authorize(...args: string[]) {
 			const permitted = conditions ? ability.can(action, subject, conditions) : ability.can(action, subject);
 
 			if (!permitted) {
-				return reply.code(403).send({
-					error: "Sem permissão",
-					required: { action, subject, conditions },
-					role: request.userRole,
-				});
+				reply.code(403);
+				throw new Error("Sem permissão");
 			}
 			request.ability = ability;
 		} else {
 			// Role-based authorization (backward compatible)
 			if (!args.includes(request.userRole)) {
-				return reply.code(403).send({ error: "Sem permissão" });
+				reply.code(403);
+				throw new Error("Sem permissão");
 			}
 		}
 	};
