@@ -3,6 +3,7 @@
 	"version": "0.1.0",
 	"private": true,
 	"scripts": {
+		"postinstall": "cp -f node_modules/lucide-static/font/lucide.woff2 node_modules/lucide-static/font/lucide.woff node_modules/lucide-static/font/lucide.ttf node_modules/lucide-static/font/lucide.css apps/web/public/ 2>/dev/null || true",
 		"dev": "bun run --parallel dev:server dev:client",
 		"dev:client": "vite --config apps/web/vite.config.ts",
 		"dev:server": "bun --watch apps/api/src/server/fastify.ts",
