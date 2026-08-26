@@ -3,10 +3,14 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { initEncryptionKey } from "./lib/crypto";
+import { prefetchPdfLibs } from "./lib/prefetch";
 
 const queryClient = new QueryClient();
 
 initEncryptionKey().catch(() => {});
+
+// Precarga jspdf/html2canvas en idle (no afecta el bundle inicial)
+prefetchPdfLibs();
 
 if (import.meta.env.DEV) {
 	(window as any).clearCache = async () => {
