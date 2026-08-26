@@ -13,11 +13,25 @@
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
 
-    <!-- Favicon -->
+<!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="icon" type="image/png" sizes="32x32" href="/icon-dark-32x32.png" />
     <link rel="apple-touch-icon" href="/apple-icon.png" />
 
+    <!-- Lucide Font Preload for Icon Performance -->
+    <link rel="preload" href="/lucide.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/lucide.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="preload" href="/lucide.woff" as="font" type="font/woff" crossorigin />
+
+    <link rel="stylesheet" href="/lucide.css" media="print" onload="this.media='all'" />
+
+    <!-- Lucide Font Display Swap for Immediate Rendering -->
+    <style>
+      @font-face {
+        font-family: 'lucide';
+        font-display: swap;
+      }
+    </style>
   </head>
   <body>
     <div id="root"></div>
