@@ -15,6 +15,13 @@
       "when": 1787661240044,
       "tag": "0001_oval_ser_duncan",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1787731037263,
+      "tag": "0002_add-composite-indexes",
+      "breakpoints": true
     }
   ]
 }

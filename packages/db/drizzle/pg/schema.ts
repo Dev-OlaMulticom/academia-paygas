@@ -200,6 +200,8 @@ export const progresso = pgTable(
 		index("Progresso_aulaId_idx").on(table.aulaId),
 		index("Progresso_userId_idx").on(table.userId),
 		index("Progresso_moduloId_idx").on(table.cursoId),
+		// Composite: counts del dashboard (userId + concluido=true)
+		index("Progresso_userId_concluido_idx").on(table.userId, table.concluido),
 	],
 );
 
@@ -236,7 +238,12 @@ export const notification = pgTable(
 		createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
 		data: jsonb("data"),
 	},
-	(table) => [index("Notification_fromId_idx").on(table.fromId), index("Notification_toId_idx").on(table.toId)],
+	(table) => [
+		index("Notification_fromId_idx").on(table.fromId),
+		index("Notification_toId_idx").on(table.toId),
+		// Composite: badge de no-leídas (toId + lida=false) y listado por destino
+		index("Notification_toId_lida_idx").on(table.toId, table.lida),
+	],
 );
 
 export const activityLog = pgTable(
@@ -248,7 +255,12 @@ export const activityLog = pgTable(
 		detalhes: text("detalhes"),
 		createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
 	},
-	(table) => [index("ActivityLog_userId_idx").on(table.userId), index("ActivityLog_createdAt_idx").on(table.createdAt)],
+	(table) => [
+		index("ActivityLog_userId_idx").on(table.userId),
+		index("ActivityLog_createdAt_idx").on(table.createdAt),
+		// Composite: logs endpoint filtra userId + ordena por createdAt DESC
+		index("ActivityLog_userId_createdAt_idx").on(table.userId, table.createdAt),
+	],
 );
 
 export const pointsTransaction = pgTable(
@@ -261,7 +273,13 @@ export const pointsTransaction = pgTable(
 		details: text("details"),
 		createdAt: timestamp("createdAt", { mode: "date" }).notNull().defaultNow(),
 	},
-	(table) => [index("PointsTransaction_userId_idx").on(table.userId), index("PointsTransaction_createdAt_idx").on(table.createdAt), index("PointsTransaction_action_idx").on(table.action)],
+	(table) => [
+		index("PointsTransaction_userId_idx").on(table.userId),
+		index("PointsTransaction_createdAt_idx").on(table.createdAt),
+		index("PointsTransaction_action_idx").on(table.action),
+		// Unique composite: dedup de awardPointsIfNotAwarded(userId, action, details)
+		uniqueIndex("PointsTransaction_userId_action_details_key").on(table.userId, table.action, table.details),
+	],
 );
 
 export const forumPost = pgTable(
