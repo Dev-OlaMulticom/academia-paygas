@@ -8,7 +8,7 @@ enabled = true
 
 # Static SPA build output (see vite.config.ts -> build.outDir).
 [assets]
-directory = "./dist/client"
+directory = "../web/dist/client"
 binding = "ASSETS"
 not_found_handling = "single-page-application"
 
