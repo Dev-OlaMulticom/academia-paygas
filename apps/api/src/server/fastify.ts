@@ -2,6 +2,7 @@ import "dotenv/config";
 import fs from "node:fs";
 import https from "node:https";
 import path from "node:path";
+import fastifyStatic from "@fastify/static";
 import Fastify from "fastify";
 import authPlugin from "./fastify-plugins/auth";
 // Fastify-native plugins (Phase 2 of Strangler Fig migration)
@@ -120,6 +121,48 @@ const start = async () => {
 			},
 			{ bodyLimit: 10 * 1024 * 1024 },
 		);
+
+		// ─── Frontend SPA (restaura el comportamiento del Express legacy) ───
+		// Sirve el build de Vite y hace fallback a index.html para los GET que
+		// no son /api (deep links del React Router). Sin esto, GET / responde
+		// 404 "Route GET:/ not found" cuando nginx/proxy manda todo al Node.
+		const clientDirCandidates = [
+			path.resolve(__dirname, "../client"), // bundle Docker: dist/server -> dist/client
+			path.resolve(process.cwd(), "dist"), // deploy cPanel: <app>/dist con index.html en la raíz
+		];
+		const clientDir = clientDirCandidates.find((dir) => fs.existsSync(path.join(dir, "index.html")));
+
+		if (clientDir) {
+			await app.register(fastifyStatic, {
+				root: clientDir,
+				prefix: "/",
+				index: "index.html",
+				setHeaders: (reply, filePath) => {
+					const parts = filePath.split(path.sep);
+					if (parts.includes("assets")) {
+						reply.header("Cache-Control", "public, max-age=31536000, immutable");
+					} else if (parts[parts.length - 1]?.endsWith(".html")) {
+						reply.header("Cache-Control", "no-cache");
+					}
+				},
+			});
+
+			app.setNotFoundHandler((request, reply) => {
+				const url = request.raw.url || "/";
+				if ((request.method === "GET" || request.method === "HEAD") && !url.startsWith("/api")) {
+					reply.header("Cache-Control", "no-cache");
+					return reply.sendFile("index.html");
+				}
+				return reply.code(404).send({
+					message: `Route ${request.method}:${url} not found`,
+					error: "Not Found",
+					statusCode: 404,
+				});
+			});
+			logger.info(`[STATIC] SPA servido desde ${clientDir}`);
+		} else {
+			logger.warn("[STATIC] No se encontro el build del frontend (dist/client o dist); GET / respondera 404");
+		}
 
 		// ─── Strangler Fig complete ───
 		// All routes are now Fastify-native; the legacy Express app was removed.
