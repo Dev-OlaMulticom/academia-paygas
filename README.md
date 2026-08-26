@@ -1,12 +1,12 @@
 # Academia PayGas
 
-Plataforma LMS + gamificación para PayGas. Arquitectura monolito modular con despliegue flexible: desarrollo local con pnpm/vite, producción con Docker o Vercel/Cloudflare.
+Plataforma LMS + gamificación para PayGas. Arquitectura monolito modular con despliegue flexible: desarrollo local con Bun/Vite, producción con Docker o Vercel/Cloudflare.
 
 ## Arquitectura
 
 **Apps**
 - `apps/web/` → SPA React 19 + Vite + Tailwind. Alias `@` y `@shared`. Servida estáticamente, proxy API a `apps/api`.
-- `apps/api/` → Express 5 + TypeScript. **Drizzle ORM** DAL con failover multi-DB PG, dual-write, keep-alive. Middlewares: auth JWT, encryption AES, rate-limit, security headers.
+- `apps/api/` → Fastify 5 + TypeScript. **Drizzle ORM** DAL con failover multi-DB PG, dual-write, keep-alive. Plugins: auth JWT, encryption AES, rate-limit, security headers.
 - `apps/worker/` → Cloudflare Workers. Sirve assets y proxy `/api/*` a Vercel/API. No ejecuta Express nativamente.
 
 **Packages**
@@ -23,7 +23,7 @@ Plataforma LMS + gamificación para PayGas. Arquitectura monolito modular con de
 ```
 apps/
   web/          # React Vite SPA
-  api/          # Express + Prisma API
+  api/          # API Fastify (DAL Drizzle)
   worker/       # Cloudflare Workers
 packages/
   db/prisma/    # Esquemas Prisma PG/MySQL + migraciones
@@ -34,25 +34,24 @@ infra/
 
 ## Requisitos
 
-- Node 20+
-- pnpm 9+
+- Node 22+ (runtime de producción)
+- Bun 1.4+ (toolchain: install, dev, test, build)
 - PostgreSQL + MySQL opcional
 - Variables en `.env`
 
 ## Desarrollo
 
 ```bash
-corepack enable
-pnpm install
+bun install
 
 cp .env.example .env
 # editar .env
 
-pnpm db:generate
-pnpm db:migrate
-pnpm db:seed
+bun run db:generate
+bun run db:migrate
+bun run db:seed
 
-pnpm dev
+bun run dev
 ```
 
 Web: http://localhost:5173
@@ -60,22 +59,21 @@ API: http://localhost:3001/api/health
 
 ## Despliegue
 
-### Opción 1: pnpm / Vite local
+### Opción 1: Bun / Vite local
 Ideal para desarrollo y preview rápido.
 ```bash
-corepack enable
-pnpm install
+bun install
 cp .env.example .env
-pnpm db:generate && pnpm db:migrate && pnpm db:seed
-pnpm dev            # desarrollo con HMR
+bun run db:generate && bun run db:migrate && bun run db:seed
+bun run dev         # desarrollo con HMR (Vite :5173 + API :3001)
 ```
 
 **Build producción**
 ```bash
-pnpm build          # genera dist/client y dist/server
+bun run build       # genera dist/client (Vite) y dist/server (tsc)
 NODE_ENV=production node dist/server/index.js
 ```
-`pnpm build` ejecuta Prisma generate, Vite build y tsc para server.
+El bundle que usa producción se genera con `bun run build:server` (esbuild → `dist/server/index.js`).
 
 ### Opción 2: Docker
 Recomendado para producción self-hosted/Koyeb.
@@ -88,34 +86,29 @@ Dockerfile multi-stage Alpine, usuario no-root, read-only, healthcheck en `/api/
 
 ### Opción 3: Vercel + Cloudflare
 - Web: Vite build desplegado en Vercel/Cloudflare Pages.
-- API: Express compilado como Serverless Function vía `api/[...slug].js`.
+- API: compilado como Serverless Function vía `api/[...slug].js`.
 - Worker: proxy `/api/*` a Vercel y sirve assets.
 Variables requeridas: `DATABASE_URL`, `JWT_SECRET`, `ENCRYPTION_KEY`, `FRONTEND_ORIGIN`.
 
-### Opción 4: cPanel / Shared Hosting
-Build de producción optimizado para cPanel:
+### Opción 4: VPS bare-metal
+Para un VPS propio detrás de nginx/apache (sin Passenger):
 ```bash
-pnpm cpanel:build
+./deploy.sh         # install + build + migrate + restart con healthcheck
 ```
-Genera `dist/client` y `dist/server` listos para subir vía FTP.
-En cPanel:
-1. Subir `dist/client` a `public_html/`
-2. Subir `dist/server` a `public_html/api/` o directorio privado
-3. Crear `.htaccess` para proxy `/api/` a `dist/server/index.js` vía Node Passenger o cron.
-Scripts incluidos: `deploy.sh`, `start.sh`, `stop.sh`.
+Scripts incluidos: `deploy.sh`, `start.sh`, `stop.sh` (corren `node dist/server/index.js` con nohup + PID file).
 Variables: `NODE_ENV=production`, `PORT`, `DATABASE_URL`, etc.
 
 ## Scripts útiles
 
-- `pnpm test` → tests en `apps/api/tests`
-- `pnpm lint` / `pnpm lint:fix`
-- `pnpm db:generate`, `pnpm db:migrate`, `pnpm db:seed`
-- `pnpm dev:worker` / `pnpm deploy:worker`
+- `bun test` → suite completa en `tests/`
+- `bun run lint` / `bun run lint:fix`
+- `bun run db:generate`, `bun run db:migrate`, `bun run db:seed`
+- `bun run dev:worker` / `bun run deploy:worker`
 
 ## Seguridad
 
 - Secretos solo por variables de entorno. Sin fallback a disco.
-- Security headers en `apps/api/src/server/index.ts`
+- Security headers en `apps/api/src/server/fastify.ts`
 - CORS whitelist desde `FRONTEND_ORIGIN`
 - Table whitelist en DB sync
 

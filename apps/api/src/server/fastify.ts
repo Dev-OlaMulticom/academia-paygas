@@ -128,7 +128,7 @@ const start = async () => {
 		// 404 "Route GET:/ not found" cuando nginx/proxy manda todo al Node.
 		const clientDirCandidates = [
 			path.resolve(__dirname, "../client"), // bundle Docker: dist/server -> dist/client
-			path.resolve(process.cwd(), "dist"), // deploy cPanel: <app>/dist con index.html en la raíz
+			path.resolve(process.cwd(), "dist"), // deploy VPS: <app>/dist con index.html en la raíz
 		];
 		const clientDir = clientDirCandidates.find((dir) => fs.existsSync(path.join(dir, "index.html")));
 

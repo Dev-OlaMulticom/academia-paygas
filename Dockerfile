@@ -1,34 +1,35 @@
 # syntax=docker/dockerfile:1
-ARG NODE_VERSION=20
+ARG NODE_VERSION=22
+ARG BUN_VERSION=1.4-alpine
+
+FROM oven/bun:${BUN_VERSION} AS bun
 
 FROM node:${NODE_VERSION}-alpine AS base
-ENV PNPM_HOME="/root/.local/share/pnpm"
-ENV PATH="${PNPM_HOME}:${PATH}"
-RUN corepack enable && corepack prepare pnpm@9 --activate
-# Build toolchain for native modules (better-sqlite3) that lack musl prebuilds
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
+# Build toolchain for native modules that lack musl prebuilds
 RUN apk add --no-cache python3 make g++ linux-headers
 WORKDIR /app
 
 FROM base AS deps
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-# Fast lockfile sync check (~0.5s) before the expensive install (~45s).
+COPY package.json bun.lock ./
+# Fast lockfile sync check before the expensive install.
 # Fails early with an actionable message if package.json was edited without
-# regenerating pnpm-lock.yaml (the cause of ERR_PNPM_OUTDATED_LOCKFILE).
-RUN pnpm install --frozen-lockfile --lockfile-only || ( \
+# regenerating bun.lock.
+RUN bun install --frozen-lockfile --lockfile-only || ( \
       echo "==========================================================" && \
-      echo "ERROR: pnpm-lock.yaml is out of sync with package.json." && \
-      echo "Fix locally: pnpm install --lockfile-only" && \
-      echo "Then commit the updated pnpm-lock.yaml." && \
+      echo "ERROR: bun.lock is out of sync with package.json." && \
+      echo "Fix locally: bun install --lockfile-only" && \
+      echo "Then commit the updated bun.lock." && \
       echo "==========================================================" && \
       exit 1 \
     )
-RUN --mount=type=cache,target=/root/.pnpm-store pnpm install --frozen-lockfile --prod=false
+RUN --mount=type=cache,target=/root/.bun/install/cache bun install --frozen-lockfile
 
 FROM deps AS builder
 COPY . .
-RUN --mount=type=cache,target=/root/.pnpm-store pnpm prisma generate --schema=packages/db/prisma/schema.prisma && pnpm prisma generate --schema=packages/db/prisma/schema.mysql.prisma
-RUN pnpm build:server
-RUN pnpm build:client
+RUN npx prisma generate --schema=packages/db/prisma/schema.prisma && npx prisma generate --schema=packages/db/prisma/schema.mysql.prisma
+RUN bun run build:server
+RUN bun run build:client
 
 FROM node:${NODE_VERSION}-alpine AS runtime
 ENV NODE_ENV=production
@@ -36,22 +37,21 @@ ENV PORT=3001
 ENV NODE_OPTIONS="--max-old-space-size=192"
 RUN addgroup -S app && adduser -S app -G app
 WORKDIR /app
-RUN corepack enable && corepack prepare pnpm@9 --activate
+COPY --from=bun /usr/local/bin/bun /usr/local/bin/bun
 
-COPY --from=deps /app/node_modules ./node_modules
+# Prod-only install from the lockfile, then regenerate Prisma clients
+# (prisma CLI ships in dependencies).
+COPY --from=deps /app/package.json ./package.json
+COPY --from=deps /app/bun.lock ./bun.lock
+RUN --mount=type=cache,target=/root/.bun/install/cache bun install --frozen-lockfile --production
+
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/apps/web/dist/client ./dist/client
 COPY --from=builder /app/packages/db/prisma ./packages/db/prisma
 COPY --from=builder /app/prisma/generated/mysql ./prisma/generated/mysql
-COPY --from=builder /app/package.json ./
-COPY --from=builder /app/pnpm-lock.yaml ./
-COPY --from=builder /app/pnpm-workspace.yaml ./
-# Install build toolchain, run prod install + prune + prisma generate, then remove toolchain to keep image small.
-RUN apk add --no-cache --virtual .build-deps python3 make g++ linux-headers && \
-    pnpm install --frozen-lockfile --prod && (pnpm prune --prod || true) && \
-    pnpm prisma generate --schema=packages/db/prisma/schema.prisma && \
-    pnpm prisma generate --schema=packages/db/prisma/schema.mysql.prisma && \
-    apk del .build-deps
+COPY --from=builder /app/prisma.config.ts ./
+RUN npx prisma generate --schema=packages/db/prisma/schema.prisma && \
+    npx prisma generate --schema=packages/db/prisma/schema.mysql.prisma
 RUN chown -R app:app /app
 USER app
 EXPOSE 3001

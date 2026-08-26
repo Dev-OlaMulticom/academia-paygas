@@ -17,10 +17,10 @@ const pgUrl = isMigrateCommand
 const url = schemaArg ? process.env.MYSQL_URL : pgUrl;
 
 export default defineConfig({
-	schema: schemaArg || "prisma/schema.prisma",
+	schema: schemaArg || "packages/db/prisma/schema.prisma",
 	migrations: {
-		path: "prisma/migrations",
-		seed: "npx tsx prisma/seed.ts",
+		path: "packages/db/prisma/migrations",
+		seed: "bun packages/db/prisma/seed.ts",
 	},
 	datasource: {
 		url,
