@@ -29,7 +29,7 @@ describe("JWT_SECRET fallback chain", () => {
 		process.env.JWT_SECRET = "a".repeat(64);
 		process.env.NODE_ENV = "production";
 		clearAuthModuleCache();
-		const auth = require("../server/middleware/auth");
+		const auth = require("../apps/api/src/server/middleware/auth");
 		assert.equal(auth.JWT_SECRET, "a".repeat(64));
 	});
 
@@ -51,7 +51,7 @@ describe("JWT_SECRET fallback chain", () => {
 		};
 
 		try {
-			require("../server/middleware/auth");
+			require("../apps/api/src/server/middleware/auth");
 			assert.fail("should have exited");
 		} catch (e: any) {
 			assert.ok(exited, "process.exit should be called");
@@ -78,7 +78,7 @@ describe("JWT_SECRET fallback chain", () => {
 		};
 
 		try {
-			require("../server/middleware/auth");
+			require("../apps/api/src/server/middleware/auth");
 			assert.fail("should have exited");
 		} catch {
 			assert.ok(exited, "process.exit should be called for short secret");

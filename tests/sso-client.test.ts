@@ -57,7 +57,7 @@ describe("validateSSOTicket", () => {
 		delete process.env.PAYGAS_API_SECRET;
 		clearModuleCache();
 
-		const { validateSSOTicket, PayGasSSOError } = require("../server/lib/paygas-sso-client");
+		const { validateSSOTicket, PayGasSSOError } = require("../apps/api/src/server/lib/paygas-sso-client");
 		await assert.rejects(
 			() => validateSSOTicket("some-ticket"),
 			(err: PayGasSSOError) => {
@@ -100,7 +100,7 @@ describe("validateSSOTicket", () => {
 		};
 		mockFetch(200, mockData);
 
-		const { validateSSOTicket } = require("../server/lib/paygas-sso-client");
+		const { validateSSOTicket } = require("../apps/api/src/server/lib/paygas-sso-client");
 		const result = await validateSSOTicket("valid-ticket");
 
 		assert.equal(result.success, true);
@@ -131,7 +131,7 @@ describe("validateSSOTicket", () => {
 
 		mockFetch(401, { error: "Unauthorized" });
 
-		const { validateSSOTicket, PayGasSSOError } = require("../server/lib/paygas-sso-client");
+		const { validateSSOTicket, PayGasSSOError } = require("../apps/api/src/server/lib/paygas-sso-client");
 		await assert.rejects(
 			() => validateSSOTicket("ticket"),
 			(err: PayGasSSOError) => {
@@ -149,7 +149,7 @@ describe("validateSSOTicket", () => {
 
 		mockFetch(403, { error: "Forbidden" });
 
-		const { validateSSOTicket, PayGasSSOError } = require("../server/lib/paygas-sso-client");
+		const { validateSSOTicket, PayGasSSOError } = require("../apps/api/src/server/lib/paygas-sso-client");
 		await assert.rejects(
 			() => validateSSOTicket("ticket"),
 			(err: PayGasSSOError) => {
@@ -167,7 +167,7 @@ describe("validateSSOTicket", () => {
 
 		mockFetch(422, { error: "Ticket expired" });
 
-		const { validateSSOTicket, PayGasSSOError } = require("../server/lib/paygas-sso-client");
+		const { validateSSOTicket, PayGasSSOError } = require("../apps/api/src/server/lib/paygas-sso-client");
 		await assert.rejects(
 			() => validateSSOTicket("expired-ticket"),
 			(err: PayGasSSOError) => {
@@ -186,7 +186,7 @@ describe("validateSSOTicket", () => {
 
 		mockFetch(429, { error: "Rate limited" }, { "Retry-After": "30" });
 
-		const { validateSSOTicket, PayGasSSOError } = require("../server/lib/paygas-sso-client");
+		const { validateSSOTicket, PayGasSSOError } = require("../apps/api/src/server/lib/paygas-sso-client");
 		await assert.rejects(
 			() => validateSSOTicket("ticket"),
 			(err: PayGasSSOError) => {
@@ -205,7 +205,7 @@ describe("validateSSOTicket", () => {
 
 		mockFetch(429, { error: "Rate limited" });
 
-		const { validateSSOTicket, PayGasSSOError } = require("../server/lib/paygas-sso-client");
+		const { validateSSOTicket, PayGasSSOError } = require("../apps/api/src/server/lib/paygas-sso-client");
 		await assert.rejects(
 			() => validateSSOTicket("ticket"),
 			(err: PayGasSSOError) => {
@@ -224,7 +224,7 @@ describe("validateSSOTicket", () => {
 
 		mockFetch(500, { error: "Internal error" });
 
-		const { validateSSOTicket, PayGasSSOError } = require("../server/lib/paygas-sso-client");
+		const { validateSSOTicket, PayGasSSOError } = require("../apps/api/src/server/lib/paygas-sso-client");
 		await assert.rejects(
 			() => validateSSOTicket("ticket"),
 			(err: PayGasSSOError) => {
@@ -244,7 +244,7 @@ describe("validateSSOTicket", () => {
 		abortError.name = "AbortError";
 		mockFetchError(abortError);
 
-		const { validateSSOTicket, PayGasSSOError } = require("../server/lib/paygas-sso-client");
+		const { validateSSOTicket, PayGasSSOError } = require("../apps/api/src/server/lib/paygas-sso-client");
 		await assert.rejects(
 			() => validateSSOTicket("ticket"),
 			(err: PayGasSSOError) => {
@@ -262,7 +262,7 @@ describe("validateSSOTicket", () => {
 
 		mockFetchError(new Error("ECONNREFUSED"));
 
-		const { validateSSOTicket, PayGasSSOError } = require("../server/lib/paygas-sso-client");
+		const { validateSSOTicket, PayGasSSOError } = require("../apps/api/src/server/lib/paygas-sso-client");
 		await assert.rejects(
 			() => validateSSOTicket("ticket"),
 			(err: PayGasSSOError) => {
@@ -280,7 +280,7 @@ describe("validateSSOTicket", () => {
 
 		mockFetch(200, { success: false });
 
-		const { validateSSOTicket, PayGasSSOError } = require("../server/lib/paygas-sso-client");
+		const { validateSSOTicket, PayGasSSOError } = require("../apps/api/src/server/lib/paygas-sso-client");
 		await assert.rejects(
 			() => validateSSOTicket("ticket"),
 			(err: PayGasSSOError) => {
@@ -298,7 +298,7 @@ describe("validateSSOTicket", () => {
 
 		mockFetch(200, { success: true, data: { nome: "Test" } });
 
-		const { validateSSOTicket, PayGasSSOError } = require("../server/lib/paygas-sso-client");
+		const { validateSSOTicket, PayGasSSOError } = require("../apps/api/src/server/lib/paygas-sso-client");
 		await assert.rejects(
 			() => validateSSOTicket("ticket"),
 			(err: PayGasSSOError) => {
@@ -319,7 +319,7 @@ describe("validateSSOTicket", () => {
 			error: { code: "unprocessable", message: "Este ticket já foi utilizado. Cada acesso gera um ticket novo." },
 		});
 
-		const { validateSSOTicket, PayGasSSOError } = require("../server/lib/paygas-sso-client");
+		const { validateSSOTicket, PayGasSSOError } = require("../apps/api/src/server/lib/paygas-sso-client");
 		await assert.rejects(
 			() => validateSSOTicket("used-ticket"),
 			(err: PayGasSSOError) => {

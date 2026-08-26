@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { gradeQuiz } from "../server/lib/quiz";
+import { gradeQuiz } from "../apps/api/src/server/lib/quiz";
 
 describe("gradeQuiz", () => {
 	const perguntas = [

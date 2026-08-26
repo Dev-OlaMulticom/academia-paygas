@@ -17,7 +17,7 @@
 		"lint": "biome check .",
 		"lint:fix": "biome check --write .",
 		"format": "biome format --write .",
-		"test": "node --import tsx --test apps/api/tests/*.test.ts",
+		"test": "node --import tsx --test tests/*.test.ts",
 		"db:generate": "npx prisma generate --schema=packages/db/prisma/schema.prisma",
 		"db:migrate": "npx prisma migrate deploy --schema=packages/db/prisma/schema.prisma",
 		"db:seed": "tsx packages/db/prisma/seed.ts",

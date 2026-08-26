@@ -7,7 +7,7 @@
 
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { pickBestGestor, selectGestorForUser } from "../server/services/gestor-assignment";
+import { pickBestGestor, selectGestorForUser } from "../apps/api/src/server/services/gestor-assignment";
 
 const gestorA = { id: "g-a", nome: "Ana", marketplaceId: "mp-1", estabelecimentoId: "est-1" };
 const gestorB = { id: "g-b", nome: "Bruno", marketplaceId: "mp-1", estabelecimentoId: "est-2" };

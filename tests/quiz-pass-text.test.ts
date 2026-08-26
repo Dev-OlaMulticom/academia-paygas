@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { getQuizPassInfo, quizPassText } from "../shared/quiz";
+import { getQuizPassInfo, quizPassText } from "../packages/shared/src/quiz";
 
 describe("getQuizPassInfo", () => {
 	it("total 0 -> needed 0", () => {

@@ -8,7 +8,12 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 
-import { SHARED_ACTION_OBJECT, SHARED_ACTIONS, SHARED_SUBJECT_OBJECT, SHARED_SUBJECTS } from "../shared/casl/actions";
+import {
+	SHARED_ACTION_OBJECT,
+	SHARED_ACTIONS,
+	SHARED_SUBJECT_OBJECT,
+	SHARED_SUBJECTS,
+} from "../packages/shared/src/casl/actions";
 
 describe("SHARED_ACTIONS", () => {
 	it("contains the 14 canonical CASL actions", () => {

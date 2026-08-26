@@ -16,15 +16,14 @@ import { describe, test } from "node:test";
  */
 describe("Cold-start failover (original outage scenario)", () => {
 	test("read failover when primary is IPv6-unreachable", async () => {
-		const { dbRegistry } = await import("../server/config/databases");
-		const { invalidateDelegateCache } = await import("../server/lib/db-models");
-		const { db } = await import("../server/lib/db");
+		const { drizzleDb: db } = await import("../apps/api/src/server/lib/drizzle-db");
+		const { dbRegistry } = await import("../apps/api/src/server/config/databases");
 
 		// Simulate cold start: all DBs unknown
 		for (const entry of dbRegistry.getAll()) {
 			dbRegistry.setStatus(entry.name, "unknown");
 		}
-		invalidateDelegateCache();
+		db.invalidateDelegateCache();
 
 		const primaryBefore = dbRegistry.getPrimary();
 		console.log("  Primary before:", primaryBefore?.name, "status:", primaryBefore?.status);
@@ -40,9 +39,8 @@ describe("Cold-start failover (original outage scenario)", () => {
 	});
 
 	test("write failover when primary is IPv6-unreachable", async () => {
-		const { dbRegistry } = await import("../server/config/databases");
-		const { invalidateDelegateCache } = await import("../server/lib/db-models");
-		const { db } = await import("../server/lib/db");
+		const { drizzleDb: db } = await import("../apps/api/src/server/lib/drizzle-db");
+		const { dbRegistry } = await import("../apps/api/src/server/config/databases");
 
 		// Find admin user first (via whatever DB is available)
 		const user = await db.findUnique("user", { email: "admin@paygas.com.br" });
@@ -52,7 +50,7 @@ describe("Cold-start failover (original outage scenario)", () => {
 		for (const entry of dbRegistry.getAll()) {
 			dbRegistry.setStatus(entry.name, "unknown");
 		}
-		invalidateDelegateCache();
+		db.invalidateDelegateCache();
 
 		// This should trigger write failover if primary is unreachable
 		await db.update("user", { id: user.id }, { lastLogin: new Date() });
@@ -60,15 +58,14 @@ describe("Cold-start failover (original outage scenario)", () => {
 	});
 
 	test("login flow works end-to-end with failover", async () => {
-		const { dbRegistry } = await import("../server/config/databases");
-		const { invalidateDelegateCache } = await import("../server/lib/db-models");
-		const { db } = await import("../server/lib/db");
+		const { drizzleDb: db } = await import("../apps/api/src/server/lib/drizzle-db");
+		const { dbRegistry } = await import("../apps/api/src/server/config/databases");
 
 		// Cold start
 		for (const entry of dbRegistry.getAll()) {
 			dbRegistry.setStatus(entry.name, "unknown");
 		}
-		invalidateDelegateCache();
+		db.invalidateDelegateCache();
 
 		// Simulate login: findUnique + bcrypt compare + update lastLogin
 		const user = await db.findUnique("user", { email: "admin@paygas.com.br" });

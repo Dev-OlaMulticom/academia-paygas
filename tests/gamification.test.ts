@@ -1,7 +1,7 @@
 import assert from "node:assert";
 import { describe, it } from "node:test";
 
-import { roundXpUp } from "../server/services/gamification";
+import { roundXpUp } from "../apps/api/src/server/services/gamification";
 
 describe("roundXpUp", () => {
 	it("redondea siempre para arriba a 2 decimales", () => {

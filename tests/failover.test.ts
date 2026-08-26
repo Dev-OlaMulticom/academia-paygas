@@ -7,15 +7,14 @@ import { describe, test } from "node:test";
 
 describe("DAL Failover", () => {
 	test("read failover: primary unreachable → backup succeeds", async () => {
-		const { db } = await import("../server/lib/db");
-		const { dbRegistry } = await import("../server/config/databases");
-		const { invalidateDelegateCache } = await import("../server/lib/db-models");
+		const { drizzleDb: db } = await import("../apps/api/src/server/lib/drizzle-db");
+		const { dbRegistry } = await import("../apps/api/src/server/config/databases");
 
 		// Mark all as unknown to simulate cold start
 		for (const entry of dbRegistry.getAll()) {
 			dbRegistry.setStatus(entry.name, "unknown");
 		}
-		invalidateDelegateCache();
+		db.invalidateDelegateCache();
 
 		// db.count should work via failover even if primary is unreachable
 		const count = await db.count("user");
@@ -24,9 +23,8 @@ describe("DAL Failover", () => {
 	});
 
 	test("write failover: primary unreachable → backup succeeds", async () => {
-		const { db } = await import("../server/lib/db");
-		const { dbRegistry } = await import("../server/config/databases");
-		const { invalidateDelegateCache } = await import("../server/lib/db-models");
+		const { drizzleDb: db } = await import("../apps/api/src/server/lib/drizzle-db");
+		const { dbRegistry } = await import("../apps/api/src/server/config/databases");
 
 		// Find a user to test update
 		const user = await db.findUnique("user", { email: "admin@paygas.com.br" });
@@ -36,7 +34,7 @@ describe("DAL Failover", () => {
 		for (const entry of dbRegistry.getAll()) {
 			dbRegistry.setStatus(entry.name, "unknown");
 		}
-		invalidateDelegateCache();
+		db.invalidateDelegateCache();
 
 		// db.update should work via failover
 		await db.update("user", { id: user.id }, { lastLogin: new Date() });
