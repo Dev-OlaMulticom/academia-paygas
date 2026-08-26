@@ -13,6 +13,15 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3001
+      # ─── Perfil servidor pequeño (0.1 vCPU / 256 MB) ───
+      # Ajusta o comenta según el host. Ver .env.example para más flags.
+      PG_POOL_SIZE: "3"                # sockets por pool (default 10)
+      FULL_SYNC_OFF: "1"               # sin full hash-diff horario (caro en CPU)
+      INCREMENTAL_INTERVAL_MS: "60000" # catch-up cada 60s en vez de 30s
+      MIGRATIONS_SYNC_OFF: "1"         # migraciones las aplica deploy.sh, no el boot
+    mem_limit: 256m
+    memswap_limit: 256m
+    cpus: 0.1
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:'+(process.env.PORT||3001)+'/api/health',r=>process.exit(r.statusCode===200?0:1)).on('error',()=>process.exit(1))"]

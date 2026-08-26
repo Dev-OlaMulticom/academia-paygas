@@ -34,14 +34,17 @@
  *   import { getSyncStats } from '../services/db-sync'
  *   getSyncStats()
  */
-import { Pool } from "pg";
+import type { Pool } from "pg";
 import { type DatabaseEntry, dbRegistry } from "../config/databases";
 import logger from "../lib/logger";
 
-const FULL_SYNC_INTERVAL = 60 * 60 * 1000; // deep reconciliation safety net
-const INCREMENTAL_INTERVAL = 30 * 1000; // fast catch-up safety net
+// Intervalos configurables por env — pensados para servidores pequenos
+// (0.1 vCPU / 256MB): FULL_SYNC_OFF=1 + intervalos largos reducen CPU.
+const FULL_SYNC_INTERVAL = parseInt(process.env.FULL_SYNC_INTERVAL_MS || "", 10) || 60 * 60 * 1000; // deep reconciliation safety net
+const INCREMENTAL_INTERVAL = parseInt(process.env.INCREMENTAL_INTERVAL_MS || "", 10) || 30 * 1000; // fast catch-up safety net
+const FULL_SYNC_OFF = process.env.FULL_SYNC_OFF === "1";
 const SYNC_BATCH_SIZE = 25;
-const SYNC_START_DELAY = 30 * 1000;
+const SYNC_START_DELAY = parseInt(process.env.SYNC_START_DELAY_MS || "", 10) || 30 * 1000;
 const INCREMENTAL_BATCH_LIMIT = 100;
 
 // Tabelas em ordem de dependencias (pais antes dos filhos) para nao violar FKs.
@@ -292,7 +295,11 @@ export async function syncRow(
  * (full diff — caro, usado apenas no startup / recovery / reconciliacao
  * periodica; ver `runIncrementalSync` para o caminho barato).
  */
-async function syncTableFullDiff(source: Pool, target: Pool, table: string): Promise<{ inserted: number; updated: number }> {
+async function syncTableFullDiff(
+	source: Pool,
+	target: Pool,
+	table: string,
+): Promise<{ inserted: number; updated: number }> {
 	const [sourceHashes, targetHashes] = await Promise.all([fetchHashes(source, table), fetchHashes(target, table)]);
 
 	if (sourceHashes.length === 0) return { inserted: 0, updated: 0 };
@@ -450,6 +457,14 @@ export function startSyncWorker(): void {
 	}
 	if (fullSyncInterval || incrementalInterval) {
 		logger.info("[DB-SYNC] Ja rodando");
+		return;
+	}
+	if (FULL_SYNC_OFF) {
+		logger.info(`[DB-SYNC] Worker iniciado (FULL_SYNC_OFF=1: solo incremental cada ${INCREMENTAL_INTERVAL / 1000}s)`);
+		setTimeout(() => {
+			incrementalSyncLoop();
+			incrementalInterval = setInterval(incrementalSyncLoop, INCREMENTAL_INTERVAL);
+		}, SYNC_START_DELAY);
 		return;
 	}
 	logger.info(

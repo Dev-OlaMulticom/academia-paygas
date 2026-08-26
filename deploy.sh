@@ -30,6 +30,12 @@ command -v bun  >/dev/null || { echo "Bun no encontrado (https://bun.sh): curl -
 log_ok "Bun $(bun --version)"
 [ -f .env ] && log_ok ".env presente" || { log_fail ".env no encontrado"; exit 1; }
 
+TOTAL_MB=$(awk '/MemTotal/ {printf "%d", $2/1024}' /proc/meminfo 2>/dev/null || echo 0)
+if [ "$TOTAL_MB" -gt 0 ] && [ "$TOTAL_MB" -lt 1500 ]; then
+  log_warn "Host con ${TOTAL_MB}MB RAM: compilar aquí puede agotar la memoria."
+  log_warn "Recomendado: construir la imagen en CI y hacer 'docker compose pull', o buildear en otra máquina."
+fi
+
 set -a; source .env; set +a
 export NODE_ENV="${NODE_ENV:-production}"
 

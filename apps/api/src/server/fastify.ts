@@ -240,16 +240,20 @@ const start = async () => {
 			startHealthChecks();
 			startSyncWorker();
 			startRealtimeSync();
-			void (async () => {
-				try {
-					await new Promise((r) => setTimeout(r, 8000));
-					const { triggerMigrationSync } = await import("./services/db-migrations");
-					await triggerMigrationSync();
-					logger.info("[DB-INFRA] sync de migrations concluido");
-				} catch (err: any) {
-					logger.warn(`[DB-INFRA] sync de migrations falhou no startup: ${err?.message || err}`);
-				}
-			})();
+			if (process.env.MIGRATIONS_SYNC_OFF === "1") {
+				logger.info("[DB-INFRA] MIGRATIONS_SYNC_OFF=1: sync de migrations omitido");
+			} else {
+				void (async () => {
+					try {
+						await new Promise((r) => setTimeout(r, 8000));
+						const { triggerMigrationSync } = await import("./services/db-migrations");
+						await triggerMigrationSync();
+						logger.info("[DB-INFRA] sync de migrations concluido");
+					} catch (err: any) {
+						logger.warn(`[DB-INFRA] sync de migrations falhou no startup: ${err?.message || err}`);
+					}
+				})();
+			}
 			logger.info("[DB-INFRA] keep-alive + health + sync + migrations iniciados");
 		}
 	} catch (err: any) {
