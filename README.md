@@ -84,6 +84,17 @@ docker compose down
 ```
 Dockerfile multi-stage Alpine, usuario no-root, read-only, healthcheck en `/api/health`.
 
+**Servidor pequeño (0.1 vCPU / 256 MB): no compilar ahí.** CI publica la imagen en GHCR en cada push a `main`; en el servidor solo se pullea:
+
+```bash
+# una sola vez: login con un PAT con read:packages
+echo "$GHCR_TOKEN" | docker login ghcr.io -u USUARIO --password-stdin
+
+# cada deploy
+make pull          # docker compose pull && docker compose up -d
+```
+El compose ya trae límites `mem 256m` / `cpus 0.1` y el perfil tiny (`PG_POOL_SIZE`, `FULL_SYNC_OFF`, etc.).
+
 ### Opción 3: Vercel + Cloudflare
 - Web: Vite build desplegado en Vercel/Cloudflare Pages.
 - API: compilado como Serverless Function vía `api/[...slug].js`.

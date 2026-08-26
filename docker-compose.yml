@@ -4,7 +4,7 @@ services:
       context: .
       dockerfile: Dockerfile
       target: runtime
-    image: academia-paygas:latest
+    image: ghcr.io/dev-olamulticom/academia-paygas:latest
     container_name: academia-paygas
     ports:
       - "${PORT:-3001}:3001"
