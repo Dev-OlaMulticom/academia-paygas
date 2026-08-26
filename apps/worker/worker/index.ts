@@ -33,7 +33,10 @@ export default {
 		// `index.html` for browser navigations without invoking this Worker; this
 		// branch only runs for the remaining cases (e.g. missing static files
 		// requested via fetch/XHR), so we mirror the same SPA fallback.
-		return env.ASSETS.fetch(request);
+		const assetResponse = await env.ASSETS.fetch(request);
+		const response = new Response(assetResponse.body, assetResponse);
+		response.headers.set("Access-Control-Allow-Origin", "*");
+		return response;
 	},
 };
 
