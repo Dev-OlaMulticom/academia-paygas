@@ -8,14 +8,29 @@ import authPlugin from "./fastify-plugins/auth";
 import corsPlugin from "./fastify-plugins/cors";
 import encryptionPlugin from "./fastify-plugins/encryption";
 import rateLimitPlugin from "./fastify-plugins/rate-limit";
+// Phase 4 — remaining routes migrated from Express
+import adminDashboardRoutes from "./fastify-routes/admin-dashboard";
 // Fastify-native routes (Phase 3 — migrated from Express)
 import analyticsRoutes from "./fastify-routes/analytics";
+import authRoutes from "./fastify-routes/auth";
+import certificatesRoutes from "./fastify-routes/certificates";
+import cmsRoutes from "./fastify-routes/cms";
 import conquistasRoutes from "./fastify-routes/conquistas";
+import dashboardRoutes from "./fastify-routes/dashboard";
 import docsRoutes from "./fastify-routes/docs";
+import forumRoutes from "./fastify-routes/forum";
 import gamificationRoutes from "./fastify-routes/gamification";
+import healthRoutes from "./fastify-routes/health";
+import importExportRoutes from "./fastify-routes/import-export";
+import logsRoutes from "./fastify-routes/logs";
+import modulesRoutes from "./fastify-routes/modules";
+import notificationsRoutes from "./fastify-routes/notifications";
+import progressoRoutes from "./fastify-routes/progresso";
 import publicRoutes from "./fastify-routes/public";
+import rolePermissionsRoutes from "./fastify-routes/role-permissions";
+import ssoRoutes from "./fastify-routes/sso";
+import usuariosRoutes from "./fastify-routes/usuarios";
 import xpconfigRoutes from "./fastify-routes/xpconfig";
-import expressApp from "./index";
 import logger from "./lib/logger";
 import { startHealthChecks } from "./services/db-health";
 import { startRealtimeSync } from "./services/db-realtime";
@@ -83,11 +98,31 @@ const start = async () => {
 		await app.register(gamificationRoutes, { prefix: "/api/gamification" });
 		await app.register(xpconfigRoutes, { prefix: "/api/xp-config" });
 		await app.register(conquistasRoutes, { prefix: "/api/conquistas" });
+		await app.register(certificatesRoutes, { prefix: "/api/certificates" });
+		await app.register(cmsRoutes, { prefix: "/api/cms" });
+		await app.register(dashboardRoutes, { prefix: "/api/dashboard" });
+		await app.register(forumRoutes, { prefix: "/api/forum" });
+		await app.register(logsRoutes, { prefix: "/api/logs" });
+		await app.register(modulesRoutes, { prefix: "/api/admin/modules" });
+		await app.register(notificationsRoutes, { prefix: "/api/notifications" });
+		await app.register(progressoRoutes, { prefix: "/api/progresso" });
+		await app.register(rolePermissionsRoutes, { prefix: "/api/role-permissions" });
+		await app.register(usuariosRoutes, { prefix: "/api/usuarios" });
+		// Phase 4 — remaining Express routes migrated to Fastify
+		await app.register(authRoutes, { prefix: "/api/auth" });
+		await app.register(ssoRoutes, { prefix: "/api" });
+		await app.register(adminDashboardRoutes, { prefix: "/api/admin/dashboard" });
+		await app.register(healthRoutes);
+		// Phase 5 — last Express route migrated; bodyLimit 10mb for large CSV payloads
+		await app.register(
+			async (importExportScope) => {
+				await importExportScope.register(importExportRoutes, { prefix: "/api/import-export" });
+			},
+			{ bodyLimit: 10 * 1024 * 1024 },
+		);
 
-		// ─── Mount the legacy Express app via @fastify/express (Strangler Fig) ───
-		// Any route not yet migrated to Fastify falls through to Express.
-		await app.register(import("@fastify/express"));
-		app.use(expressApp);
+		// ─── Strangler Fig complete ───
+		// All routes are now Fastify-native; the legacy Express app was removed.
 
 		const certPath = path.resolve(__dirname, "certs");
 		const keyFile = path.join(certPath, "key.pem");

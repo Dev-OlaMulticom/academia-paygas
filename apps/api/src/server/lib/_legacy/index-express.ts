@@ -4,7 +4,7 @@ import cors from "cors";
 import express from "express";
 import rateLimit from "express-rate-limit";
 import logger from "./lib/logger";
-import { encryptedPayload, getServerEncryptionKey } from "./middleware/encryption";
+import { encryptedPayload } from "./middleware/encryption";
 import adminDashboardRoutes from "./routes/admin-dashboard";
 import authRoutes from "./routes/auth";
 import certificatesRoutes from "./routes/certificates";
@@ -91,8 +91,9 @@ const corsOptions: cors.CorsOptions = {
 };
 app.use(cors(corsOptions));
 
-// Body parsing
-app.use(express.json({ limit: "10mb" }));
+// Body parsing: only for remaining Express routes (import-export)
+// Fastify handles body parsing natively for all Fastify-native routes.
+app.use("/api/import-export", express.json({ limit: "10mb" }));
 
 // Rate limiting global — relaxed in development to avoid false positives
 const globalLimiter = rateLimit({
@@ -104,33 +105,16 @@ const globalLimiter = rateLimit({
 });
 app.use("/api", globalLimiter);
 
-// Rate limiting estricto para auth
-const authLimiter = rateLimit({
-	windowMs: 15 * 60 * 1000,
-	max: process.env.NODE_ENV === "production" ? 10 : 100,
-	message: { error: "Demasiados intentos de login. Intenta de nuevo en 15 minutos." },
-	standardHeaders: true,
-	legacyHeaders: false,
-});
-app.use("/api/auth/login", authLimiter);
-
-// Rate limiting para registro de usuarios (solo POST)
+// Rate limiting para registro de usuarios (solo POST) — for import-export only
 const registerLimiter = rateLimit({
-	windowMs: 60 * 60 * 1000, // 1 hour
-	max: process.env.NODE_ENV === "production" ? 5 : 50, // 5 registrations per hour in prod
+	windowMs: 60 * 60 * 1000,
+	max: process.env.NODE_ENV === "production" ? 5 : 50,
 	message: { error: "Demasiados registros. Intenta de nuevo en 1 hora." },
 	standardHeaders: true,
 	legacyHeaders: false,
 });
-app.use("/api/usuarios", (req, res, next) => {
-	if (req.method === "POST") {
-		registerLimiter(req, res, next);
-	} else {
-		next();
-	}
-});
 
-// Global encryption middleware for all POST/PUT/PATCH
+// Global encryption middleware for remaining Express routes (import-export)
 app.use((req, res, next) => {
 	if (req.method === "POST" || req.method === "PUT" || req.method === "PATCH") {
 		encryptedPayload(req, res, next);
@@ -139,101 +123,37 @@ app.use((req, res, next) => {
 	}
 });
 
-app.use("/api/auth", authRoutes);
-app.use("/api", ssoRoutes);
-app.use("/api/usuarios", usuariosRoutes);
-app.use("/api/cms", cmsRoutes);
-app.use("/api/certificates", certificatesRoutes);
-app.use("/api/notifications", notificationsRoutes);
-app.use("/api/progresso", progressoRoutes);
-app.use("/api/dashboard", dashboardRoutes);
+// ─── Migrated to Fastify-native routes (see fastify-routes/auth.ts) ───
+// app.use("/api/auth", authRoutes);
+// app.use("/api", ssoRoutes);
+// ─── Migrated to Fastify-native routes (see fastify-routes/) ───
+// app.use("/api/usuarios", usuariosRoutes);
+// app.use("/api/cms", cmsRoutes);
+// app.use("/api/certificates", certificatesRoutes);
+// app.use("/api/notifications", notificationsRoutes);
+// app.use("/api/progresso", progressoRoutes);
+// app.use("/api/dashboard", dashboardRoutes);
 // ─── Migrated to Fastify-native routes (see fastify-routes/) ───
 // app.use("/api/docs", docsRoutes);
 // app.use("/api/analytics", analyticsRoutes);
-app.use("/api/forum", forumRoutes);
+// app.use("/api/forum", forumRoutes);
 // app.use("/api/gamification", gamificationRoutes);
 // app.use("/api/conquistas", conquistasRoutes);
 // app.use("/api/public", publicRoutes);
-app.use("/api/admin/modules", modulesRoutes);
-app.use("/api/logs", logsRoutes);
+// app.use("/api/admin/modules", modulesRoutes);
+// app.use("/api/logs", logsRoutes);
 // app.use("/api/xp-config", xpconfigRoutes);
 app.use("/api/import-export", importExportRoutes);
-app.use("/api/admin/dashboard", adminDashboardRoutes);
-app.use("/api/role-permissions", rolePermissionsRoutes);
+// app.use("/api/admin/dashboard", adminDashboardRoutes);
+// app.use("/api/role-permissions", rolePermissionsRoutes);
 
-app.get("/api/health", async (_req, res) => {
-	const { dbRegistry } = await import("./config/databases");
-	const { getLatencyStats } = await import("./services/db-health");
-	const { getSyncStats } = await import("./services/db-sync");
-	const { getMigrationStats } = await import("./services/db-migrations");
-	const { getRealtimeStats } = await import("./services/db-realtime");
-
-	const primary = dbRegistry.getPrimary();
-	const healthyCount = dbRegistry.getHealthy().length;
-	const totalCount = dbRegistry.getAll().length;
-	const registryHealth = dbRegistry.getHealthSummary();
-	const latencyStats = getLatencyStats();
-	const syncStats = getSyncStats();
-	const migrationStats = getMigrationStats();
-	const realtimeStats = getRealtimeStats();
-
-	res.json({
-		status: healthyCount > 0 ? "ok" : "degraded",
-		primary: primary?.name || "unknown",
-		databases: {
-			registry: registryHealth,
-			latency: latencyStats,
-		},
-		sync: syncStats,
-		realtime: realtimeStats,
-		migrations: migrationStats,
-		summary: {
-			total: totalCount,
-			healthy: healthyCount,
-			unhealthy: totalCount - healthyCount,
-		},
-		nodeEnv: process.env.NODE_ENV || "undefined",
-		timestamp: new Date().toISOString(),
-	});
-});
-
-app.get("/api/config", (req, res) => {
-	const authHeader = req.headers.authorization;
-	if (!authHeader?.startsWith("Bearer ")) {
-		return res.status(401).json({ error: "Token não fornecido" });
-	}
-	try {
-		const jwt = require("jsonwebtoken");
-		const JWT_SECRET = process.env.JWT_SECRET;
-		if (!JWT_SECRET) {
-			return res.status(500).json({ error: "Server misconfiguration" });
-		}
-		jwt.verify(authHeader.split(" ")[1], JWT_SECRET);
-		res.json({ encryptionKey: getServerEncryptionKey() });
-	} catch {
-		res.status(401).json({ error: "Token inválido" });
-	}
-});
-
-// Minimal health endpoint for Northflank/probes — does not require API auth and avoids dynamic imports.
-app.get("/health", async (_req, res) => {
-	try {
-		const { dbRegistry } = await import("./config/databases");
-		const primary = dbRegistry.getPrimary();
-		if (!primary?.pool) {
-			return res.status(503).json({ status: "error", message: "no database" });
-		}
-		await primary.pool.query("SELECT 1");
-		res.status(200).json({ status: "ok", uptime: process.uptime() });
-	} catch (err: any) {
-		res.status(503).json({ status: "error", message: err.message });
-	}
-});
+// Health, config, and /health endpoints migrated to fastify-routes/health.ts
 
 const clientDir = path.join(__dirname, "../client");
 app.use(express.static(clientDir));
 app.use((req, res, next) => {
-	if (req.method !== "GET" || req.path.startsWith("/api")) return next();
+	// Skip catch-all for API routes and /health (handled by Fastify)
+	if (req.method !== "GET" || req.path.startsWith("/api") || req.path === "/health") return next();
 	res.sendFile(path.join(clientDir, "index.html"));
 });
 
