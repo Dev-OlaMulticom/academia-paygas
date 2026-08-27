@@ -10,7 +10,7 @@
 		"build": "bun run --parallel build:client build:server:tsc",
 		"build:server:tsc": "tsc --project tsconfig.server.json",
 		"build:server": "esbuild apps/api/src/server/fastify.ts --bundle --platform=node --format=cjs --packages=external --alias:@shared=./packages/shared/src --outfile=dist/server/index.js",
-		"build:client": "vite build --config apps/web/vite.config.ts",
+		"build:client": "vite build --config apps/web/vite.config.ts && cp -r apps/web/dist/client/. dist/ && mkdir -p dist/client && cp -r apps/web/dist/client/. dist/client/",
 		"preview": "vite preview --config apps/web/vite.config.ts",
 		"start": "node dist/server/index.js",
 		"start:prod": "NODE_ENV=production node dist/server/index.js",
