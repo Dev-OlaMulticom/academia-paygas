@@ -1001,7 +1001,7 @@ export function ModulosPage() {
 											<iframe
 												src={finalUrl}
 												title={mediaModal.title}
-												allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+												allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
 												allowFullScreen
 											/>
 										);

@@ -41,7 +41,7 @@ app.use((_req, res, next) => {
 	);
 	res.set(
 		"Permissions-Policy",
-		"fullscreen=(self), picture-in-picture=(self), accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
+		"fullscreen=*, picture-in-picture=*, accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()",
 	);
 	if (process.env.NODE_ENV === "production") {
 		res.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
