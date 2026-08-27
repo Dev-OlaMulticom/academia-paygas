@@ -10,11 +10,12 @@ let SECRET_KEY = "";
 let keyPromise: Promise<string> | null = null;
 
 async function fetchEncryptionKey(): Promise<string> {
+	const token = localStorage.getItem("token");
+	if (!token) {
+		throw new Error("No autenticado");
+	}
 	try {
-		const token = localStorage.getItem("token");
-		const headers: Record<string, string> = {};
-		if (token) headers.Authorization = `Bearer ${token}`;
-		const res = await fetch(`${API_BASE}/config`, { headers });
+		const res = await fetch(`${API_BASE}/config`, { headers: { Authorization: `Bearer ${token}` } });
 		if (res.ok) {
 			const data = (await res.json()) as { encryptionKey?: string };
 			if (data.encryptionKey) {

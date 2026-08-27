@@ -67,7 +67,7 @@ app.addHook("onSend", async (_request, reply, _payload) => {
 	reply.header("Referrer-Policy", "origin-when-cross-origin");
 	reply.header(
 		"Content-Security-Policy",
-		"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'",
+		"default-src 'self'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.google.com https://www.youtube.com; frame-src 'self' https://www.youtube.com https://*.youtube.com https://drive.google.com https://docs.google.com https://*.google.com; frame-ancestors 'none'",
 	);
 	if (process.env.NODE_ENV === "production") {
 		reply.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");

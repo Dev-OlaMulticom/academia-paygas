@@ -7,7 +7,9 @@ import { prefetchPdfLibs } from "./lib/prefetch";
 
 const queryClient = new QueryClient();
 
-initEncryptionKey().catch(() => {});
+if (localStorage.getItem("token")) {
+	initEncryptionKey().catch(() => {});
+}
 
 // Precarga jspdf/html2canvas en idle (no afecta el bundle inicial)
 prefetchPdfLibs();
