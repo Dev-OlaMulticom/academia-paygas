@@ -193,6 +193,7 @@ model Progresso {
   @@index([aulaId])
   @@index([userId])
   @@index([cursoId], map: "Progresso_moduloId_idx")
+  @@index([userId, concluido])
 }
 
 model Certificate {
@@ -228,6 +229,7 @@ model Notification {
 
   @@index([fromId])
   @@index([toId])
+  @@index([toId, lida])
 }
 
 model ActivityLog {
@@ -240,6 +242,7 @@ model ActivityLog {
 
   @@index([userId])
   @@index([createdAt])
+  @@index([userId, createdAt])
 }
 
 model PointsTransaction {
@@ -254,6 +257,7 @@ model PointsTransaction {
   @@index([userId])
   @@index([createdAt])
   @@index([action])
+  @@unique([userId, action, details])
 }
 
 model ForumPost {
