@@ -1,8 +1,8 @@
-import type { FastifyInstance, FastifyPluginCallback, FastifyRequest, FastifyReply } from "fastify";
+import type { FastifyInstance, FastifyPluginCallback, FastifyReply, FastifyRequest } from "fastify";
+import { authenticate } from "../fastify-plugins/auth";
 import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
-import { authenticate } from "../fastify-plugins/auth";
-import { getTeamPoints, getUserPoints } from "../services/gamification";
+import { getTeamXp, getUserXp } from "../services/gamification";
 
 /**
  * Dashboard routes — migrated from Express routes/dashboard.ts.
@@ -22,7 +22,7 @@ const dashboardRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts,
 				aulasConcluidas,
 				totalQuizzes,
 				recentActivity,
-				userPoints,
+				userXp,
 			] = await Promise.all([
 				drizzleDb.count("curso"),
 				drizzleDb.groupBy("progresso", {
@@ -38,7 +38,7 @@ const dashboardRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts,
 					take: 5,
 					orderBy: { createdAt: "desc" },
 				}),
-				getUserPoints(userId),
+				getUserXp(userId),
 			]);
 
 			const cursosConcluidos = cursosComProgresso.length;
@@ -51,10 +51,10 @@ const dashboardRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts,
 				aulasConcluidas,
 				totalQuizzes,
 				percentual: totalAulas > 0 ? Math.round((aulasConcluidas / totalAulas) * 100) : 0,
-				xp: userPoints.totalXp,
-				level: userPoints.level,
+				xp: userXp.totalXp,
+				level: userXp.level,
 				recentActivity,
-				pointsByAction: userPoints.byAction,
+				xpByAction: userXp.byAction,
 			});
 		} catch (error) {
 			logger.error("[ROUTE ERROR]", error);
@@ -66,7 +66,7 @@ const dashboardRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts,
 	fastify.get("/leaderboard", { preHandler: [authenticate] }, async (request: FastifyRequest, reply: FastifyReply) => {
 		try {
 			const gestorId = request.userRole === "GESTOR" ? request.userId : undefined;
-			const team = await getTeamPoints(gestorId);
+			const team = await getTeamXp(gestorId);
 			return reply.send(team);
 		} catch (error) {
 			logger.error("[ROUTE ERROR]", error);

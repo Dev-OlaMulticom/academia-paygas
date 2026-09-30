@@ -31,7 +31,7 @@ export function PrivacidadePage() {
 							<b>Atividade:</b> progresso em cursos, respostas de quizzes, certificados, logins, logs de auditoria
 						</li>
 						<li>
-							<b>Gamificação:</b> pontos (XP), nível, conquistas, transações de pontuação
+							<b>Gamificação:</b> XP, nível, conquistas, transações de XP
 						</li>
 					</ul>
 

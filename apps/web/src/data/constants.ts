@@ -26,6 +26,40 @@ export const PERSONAS = {
 	ERPS_REPRESENTANTE: { label: "ERPs Representante", ...ROLE_VISUALS.ERPS_REPRESENTANTE },
 };
 
+// Catalog of XP-awarding actions supported by the backend (awardXp/awardXpOnce).
+// Actions without a DB config row use the server-side default values.
+export const XP_ACTIONS: { action: string; label: string; description: string; defaultXp: number }[] = [
+	{ action: "MODULE_OPEN", label: "Abrir módulo", description: "XP ao abrir um módulo/curso", defaultXp: 0.05 },
+	{
+		action: "QUIZ_PASS",
+		label: "Aprovar quiz",
+		description: "XP ao atingir a nota mínima do quiz",
+		defaultXp: 2.0,
+	},
+	{ action: "LESSON_COMPLETE", label: "Concluir lição", description: "XP ao concluir uma lição", defaultXp: 1.0 },
+	{
+		action: "MODULE_COMPLETE",
+		label: "Concluir módulo",
+		description: "XP ao concluir todas as lições de um módulo",
+		defaultXp: 5.0,
+	},
+	{
+		action: "NOTIFICATION_READ",
+		label: "Ler notificação",
+		description: "XP ao marcar uma notificação como lida",
+		defaultXp: 0.05,
+	},
+	{ action: "LOGIN", label: "Login diário", description: "XP ao fazer login (1x por dia)", defaultXp: 0.05 },
+	{
+		action: "CERTIFICATE",
+		label: "Obter certificado",
+		description: "XP ao receber certificado de conclusão",
+		defaultXp: 10.0,
+	},
+	{ action: "QUIZ_CORRECT", label: "Acertar questão", description: "XP por resposta correta em quiz", defaultXp: 0.5 },
+	{ action: "LESSON_VIEW", label: "Visualizar lição", description: "XP ao abrir uma lição", defaultXp: 0.1 },
+];
+
 export const ROLE_COLORS: Record<string, string> = {
 	ADMIN: "var(--pg-red)",
 	GESTOR: "var(--pg-gold)",

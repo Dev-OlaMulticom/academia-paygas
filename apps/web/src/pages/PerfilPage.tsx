@@ -4,8 +4,8 @@ import { PasswordInput } from "../components/PasswordInput";
 import { ROLE_COLORS } from "../data/constants";
 import { useAbility } from "../hooks/useAbility";
 import type { User } from "../hooks/useAuth";
+import { levelForXp, useGameConfig } from "../hooks/useGameConfig";
 import { api } from "../lib/api";
-import { XP_PER_LEVEL } from "../lib/constants";
 
 interface PerfilPageProps {
 	user: User;
@@ -14,6 +14,7 @@ interface PerfilPageProps {
 
 export function PerfilPage({ user, xp }: PerfilPageProps) {
 	const { isAdmin } = useAbility();
+	const gameConfig = useGameConfig();
 	const [stats, setStats] = useState<any>(null);
 	const [teamStats, setTeamStats] = useState<any>(null);
 	const [currentPassword, setCurrentPassword] = useState("");
@@ -85,7 +86,7 @@ export function PerfilPage({ user, xp }: PerfilPageProps) {
 		}
 	};
 
-	const level = Math.floor((xp || 0) / XP_PER_LEVEL) + 1;
+	const level = levelForXp(xp || 0, gameConfig);
 
 	return (
 		<div className="page active">

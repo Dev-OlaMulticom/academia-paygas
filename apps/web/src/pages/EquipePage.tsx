@@ -3,8 +3,8 @@ import { useToast } from "../components/Toast";
 import { PERSONAS } from "../data/constants";
 import { useAbility } from "../hooks/useAbility";
 import type { User } from "../hooks/useAuth";
+import { levelForXp, useGameConfig } from "../hooks/useGameConfig";
 import { api } from "../lib/api";
-import { XP_PER_LEVEL } from "../lib/constants";
 import { pluralize } from "../lib/utils";
 
 interface EquipePageProps {
@@ -21,6 +21,14 @@ interface MemberStat {
 	quizzesAprov: number;
 	quizzesTotal: number;
 	notaMedia: string;
+}
+
+interface EstGroup {
+	key: string;
+	nome: string;
+	cidade?: string;
+	uf?: string;
+	membros: any[];
 }
 
 interface ExportRow {
@@ -63,6 +71,31 @@ const EXPORT_COLUMNS: { key: keyof ExportRow; header: string; w: number; adminOn
 
 const localeCompare = (a: string, b: string) => a.localeCompare(b, "pt-BR", { sensitivity: "base" });
 
+const SEM_ESTABELECIMENTO = "__sem_estabelecimento__";
+
+function groupByEstabelecimento(members: any[]): EstGroup[] {
+	const map = new Map<string, EstGroup>();
+	for (const m of members) {
+		const e = m.estabelecimento;
+		const key = e?.id || e?.nome || SEM_ESTABELECIMENTO;
+		if (!map.has(key)) {
+			map.set(key, {
+				key,
+				nome: e?.nome || "Sem estabelecimento",
+				cidade: e?.cidade,
+				uf: e?.uf,
+				membros: [],
+			});
+		}
+		map.get(key)!.membros.push(m);
+	}
+	return [...map.values()].sort((a, b) => {
+		if (a.key === SEM_ESTABELECIMENTO) return 1;
+		if (b.key === SEM_ESTABELECIMENTO) return -1;
+		return localeCompare(a.nome, b.nome);
+	});
+}
+
 export function EquipePage({ user: _user }: EquipePageProps) {
 	const { isAdmin, isGestor } = useAbility();
 	const { toast } = useToast();
@@ -75,6 +108,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 	const [expandedModulo, setExpandedModulo] = useState<Record<string, boolean>>({});
 	const [expandedAula, setExpandedAula] = useState<Record<string, boolean>>({});
 	const [sortBy, setSortBy] = useState<SortKey>("nome");
+	const gameConfig = useGameConfig();
 	const [exporting, setExporting] = useState<null | "csv" | "pdf">(null);
 	const [search, setSearch] = useState("");
 
@@ -230,7 +264,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 				const detail = detailData.find((d: any) => d.id === m.id);
 				const st = computeStat(detail);
 				const memberXp = m.xp || 0;
-				const level = Math.floor(memberXp / XP_PER_LEVEL) + 1;
+				const level = levelForXp(memberXp, gameConfig);
 				return {
 					nome: m.nome || "",
 					email: m.email || "",
@@ -252,7 +286,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 			});
 			return sortMembers(rows);
 		},
-		[detailData, computeStat, sortMembers],
+		[detailData, computeStat, sortMembers, gameConfig],
 	);
 
 	const allExportRows = useMemo<ExportRow[]>(() => {
@@ -697,9 +731,43 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 		);
 	};
 
+	const renderEstGroup = (group: EstGroup) => {
+		const hasDetail = group.membros.some((m) => getDetailForUser(m.id));
+		const avgPct = hasDetail
+			? Math.round(
+					group.membros.reduce((s, m) => s + computeStat(getDetailForUser(m.id)).pctAulas, 0) / group.membros.length,
+				)
+			: null;
+		return (
+			<div key={group.key} className="eq-est-group">
+				<div className="eq-est-group-header">
+					<i className="icon-building icon-sm" />
+					<div className="eq-est-group-info">
+						<b>{group.nome}</b>
+						{(group.cidade || group.uf) && (
+							<span className="eq-est-group-local">{[group.cidade, group.uf].filter(Boolean).join("/")}</span>
+						)}
+					</div>
+					{avgPct !== null && (
+						<span className="eq-est-group-avg" title="Progresso medio do estabelecimento">
+							<span className="progress-mini eq-est-group-bar">
+								<span className={`progress-mini-fill ${avgPct === 100 ? "done" : ""}`} style={{ width: `${avgPct}%` }} />
+							</span>
+							{avgPct}%
+						</span>
+					)}
+					<span className="eq-est-group-count">
+						{group.membros.length} {pluralize(group.membros.length, "atendente")}
+					</span>
+				</div>
+				<div className="eq-users-list">{group.membros.map(renderAtendenteRow)}</div>
+			</div>
+		);
+	};
+
 	const renderAtendenteRow = (member: any, i: number) => {
 		const memberXp = member.xp || 0;
-		const level = Math.floor(memberXp / XP_PER_LEVEL) + 1;
+		const level = levelForXp(memberXp, gameConfig);
 		const isExpanded = expandedUser === member.id;
 		const detail = getDetailForUser(member.id);
 		const totalMods = detail?.cursos?.length || 0;
@@ -738,13 +806,21 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 							<span className="eq-xp">{memberXp} XP</span>
 						</div>
 						<div className="eq-user-stat eq-user-stat-progress">
-							<div className="progress-mini">
-								<div
-									className={`progress-mini-fill ${(member.progress || 0) === 100 ? "done" : ""}`}
-									style={{ width: `${member.progress || 0}%` }}
-								/>
-							</div>
-							<span className="eq-progress-pct">{member.progress || 0}%</span>
+							{detail ? (
+								<>
+									<div className="progress-mini">
+										<div
+											className={`progress-mini-fill ${stat.pctAulas === 100 ? "done" : ""}`}
+											style={{ width: `${stat.pctAulas}%` }}
+										/>
+									</div>
+									<span className="eq-progress-pct" title="Aulas concluidas">
+										{stat.pctAulas}%
+									</span>
+								</>
+							) : (
+								<span className="eq-progress-pct eq-progress-loading">…</span>
+							)}
 						</div>
 						{detail && (
 							<>
@@ -857,18 +933,21 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 
 	if (isGestor) {
 		const members = sortMembers((Array.isArray(teamData) ? teamData : []).filter((m: any) => matchSearch(m, search)));
+		const groups = groupByEstabelecimento(members);
 		return (
 			<div className="page active">
 				<div className="page-header">
 					<div>
-						<div className="page-title">Minha Equipe</div>
-						<div className="page-subtitle">{members.length} atendente(s) atribuido(s)</div>
+						<div className="page-title">Avanços da minha equipe</div>
+						<div className="page-subtitle">
+							{members.length} atendente(s) atribuido(s) • {groups.length} estabelecimento(s)
+						</div>
 					</div>
 				</div>
 				{renderSummary()}
 				{renderToolbar()}
 				{members.length > 0 ? (
-					<div className="eq-users-list">{members.map(renderAtendenteRow)}</div>
+					groups.map(renderEstGroup)
 				) : (
 					<div className="empty-state">
 						<div className="empty-icon">👥</div>
@@ -887,7 +966,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 		<div className="page active">
 			<div className="page-header">
 				<div>
-					<div className="page-title">Equipes</div>
+					<div className="page-title">Avanços da equipe</div>
 					<div className="page-subtitle">
 						{teams.length} gestor(es) • {totalMembros} atendente(s) no total
 					</div>
@@ -961,7 +1040,7 @@ export function EquipePage({ user: _user }: EquipePageProps) {
 									</div>
 								)}
 								{membros.length > 0 ? (
-									<div className="eq-users-list">{membros.map(renderAtendenteRow)}</div>
+									groupByEstabelecimento(membros).map(renderEstGroup)
 								) : (
 									<div className="eq-team-empty">Nenhum atendente nesta equipe</div>
 								)}

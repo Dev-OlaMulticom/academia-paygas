@@ -4,7 +4,7 @@ import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { gradeQuiz } from "../lib/quiz";
 import { sendNotificationAlertEmail } from "../services/email";
-import { awardPointsIfNotAwarded } from "../services/gamification";
+import { awardXpOnce, getLevelThresholds, levelForXp } from "../services/gamification";
 import { logActivity } from "../services/log";
 import { getStringParam } from "../utils/queryParams";
 
@@ -796,9 +796,9 @@ const cmsRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts, done)
 
 				if (concluido) {
 					if (correct > 0) {
-						await awardPointsIfNotAwarded(request.userId!, "QUIZ_CORRECT", `QUIZ_CORRECT:quiz:${quiz.id}`);
+						await awardXpOnce(request.userId!, "QUIZ_CORRECT", `QUIZ_CORRECT:quiz:${quiz.id}`);
 					}
-					await awardPointsIfNotAwarded(request.userId!, "QUIZ_PASS", `QUIZ_PASS:quiz:${quiz.id}`);
+					await awardXpOnce(request.userId!, "QUIZ_PASS", `QUIZ_PASS:quiz:${quiz.id}`);
 					await logActivity(request.userId!, "Quiz Aprovado", `Quiz: ${quiz.titulo} — Nota ${nota}/10`);
 
 					// Mark lesson as completed only when quiz is passed
@@ -866,7 +866,7 @@ const cmsRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts, done)
 											{ userId: request.userId, cursoId: aula.cursoId, status: certStatus },
 											{},
 										);
-										await awardPointsIfNotAwarded(request.userId!, "CERTIFICATE", `CERTIFICATE:curso:${aula.cursoId}`);
+										await awardXpOnce(request.userId!, "CERTIFICATE", `CERTIFICATE:curso:${aula.cursoId}`);
 										await logActivity(request.userId!, "Certificado Gerado", `Curso: ${curso.titulo}`);
 
 										// Notify gestor when ATENDENTE completes entire module
@@ -953,7 +953,7 @@ const cmsRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts, done)
 			const curso = await drizzleDb.findUnique("curso", { id });
 			if (!curso) return reply.code(404).send({ error: "Curso nao encontrado" });
 
-			await awardPointsIfNotAwarded(request.userId!, "MODULE_OPEN", `MODULE_OPEN:curso:${id}`);
+			await awardXpOnce(request.userId!, "MODULE_OPEN", `MODULE_OPEN:curso:${id}`);
 			await logActivity(request.userId!, "Curso Aberto", `Curso: ${curso.titulo}`);
 
 			return reply.send({ message: "Curso registrado" });
@@ -976,7 +976,7 @@ const cmsRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts, done)
 				if (!aula) return reply.code(404).send({ error: "Aula nao encontrada" });
 
 				// Award LESSON_VIEW points
-				await awardPointsIfNotAwarded(request.userId!, "LESSON_VIEW", `LESSON_VIEW:aula:${aulaId}`);
+				await awardXpOnce(request.userId!, "LESSON_VIEW", `LESSON_VIEW:aula:${aulaId}`);
 				await logActivity(request.userId!, "Licao Visualizada", `Aula: ${aula.titulo}`);
 
 				return reply.send({ message: "Visualização registrada" });
@@ -999,10 +999,11 @@ const cmsRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts, done)
 					take: 20,
 				});
 
+				await getLevelThresholds(); // warm level cache before levelForXp
 				const result = users.map((u: any, i: number) => ({
 					...u,
 					rank: i + 1,
-					level: Math.floor(u.xp / 2000) + 1,
+					level: levelForXp(u.xp),
 				}));
 
 				return reply.send(result);

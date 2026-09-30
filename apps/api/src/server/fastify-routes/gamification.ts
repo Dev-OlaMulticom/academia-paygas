@@ -1,7 +1,8 @@
 import type { FastifyInstance, FastifyPluginCallback, FastifyRequest } from "fastify";
+import { authenticate } from "../fastify-plugins/auth";
 import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
-import { authenticate } from "../fastify-plugins/auth";
+import { getLevelThresholds, levelForXp, xpForNextLevel } from "../services/gamification";
 
 const GAMIFICATION_ACHIEVEMENTS = [
 	{
@@ -196,16 +197,19 @@ const gamificationRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _op
 			const userId = request.userId!;
 			const user = await drizzleDb.findUnique("user", { id: userId }, { select: { xp: true, level: true } });
 
+			await getLevelThresholds(); // warm level cache before levelForXp
 			const totalAulasConcluidas = await drizzleDb.count("progresso", { userId, concluido: true });
 			const totalAulasGlobal = await drizzleDb.count("aula");
+			const xp = user?.xp || 0;
+			const nivelAtual = levelForXp(xp);
+			const xpNext = xpForNextLevel(xp);
 
-			const XP_PER_LEVEL = 2000;
 			return reply.send({
-				xpTotal: user?.xp || 0,
-				nivelAtual: user?.level || 1,
-				proximoNivel: (user?.level || 1) + 1,
-				xpProximoNivel: XP_PER_LEVEL,
-				xpRestante: XP_PER_LEVEL - ((user?.xp || 0) % XP_PER_LEVEL),
+				xpTotal: xp,
+				nivelAtual,
+				proximoNivel: xpNext === null ? nivelAtual : nivelAtual + 1,
+				xpProximoNivel: xpNext ?? 0,
+				xpRestante: xpNext === null ? 0 : Math.max(0, xpNext - xp),
 				aulasConcluidas: totalAulasConcluidas,
 				percentualConclusao: totalAulasGlobal > 0 ? Math.round((totalAulasConcluidas / totalAulasGlobal) * 100) : 0,
 				streak: 1,

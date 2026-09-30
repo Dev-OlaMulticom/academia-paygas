@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAbility } from "../hooks/useAbility";
+import { levelProgress, useGameConfig } from "../hooks/useGameConfig";
 import { api } from "../lib/api";
-import { XP_PER_LEVEL } from "../lib/constants";
 
 interface DashboardPageProps {
 	xp: number;
@@ -17,6 +17,7 @@ const DASH_CACHE_TTL = 5 * 60 * 1000;
 export function DashboardPage({ xp, user }: DashboardPageProps) {
 	const navigate = useNavigate();
 	const { isAdmin } = useAbility();
+	const gameConfig = useGameConfig();
 	const [dashData, setDashData] = useState<any>(() => {
 		// Use cache only if fresh AND same user (avoids cross-user data leakage)
 		if (dashCache && user?.id && Date.now() - dashCache.ts < DASH_CACHE_TTL && dashCache.userId === user.id) {
@@ -46,11 +47,10 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
 		};
 	}, [user?.id]);
 
-	const level = dashData?.level || Math.floor(xp / XP_PER_LEVEL) + 1;
-	const currentLevelXp = (level - 1) * XP_PER_LEVEL;
-	const nextLevelXp = level * XP_PER_LEVEL;
 	const displayXp = dashData?.xp ?? xp ?? 0;
-	const progressPercent = Math.min(((displayXp - currentLevelXp) / (nextLevelXp - currentLevelXp)) * 100, 100);
+	const progress = levelProgress(displayXp, gameConfig);
+	const level = dashData?.level || progress.level;
+	const { nextLevelXp, progressPercent } = progress;
 
 	return (
 		<div className="page active">
@@ -83,7 +83,7 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
 				</div>
 				<div className="gamif-bar-footer">
 					<span>{displayXp} XP</span>
-					<span>{nextLevelXp} XP</span>
+					<span>{nextLevelXp === null ? "Nível máximo" : `${nextLevelXp} XP`}</span>
 				</div>
 			</div>
 
@@ -129,7 +129,7 @@ export function DashboardPage({ xp, user }: DashboardPageProps) {
 						<div className="qa-icon" style={{ background: "#DCFCE7" }}>
 							<i className="icon-bar-chart-3" style={{ color: "#16A34A" }} />
 						</div>
-						<div className="qa-title">Ver Relatorios</div>
+						<div className="qa-title">Estado da gamificação</div>
 						<div className="qa-desc">Acompanhar progresso da equipe</div>
 					</button>
 				)}

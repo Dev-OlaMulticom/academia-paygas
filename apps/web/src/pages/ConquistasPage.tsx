@@ -174,7 +174,7 @@ export function ConquistasPage({ user: _user }: ConquistasPageProps) {
 				<div>
 					<div className="page-title">Conquistas</div>
 					<div className="page-subtitle">
-						{canManage ? "Gerencie as conquistas e premios da plataforma" : "Desbloqueie conquistas acumulando pontos"}
+						{canManage ? "Gerencie as conquistas e premios da plataforma" : "Desbloqueie conquistas acumulando XP"}
 					</div>
 				</div>
 				{canManage && (
@@ -223,7 +223,7 @@ export function ConquistasPage({ user: _user }: ConquistasPageProps) {
 
 							<div className="conq-meta">
 								<span className="conq-meta-item">
-									<span className="conq-meta-orange">{c.pontosMinimos}</span> pts
+									<span className="conq-meta-orange">{c.pontosMinimos}</span> XP
 								</span>
 								<span className="conq-meta-item">
 									<span className="conq-meta-green">+{c.xpRecompensa}</span> XP
@@ -243,7 +243,7 @@ export function ConquistasPage({ user: _user }: ConquistasPageProps) {
 								<div className="conq-progress">
 									<div className="conq-progress-header">
 										<span>{c.progresso || 0}% concluido</span>
-										<span>{c.pontosMinimos} pts</span>
+										<span>{c.pontosMinimos} XP</span>
 									</div>
 									<div className="conq-progress-bar">
 										<div
@@ -341,7 +341,7 @@ export function ConquistasPage({ user: _user }: ConquistasPageProps) {
 
 						<div className="form-grid-2">
 							<div className="form-field">
-								<label className="form-label">Pontos Minimos</label>
+								<label className="form-label">XP Mínimo</label>
 								<input
 									className="form-input"
 									type="number"

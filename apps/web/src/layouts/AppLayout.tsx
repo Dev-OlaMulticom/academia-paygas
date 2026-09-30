@@ -105,7 +105,7 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
 				<div className={`sidebar-overlay ${sidebarOpen ? "open" : ""}`} onClick={() => setSidebarOpen(false)}></div>
 				<nav className={`sidebar ${sidebarOpen ? "open" : ""}`}>
 					<div className="sidebar-section">
-						<div className="sidebar-section-label">Principal</div>
+						<div className="sidebar-section-label">Aprendizado</div>
 						{isModuleEnabled("dashboard") && (
 							<button
 								id="nav-dashboard"
@@ -142,20 +142,10 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
 								<i className="icon-trophy nav-icon" /> Certificados
 							</button>
 						)}
-						<button
-							id="nav-conquistas"
-							className={`nav-item ${currentPath === "/conquistas" ? "active" : ""}`}
-							onClick={() => {
-								setSidebarOpen(false);
-								navigate("/conquistas");
-							}}
-						>
-							<i className="icon-star nav-icon" /> Conquistas
-						</button>
 					</div>
 					{(isAdmin || isGestor) && (
 						<div className="sidebar-section">
-							<div className="sidebar-section-label">Gestao</div>
+							<div className="sidebar-section-label">Gestão</div>
 							{isAdmin && (
 								<button
 									id="nav-admin-dashboard"
@@ -177,7 +167,7 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
 										navigate("/cms");
 									}}
 								>
-									<i className="icon-file-edit nav-icon" /> Gestao de Conteudo
+									<i className="icon-file-edit nav-icon" /> Gestão de Conteúdo
 								</button>
 							)}
 							{isModuleEnabled("equipe") && isAdmin && (
@@ -189,7 +179,7 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
 										navigate("/equipe");
 									}}
 								>
-									<i className="icon-users nav-icon" /> Equipes
+									<i className="icon-users nav-icon" /> Avanços da Equipe
 								</button>
 							)}
 							{isModuleEnabled("usuarios") && (
@@ -201,19 +191,7 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
 										navigate("/usuarios");
 									}}
 								>
-									<i className="icon-user-cog nav-icon" /> {isAdmin ? "Usuarios" : "Meu Time"}
-								</button>
-							)}
-							{isModuleEnabled("relatorios") && (
-								<button
-									id="nav-relatorios"
-									className={`nav-item ${currentPath === "/relatorios" ? "active" : ""}`}
-									onClick={() => {
-										setSidebarOpen(false);
-										navigate("/relatorios");
-									}}
-								>
-									<i className="icon-bar-chart-3 nav-icon" /> Relatorios
+									<i className="icon-user-cog nav-icon" /> {isAdmin ? "Usuários" : "Meu Time"}
 								</button>
 							)}
 							{isAdmin && (
@@ -228,20 +206,45 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
 									<i className="icon-clipboard nav-icon" /> Logs de Atividade
 								</button>
 							)}
-							{isAdmin && (
-								<button
-									id="nav-xp-config"
-									className={`nav-item ${currentPath === "/xp-config" ? "active" : ""}`}
-									onClick={() => {
-										setSidebarOpen(false);
-										navigate("/xp-config");
-									}}
-								>
-									<i className="icon-zap nav-icon" /> Configuracao de XP
-								</button>
-							)}
 						</div>
 					)}
+					<div className="sidebar-section">
+						<div className="sidebar-section-label">Gamificação</div>
+						<button
+							id="nav-conquistas"
+							className={`nav-item ${currentPath === "/conquistas" ? "active" : ""}`}
+							onClick={() => {
+								setSidebarOpen(false);
+								navigate("/conquistas");
+							}}
+						>
+							<i className="icon-star nav-icon" /> Conquistas
+						</button>
+						{(isAdmin || isGestor) && isModuleEnabled("relatorios") && (
+							<button
+								id="nav-relatorios"
+								className={`nav-item ${currentPath === "/relatorios" ? "active" : ""}`}
+								onClick={() => {
+									setSidebarOpen(false);
+									navigate("/relatorios");
+								}}
+							>
+								<i className="icon-bar-chart-3 nav-icon" /> Estado da Gamificação
+							</button>
+						)}
+						{isAdmin && (
+							<button
+								id="nav-xp-config"
+								className={`nav-item ${currentPath === "/xp-config" ? "active" : ""}`}
+								onClick={() => {
+									setSidebarOpen(false);
+									navigate("/xp-config");
+								}}
+							>
+								<i className="icon-zap nav-icon" /> Configuração de XP
+							</button>
+						)}
+					</div>
 					<div className="sidebar-section">
 						<div className="sidebar-section-label">Suporte</div>
 						{isModuleEnabled("notificacoes") && (
@@ -253,7 +256,7 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
 									navigate("/notif");
 								}}
 							>
-								<i className="icon-bell nav-icon" /> Notificacoes
+								<i className="icon-bell nav-icon" /> Notificações
 								{unreadCount > 0 && <span className="nav-badge">{unreadCount}</span>}
 							</button>
 						)}
@@ -286,7 +289,7 @@ export function AppLayout({ user, onLogout, children }: AppLayoutProps) {
 								{persona?.initials}
 							</div>
 							<div className="user-info">
-								<b>{user?.nome || "Usuario"}</b>
+								<b>{user?.nome || "Usuário"}</b>
 								<span>{_roleLabel}</span>
 							</div>
 						</div>

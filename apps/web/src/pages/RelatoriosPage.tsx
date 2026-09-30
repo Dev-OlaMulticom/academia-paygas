@@ -114,14 +114,14 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
 				]);
 			}
 		}
-		if (stats?.pointsByAction && stats.pointsByAction.length > 0) {
+		if (stats?.xpByAction && stats.xpByAction.length > 0) {
 			rows.push([]);
-			rows.push(["Pontos por Acao"]);
+			rows.push(["XP por Ação"]);
 			rows.push(["Acao", "Total XP", "Quantidade"]);
-			for (const item of stats.pointsByAction) {
+			for (const item of stats.xpByAction) {
 				rows.push([
 					escapeCsvField(ACTION_LABELS[item.action] || item.action),
-					escapeCsvField(item.totalPoints),
+					escapeCsvField(item.totalXp),
 					escapeCsvField(item.count),
 				]);
 			}
@@ -150,7 +150,7 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
 	return (
 		<div className="page active">
 			<div className="page-header">
-				<div className="page-title">Relatorios</div>
+				<div className="page-title">Estado da gamificação</div>
 				<div className="cms-header-actions">
 					<button className="btn-secondary" onClick={handleExportCsv}>
 						<i className="icon-download icon-xs" /> Baixar CSV
@@ -178,11 +178,11 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
 				))}
 			</div>
 
-			{stats?.pointsByAction && stats.pointsByAction.length > 0 && (
+			{stats?.xpByAction && stats.xpByAction.length > 0 && (
 				<>
-					<div className="section-title">Pontos por Acao</div>
+					<div className="section-title">XP por Ação</div>
 					<div className="rel-action-grid">
-						{stats.pointsByAction.map((item: any) => (
+						{stats.xpByAction.map((item: any) => (
 							<div
 								key={item.action}
 								className="rel-action-card"
@@ -190,7 +190,7 @@ export function RelatoriosPage({ user }: RelatoriosPageProps) {
 							>
 								<div className="rel-action-label">{ACTION_LABELS[item.action] || item.action}</div>
 								<div className="rel-action-val" style={{ color: ACTION_COLORS[item.action] || "#666" }}>
-									{item.totalPoints} XP
+									{item.totalXp} XP
 								</div>
 								<div className="rel-action-count">{item.count}x realizado</div>
 							</div>

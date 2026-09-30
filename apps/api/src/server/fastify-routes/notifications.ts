@@ -3,6 +3,7 @@ import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { authenticate, authorize } from "../fastify-plugins/auth";
 import { sendNotificationAlertEmail } from "../services/email";
+import { awardXpOnce } from "../services/gamification";
 import { getStringParam } from "../utils/queryParams";
 
 /**
@@ -124,6 +125,9 @@ const notificationsRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _o
 				if (notif.toId !== request.userId) return reply.code(403).send({ error: "Sem permissao" });
 
 				const updated = await drizzleDb.update("notification", { id }, { lida: true });
+				if (!notif.lida) {
+					await awardXpOnce(request.userId!, "NOTIFICATION_READ", `NOTIFICATION_READ:${id}`);
+				}
 				return reply.send(updated);
 			} catch (error) {
 				logger.error("[ROUTE ERROR]", error);
@@ -138,7 +142,15 @@ const notificationsRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _o
 		{ preHandler: [authenticate] },
 		async (request: FastifyRequest, reply: FastifyReply) => {
 			try {
+				const unread = (await drizzleDb.findMany("notification", {
+					where: { toId: request.userId, lida: false },
+				})) as any[];
 				await drizzleDb.updateMany("notification", { toId: request.userId, lida: false }, { lida: true });
+				await Promise.all(
+					unread.map((n: any) =>
+						awardXpOnce(request.userId!, "NOTIFICATION_READ", `NOTIFICATION_READ:${n.id}`),
+					),
+				);
 				return reply.send({ success: true });
 			} catch (error) {
 				logger.error("[ROUTE ERROR]", error);

@@ -4,7 +4,7 @@ import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { PayGasSSOError, type PayGasSSOResponse, validateSSOTicketWithRaw } from "../lib/paygas-sso-client";
 import { JWT_SECRET } from "../fastify-plugins/auth";
-import { awardLoginPointsDaily } from "../services/gamification";
+import { awardLoginXpDaily } from "../services/gamification";
 import { ensureGestorAssigned } from "../services/gestor-assignment";
 import { logActivity } from "../services/log";
 import { findOrCreateSSOUser } from "../services/sso-user-sync";
@@ -142,7 +142,7 @@ const ssoRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts, done)
 		}
 
 		try {
-			await awardLoginPointsDaily(user.id);
+			await awardLoginXpDaily(user.id);
 			await logActivity(user.id, "Login SSO", "Acesso via SSO PayGas");
 			await drizzleDb.update("user", { id: user.id }, { lastLogin: new Date() });
 		} catch (err) {

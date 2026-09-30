@@ -24,6 +24,7 @@ Reglas documentadas para evitar breakage en pantallas pequeñas:
 | `.lesson-sidebar-header h3` | truncado a 2 líneas con `-webkit-line-clamp: 2` | `src/index.css` |
 | `.media-modal-overlay` | centrado vertical (`align-items: center; padding: 12px`) | `src/index.css` |
 | `.media-modal` | `border-radius: 12px; max-height: 85vh` (no bottom-sheet) | `src/index.css` |
+| `.eq-est-group-info b` | `white-space: normal; word-break: break-word` (nombre del estabelecimento) | `src/index.css` |
 
 **Regla general:** Si un elemento usa `white-space: nowrap`, se debe agregar un override `@media (max-width: 800px) { white-space: normal; word-break: break-word; }` para pantallas pequeñas.
 

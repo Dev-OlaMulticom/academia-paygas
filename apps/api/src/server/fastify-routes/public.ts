@@ -1,6 +1,7 @@
 import type { FastifyInstance, FastifyPluginCallback } from "fastify";
 import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
+import { getLevelThresholds, XP_PER_LEVEL } from "../services/gamification";
 
 /**
  * GET /api/public/stats
@@ -36,7 +37,8 @@ const publicRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts, do
 	fastify.get("/config", async (_request, reply) => {
 		try {
 			return reply.send({
-				xpPerLevel: 2000,
+				xpPerLevel: XP_PER_LEVEL,
+				levels: await getLevelThresholds(),
 				version: "V27",
 				platform: "Academia PayGas",
 			});

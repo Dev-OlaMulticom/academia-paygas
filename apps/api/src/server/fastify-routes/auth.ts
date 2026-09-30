@@ -6,7 +6,7 @@ import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { JWT_SECRET } from "../fastify-plugins/auth";
 import { isEmailConfigured, sendPasswordResetEmail, sendPayGasAccessEmail } from "../services/email";
-import { awardLoginPointsDaily } from "../services/gamification";
+import { awardLoginXpDaily } from "../services/gamification";
 import { logActivity } from "../services/log";
 import {
 	generateTemporaryPassword,
@@ -64,7 +64,7 @@ const authRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts, done
 
 			await drizzleDb.update("user", { id: user.id }, { lastLogin: new Date() });
 
-			await awardLoginPointsDaily(user.id);
+			await awardLoginXpDaily(user.id);
 
 			await logActivity(user.id, "Login", `Acesso de ${user.email}`);
 
@@ -347,7 +347,7 @@ const authRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts, done
 				}
 			}
 
-			await awardLoginPointsDaily(user.id);
+			await awardLoginXpDaily(user.id);
 			await logActivity(user.id, "Login PayGas", `Acesso via PayGas (${isNewlyCreated ? "novo" : "existente"})`);
 			await drizzleDb.update("user", { id: user.id }, { lastLogin: new Date() });
 

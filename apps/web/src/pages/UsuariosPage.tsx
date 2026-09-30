@@ -7,6 +7,7 @@ import { useConfirm, useToast } from "../components/Toast";
 import { PERSONAS } from "../data/constants";
 import { useAbility } from "../hooks/useAbility";
 import type { User } from "../hooks/useAuth";
+import { levelForXp, useGameConfig } from "../hooks/useGameConfig";
 import { api } from "../lib/api";
 
 interface UsuariosPageProps {
@@ -17,6 +18,7 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 	const { toast } = useToast();
 	const { confirm } = useConfirm();
 	const { isAdmin, isGestor } = useAbility();
+	const gameConfig = useGameConfig();
 	const [showCreateModal, setShowCreateModal] = useState(false);
 	const [editingUser, setEditingUser] = useState<any>(null);
 	const [newUser, setNewUser] = useState({ nome: "", email: "", senha: "", role: "", gestorId: "" });
@@ -399,11 +401,11 @@ export function UsuariosPage({ user }: UsuariosPageProps) {
 														</div>
 														<div className="row-detail-item">
 															<span className="row-detail-label">XP</span>
-															<span className="row-detail-value">{u.xp || 0} pontos</span>
+															<span className="row-detail-value">{u.xp || 0} XP</span>
 														</div>
 														<div className="row-detail-item">
 															<span className="row-detail-label">Nivel</span>
-															<span className="row-detail-value">{Math.floor((u.xp || 0) / 2000) + 1}</span>
+															<span className="row-detail-value">{levelForXp(u.xp || 0, gameConfig)}</span>
 														</div>
 														<div className="row-detail-item">
 															<span className="row-detail-label">Ultimo Acesso</span>

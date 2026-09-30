@@ -68,3 +68,6 @@ test-api.js
 
 # Generated Prisma clients (build artifacts)
 /prisma/generated/
+
+# graft's local graph cache — regenerable, not committed (run `graft build`).
+/graft/

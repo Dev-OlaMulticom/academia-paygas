@@ -3,7 +3,7 @@ export function AjudaPage() {
 		{
 			icon: "icon-layout",
 			title: "Dashboard",
-			desc: "Visao geral do seu desempenho na plataforma. Exibe estatisticas de cursos concluidos, pontos XP acumulados e conquistas desbloqueadas. Caso nao veja dados, verifique se existem cursos publicados e se voce ja comecou alguma trilha de aprendizado.",
+			desc: "Visao geral do seu desempenho na plataforma. Exibe estatisticas de cursos concluidos, XP acumulado e conquistas desbloqueadas. Caso nao veja dados, verifique se existem cursos publicados e se voce ja comecou alguma trilha de aprendizado.",
 		},
 		{
 			icon: "icon-book-open",
@@ -18,7 +18,7 @@ export function AjudaPage() {
 		{
 			icon: "icon-star",
 			title: "Conquistas",
-			desc: "Medalhas e recompensas por suas atividades na plataforma. Se um usuario nao visualiza conquistas, pode ser porque nenhuma conquista foi criada pelo administrador ou porque o usuario ainda nao atingiu os pontos necessarios para desbloquea-las. As conquistas sao desbloqueadas automaticamente ao completar acoes como concluir aulas, responder quizzes ou acumular XP.",
+			desc: "Medalhas e recompensas por suas atividades na plataforma. Se um usuario nao visualiza conquistas, pode ser porque nenhuma conquista foi criada pelo administrador ou porque o usuario ainda nao atingiu o XP necessario para desbloquea-las. As conquistas sao desbloqueadas automaticamente ao completar acoes como concluir aulas, responder quizzes ou acumular XP.",
 		},
 		{
 			icon: "icon-bar-chart-2",
@@ -32,8 +32,8 @@ export function AjudaPage() {
 		},
 		{
 			icon: "icon-users",
-			title: "Equipes",
-			desc: "Gerencie equipes de trabalho. Crie e organize equipes, atribua gestores, visualize o progresso dos membros por aula e aprove automaticamente quizzes e certificados. Um gestor de equipe pode liberar quizzes bloqueados para seus membros usando o botao de auto-aprovacao. Para criar uma equipe, va em Gestao de Conteudo e acesse a aba de equipes.",
+			title: "Avanços da equipe",
+			desc: "Acompanhe o avanço das equipes de trabalho agrupadas por gestor e estabelecimento. Visualize o progresso dos membros por aula e aprove automaticamente quizzes e certificados. Um gestor de equipe pode liberar quizzes bloqueados para seus membros usando o botao de auto-aprovacao. Para criar uma equipe, va em Gestao de Conteudo e acesse a aba de equipes.",
 		},
 		{
 			icon: "icon-user-plus",
@@ -42,8 +42,8 @@ export function AjudaPage() {
 		},
 		{
 			icon: "icon-file-text",
-			title: "Relatorios",
-			desc: "Relatorios detalhados de desempenho dos usuarios e cursos. Filtre por periodo, curso ou usuario. Exporte dados para analise e acompanhe metricas de conclusao, notas de quizzes e tempo de estudo. Util para identificar gaps de aprendizado e ajustar o conteudo das trilhas.",
+			title: "Estado da gamificação",
+			desc: "Visao geral do estado da gamificacao: XP por acao, ranking e desempenho por curso. Exporte os dados em CSV para analise e acompanhe metricas de conclusao e notas de quizzes.",
 		},
 		{
 			icon: "icon-activity",
@@ -53,7 +53,7 @@ export function AjudaPage() {
 		{
 			icon: "icon-zap",
 			title: "Configuracao de XP",
-			desc: "Configure o sistema de pontos XP da plataforma. Defina quantos pontos cada acao concede (concluir aula, responder quiz, acessar conteudo, etc.) e gerencie as recompensas por atividades. Os pontos sao acumulados automaticamente e exibidos no Dashboard e no perfil do usuario. Se um usuario nao recebe XP, verifique se a acao correspondente esta configurada nesta tela.",
+			desc: "Configure o sistema de XP da plataforma. Defina quanto XP cada acao concede (concluir aula, responder quiz, acessar conteudo, etc.) e gerencie as recompensas por atividades. O XP e acumulado automaticamente e exibido no Dashboard e no perfil do usuario. Se um usuario nao recebe XP, verifique se a acao correspondente esta configurada nesta tela.",
 		},
 		{
 			icon: "icon-bell",

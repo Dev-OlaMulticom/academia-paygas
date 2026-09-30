@@ -5,7 +5,7 @@ import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
 import { authenticate, authorize } from "../fastify-plugins/auth";
 import { sendVerificationEmail } from "../services/email";
-import { awardPointsIfNotAwarded } from "../services/gamification";
+import { awardXpOnce } from "../services/gamification";
 import { logActivity } from "../services/log";
 import { getStringParam } from "../utils/queryParams";
 import { passedQuizResult } from "../lib/quiz";
@@ -156,7 +156,7 @@ const usuariosRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts, 
 				})) as any;
 
 				await logActivity(request.userId!, "Criar Usuario", `Criou ${role}: ${nome} (${email})`);
-				await awardPointsIfNotAwarded(request.userId!, "MODULE_OPEN", `USER_CREATE:${user.id}`);
+				await awardXpOnce(request.userId!, "MODULE_OPEN", `USER_CREATE:${user.id}`);
 
 				sendVerificationEmail(email, nome, verificationToken).then((r) => {
 					if (!r.success) logger.warn(`[EMAIL] Falha verificacao para ${email}: ${r.error}`);
@@ -669,7 +669,7 @@ const usuariosRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts, 
 				);
 
 				await logActivity(request.userId!, "Validar Conta", `Validou conta de: ${user.nome}`);
-				await awardPointsIfNotAwarded(request.userId!, "LESSON_COMPLETE", `VALIDATE_ACCOUNT:${id}`);
+				await awardXpOnce(request.userId!, "LESSON_COMPLETE", `VALIDATE_ACCOUNT:${id}`);
 
 				return reply.send({ message: "Conta validada com sucesso!" });
 			} catch (error) {
@@ -897,7 +897,7 @@ const usuariosRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts, 
 				}
 
 				await drizzleDb.create("certificate", { userId, cursoId, status: "APPROVED" });
-				await awardPointsIfNotAwarded(userId, "CERTIFICATE", `CERTIFICATE:curso:${cursoId}`);
+				await awardXpOnce(userId, "CERTIFICATE", `CERTIFICATE:curso:${cursoId}`);
 				await logActivity(
 					request.userId!,
 					"Fix Certificado",

@@ -1,28 +1,28 @@
 import "dotenv/config";
 import { drizzleDb } from "../../../apps/api/src/server/lib/drizzle-db";
-import { getUserPoints, getTeamPoints } from "../../../apps/api/src/server/services/gamification";
+import { getTeamXp, getUserXp } from "../../../apps/api/src/server/services/gamification";
 
 async function main() {
 	const user = await drizzleDb.findFirst("user", { role: "ADMIN" }, { orderBy: { createdAt: "desc" } });
 	if (!user) throw new Error("no admin user");
 
-	const userPoints = await getUserPoints(user.id);
-	console.log("[DRIZZLE-SERVICES] getUserPoints:", {
-		totalXp: userPoints.totalXp,
-		level: userPoints.level,
-		transactionsCount: userPoints.transactions.length,
-		byActionCount: userPoints.byAction.length,
+	const userXp = await getUserXp(user.id);
+	console.log("[DRIZZLE-SERVICES] getUserXp:", {
+		totalXp: userXp.totalXp,
+		level: userXp.level,
+		transactionsCount: userXp.transactions.length,
+		byActionCount: userXp.byAction.length,
 	});
 
-	const teamPoints = await getTeamPoints();
-	console.log("[DRIZZLE-SERVICES] getTeamPoints (all):", {
-		users: teamPoints.users.length,
-		totalXp: teamPoints.totalXp,
-		averageXp: teamPoints.averageXp,
+	const teamXp = await getTeamXp();
+	console.log("[DRIZZLE-SERVICES] getTeamXp (all):", {
+		users: teamXp.users.length,
+		totalXp: teamXp.totalXp,
+		averageXp: teamXp.averageXp,
 	});
 
-	const gestorTeam = await getTeamPoints(user.id);
-	console.log("[DRIZZLE-SERVICES] getTeamPoints (gestor):", {
+	const gestorTeam = await getTeamXp(user.id);
+	console.log("[DRIZZLE-SERVICES] getTeamXp (gestor):", {
 		users: gestorTeam.users.length,
 		totalXp: gestorTeam.totalXp,
 	});

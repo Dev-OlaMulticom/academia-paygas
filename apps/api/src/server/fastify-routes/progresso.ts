@@ -2,7 +2,7 @@ import type { FastifyInstance, FastifyPluginCallback, FastifyReply, FastifyReque
 import { authenticate } from "../fastify-plugins/auth";
 import { drizzleDb } from "../lib/drizzle-db";
 import logger from "../lib/logger";
-import { awardPointsIfNotAwarded } from "../services/gamification";
+import { awardXpOnce } from "../services/gamification";
 import { logActivity } from "../services/log";
 
 /**
@@ -47,7 +47,7 @@ const progressoRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts,
 			// Award points for lesson completion (only if newly completed)
 			if (!existing?.concluido && concluido !== false) {
 				const aula = (await drizzleDb.findUnique("aula", { id: aulaId })) as any;
-				await awardPointsIfNotAwarded(request.userId!, "LESSON_COMPLETE", `LESSON_COMPLETE:aula:${aulaId}`);
+				await awardXpOnce(request.userId!, "LESSON_COMPLETE", `LESSON_COMPLETE:aula:${aulaId}`);
 				await logActivity(request.userId!, "Aula Concluida", `Aula: ${aula?.titulo || aulaId}`);
 
 				// Check if all aulas in the curso are completed
@@ -62,7 +62,7 @@ const progressoRoutes: FastifyPluginCallback = (fastify: FastifyInstance, _opts,
 					const aulas = (await drizzleDb.findMany("aula", { where: { cursoId } })) as any[];
 
 					if (completedCount >= aulas.length) {
-						await awardPointsIfNotAwarded(request.userId!, "MODULE_COMPLETE", `MODULE_COMPLETE:curso:${cursoId}`);
+						await awardXpOnce(request.userId!, "MODULE_COMPLETE", `MODULE_COMPLETE:curso:${cursoId}`);
 						await logActivity(request.userId!, "Curso Concluido", `Curso: ${curso.titulo}`);
 					}
 				}
