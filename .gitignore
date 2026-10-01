@@ -28,6 +28,7 @@ wordpress-plugin-academia-paygas/
 .env.staging
 *.zip
 *.csv
+*.pdf
 
 # Build output
 dist/
