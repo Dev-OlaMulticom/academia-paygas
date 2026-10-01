@@ -67,7 +67,7 @@ app.addHook("onSend", async (_request, reply, _payload) => {
 	reply.header("Referrer-Policy", "origin-when-cross-origin");
 	reply.header(
 		"Content-Security-Policy",
-		"default-src 'self'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.google.com https://www.youtube.com; frame-src 'self' https://www.youtube.com https://*.youtube.com https://drive.google.com https://docs.google.com https://*.google.com; frame-ancestors 'none'",
+		"default-src 'self'; script-src 'self' 'unsafe-inline' https://www.youtube.com https://s.ytimg.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https://*.google.com https://www.youtube.com https://cloudflareinsights.com; frame-src 'self' https://www.youtube.com https://*.youtube.com https://drive.google.com https://docs.google.com https://*.google.com; frame-ancestors 'none'",
 	);
 	reply.header(
 		"Permissions-Policy",
@@ -153,7 +153,9 @@ const start = async () => {
 
 			app.setNotFoundHandler((request, reply) => {
 				const url = request.raw.url || "/";
-				if ((request.method === "GET" || request.method === "HEAD") && !url.startsWith("/api")) {
+				const pathname = url.split("?")[0];
+				const looksLikeFile = /\.[a-zA-Z0-9]{1,10}$/.test(pathname);
+				if ((request.method === "GET" || request.method === "HEAD") && !url.startsWith("/api") && !looksLikeFile) {
 					reply.header("Cache-Control", "no-cache");
 					return reply.sendFile("index.html");
 				}
